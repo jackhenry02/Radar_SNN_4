@@ -1,0 +1,102 @@
+{
+  "name": "experiment_1_learned_features",
+  "title": "Experiment 1: Learned Feature Extraction",
+  "description": "Replace handcrafted pathway features with learnable cochlear, delay, and spectral modules.",
+  "rationale": "Learnable filters and temporal kernels may adapt better to the synthetic echo statistics than fixed heuristics.",
+  "config": {
+    "feature_mode": "learned",
+    "loss_mode": "baseline",
+    "use_resonant": false,
+    "use_sconv": false,
+    "learning_rate": 0.002505273561760649,
+    "batch_size": 16,
+    "epochs": 14
+  },
+  "decision": "REJECTED",
+  "accepted": false,
+  "compared_against": "baseline",
+  "val_metrics": {
+    "distance_mae_m": 0.07216472923755646,
+    "azimuth_mae_deg": 22.670642852783203,
+    "elevation_mae_deg": 14.357324600219727,
+    "combined_error": 0.22375594079494476,
+    "mean_spike_rate": 0.136932373046875
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.0719393938779831,
+    "azimuth_mae_deg": 21.343181610107422,
+    "elevation_mae_deg": 15.288698196411133,
+    "combined_error": 0.22798338532447815,
+    "mean_spike_rate": 0.1371372789144516
+  },
+  "training": {
+    "best_epoch": 8,
+    "best_val_combined_error": 0.22375594079494476,
+    "train_loss": [
+      0.5384659636765718,
+      0.4680056553333998,
+      0.4664084743708372,
+      0.4657256854698062,
+      0.4653614079579711,
+      0.4648055685684085,
+      0.4644401902332902,
+      0.4638892821967602,
+      0.4625085601583123,
+      0.4621436968445778,
+      0.4610326620750129,
+      0.45918434020131826,
+      0.4543814156204462,
+      0.4438208658248186
+    ],
+    "val_loss": [
+      0.44291403889656067,
+      0.4394834041595459,
+      0.4382656216621399,
+      0.4380300045013428,
+      0.4376944899559021,
+      0.43775680661201477,
+      0.43720439076423645,
+      0.4367665648460388,
+      0.43600261211395264,
+      0.43623462319374084,
+      0.4353707730770111,
+      0.4338451027870178,
+      0.42847901582717896,
+      0.4197525382041931
+    ],
+    "val_combined_error": [
+      0.24485190212726593,
+      0.23176240921020508,
+      0.2279418706893921,
+      0.22993060946464539,
+      0.22789502143859863,
+      0.22817501425743103,
+      0.2265598326921463,
+      0.22620734572410583,
+      0.22375594079494476,
+      0.22538477182388306,
+      0.22531268000602722,
+      0.23112855851650238,
+      0.2306189388036728,
+      0.2302725911140442
+    ],
+    "uncertainty_state": null
+  },
+  "comparison": {
+    "against_active": {
+      "combined_error_delta": 0.14765135943889618,
+      "distance_mae_delta": 0.019193843007087708,
+      "azimuth_mae_delta": 17.99006962776184,
+      "elevation_mae_delta": 9.171460628509521,
+      "spike_rate_delta": -0.1185520738363266
+    },
+    "against_baseline": {
+      "combined_error_delta": 0.14765135943889618,
+      "distance_mae_delta": 0.019193843007087708,
+      "azimuth_mae_delta": 17.99006962776184,
+      "elevation_mae_delta": 9.171460628509521,
+      "spike_rate_delta": -0.1185520738363266
+    }
+  },
+  "artifacts": {}
+}

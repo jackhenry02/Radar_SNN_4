@@ -1,0 +1,102 @@
+{
+  "name": "experiment_2_compound_loss",
+  "title": "Experiment 2: Compound Loss Function",
+  "description": "Switch from the baseline weighted SmoothL1 loss to pathway-aligned per-task losses plus spike penalty.",
+  "rationale": "Separating distance, azimuth, and elevation losses should align optimization with the architecture split.",
+  "config": {
+    "feature_mode": "handcrafted",
+    "loss_mode": "compound",
+    "use_resonant": false,
+    "use_sconv": false,
+    "learning_rate": 0.003131591952200811,
+    "batch_size": 32,
+    "epochs": 14
+  },
+  "decision": "REJECTED",
+  "accepted": false,
+  "compared_against": "baseline",
+  "val_metrics": {
+    "distance_mae_m": 0.04127079248428345,
+    "azimuth_mae_deg": 22.60555076599121,
+    "elevation_mae_deg": 14.336188316345215,
+    "combined_error": 0.2205507755279541,
+    "mean_spike_rate": 0.1964329332113266
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.03997458145022392,
+    "azimuth_mae_deg": 21.352191925048828,
+    "elevation_mae_deg": 15.29820728302002,
+    "combined_error": 0.22561702132225037,
+    "mean_spike_rate": 0.195770263671875
+  },
+  "training": {
+    "best_epoch": 13,
+    "best_val_combined_error": 0.2205507755279541,
+    "train_loss": [
+      0.6244283299893141,
+      0.3476707972586155,
+      0.31382537446916103,
+      0.30548846907913685,
+      0.30405933782458305,
+      0.30350346863269806,
+      0.3025888931006193,
+      0.3007209226489067,
+      0.2991381958127022,
+      0.29810122214257717,
+      0.3004092965275049,
+      0.29986595176160336,
+      0.29809504095464945,
+      0.297133969143033
+    ],
+    "val_loss": [
+      0.3580785393714905,
+      0.31524619460105896,
+      0.29876965284347534,
+      0.29663822054862976,
+      0.299846887588501,
+      0.3029308319091797,
+      0.2948450744152069,
+      0.29454872012138367,
+      0.2965330183506012,
+      0.297191858291626,
+      0.2940525710582733,
+      0.2919679880142212,
+      0.29154378175735474,
+      0.29044219851493835
+    ],
+    "val_combined_error": [
+      0.24478884041309357,
+      0.22700393199920654,
+      0.22276675701141357,
+      0.2221478372812271,
+      0.22260934114456177,
+      0.22317180037498474,
+      0.22140897810459137,
+      0.22140921652317047,
+      0.22178900241851807,
+      0.22221729159355164,
+      0.22115114331245422,
+      0.22088214755058289,
+      0.220672607421875,
+      0.2205507755279541
+    ],
+    "uncertainty_state": null
+  },
+  "comparison": {
+    "against_active": {
+      "combined_error_delta": 0.1452849954366684,
+      "distance_mae_delta": -0.012770969420671463,
+      "azimuth_mae_delta": 17.999079942703247,
+      "elevation_mae_delta": 9.180969715118408,
+      "spike_rate_delta": -0.0599190890789032
+    },
+    "against_baseline": {
+      "combined_error_delta": 0.1452849954366684,
+      "distance_mae_delta": -0.012770969420671463,
+      "azimuth_mae_delta": 17.999079942703247,
+      "elevation_mae_delta": 9.180969715118408,
+      "spike_rate_delta": -0.0599190890789032
+    }
+  },
+  "artifacts": {}
+}

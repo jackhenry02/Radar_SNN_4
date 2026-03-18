@@ -1,0 +1,310 @@
+{
+  "max_threads": 1,
+  "device": "cpu",
+  "dataset_mode": "dev",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "baseline_test_metrics": {
+    "distance_mae_m": 0.0527,
+    "azimuth_mae_deg": 3.3531,
+    "elevation_mae_deg": 6.1172,
+    "combined_error": 0.0803,
+    "mean_spike_rate": 0.2557,
+    "predicted_distance_std": 0.5992,
+    "predicted_azimuth_std": 24.9491,
+    "predicted_elevation_std": 16.7983,
+    "target_distance_std": 0.5976,
+    "target_azimuth_std": 24.9943,
+    "target_elevation_std": 17.6456
+  },
+  "baseline_artifacts": {
+    "loss": "outputs/experiments/baseline/loss.png",
+    "test_distance_prediction": "outputs/experiments/baseline/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/experiments/baseline/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/experiments/baseline/test_elevation_prediction.png",
+    "test_distance_error": "outputs/experiments/baseline/test_distance_error.png",
+    "test_azimuth_error": "outputs/experiments/baseline/test_azimuth_error.png",
+    "test_elevation_error": "outputs/experiments/baseline/test_elevation_error.png",
+    "summary": "outputs/experiments/baseline/summary.png"
+  },
+  "experiments": [
+    {
+      "name": "experiment_1_learned_features",
+      "title": "Experiment 1: Learned Feature Extraction",
+      "decision": "REJECTED",
+      "accepted": false,
+      "config": {
+        "feature_mode": "learned",
+        "loss_mode": "baseline",
+        "use_resonant": false,
+        "use_sconv": false,
+        "learning_rate": 0.002505273561760649,
+        "batch_size": 16,
+        "epochs": 14
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0719,
+        "azimuth_mae_deg": 21.3432,
+        "elevation_mae_deg": 15.2887,
+        "combined_error": 0.228,
+        "mean_spike_rate": 0.1371
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0722,
+        "azimuth_mae_deg": 22.6706,
+        "elevation_mae_deg": 14.3573,
+        "combined_error": 0.2238,
+        "mean_spike_rate": 0.1369
+      },
+      "comparison": {
+        "against_active": {
+          "combined_error_delta": 0.1477,
+          "distance_mae_delta": 0.0192,
+          "azimuth_mae_delta": 17.9901,
+          "elevation_mae_delta": 9.1715,
+          "spike_rate_delta": -0.1186
+        },
+        "against_baseline": {
+          "combined_error_delta": 0.1477,
+          "distance_mae_delta": 0.0192,
+          "azimuth_mae_delta": 17.9901,
+          "elevation_mae_delta": 9.1715,
+          "spike_rate_delta": -0.1186
+        }
+      },
+      "artifacts": {
+        "loss": "outputs/experiments/experiment_1_learned_features/loss.png",
+        "test_distance_prediction": "outputs/experiments/experiment_1_learned_features/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/experiments/experiment_1_learned_features/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/experiments/experiment_1_learned_features/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/experiments/experiment_1_learned_features/test_elevation_error.png",
+        "comparison": "outputs/experiments/experiment_1_learned_features/comparison.png",
+        "summary": "outputs/experiments/experiment_1_learned_features/summary.png",
+        "filter_kernels": "outputs/experiments/experiment_1_learned_features/filter_kernels.png",
+        "filter_frequency_response": "outputs/experiments/experiment_1_learned_features/filter_frequency_response.png",
+        "delay_kernels": "outputs/experiments/experiment_1_learned_features/delay_kernels.png"
+      }
+    },
+    {
+      "name": "experiment_2_compound_loss",
+      "title": "Experiment 2: Compound Loss Function",
+      "decision": "REJECTED",
+      "accepted": false,
+      "config": {
+        "feature_mode": "handcrafted",
+        "loss_mode": "compound",
+        "use_resonant": false,
+        "use_sconv": false,
+        "learning_rate": 0.003131591952200811,
+        "batch_size": 32,
+        "epochs": 14
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.04,
+        "azimuth_mae_deg": 21.3522,
+        "elevation_mae_deg": 15.2982,
+        "combined_error": 0.2256,
+        "mean_spike_rate": 0.1958
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0413,
+        "azimuth_mae_deg": 22.6056,
+        "elevation_mae_deg": 14.3362,
+        "combined_error": 0.2206,
+        "mean_spike_rate": 0.1964
+      },
+      "comparison": {
+        "against_active": {
+          "combined_error_delta": 0.1453,
+          "distance_mae_delta": -0.0128,
+          "azimuth_mae_delta": 17.9991,
+          "elevation_mae_delta": 9.181,
+          "spike_rate_delta": -0.0599
+        },
+        "against_baseline": {
+          "combined_error_delta": 0.1453,
+          "distance_mae_delta": -0.0128,
+          "azimuth_mae_delta": 17.9991,
+          "elevation_mae_delta": 9.181,
+          "spike_rate_delta": -0.0599
+        }
+      },
+      "artifacts": {
+        "loss": "outputs/experiments/experiment_2_compound_loss/loss.png",
+        "test_distance_prediction": "outputs/experiments/experiment_2_compound_loss/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/experiments/experiment_2_compound_loss/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/experiments/experiment_2_compound_loss/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/experiments/experiment_2_compound_loss/test_elevation_error.png",
+        "comparison": "outputs/experiments/experiment_2_compound_loss/comparison.png",
+        "summary": "outputs/experiments/experiment_2_compound_loss/summary.png"
+      }
+    },
+    {
+      "name": "experiment_3_uncertainty_weighting",
+      "title": "Experiment 3: Uncertainty Weighting",
+      "decision": "REJECTED",
+      "accepted": false,
+      "config": {
+        "feature_mode": "handcrafted",
+        "loss_mode": "uncertainty",
+        "use_resonant": false,
+        "use_sconv": false,
+        "learning_rate": 0.00281843275698073,
+        "batch_size": 32,
+        "epochs": 14
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0456,
+        "azimuth_mae_deg": 21.4002,
+        "elevation_mae_deg": 15.2586,
+        "combined_error": 0.2258,
+        "mean_spike_rate": 0.2064
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0452,
+        "azimuth_mae_deg": 22.6545,
+        "elevation_mae_deg": 14.3484,
+        "combined_error": 0.2209,
+        "mean_spike_rate": 0.2067
+      },
+      "comparison": {
+        "against_active": {
+          "combined_error_delta": 0.1455,
+          "distance_mae_delta": -0.0071,
+          "azimuth_mae_delta": 18.0471,
+          "elevation_mae_delta": 9.1414,
+          "spike_rate_delta": -0.0493
+        },
+        "against_baseline": {
+          "combined_error_delta": 0.1455,
+          "distance_mae_delta": -0.0071,
+          "azimuth_mae_delta": 18.0471,
+          "elevation_mae_delta": 9.1414,
+          "spike_rate_delta": -0.0493
+        }
+      },
+      "artifacts": {
+        "loss": "outputs/experiments/experiment_3_uncertainty_weighting/loss.png",
+        "test_distance_prediction": "outputs/experiments/experiment_3_uncertainty_weighting/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/experiments/experiment_3_uncertainty_weighting/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/experiments/experiment_3_uncertainty_weighting/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/experiments/experiment_3_uncertainty_weighting/test_elevation_error.png",
+        "comparison": "outputs/experiments/experiment_3_uncertainty_weighting/comparison.png",
+        "summary": "outputs/experiments/experiment_3_uncertainty_weighting/summary.png"
+      }
+    },
+    {
+      "name": "experiment_4_resonant_neurons",
+      "title": "Experiment 4: Resonant Neurons",
+      "decision": "REJECTED",
+      "accepted": false,
+      "config": {
+        "feature_mode": "handcrafted",
+        "loss_mode": "baseline",
+        "use_resonant": true,
+        "use_sconv": false,
+        "learning_rate": 0.00281843275698073,
+        "batch_size": 32,
+        "epochs": 14
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.1199,
+        "azimuth_mae_deg": 11.0119,
+        "elevation_mae_deg": 15.2186,
+        "combined_error": 0.1996,
+        "mean_spike_rate": 0.4094
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.1222,
+        "azimuth_mae_deg": 10.9062,
+        "elevation_mae_deg": 14.3652,
+        "combined_error": 0.193,
+        "mean_spike_rate": 0.413
+      },
+      "comparison": {
+        "against_active": {
+          "combined_error_delta": 0.1193,
+          "distance_mae_delta": 0.0672,
+          "azimuth_mae_delta": 7.6588,
+          "elevation_mae_delta": 9.1014,
+          "spike_rate_delta": 0.1537
+        },
+        "against_baseline": {
+          "combined_error_delta": 0.1193,
+          "distance_mae_delta": 0.0672,
+          "azimuth_mae_delta": 7.6588,
+          "elevation_mae_delta": 9.1014,
+          "spike_rate_delta": 0.1537
+        }
+      },
+      "artifacts": {
+        "loss": "outputs/experiments/experiment_4_resonant_neurons/loss.png",
+        "test_distance_prediction": "outputs/experiments/experiment_4_resonant_neurons/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/experiments/experiment_4_resonant_neurons/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/experiments/experiment_4_resonant_neurons/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/experiments/experiment_4_resonant_neurons/test_elevation_error.png",
+        "comparison": "outputs/experiments/experiment_4_resonant_neurons/comparison.png",
+        "summary": "outputs/experiments/experiment_4_resonant_neurons/summary.png"
+      }
+    },
+    {
+      "name": "experiment_5_sconv2dlstm",
+      "title": "Experiment 5: SConv2dLSTM Augmentation",
+      "decision": "REJECTED",
+      "accepted": false,
+      "config": {
+        "feature_mode": "handcrafted",
+        "loss_mode": "baseline",
+        "use_resonant": false,
+        "use_sconv": true,
+        "learning_rate": 0.002505273561760649,
+        "batch_size": 12,
+        "epochs": 14
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0982,
+        "azimuth_mae_deg": 5.1508,
+        "elevation_mae_deg": 7.4746,
+        "combined_error": 0.106,
+        "mean_spike_rate": 0.2063
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0879,
+        "azimuth_mae_deg": 5.5384,
+        "elevation_mae_deg": 7.5013,
+        "combined_error": 0.1046,
+        "mean_spike_rate": 0.2077
+      },
+      "comparison": {
+        "against_active": {
+          "combined_error_delta": 0.0257,
+          "distance_mae_delta": 0.0455,
+          "azimuth_mae_delta": 1.7976,
+          "elevation_mae_delta": 1.3573,
+          "spike_rate_delta": -0.0494
+        },
+        "against_baseline": {
+          "combined_error_delta": 0.0257,
+          "distance_mae_delta": 0.0455,
+          "azimuth_mae_delta": 1.7976,
+          "elevation_mae_delta": 1.3573,
+          "spike_rate_delta": -0.0494
+        }
+      },
+      "artifacts": {
+        "loss": "outputs/experiments/experiment_5_sconv2dlstm/loss.png",
+        "test_distance_prediction": "outputs/experiments/experiment_5_sconv2dlstm/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/experiments/experiment_5_sconv2dlstm/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/experiments/experiment_5_sconv2dlstm/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/experiments/experiment_5_sconv2dlstm/test_elevation_error.png",
+        "comparison": "outputs/experiments/experiment_5_sconv2dlstm/comparison.png",
+        "summary": "outputs/experiments/experiment_5_sconv2dlstm/summary.png"
+      }
+    }
+  ],
+  "overall_artifacts": {
+    "overall_test_comparison": "outputs/experiments/overall_test_comparison.png",
+    "overall_spike_rate": "outputs/experiments/overall_spike_rate.png"
+  },
+  "final_best_name": "baseline",
+  "report_path": "outputs/experiment_report.md"
+}

@@ -1,0 +1,102 @@
+{
+  "name": "experiment_4_resonant_neurons",
+  "title": "Experiment 4: Resonant Neurons",
+  "description": "Introduce damped resonant spiking dynamics in the fusion stage.",
+  "rationale": "A second-order resonant fusion layer may sharpen temporal selectivity for pulse-echo timing.",
+  "config": {
+    "feature_mode": "handcrafted",
+    "loss_mode": "baseline",
+    "use_resonant": true,
+    "use_sconv": false,
+    "learning_rate": 0.00281843275698073,
+    "batch_size": 32,
+    "epochs": 14
+  },
+  "decision": "REJECTED",
+  "accepted": false,
+  "compared_against": "baseline",
+  "val_metrics": {
+    "distance_mae_m": 0.1221553385257721,
+    "azimuth_mae_deg": 10.90617561340332,
+    "elevation_mae_deg": 14.365196228027344,
+    "combined_error": 0.19301889836788177,
+    "mean_spike_rate": 0.4130118191242218
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.11994589865207672,
+    "azimuth_mae_deg": 11.011922836303711,
+    "elevation_mae_deg": 15.218635559082031,
+    "combined_error": 0.19964513182640076,
+    "mean_spike_rate": 0.4093889594078064
+  },
+  "training": {
+    "best_epoch": 9,
+    "best_val_combined_error": 0.19301889836788177,
+    "train_loss": [
+      0.5892411712557077,
+      0.47498282603919506,
+      0.4638723321259022,
+      0.45714263431727886,
+      0.437896016985178,
+      0.4079301618039608,
+      0.37947816774249077,
+      0.3483772035688162,
+      0.3285743147134781,
+      0.3121963106095791,
+      0.3073274875059724,
+      0.3049371875822544,
+      0.2916310103610158,
+      0.28248763270676136
+    ],
+    "val_loss": [
+      0.4688332676887512,
+      0.4385858476161957,
+      0.43434277176856995,
+      0.42474937438964844,
+      0.3961540162563324,
+      0.3603877127170563,
+      0.35348284244537354,
+      0.31576672196388245,
+      0.2971212565898895,
+      0.28428393602371216,
+      0.2861013114452362,
+      0.27551475167274475,
+      0.2692108154296875,
+      0.2627682089805603
+    ],
+    "val_combined_error": [
+      0.3186635971069336,
+      0.23430030047893524,
+      0.2246762365102768,
+      0.2224440574645996,
+      0.2167959064245224,
+      0.20848263800144196,
+      0.21449929475784302,
+      0.1990486979484558,
+      0.19781331717967987,
+      0.19301889836788177,
+      0.21265169978141785,
+      0.21143418550491333,
+      0.19632971286773682,
+      0.19312641024589539
+    ],
+    "uncertainty_state": null
+  },
+  "comparison": {
+    "against_active": {
+      "combined_error_delta": 0.11931310594081879,
+      "distance_mae_delta": 0.06720034778118134,
+      "azimuth_mae_delta": 7.65881085395813,
+      "elevation_mae_delta": 9.10139799118042,
+      "spike_rate_delta": 0.1536996066570282
+    },
+    "against_baseline": {
+      "combined_error_delta": 0.11931310594081879,
+      "distance_mae_delta": 0.06720034778118134,
+      "azimuth_mae_delta": 7.65881085395813,
+      "elevation_mae_delta": 9.10139799118042,
+      "spike_rate_delta": 0.1536996066570282
+    }
+  },
+  "artifacts": {}
+}

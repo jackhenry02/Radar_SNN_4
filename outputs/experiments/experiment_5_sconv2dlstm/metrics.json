@@ -1,0 +1,102 @@
+{
+  "name": "experiment_5_sconv2dlstm",
+  "title": "Experiment 5: SConv2dLSTM Augmentation",
+  "description": "Augment the current model with an snnTorch SConv2dLSTM spectral-temporal context path.",
+  "rationale": "An explicit spatiotemporal recurrent branch may capture spectral-temporal cues that the simple fusion head misses.",
+  "config": {
+    "feature_mode": "handcrafted",
+    "loss_mode": "baseline",
+    "use_resonant": false,
+    "use_sconv": true,
+    "learning_rate": 0.002505273561760649,
+    "batch_size": 12,
+    "epochs": 14
+  },
+  "decision": "REJECTED",
+  "accepted": false,
+  "compared_against": "baseline",
+  "val_metrics": {
+    "distance_mae_m": 0.08789321035146713,
+    "azimuth_mae_deg": 5.538396835327148,
+    "elevation_mae_deg": 7.501304626464844,
+    "combined_error": 0.1045597568154335,
+    "mean_spike_rate": 0.2077135443687439
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.09822768718004227,
+    "azimuth_mae_deg": 5.150752067565918,
+    "elevation_mae_deg": 7.47457218170166,
+    "combined_error": 0.10600133240222931,
+    "mean_spike_rate": 0.2062770277261734
+  },
+  "training": {
+    "best_epoch": 12,
+    "best_val_combined_error": 0.1045597568154335,
+    "train_loss": [
+      0.5002547675787017,
+      0.4607851033987001,
+      0.42635367360225945,
+      0.3544783775889596,
+      0.3000396708416384,
+      0.2534645127002583,
+      0.1884945944644684,
+      0.13281421242065208,
+      0.11064123821466468,
+      0.08756459781596827,
+      0.07339938301159891,
+      0.06659186206931292,
+      0.05778460464505262,
+      0.05077174249603305
+    ],
+    "val_loss": [
+      0.43674176931381226,
+      0.4268147051334381,
+      0.36255019903182983,
+      0.29795166850090027,
+      0.2598821818828583,
+      0.2109735608100891,
+      0.15894043445587158,
+      0.1243538036942482,
+      0.11122344434261322,
+      0.10078337788581848,
+      0.1035291850566864,
+      0.0925450399518013,
+      0.08618602156639099,
+      0.08776767551898956
+    ],
+    "val_combined_error": [
+      0.22660712897777557,
+      0.2264079749584198,
+      0.21145029366016388,
+      0.19355884194374084,
+      0.18490177392959595,
+      0.1698332130908966,
+      0.1511099934577942,
+      0.13333660364151,
+      0.12449954450130463,
+      0.12327922880649567,
+      0.11764651536941528,
+      0.11202358454465866,
+      0.1045597568154335,
+      0.10506529361009598
+    ],
+    "uncertainty_state": null
+  },
+  "comparison": {
+    "against_active": {
+      "combined_error_delta": 0.02566930651664734,
+      "distance_mae_delta": 0.04548213630914688,
+      "azimuth_mae_delta": 1.797640085220337,
+      "elevation_mae_delta": 1.3573346138000488,
+      "spike_rate_delta": -0.0494123250246048
+    },
+    "against_baseline": {
+      "combined_error_delta": 0.02566930651664734,
+      "distance_mae_delta": 0.04548213630914688,
+      "azimuth_mae_delta": 1.797640085220337,
+      "elevation_mae_delta": 1.3573346138000488,
+      "spike_rate_delta": -0.0494123250246048
+    }
+  },
+  "artifacts": {}
+}
