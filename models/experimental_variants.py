@@ -214,6 +214,130 @@ class LearnedBranchEncoder(nn.Module):
         )
 
 
+class ResidualElevationEncoder(nn.Module):
+    def __init__(self, distance_dim: int, azimuth_dim: int, elevation_dim: int, branch_hidden_dim: int) -> None:
+        super().__init__()
+        self.branch_hidden_dim = branch_hidden_dim
+        self.distance_branch = nn.Linear(distance_dim, branch_hidden_dim)
+        self.azimuth_branch = nn.Linear(azimuth_dim, branch_hidden_dim)
+        self.elevation_branch = nn.Linear(elevation_dim, branch_hidden_dim)
+        self.elevation_conv1 = nn.Conv2d(2, 8, kernel_size=(5, 7), padding=(2, 3))
+        self.elevation_conv2 = nn.Conv2d(8, 8, kernel_size=(3, 5), padding=(1, 2))
+        self.elevation_residual = nn.Linear(8 * 4 * 4, branch_hidden_dim)
+        self.residual_gain = nn.Parameter(torch.tensor(-0.6))
+
+    def forward(self, batch: ExperimentBatch) -> BranchEncoding:
+        if batch.pathway is None or batch.receive_spikes is None:
+            raise ValueError("ResidualElevationEncoder requires pathway and spike inputs.")
+        distance_latent = F.relu(self.distance_branch(batch.pathway.distance))
+        azimuth_latent = F.relu(self.azimuth_branch(batch.pathway.azimuth))
+        base_elevation = F.relu(self.elevation_branch(batch.pathway.elevation))
+
+        spectral_source = batch.receive_spikes.float()
+        elevation_map = F.relu(self.elevation_conv1(spectral_source))
+        elevation_map = F.relu(self.elevation_conv2(elevation_map))
+        learned_elevation = self.elevation_residual(F.adaptive_avg_pool2d(elevation_map, (4, 4)).flatten(start_dim=1))
+        residual_scale = 0.5 * torch.sigmoid(self.residual_gain)
+        elevation_latent = F.relu(base_elevation + residual_scale * learned_elevation)
+
+        diagnostics = {
+            "distance_latent": distance_latent,
+            "azimuth_latent": azimuth_latent,
+            "base_elevation_latent": base_elevation,
+            "learned_elevation_latent": learned_elevation,
+            "elevation_latent": elevation_latent,
+            "elevation_map": elevation_map,
+            "elevation_residual_scale": residual_scale.detach(),
+        }
+        return BranchEncoding(
+            distance_latent=distance_latent,
+            azimuth_latent=azimuth_latent,
+            elevation_latent=elevation_latent,
+            spectral_source=spectral_source,
+            spike_proxy=batch.spike_count.float(),
+            diagnostics=diagnostics,
+        )
+
+
+class ElevationSConvResidualEncoder(nn.Module):
+    def __init__(
+        self,
+        distance_dim: int,
+        azimuth_dim: int,
+        elevation_dim: int,
+        branch_hidden_dim: int,
+        *,
+        sconv_channels: int = 4,
+        temporal_pool: int = 12,
+    ) -> None:
+        super().__init__()
+        self.branch_hidden_dim = branch_hidden_dim
+        self.temporal_pool = max(4, temporal_pool)
+        self.distance_branch = nn.Linear(distance_dim, branch_hidden_dim)
+        self.azimuth_branch = nn.Linear(azimuth_dim, branch_hidden_dim)
+        self.elevation_branch = nn.Linear(elevation_dim, branch_hidden_dim)
+        self.sconv = snn.SConv2dLSTM(
+            in_channels=1,
+            out_channels=sconv_channels,
+            kernel_size=(3, 1),
+            threshold=1.0,
+            spike_grad=surrogate.fast_sigmoid(),
+            reset_mechanism="none",
+            output=True,
+        )
+        self.sconv_projection = nn.Linear(sconv_channels, branch_hidden_dim)
+        self.residual_gain = nn.Parameter(torch.tensor(-1.0))
+
+    def _sconv_context(self, spectral_source: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        self.sconv.reset_mem()
+        reduced = F.avg_pool1d(
+            spectral_source.reshape(-1, 1, spectral_source.shape[-1]),
+            kernel_size=self.temporal_pool,
+            stride=self.temporal_pool,
+        ).reshape(spectral_source.shape[0], spectral_source.shape[1], spectral_source.shape[2], -1)
+        syn = None
+        mem = None
+        spike_trace = []
+        for time_index in range(reduced.shape[-1]):
+            frame = reduced[:, :, :, time_index].permute(0, 2, 1).unsqueeze(1)
+            spikes, syn, mem = self.sconv(frame, syn, mem)
+            spike_trace.append(spikes)
+        spike_tensor = torch.stack(spike_trace, dim=1)
+        self.sconv.reset_mem()
+        pooled = spike_tensor.mean(dim=(1, 3, 4))
+        return pooled, spike_tensor
+
+    def forward(self, batch: ExperimentBatch) -> BranchEncoding:
+        if batch.pathway is None or batch.receive_spikes is None:
+            raise ValueError("ElevationSConvResidualEncoder requires pathway and spike inputs.")
+        distance_latent = F.relu(self.distance_branch(batch.pathway.distance))
+        azimuth_latent = F.relu(self.azimuth_branch(batch.pathway.azimuth))
+        base_elevation = F.relu(self.elevation_branch(batch.pathway.elevation))
+
+        spectral_source = batch.receive_spikes.float()
+        context, spike_trace = self._sconv_context(spectral_source)
+        residual = self.sconv_projection(context)
+        residual_scale = 0.4 * torch.sigmoid(self.residual_gain)
+        elevation_latent = F.relu(base_elevation + residual_scale * residual)
+        diagnostics = {
+            "distance_latent": distance_latent,
+            "azimuth_latent": azimuth_latent,
+            "base_elevation_latent": base_elevation,
+            "sconv_elevation_residual": residual,
+            "elevation_latent": elevation_latent,
+            "elevation_sconv_spikes": spike_trace,
+            "elevation_residual_scale": residual_scale.detach(),
+        }
+        return BranchEncoding(
+            distance_latent=distance_latent,
+            azimuth_latent=azimuth_latent,
+            elevation_latent=elevation_latent,
+            spectral_source=spectral_source,
+            spike_proxy=batch.spike_count.float(),
+            diagnostics=diagnostics,
+        )
+
+
 class ExperimentalPathwayModel(nn.Module):
     def __init__(
         self,
@@ -360,4 +484,98 @@ class ExperimentalPathwayModel(nn.Module):
             spike_rates.append(encoding.spike_proxy / encoding.spike_proxy.amax().clamp_min(1.0))
         diagnostics["spike_rate"] = torch.stack(spike_rates, dim=0).mean(dim=0)
         diagnostics["spike_proxy"] = encoding.spike_proxy
+        return output, diagnostics
+
+
+class DistanceResonanceModel(nn.Module):
+    def __init__(
+        self,
+        encoder: nn.Module,
+        *,
+        hidden_dim: int,
+        output_dim: int,
+        num_steps: int,
+        beta: float,
+        threshold: float,
+        reset_mechanism: str,
+    ) -> None:
+        super().__init__()
+        self.encoder = encoder
+        self.num_steps = num_steps
+        self.threshold = threshold
+        branch_hidden_dim = getattr(encoder, "branch_hidden_dim")
+
+        self.distance_drive = nn.Linear(branch_hidden_dim, branch_hidden_dim)
+        self.distance_recurrent = nn.Linear(branch_hidden_dim, branch_hidden_dim)
+        self.distance_decay = nn.Parameter(torch.zeros(branch_hidden_dim))
+        self.distance_frequency = nn.Parameter(torch.zeros(branch_hidden_dim))
+
+        self.fusion = nn.Linear(branch_hidden_dim * 3, hidden_dim)
+        self.fusion_lif = snn.Leaky(
+            beta=beta,
+            threshold=threshold,
+            spike_grad=surrogate.fast_sigmoid(),
+            reset_mechanism=reset_mechanism,
+        )
+        self.integration = nn.Linear(hidden_dim, hidden_dim)
+        self.integration_lif = snn.Leaky(
+            beta=beta,
+            threshold=threshold,
+            spike_grad=surrogate.fast_sigmoid(),
+            reset_mechanism=reset_mechanism,
+        )
+        self.output = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, batch: ExperimentBatch) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        encoding = self.encoder(batch)
+        distance_drive = self.distance_drive(encoding.distance_latent)
+        membrane = torch.zeros_like(distance_drive)
+        resonance = torch.zeros_like(distance_drive)
+        recurrent = torch.zeros_like(distance_drive)
+        resonance_trace = []
+
+        decay = 0.75 + 0.12 * torch.sigmoid(self.distance_decay)
+        frequency = 0.05 + 0.20 * torch.sigmoid(self.distance_frequency)
+        for _ in range(self.num_steps):
+            drive = distance_drive + recurrent
+            resonance = decay * resonance + frequency * membrane
+            membrane = decay * membrane + drive - resonance
+            spikes = surrogate_spike(membrane - self.threshold)
+            membrane = membrane - spikes * self.threshold
+            recurrent = self.distance_recurrent(spikes)
+            resonance_trace.append(spikes)
+
+        distance_spikes = torch.stack(resonance_trace, dim=1)
+        distance_context = distance_spikes.mean(dim=1)
+        fused = torch.cat([distance_context, encoding.azimuth_latent, encoding.elevation_latent], dim=-1)
+
+        self.fusion_lif.reset_mem()
+        self.integration_lif.reset_mem()
+        fusion_current = self.fusion(fused)
+        fusion_mem = None
+        integration_mem = None
+        fusion_spike_trace = []
+        integration_spike_trace = []
+        for _ in range(self.num_steps):
+            fusion_spikes, fusion_mem = self.fusion_lif(fusion_current, fusion_mem)
+            integration_current = self.integration(fusion_spikes)
+            integration_spikes, integration_mem = self.integration_lif(integration_current, integration_mem)
+            fusion_spike_trace.append(fusion_spikes)
+            integration_spike_trace.append(integration_spikes)
+
+        fusion_spikes = torch.stack(fusion_spike_trace, dim=1)
+        integration_spikes = torch.stack(integration_spike_trace, dim=1)
+        pooled = integration_spikes.mean(dim=1)
+        output = self.output(pooled)
+        diagnostics = {
+            **encoding.diagnostics,
+            "distance_resonance_spikes": distance_spikes,
+            "distance_resonance_decay": decay,
+            "distance_resonance_frequency": frequency,
+            "fusion_spikes": fusion_spikes,
+            "integration_spikes": integration_spikes,
+            "spike_rate": 0.5 * (
+                distance_spikes.mean(dim=(1, 2)) + integration_spikes.mean(dim=(1, 2))
+            ),
+        }
         return output, diagnostics
