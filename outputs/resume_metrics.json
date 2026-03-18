@@ -1,0 +1,177 @@
+{
+  "stages": [
+    {
+      "name": "model3_signal_to_spikes",
+      "success": true,
+      "best_attempt": 1,
+      "best_score": -0.9864665269851685,
+      "best_metrics": {
+        "energy_spike_correlation": 0.9865,
+        "spike_threshold": 0.42
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "success": true,
+          "score": -0.9864665269851685,
+          "metrics": {
+            "energy_spike_correlation": 0.9865,
+            "spike_threshold": 0.42
+          },
+          "notes": "energy_spike_correlation=0.9865, spike_threshold=0.4200"
+        }
+      ],
+      "failure_report": null
+    },
+    {
+      "name": "model5_binaural_localisation",
+      "success": true,
+      "best_attempt": 1,
+      "best_score": 0.21581406195958455,
+      "best_metrics": {
+        "distance_mae_m": 0.1404,
+        "angular_mae_deg": 13.5678
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "success": true,
+          "score": 0.21581406195958455,
+          "metrics": {
+            "distance_mae_m": 0.1404,
+            "angular_mae_deg": 13.5678
+          },
+          "notes": "distance_mae_m=0.1404, angular_mae_deg=13.5678"
+        }
+      ],
+      "failure_report": null
+    },
+    {
+      "name": "model6_full_3d_localisation",
+      "success": true,
+      "best_attempt": 3,
+      "best_score": 0.12275775521993637,
+      "best_metrics": {
+        "distance_mae_m": 0.0564,
+        "azimuth_mae_deg": 5.4375,
+        "elevation_mae_deg": 9.9248,
+        "combined_error": 0.1228,
+        "model5_comparison_error": 0.373
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "success": false,
+          "score": 0.1946268081665039,
+          "metrics": {
+            "distance_mae_m": 0.1201,
+            "azimuth_mae_deg": 8.7071,
+            "elevation_mae_deg": 15.2509,
+            "combined_error": 0.1946,
+            "model5_comparison_error": 0.2987
+          },
+          "notes": "distance_mae_m=0.1201, azimuth_mae_deg=8.7071, elevation_mae_deg=15.2509, combined_error=0.1946, model5_comparison_error=0.2987"
+        },
+        {
+          "attempt": 2,
+          "success": false,
+          "score": 0.18624262511730194,
+          "metrics": {
+            "distance_mae_m": 0.0617,
+            "azimuth_mae_deg": 6.6657,
+            "elevation_mae_deg": 15.6913,
+            "combined_error": 0.1862,
+            "model5_comparison_error": 0.3335
+          },
+          "notes": "distance_mae_m=0.0617, azimuth_mae_deg=6.6657, elevation_mae_deg=15.6913, combined_error=0.1862, model5_comparison_error=0.3335"
+        },
+        {
+          "attempt": 3,
+          "success": true,
+          "score": 0.12275775521993637,
+          "metrics": {
+            "distance_mae_m": 0.0564,
+            "azimuth_mae_deg": 5.4375,
+            "elevation_mae_deg": 9.9248,
+            "combined_error": 0.1228,
+            "model5_comparison_error": 0.373
+          },
+          "notes": "distance_mae_m=0.0564, azimuth_mae_deg=5.4375, elevation_mae_deg=9.9248, combined_error=0.1228, model5_comparison_error=0.3730"
+        }
+      ],
+      "failure_report": null
+    },
+    {
+      "name": "model7_optimisation",
+      "success": false,
+      "best_attempt": 1,
+      "best_score": 0.11623881012201309,
+      "best_metrics": {
+        "baseline_error": 0.1228,
+        "best_error": 0.1162,
+        "improvement_fraction": 0.0531,
+        "best_params": {
+          "hidden_dim": 120,
+          "num_steps": 12,
+          "lr": 0.0033151284418954283,
+          "epochs": 16,
+          "beta": 0.8849847251073227
+        }
+      },
+      "attempts": [
+        {
+          "attempt": 1,
+          "success": false,
+          "score": 0.11623881012201309,
+          "metrics": {
+            "baseline_error": 0.1228,
+            "best_error": 0.1162,
+            "improvement_fraction": 0.0531,
+            "best_params": {
+              "hidden_dim": 120,
+              "num_steps": 12,
+              "lr": 0.0033151284418954283,
+              "epochs": 16,
+              "beta": 0.8849847251073227
+            }
+          },
+          "notes": "baseline_error=0.1228, best_error=0.1162, improvement_fraction=0.0531, best_params={'hidden_dim': 120, 'num_steps': 12, 'lr': 0.0033151284418954283, 'epochs': 16, 'beta': 0.8849847251073227}"
+        }
+      ],
+      "failure_report": {
+        "observed_issue": "model7_optimisation did not meet its success criterion after 1 attempts.",
+        "likely_cause": "The current configuration failed to cross the stage threshold despite automatic retries.",
+        "evidence": {
+          "best_metrics": {
+            "baseline_error": 0.1228,
+            "best_error": 0.1162,
+            "improvement_fraction": 0.0531,
+            "best_params": {
+              "hidden_dim": 120,
+              "num_steps": 12,
+              "lr": 0.0033151284418954283,
+              "epochs": 16,
+              "beta": 0.8849847251073227
+            }
+          },
+          "attempts": [
+            {
+              "baseline_error": 0.1228,
+              "best_error": 0.1162,
+              "improvement_fraction": 0.0531,
+              "best_params": {
+                "hidden_dim": 120,
+                "num_steps": 12,
+                "lr": 0.0033151284418954283,
+                "epochs": 16,
+                "beta": 0.8849847251073227
+              }
+            }
+          ]
+        },
+        "suggested_fix": "Use the logged plots and metrics to retune feature extraction or training hyperparameters.",
+        "requires_next_model": false
+      }
+    }
+  ]
+}

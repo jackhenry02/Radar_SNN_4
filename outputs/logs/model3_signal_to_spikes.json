@@ -1,0 +1,23 @@
+{
+  "name": "model3_signal_to_spikes",
+  "success": true,
+  "best_attempt": 1,
+  "best_score": -0.9864665269851685,
+  "best_metrics": {
+    "energy_spike_correlation": 0.9865,
+    "spike_threshold": 0.42
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": true,
+      "score": -0.9864665269851685,
+      "metrics": {
+        "energy_spike_correlation": 0.9865,
+        "spike_threshold": 0.42
+      },
+      "notes": "energy_spike_correlation=0.9865, spike_threshold=0.4200"
+    }
+  ],
+  "failure_report": null
+}

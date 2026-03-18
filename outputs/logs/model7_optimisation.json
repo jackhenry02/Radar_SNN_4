@@ -1,0 +1,72 @@
+{
+  "name": "model7_optimisation",
+  "success": false,
+  "best_attempt": 1,
+  "best_score": 0.11623881012201309,
+  "best_metrics": {
+    "baseline_error": 0.1228,
+    "best_error": 0.1162,
+    "improvement_fraction": 0.0531,
+    "best_params": {
+      "hidden_dim": 120,
+      "num_steps": 12,
+      "lr": 0.0033151284418954283,
+      "epochs": 16,
+      "beta": 0.8849847251073227
+    }
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": false,
+      "score": 0.11623881012201309,
+      "metrics": {
+        "baseline_error": 0.1228,
+        "best_error": 0.1162,
+        "improvement_fraction": 0.0531,
+        "best_params": {
+          "hidden_dim": 120,
+          "num_steps": 12,
+          "lr": 0.0033151284418954283,
+          "epochs": 16,
+          "beta": 0.8849847251073227
+        }
+      },
+      "notes": "baseline_error=0.1228, best_error=0.1162, improvement_fraction=0.0531, best_params={'hidden_dim': 120, 'num_steps': 12, 'lr': 0.0033151284418954283, 'epochs': 16, 'beta': 0.8849847251073227}"
+    }
+  ],
+  "failure_report": {
+    "observed_issue": "model7_optimisation did not meet its success criterion after 1 attempts.",
+    "likely_cause": "The current configuration failed to cross the stage threshold despite automatic retries.",
+    "evidence": {
+      "best_metrics": {
+        "baseline_error": 0.1228,
+        "best_error": 0.1162,
+        "improvement_fraction": 0.0531,
+        "best_params": {
+          "hidden_dim": 120,
+          "num_steps": 12,
+          "lr": 0.0033151284418954283,
+          "epochs": 16,
+          "beta": 0.8849847251073227
+        }
+      },
+      "attempts": [
+        {
+          "baseline_error": 0.1228,
+          "best_error": 0.1162,
+          "improvement_fraction": 0.0531,
+          "best_params": {
+            "hidden_dim": 120,
+            "num_steps": 12,
+            "lr": 0.0033151284418954283,
+            "epochs": 16,
+            "beta": 0.8849847251073227
+          }
+        }
+      ]
+    },
+    "suggested_fix": "Use the logged plots and metrics to retune feature extraction or training hyperparameters.",
+    "requires_next_model": false
+  }
+}

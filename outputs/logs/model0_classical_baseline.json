@@ -1,0 +1,23 @@
+{
+  "name": "model0_classical_baseline",
+  "success": true,
+  "best_attempt": 1,
+  "best_score": 0.023105591535568237,
+  "best_metrics": {
+    "distance_mae_m": 0.0231,
+    "success_threshold_m": 0.125
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": true,
+      "score": 0.023105591535568237,
+      "metrics": {
+        "distance_mae_m": 0.0231,
+        "success_threshold_m": 0.125
+      },
+      "notes": "distance_mae_m=0.0231, success_threshold_m=0.1250"
+    }
+  ],
+  "failure_report": null
+}

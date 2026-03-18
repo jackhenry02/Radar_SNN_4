@@ -1,0 +1,33 @@
+{
+  "name": "model4_full_pipeline_trainable",
+  "success": true,
+  "best_attempt": 1,
+  "best_score": -0.9895833134651184,
+  "best_metrics": {
+    "val_accuracy": 0.9896,
+    "random_baseline": 0.25,
+    "loss_drop_fraction": 0.9784,
+    "val_loss": 0.0764,
+    "gradient_norm": 0.134,
+    "weight_delta": 2.6126,
+    "no_nans": true
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": true,
+      "score": -0.9895833134651184,
+      "metrics": {
+        "val_accuracy": 0.9896,
+        "random_baseline": 0.25,
+        "loss_drop_fraction": 0.9784,
+        "val_loss": 0.0764,
+        "gradient_norm": 0.134,
+        "weight_delta": 2.6126,
+        "no_nans": true
+      },
+      "notes": "val_accuracy=0.9896, random_baseline=0.2500, loss_drop_fraction=0.9784, val_loss=0.0764, gradient_norm=0.1340, weight_delta=2.6126, no_nans=True"
+    }
+  ],
+  "failure_report": null
+}

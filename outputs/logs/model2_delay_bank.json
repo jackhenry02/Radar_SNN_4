@@ -1,0 +1,21 @@
+{
+  "name": "model2_delay_bank",
+  "success": true,
+  "best_attempt": 1,
+  "best_score": 0.0,
+  "best_metrics": {
+    "mean_delay_error_bins": 0.0
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": true,
+      "score": 0.0,
+      "metrics": {
+        "mean_delay_error_bins": 0.0
+      },
+      "notes": "mean_delay_error_bins=0.0000"
+    }
+  ],
+  "failure_report": null
+}

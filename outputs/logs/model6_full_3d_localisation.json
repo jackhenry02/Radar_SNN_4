@@ -1,0 +1,55 @@
+{
+  "name": "model6_full_3d_localisation",
+  "success": true,
+  "best_attempt": 3,
+  "best_score": 0.12275775521993637,
+  "best_metrics": {
+    "distance_mae_m": 0.0564,
+    "azimuth_mae_deg": 5.4375,
+    "elevation_mae_deg": 9.9248,
+    "combined_error": 0.1228,
+    "model5_comparison_error": 0.373
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": false,
+      "score": 0.1946268081665039,
+      "metrics": {
+        "distance_mae_m": 0.1201,
+        "azimuth_mae_deg": 8.7071,
+        "elevation_mae_deg": 15.2509,
+        "combined_error": 0.1946,
+        "model5_comparison_error": 0.2987
+      },
+      "notes": "distance_mae_m=0.1201, azimuth_mae_deg=8.7071, elevation_mae_deg=15.2509, combined_error=0.1946, model5_comparison_error=0.2987"
+    },
+    {
+      "attempt": 2,
+      "success": false,
+      "score": 0.18624262511730194,
+      "metrics": {
+        "distance_mae_m": 0.0617,
+        "azimuth_mae_deg": 6.6657,
+        "elevation_mae_deg": 15.6913,
+        "combined_error": 0.1862,
+        "model5_comparison_error": 0.3335
+      },
+      "notes": "distance_mae_m=0.0617, azimuth_mae_deg=6.6657, elevation_mae_deg=15.6913, combined_error=0.1862, model5_comparison_error=0.3335"
+    },
+    {
+      "attempt": 3,
+      "success": true,
+      "score": 0.12275775521993637,
+      "metrics": {
+        "distance_mae_m": 0.0564,
+        "azimuth_mae_deg": 5.4375,
+        "elevation_mae_deg": 9.9248,
+        "combined_error": 0.1228,
+        "model5_comparison_error": 0.373
+      },
+      "notes": "distance_mae_m=0.0564, azimuth_mae_deg=5.4375, elevation_mae_deg=9.9248, combined_error=0.1228, model5_comparison_error=0.3730"
+    }
+  ],
+  "failure_report": null
+}

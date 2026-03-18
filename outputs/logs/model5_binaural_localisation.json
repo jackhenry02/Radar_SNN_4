@@ -1,0 +1,23 @@
+{
+  "name": "model5_binaural_localisation",
+  "success": true,
+  "best_attempt": 1,
+  "best_score": 0.21581406195958455,
+  "best_metrics": {
+    "distance_mae_m": 0.1404,
+    "angular_mae_deg": 13.5678
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": true,
+      "score": 0.21581406195958455,
+      "metrics": {
+        "distance_mae_m": 0.1404,
+        "angular_mae_deg": 13.5678
+      },
+      "notes": "distance_mae_m=0.1404, angular_mae_deg=13.5678"
+    }
+  ],
+  "failure_report": null
+}

@@ -1,0 +1,21 @@
+{
+  "name": "model1_coincidence_detection",
+  "success": true,
+  "best_attempt": 1,
+  "best_score": 0.0,
+  "best_metrics": {
+    "peak_delay_error_bins": 0.0
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": true,
+      "score": 0.0,
+      "metrics": {
+        "peak_delay_error_bins": 0.0
+      },
+      "notes": "peak_delay_error_bins=0.0000"
+    }
+  ],
+  "failure_report": null
+}
