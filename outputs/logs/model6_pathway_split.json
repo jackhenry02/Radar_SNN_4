@@ -1,0 +1,45 @@
+{
+  "name": "model6_pathway_split",
+  "success": true,
+  "best_attempt": 2,
+  "best_score": 0.09212242811918259,
+  "best_metrics": {
+    "distance_mae_m": 0.0643,
+    "azimuth_mae_deg": 4.3465,
+    "elevation_mae_deg": 6.8544,
+    "combined_error": 0.0921,
+    "previous_model6_combined_error": 0.1228,
+    "spike_rate": 0.2212
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "success": false,
+      "score": 0.09864531457424164,
+      "metrics": {
+        "distance_mae_m": 0.0877,
+        "azimuth_mae_deg": 5.1576,
+        "elevation_mae_deg": 7.0525,
+        "combined_error": 0.0986,
+        "previous_model6_combined_error": 0.1228,
+        "spike_rate": 0.209
+      },
+      "notes": "{'distance_mae_m': 0.0877, 'azimuth_mae_deg': 5.1576, 'elevation_mae_deg': 7.0525, 'combined_error': 0.0986, 'previous_model6_combined_error': 0.1228, 'spike_rate': 0.209}"
+    },
+    {
+      "attempt": 2,
+      "success": true,
+      "score": 0.09212242811918259,
+      "metrics": {
+        "distance_mae_m": 0.0643,
+        "azimuth_mae_deg": 4.3465,
+        "elevation_mae_deg": 6.8544,
+        "combined_error": 0.0921,
+        "previous_model6_combined_error": 0.1228,
+        "spike_rate": 0.2212
+      },
+      "notes": "{'distance_mae_m': 0.0643, 'azimuth_mae_deg': 4.3465, 'elevation_mae_deg': 6.8544, 'combined_error': 0.0921, 'previous_model6_combined_error': 0.1228, 'spike_rate': 0.2212}"
+    }
+  ],
+  "failure_report": null
+}

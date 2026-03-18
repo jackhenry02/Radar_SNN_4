@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-DEFAULT_MAX_THREADS = os.environ.get("RADAR_SNN_MAX_THREADS", "2")
+DEFAULT_MAX_THREADS = os.environ.get("RADAR_SNN_MAX_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", DEFAULT_MAX_THREADS)
 os.environ.setdefault("OPENBLAS_NUM_THREADS", DEFAULT_MAX_THREADS)
 os.environ.setdefault("MKL_NUM_THREADS", DEFAULT_MAX_THREADS)
@@ -38,6 +38,7 @@ class GlobalConfig:
     num_cochlea_channels: int = 24
     cochlea_low_hz: float = 20_000.0
     cochlea_high_hz: float = 90_000.0
+    filter_bandwidth_sigma: float = 0.16
     envelope_lowpass_hz: float = 1_800.0
     envelope_downsample: int = 4
     spike_threshold: float = 0.42
@@ -153,6 +154,9 @@ def seed_everything(seed: int) -> None:
 
 
 def get_device() -> torch.device:
+    forced_device = os.environ.get("RADAR_SNN_DEVICE")
+    if forced_device:
+        return torch.device(forced_device)
     return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
 
@@ -308,6 +312,27 @@ def save_loss_curve(
     ax.set_title(title)
     ax.set_xlabel("Epoch")
     ax.set_ylabel("Loss")
+    ax.legend()
+    _finalize_figure(path)
+
+
+def save_grouped_bar_chart(
+    categories: list[str],
+    series: dict[str, list[float]],
+    path: str | Path,
+    title: str,
+    ylabel: str,
+) -> None:
+    x_axis = np.arange(len(categories))
+    width = 0.8 / max(1, len(series))
+    fig, ax = plt.subplots(figsize=(9, 4))
+    for index, (label, values) in enumerate(series.items()):
+        offset = (index - (len(series) - 1) / 2.0) * width
+        ax.bar(x_axis + offset, values, width=width, label=label)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x_axis)
+    ax.set_xticklabels(categories)
     ax.legend()
     _finalize_figure(path)
 

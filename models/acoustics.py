@@ -170,6 +170,7 @@ def cochlea_filterbank(
     num_channels: int,
     low_hz: float,
     high_hz: float,
+    filter_bandwidth_sigma: float,
     envelope_lowpass_hz: float,
     downsample: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -186,7 +187,7 @@ def cochlea_filterbank(
         device=signal.device,
     )
     log_centers = torch.log(center_frequencies)
-    sigma = 0.16
+    sigma = filter_bandwidth_sigma
     filters = torch.exp(-0.5 * ((log_frequencies[None, :] - log_centers[:, None]) / sigma).square())
     filters[:, 0] = 0.0
     filtered = torch.fft.irfft(spectrum[:, None, :] * filters[None, :, :], n=total_samples, dim=-1)
@@ -235,6 +236,7 @@ def cochlea_to_spikes(
         num_channels=config.num_cochlea_channels,
         low_hz=config.cochlea_low_hz,
         high_hz=config.cochlea_high_hz,
+        filter_bandwidth_sigma=config.filter_bandwidth_sigma,
         envelope_lowpass_hz=config.envelope_lowpass_hz,
         downsample=config.envelope_downsample,
     )

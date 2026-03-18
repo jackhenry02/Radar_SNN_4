@@ -1,0 +1,28 @@
+{
+  "study_name": "pathway_split_enhanced_v2",
+  "storage": "sqlite:///optuna_study.db",
+  "best_params": {
+    "num_frequency_channels": 48,
+    "num_delay_lines": 8,
+    "branch_hidden_dim": 24,
+    "hidden_dim": 112,
+    "num_steps": 8,
+    "membrane_beta": 0.9475477253452869,
+    "fusion_threshold": 1.1844936591445887,
+    "reset_mechanism": "subtract",
+    "learning_rate": 0.003131591952200811,
+    "epochs": 14,
+    "batch_size": 32,
+    "loss_weighting": 0.008996430911199503,
+    "angle_weight": 1.2817609291029435,
+    "elevation_weight": 1.3961237565758147,
+    "spike_threshold": 0.33660139185797233,
+    "filter_bandwidth_sigma": 0.10574702640883812
+  },
+  "best_objective": 0.09162124017707118,
+  "best_combined_error": 0.08902183920145035,
+  "improvement_fraction": 0.033421941352330654,
+  "selected_study": "pathway_split_enhanced",
+  "selected_trial": 10,
+  "selection_mode": "minimum_combined_error_across_completed_trials_and_legacy_studies"
+}
