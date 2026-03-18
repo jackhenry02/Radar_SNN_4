@@ -1,0 +1,85 @@
+{
+  "max_threads": 1,
+  "device": "cpu",
+  "reference_label": "pathway_split_enhanced trial 10",
+  "reference_params": {
+    "num_frequency_channels": 48,
+    "num_delay_lines": 8,
+    "branch_hidden_dim": 24,
+    "hidden_dim": 112,
+    "num_steps": 8,
+    "membrane_beta": 0.9475477253452869,
+    "fusion_threshold": 1.1844936591445887,
+    "reset_mechanism": "subtract",
+    "learning_rate": 0.003131591952200811,
+    "epochs": 14,
+    "batch_size": 32,
+    "loss_weighting": 0.008996430911199503,
+    "angle_weight": 1.2817609291029435,
+    "elevation_weight": 1.3961237565758147,
+    "spike_threshold": 0.33660139185797233,
+    "filter_bandwidth_sigma": 0.10574702640883812
+  },
+  "results": [
+    {
+      "mode": "dev",
+      "counts": {
+        "train": 512,
+        "val": 256,
+        "test": 256
+      },
+      "val_distance_mae_m": 0.061168111860752106,
+      "val_azimuth_mae_deg": 3.685215473175049,
+      "val_elevation_mae_deg": 6.35338020324707,
+      "val_combined_error": 0.08395493775606155,
+      "val_spike_rate": 0.2107718288898468,
+      "test_distance_mae_m": 0.060539763420820236,
+      "test_azimuth_mae_deg": 3.277047634124756,
+      "test_elevation_mae_deg": 5.91654109954834,
+      "test_combined_error": 0.0794263482093811,
+      "test_spike_rate": 0.2102007120847702,
+      "best_epoch": 9,
+      "best_val_loss": 0.06491753458976746
+    },
+    {
+      "mode": "stable",
+      "counts": {
+        "train": 2000,
+        "val": 512,
+        "test": 512
+      },
+      "val_distance_mae_m": 0.04602626711130142,
+      "val_azimuth_mae_deg": 3.0949082374572754,
+      "val_elevation_mae_deg": 6.018012046813965,
+      "val_combined_error": 0.0762786716222763,
+      "val_spike_rate": 0.1756679117679596,
+      "test_distance_mae_m": 0.05231454223394394,
+      "test_azimuth_mae_deg": 3.224043130874634,
+      "test_elevation_mae_deg": 5.672393321990967,
+      "test_combined_error": 0.07462189346551895,
+      "test_spike_rate": 0.1770477294921875,
+      "best_epoch": 5,
+      "best_val_loss": 0.05606408044695854
+    },
+    {
+      "mode": "final",
+      "counts": {
+        "train": 5000,
+        "val": 512,
+        "test": 512
+      },
+      "val_distance_mae_m": 0.04718197509646416,
+      "val_azimuth_mae_deg": 2.9790468215942383,
+      "val_elevation_mae_deg": 5.298496246337891,
+      "val_combined_error": 0.06947602331638336,
+      "val_spike_rate": 0.1537671834230423,
+      "test_distance_mae_m": 0.04516390711069107,
+      "test_azimuth_mae_deg": 3.0216896533966064,
+      "test_elevation_mae_deg": 5.623044967651367,
+      "test_combined_error": 0.0725446343421936,
+      "test_spike_rate": 0.152374267578125,
+      "best_epoch": 4,
+      "best_val_loss": 0.04447250813245773
+    }
+  ]
+}

@@ -11,7 +11,7 @@ from optuna.importance import PedAnovaImportanceEvaluator, get_param_importances
 from optuna.visualization.matplotlib import plot_optimization_history, plot_param_importances
 import torch
 
-from models.acoustics import cochlea_to_spikes, sample_uniform_positions, simulate_echo_batch
+from models.acoustics import AcousticBatch, cochlea_to_spikes, sample_uniform_positions, simulate_echo_batch
 from models.pathway_snn import PathwayBatch, PathwayFusionSNN, build_pathway_features, train_pathway_snn
 from stages.base import BaseStage, StageContext
 from utils.common import (
@@ -33,6 +33,40 @@ from utils.common import (
 )
 
 
+DATASET_MODE_SPECS: dict[str, dict[str, int]] = {
+    "legacy": {"train": 192, "val": 80, "test": 80},
+    "dev": {"train": 512, "val": 256, "test": 256},
+    "stable": {"train": 2_000, "val": 512, "test": 512},
+    "final": {"train": 5_000, "val": 512, "test": 512},
+}
+
+
+@dataclass
+class DatasetBundle:
+    mode: str
+    counts: dict[str, int]
+    train_batch: AcousticBatch
+    val_batch: AcousticBatch
+    test_batch: AcousticBatch
+    train_targets_raw: torch.Tensor
+    val_targets_raw: torch.Tensor
+    test_targets_raw: torch.Tensor
+
+
+@dataclass
+class SplitPrediction:
+    predicted_distance: torch.Tensor
+    predicted_azimuth: torch.Tensor
+    predicted_elevation: torch.Tensor
+    diagnostics: dict[str, torch.Tensor]
+
+
+def _dataset_mode_spec(mode: str) -> dict[str, int]:
+    if mode not in DATASET_MODE_SPECS:
+        raise ValueError(f"Unsupported dataset mode '{mode}'. Expected one of {sorted(DATASET_MODE_SPECS)}.")
+    return DATASET_MODE_SPECS[mode]
+
+
 def _copy_config(base: GlobalConfig, **overrides: Any) -> GlobalConfig:
     payload = {**base.__dict__, **overrides}
     return GlobalConfig(**payload)
@@ -50,22 +84,108 @@ def _itd_candidates(config: GlobalConfig, device: torch.device, num_delay_lines:
     return torch.linspace(-max_bins, max_bins, num_delay_lines, device=device).round().to(torch.long).unique(sorted=True)
 
 
-def _extract_front_end(acoustic_batch: Any, config: GlobalConfig) -> dict[str, torch.Tensor]:
+def _extract_front_end(
+    acoustic_batch: Any,
+    config: GlobalConfig,
+    *,
+    include_cochlea: bool = True,
+) -> dict[str, torch.Tensor]:
     transmit_front = cochlea_to_spikes(acoustic_batch.transmit, config)
     receive_front = cochlea_to_spikes(acoustic_batch.receive, config)
-    return {
+    payload = {
         "transmit_spikes": transmit_front["spikes"],
         "receive_spikes": receive_front["spikes"],
-        "receive_cochlea": receive_front["cochleagram"],
     }
+    if include_cochlea:
+        payload["receive_cochlea"] = receive_front["cochleagram"]
+    return payload
+
+
+def _slice_acoustic_batch(acoustic_batch: AcousticBatch, batch_slice: slice) -> AcousticBatch:
+    return AcousticBatch(
+        transmit=acoustic_batch.transmit[batch_slice],
+        receive=acoustic_batch.receive[batch_slice],
+        delays_s=acoustic_batch.delays_s[batch_slice],
+        amplitudes=acoustic_batch.amplitudes[batch_slice],
+        radii_m=acoustic_batch.radii_m[batch_slice],
+        azimuth_deg=acoustic_batch.azimuth_deg[batch_slice],
+        elevation_deg=acoustic_batch.elevation_deg[batch_slice],
+        itd_s=None if acoustic_batch.itd_s is None else acoustic_batch.itd_s[batch_slice],
+        ild_db=None if acoustic_batch.ild_db is None else acoustic_batch.ild_db[batch_slice],
+    )
+
+
+def _build_pathway_batch_from_acoustic(
+    acoustic_batch: AcousticBatch,
+    local_config: GlobalConfig,
+    distance_candidates: torch.Tensor,
+    itd_candidates: torch.Tensor,
+    *,
+    num_delay_lines: int,
+    num_frequency_channels: int,
+    chunk_size: int,
+    include_artifacts: bool,
+) -> tuple[PathwayBatch, dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+    distance_chunks: list[torch.Tensor] = []
+    azimuth_chunks: list[torch.Tensor] = []
+    elevation_chunks: list[torch.Tensor] = []
+    spike_count_chunks: list[torch.Tensor] = []
+    front_example: dict[str, torch.Tensor] = {}
+    aux_payload: dict[str, list[torch.Tensor]] = {}
+
+    for start in range(0, acoustic_batch.receive.shape[0], chunk_size):
+        stop = min(acoustic_batch.receive.shape[0], start + chunk_size)
+        chunk_batch = _slice_acoustic_batch(acoustic_batch, slice(start, stop))
+        front = _extract_front_end(chunk_batch, local_config, include_cochlea=include_artifacts and start == 0)
+        pathways, aux = build_pathway_features(
+            front["transmit_spikes"],
+            front["receive_spikes"],
+            distance_candidates,
+            itd_candidates,
+            num_delay_lines=num_delay_lines,
+            num_frequency_channels=num_frequency_channels,
+        )
+        distance_chunks.append(pathways.distance)
+        azimuth_chunks.append(pathways.azimuth)
+        elevation_chunks.append(pathways.elevation)
+        spike_count_chunks.append(pathways.spike_count)
+
+        if include_artifacts and start == 0:
+            front_example = {
+                "receive_spikes": front["receive_spikes"][:1],
+                "receive_cochlea": front["receive_cochlea"][:1],
+            }
+        if include_artifacts:
+            for key, value in aux.items():
+                aux_payload.setdefault(key, []).append(value)
+
+    pathway_batch = PathwayBatch(
+        distance=torch.cat(distance_chunks, dim=0),
+        azimuth=torch.cat(azimuth_chunks, dim=0),
+        elevation=torch.cat(elevation_chunks, dim=0),
+        spike_count=torch.cat(spike_count_chunks, dim=0),
+    )
+    if not include_artifacts:
+        return pathway_batch, {}, {}
+    aux_tensors = {key: torch.cat(values, dim=0) for key, values in aux_payload.items()}
+    return pathway_batch, front_example, aux_tensors
+
+
+def _fit_standardization(train_tensor: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    mean = train_tensor.mean(dim=0, keepdim=True)
+    std = train_tensor.std(dim=0, keepdim=True).clamp_min(1e-5)
+    return mean, std
+
+
+def _apply_standardization(tensor: torch.Tensor, mean: torch.Tensor, std: torch.Tensor) -> torch.Tensor:
+    return (tensor - mean) / std
 
 
 def _standardize_tensor(
     train_tensor: torch.Tensor,
     val_tensor: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    mean = train_tensor.mean(dim=0, keepdim=True)
-    std = train_tensor.std(dim=0, keepdim=True).clamp_min(1e-5)
+    mean, std = _fit_standardization(train_tensor)
     return (train_tensor - mean) / std, (val_tensor - mean) / std, mean, std
 
 
@@ -84,6 +204,42 @@ def _standardize_pathway_batch(
     return (
         PathwayBatch(train_distance, train_azimuth, train_elevation, train_batch.spike_count),
         PathwayBatch(val_distance, val_azimuth, val_elevation, val_batch.spike_count),
+        stats,
+    )
+
+
+def _standardize_pathway_triplet(
+    train_batch: PathwayBatch,
+    val_batch: PathwayBatch,
+    test_batch: PathwayBatch,
+) -> tuple[PathwayBatch, PathwayBatch, PathwayBatch, dict[str, tuple[torch.Tensor, torch.Tensor]]]:
+    dist_mean, dist_std = _fit_standardization(train_batch.distance)
+    az_mean, az_std = _fit_standardization(train_batch.azimuth)
+    el_mean, el_std = _fit_standardization(train_batch.elevation)
+    stats = {
+        "distance": (dist_mean, dist_std),
+        "azimuth": (az_mean, az_std),
+        "elevation": (el_mean, el_std),
+    }
+    return (
+        PathwayBatch(
+            _apply_standardization(train_batch.distance, dist_mean, dist_std),
+            _apply_standardization(train_batch.azimuth, az_mean, az_std),
+            _apply_standardization(train_batch.elevation, el_mean, el_std),
+            train_batch.spike_count,
+        ),
+        PathwayBatch(
+            _apply_standardization(val_batch.distance, dist_mean, dist_std),
+            _apply_standardization(val_batch.azimuth, az_mean, az_std),
+            _apply_standardization(val_batch.elevation, el_mean, el_std),
+            val_batch.spike_count,
+        ),
+        PathwayBatch(
+            _apply_standardization(test_batch.distance, dist_mean, dist_std),
+            _apply_standardization(test_batch.azimuth, az_mean, az_std),
+            _apply_standardization(test_batch.elevation, el_mean, el_std),
+            test_batch.spike_count,
+        ),
         stats,
     )
 
@@ -121,104 +277,200 @@ def _best_completed_trial(storage_uri: str, study_name: str) -> dict[str, Any] |
     }
 
 
+def _sample_dataset_split(
+    config: GlobalConfig,
+    device: torch.device,
+    count: int,
+    *,
+    split_seed: int,
+) -> tuple[AcousticBatch, torch.Tensor]:
+    seed_everything(split_seed)
+    radii, azimuth, elevation = sample_uniform_positions(
+        count,
+        config,
+        device,
+        azimuth_limits_deg=(-45.0, 45.0),
+        elevation_limits_deg=(-30.0, 30.0),
+        include_elevation=True,
+    )
+    batch = simulate_echo_batch(
+        config,
+        radii,
+        azimuth,
+        elevation,
+        binaural=True,
+        add_noise=True,
+        include_elevation_cues=True,
+    )
+    targets = torch.stack([radii, azimuth, elevation], dim=-1)
+    return batch, targets
+
+
+def _prepare_dataset_bundle(context: StageContext, mode: str) -> DatasetBundle:
+    cache_key = f"dataset_bundle::{mode}"
+    if cache_key in context.shared:
+        return context.shared[cache_key]
+
+    counts = _dataset_mode_spec(mode)
+    mode_offsets = {"legacy": 0, "dev": 1_000, "stable": 2_000, "final": 3_000}
+    base_seed = context.config.seed + mode_offsets.get(mode, 0)
+    train_batch, train_targets_raw = _sample_dataset_split(
+        context.config,
+        context.device,
+        counts["train"],
+        split_seed=base_seed + 1,
+    )
+    val_batch, val_targets_raw = _sample_dataset_split(
+        context.config,
+        context.device,
+        counts["val"],
+        split_seed=base_seed + 2,
+    )
+    test_batch, test_targets_raw = _sample_dataset_split(
+        context.config,
+        context.device,
+        counts["test"],
+        split_seed=base_seed + 3,
+    )
+    bundle = DatasetBundle(
+        mode=mode,
+        counts=counts,
+        train_batch=train_batch,
+        val_batch=val_batch,
+        test_batch=test_batch,
+        train_targets_raw=train_targets_raw,
+        val_targets_raw=val_targets_raw,
+        test_targets_raw=test_targets_raw,
+    )
+    context.shared[cache_key] = bundle
+    return bundle
+
+
+def _predict_split(
+    model: PathwayFusionSNN,
+    pathways: PathwayBatch,
+    target_mean: torch.Tensor,
+    target_std: torch.Tensor,
+) -> SplitPrediction:
+    with torch.no_grad():
+        output, diagnostics = model(pathways)
+        denormalized = output * target_std + target_mean
+    return SplitPrediction(
+        predicted_distance=denormalized[:, 0],
+        predicted_azimuth=denormalized[:, 1] * 45.0,
+        predicted_elevation=denormalized[:, 2] * 30.0,
+        diagnostics=diagnostics,
+    )
+
+
+def _split_metrics(
+    config: GlobalConfig,
+    prediction: SplitPrediction,
+    targets_raw: torch.Tensor,
+) -> dict[str, Any]:
+    distance_target = targets_raw[:, 0]
+    azimuth_target = targets_raw[:, 1]
+    elevation_target = targets_raw[:, 2]
+    return {
+        "predicted_distance": prediction.predicted_distance,
+        "predicted_azimuth": prediction.predicted_azimuth,
+        "predicted_elevation": prediction.predicted_elevation,
+        "target_distance": distance_target,
+        "target_azimuth": azimuth_target,
+        "target_elevation": elevation_target,
+        "distance_mae_m": distance_mae(prediction.predicted_distance, distance_target),
+        "azimuth_mae_deg": angular_mae(prediction.predicted_azimuth, azimuth_target),
+        "elevation_mae_deg": angular_mae(prediction.predicted_elevation, elevation_target),
+        "combined_error": combined_localisation_error(
+            prediction.predicted_distance,
+            distance_target,
+            prediction.predicted_azimuth,
+            azimuth_target,
+            prediction.predicted_elevation,
+            elevation_target,
+            config.max_range_m,
+        ),
+        "mean_spike_rate": prediction.diagnostics["spike_rate"].mean().item(),
+        "diagnostics": prediction.diagnostics,
+    }
+
+
 def _prepare_improvement_dataset(context: StageContext) -> None:
     if "improvement_train_batch" in context.shared:
         return
-    config = context.config
-    train_r, train_az, train_el = sample_uniform_positions(
-        192,
-        config,
-        context.device,
-        azimuth_limits_deg=(-45.0, 45.0),
-        elevation_limits_deg=(-30.0, 30.0),
-        include_elevation=True,
-    )
-    val_r, val_az, val_el = sample_uniform_positions(
-        80,
-        config,
-        context.device,
-        azimuth_limits_deg=(-45.0, 45.0),
-        elevation_limits_deg=(-30.0, 30.0),
-        include_elevation=True,
-    )
-    train_batch = simulate_echo_batch(
-        config,
-        train_r,
-        train_az,
-        train_el,
-        binaural=True,
-        add_noise=True,
-        include_elevation_cues=True,
-    )
-    val_batch = simulate_echo_batch(
-        config,
-        val_r,
-        val_az,
-        val_el,
-        binaural=True,
-        add_noise=True,
-        include_elevation_cues=True,
-    )
-    context.shared["improvement_train_batch"] = train_batch
-    context.shared["improvement_val_batch"] = val_batch
-    context.shared["improvement_train_targets_raw"] = torch.stack([train_r, train_az, train_el], dim=-1)
-    context.shared["improvement_val_targets_raw"] = torch.stack([val_r, val_az, val_el], dim=-1)
+    bundle = _prepare_dataset_bundle(context, os.environ.get("RADAR_SNN_IMPROVEMENT_DATASET_MODE", "legacy"))
+    context.shared["improvement_train_batch"] = bundle.train_batch
+    context.shared["improvement_val_batch"] = bundle.val_batch
+    context.shared["improvement_train_targets_raw"] = bundle.train_targets_raw
+    context.shared["improvement_val_targets_raw"] = bundle.val_targets_raw
 
 
-def _evaluate_trial(
+def _evaluate_dataset_bundle(
     context: StageContext,
     params: dict[str, Any],
+    dataset_bundle: DatasetBundle,
+    *,
+    include_artifacts: bool = True,
     seed: int | None = None,
 ) -> dict[str, Any]:
     if seed is not None:
         seed_everything(seed)
-    _prepare_improvement_dataset(context)
-    base_config = context.config
     local_config = _copy_config(
-        base_config,
+        context.config,
         num_cochlea_channels=int(params["num_frequency_channels"]),
         spike_threshold=float(params["spike_threshold"]),
         filter_bandwidth_sigma=float(params["filter_bandwidth_sigma"]),
     )
 
-    train_batch = context.shared["improvement_train_batch"]
-    val_batch = context.shared["improvement_val_batch"]
-    train_targets_raw = context.shared["improvement_train_targets_raw"]
-    val_targets_raw = context.shared["improvement_val_targets_raw"]
-
-    train_front = _extract_front_end(train_batch, local_config)
-    val_front = _extract_front_end(val_batch, local_config)
     distance_candidates = _distance_candidates(local_config, context.device, int(params["num_delay_lines"]))
     itd_candidates = _itd_candidates(local_config, context.device, int(params["num_delay_lines"]))
+    chunk_size = int(os.environ.get("RADAR_SNN_FEATURE_CHUNK_SIZE", "64"))
 
-    train_pathways, train_aux = build_pathway_features(
-        train_front["transmit_spikes"],
-        train_front["receive_spikes"],
+    train_pathways, _, _ = _build_pathway_batch_from_acoustic(
+        dataset_bundle.train_batch,
+        local_config,
         distance_candidates,
         itd_candidates,
         num_delay_lines=int(params["num_delay_lines"]),
         num_frequency_channels=int(params["num_frequency_channels"]),
+        chunk_size=chunk_size,
+        include_artifacts=False,
     )
-    val_pathways, val_aux = build_pathway_features(
-        val_front["transmit_spikes"],
-        val_front["receive_spikes"],
+    val_pathways, val_front, val_aux = _build_pathway_batch_from_acoustic(
+        dataset_bundle.val_batch,
+        local_config,
         distance_candidates,
         itd_candidates,
         num_delay_lines=int(params["num_delay_lines"]),
         num_frequency_channels=int(params["num_frequency_channels"]),
+        chunk_size=chunk_size,
+        include_artifacts=include_artifacts,
     )
-
-    train_pathways, val_pathways, pathway_stats = _standardize_pathway_batch(train_pathways, val_pathways)
+    train_pathways, val_pathways, _, pathway_stats = _standardize_pathway_triplet(
+        train_pathways,
+        val_pathways,
+        val_pathways,
+    )
 
     train_targets = torch.stack(
-        [train_targets_raw[:, 0], train_targets_raw[:, 1] / 45.0, train_targets_raw[:, 2] / 30.0],
+        [
+            dataset_bundle.train_targets_raw[:, 0],
+            dataset_bundle.train_targets_raw[:, 1] / 45.0,
+            dataset_bundle.train_targets_raw[:, 2] / 30.0,
+        ],
         dim=-1,
     )
     val_targets = torch.stack(
-        [val_targets_raw[:, 0], val_targets_raw[:, 1] / 45.0, val_targets_raw[:, 2] / 30.0],
+        [
+            dataset_bundle.val_targets_raw[:, 0],
+            dataset_bundle.val_targets_raw[:, 1] / 45.0,
+            dataset_bundle.val_targets_raw[:, 2] / 30.0,
+        ],
         dim=-1,
     )
-    train_targets, val_targets, target_mean, target_std = _standardize_tensor(train_targets, val_targets)
+    target_mean, target_std = _fit_standardization(train_targets)
+    train_targets = _apply_standardization(train_targets, target_mean, target_std)
+    val_targets = _apply_standardization(val_targets, target_mean, target_std)
 
     target_weights = torch.tensor(
         [1.0, float(params["angle_weight"]), float(params["elevation_weight"])],
@@ -252,56 +504,79 @@ def _evaluate_trial(
     model.load_state_dict(training.best_state)
     model.eval()
 
-    with torch.no_grad():
-        val_output, diagnostics = model(val_pathways)
-        denormalized = val_output * target_std + target_mean
-        predicted_distance = denormalized[:, 0]
-        predicted_azimuth = denormalized[:, 1] * 45.0
-        predicted_elevation = denormalized[:, 2] * 30.0
-
-    distance_error = distance_mae(predicted_distance, val_targets_raw[:, 0])
-    azimuth_error = angular_mae(predicted_azimuth, val_targets_raw[:, 1])
-    elevation_error = angular_mae(predicted_elevation, val_targets_raw[:, 2])
-    combined_error = combined_localisation_error(
-        predicted_distance,
-        val_targets_raw[:, 0],
-        predicted_azimuth,
-        val_targets_raw[:, 1],
-        predicted_elevation,
-        val_targets_raw[:, 2],
-        local_config.max_range_m,
+    test_pathways, test_front, test_aux = _build_pathway_batch_from_acoustic(
+        dataset_bundle.test_batch,
+        local_config,
+        distance_candidates,
+        itd_candidates,
+        num_delay_lines=int(params["num_delay_lines"]),
+        num_frequency_channels=int(params["num_frequency_channels"]),
+        chunk_size=chunk_size,
+        include_artifacts=False,
     )
-    mean_spike_rate = diagnostics["spike_rate"].mean().item()
-    objective = combined_error + float(params["loss_weighting"]) * mean_spike_rate
+    distance_mean, distance_std = pathway_stats["distance"]
+    azimuth_mean, azimuth_std = pathway_stats["azimuth"]
+    elevation_mean, elevation_std = pathway_stats["elevation"]
+    test_pathways = PathwayBatch(
+        _apply_standardization(test_pathways.distance, distance_mean, distance_std),
+        _apply_standardization(test_pathways.azimuth, azimuth_mean, azimuth_std),
+        _apply_standardization(test_pathways.elevation, elevation_mean, elevation_std),
+        test_pathways.spike_count,
+    )
+
+    val_prediction = _predict_split(model, val_pathways, target_mean, target_std)
+    test_prediction = _predict_split(model, test_pathways, target_mean, target_std)
+    val_metrics = _split_metrics(local_config, val_prediction, dataset_bundle.val_targets_raw)
+    test_metrics = _split_metrics(local_config, test_prediction, dataset_bundle.test_targets_raw)
+    objective = val_metrics["combined_error"] + float(params["loss_weighting"]) * val_metrics["mean_spike_rate"]
 
     return {
+        "dataset_mode": dataset_bundle.mode,
+        "dataset_counts": dataset_bundle.counts,
         "local_config": local_config,
-        "train_front": train_front,
         "val_front": val_front,
-        "train_pathways": train_pathways,
-        "val_pathways": val_pathways,
-        "train_aux": train_aux,
+        "test_front": test_front,
         "val_aux": val_aux,
+        "test_aux": test_aux,
         "pathway_stats": pathway_stats,
-        "train_targets": train_targets,
-        "val_targets": val_targets,
-        "target_mean": target_mean,
-        "target_std": target_std,
         "training": training,
-        "predicted_distance": predicted_distance,
-        "predicted_azimuth": predicted_azimuth,
-        "predicted_elevation": predicted_elevation,
-        "target_distance": val_targets_raw[:, 0],
-        "target_azimuth": val_targets_raw[:, 1],
-        "target_elevation": val_targets_raw[:, 2],
-        "distance_mae_m": distance_error,
-        "azimuth_mae_deg": azimuth_error,
-        "elevation_mae_deg": elevation_error,
-        "combined_error": combined_error,
-        "mean_spike_rate": mean_spike_rate,
+        "predicted_distance": val_metrics["predicted_distance"],
+        "predicted_azimuth": val_metrics["predicted_azimuth"],
+        "predicted_elevation": val_metrics["predicted_elevation"],
+        "target_distance": val_metrics["target_distance"],
+        "target_azimuth": val_metrics["target_azimuth"],
+        "target_elevation": val_metrics["target_elevation"],
+        "distance_mae_m": val_metrics["distance_mae_m"],
+        "azimuth_mae_deg": val_metrics["azimuth_mae_deg"],
+        "elevation_mae_deg": val_metrics["elevation_mae_deg"],
+        "combined_error": val_metrics["combined_error"],
+        "mean_spike_rate": val_metrics["mean_spike_rate"],
+        "diagnostics": val_metrics["diagnostics"],
+        "test_predicted_distance": test_metrics["predicted_distance"],
+        "test_predicted_azimuth": test_metrics["predicted_azimuth"],
+        "test_predicted_elevation": test_metrics["predicted_elevation"],
+        "test_target_distance": test_metrics["target_distance"],
+        "test_target_azimuth": test_metrics["target_azimuth"],
+        "test_target_elevation": test_metrics["target_elevation"],
+        "test_distance_mae_m": test_metrics["distance_mae_m"],
+        "test_azimuth_mae_deg": test_metrics["azimuth_mae_deg"],
+        "test_elevation_mae_deg": test_metrics["elevation_mae_deg"],
+        "test_combined_error": test_metrics["combined_error"],
+        "test_mean_spike_rate": test_metrics["mean_spike_rate"],
+        "test_diagnostics": test_metrics["diagnostics"],
         "objective": objective,
-        "diagnostics": diagnostics,
     }
+
+
+def _evaluate_trial(
+    context: StageContext,
+    params: dict[str, Any],
+    seed: int | None = None,
+) -> dict[str, Any]:
+    dataset_mode = os.environ.get("RADAR_SNN_IMPROVEMENT_DATASET_MODE", "legacy")
+    dataset_bundle = _prepare_dataset_bundle(context, dataset_mode)
+    _prepare_improvement_dataset(context)
+    return _evaluate_dataset_bundle(context, params, dataset_bundle, include_artifacts=True, seed=seed)
 
 
 class Model6PathwaySplit(BaseStage):
