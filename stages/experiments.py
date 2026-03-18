@@ -836,6 +836,76 @@ def _overall_artifacts(stage_root: Path, baseline: dict[str, Any], results: list
     }
 
 
+def _failure_analysis_lines(result: ExperimentRunResult) -> list[str]:
+    if result.name == "experiment_1_learned_features":
+        return [
+            "- Likely cause: the learnable front end removed the handcrafted binaural and spectral inductive bias all at once, while keeping a small dataset and short training schedule. The Conv1d/Conv2d replacement is therefore likely learning coarse energy structure rather than stable ITD and spectral-elevation cues.",
+            "- Assessment: mostly an implementation issue. This is not strong evidence that learned feature extraction is a bad idea in principle; it is strong evidence that this specific low-data replacement strategy degrades localisation.",
+        ]
+    if result.name == "experiment_2_compound_loss":
+        return [
+            "- Likely cause: the compound loss underweighted angular terms. In the current implementation both angles were normalized by `180 deg`, even though the actual sampled ranges are much narrower, so the optimizer could improve distance while largely ignoring azimuth and elevation.",
+            "- Assessment: implementation issue. This is not a strong negative finding against compound losses; it is a strong finding that this particular scaling choice damages angular learning.",
+        ]
+    if result.name == "experiment_3_uncertainty_weighting":
+        return [
+            "- Likely cause: uncertainty weighting sat on top of the same loss scaling used in Experiment 2. The learned task uncertainties converged to similar values instead of correcting the imbalance, so the angular tasks remained weakly driven.",
+            "- Assessment: mostly an implementation issue. This does not strongly reject uncertainty weighting as a method; it shows that the current uncertainty formulation did not rescue the mis-scaled objective.",
+        ]
+    if result.name == "experiment_4_resonant_neurons":
+        return [
+            "- Likely cause: the resonant block replaced a stable leaky fusion stage with an uncalibrated second-order dynamical system. The much higher spike rate suggests that it became over-excitable and distorted the precise timing information needed for distance and angle estimation.",
+            "- Assessment: mixed. This is a strong negative result for this exact resonant implementation, but not a strong biological conclusion that resonant neurons are unsuitable in general.",
+        ]
+    if result.name == "experiment_5_sconv2dlstm":
+        return [
+            "- Likely cause: the added `SConv2dLSTM` branch appears to preserve some broad spectral-temporal structure, but its pooled context likely blurs the timing precision needed for distance. The earlier state-reset bug was fixed, and the model still underperformed, so the remaining drop is not just a broken run.",
+            "- Assessment: moderate negative result for the current integration strategy. This does not reject `SConv2dLSTM` in principle, but it is good evidence that this way of inserting it into fusion hurts accuracy.",
+        ]
+    return [
+        "- Likely cause: the modification changed the optimization or representation in a way that was not matched to the current dataset and cue structure.",
+        "- Assessment: this should be treated as a negative result for the present implementation, not a general rejection of the broader idea.",
+    ]
+
+
+def _proposed_solution_lines(result: ExperimentRunResult) -> list[str]:
+    if result.name == "experiment_1_learned_features":
+        return [
+            "- Keep the pathway split but replace only one handcrafted block at a time, starting with the elevation branch rather than all branches simultaneously.",
+            "- Initialize the learned cochlear and delay filters from the handcrafted templates, freeze them for a short warm-up period, then unfreeze gradually.",
+            "- Add structural regularizers so the learned filters stay bandpass and the delay kernels stay smooth and localized.",
+            "- Re-run with the `stable` dataset split and longer training, because the current learned front end is too data-hungry for the `dev` setup.",
+        ]
+    if result.name == "experiment_2_compound_loss":
+        return [
+            "- Rescale the angular losses by the actual sampled target ranges, for example azimuth by `45 deg` and elevation by `30 deg`, instead of `180 deg`.",
+            "- Tune `lambda_d`, `lambda_a`, and `lambda_e` explicitly after the normalization is corrected.",
+            "- Log per-task gradient magnitudes during training to verify that azimuth and elevation are still receiving meaningful updates.",
+        ]
+    if result.name == "experiment_3_uncertainty_weighting":
+        return [
+            "- Apply uncertainty weighting only after fixing the base task normalization used in Experiment 2.",
+            "- Initialize the uncertainty parameters near the current successful manual weights rather than starting all tasks equally.",
+            "- Delay learning of the uncertainty terms for a few epochs or regularize them more strongly so they do not settle into a weak but balanced solution too early.",
+        ]
+    if result.name == "experiment_4_resonant_neurons":
+        return [
+            "- Constrain resonance frequency and damping to a narrower biologically plausible range matched to the echo envelope timescale.",
+            "- Insert the resonant dynamics only in the distance pathway first, instead of replacing the whole fusion stage.",
+            "- Add a stronger spike-rate penalty or explicit stability constraint, since the current resonant block became over-active.",
+        ]
+    if result.name == "experiment_5_sconv2dlstm":
+        return [
+            "- Move `SConv2dLSTM` into the elevation or spectral branch instead of fusing its pooled output directly into the global head.",
+            "- Preserve more timing detail by avoiding aggressive temporal pooling before the recurrent layer.",
+            "- Use a residual integration strategy where the baseline fusion head remains dominant and the recurrent branch only adds a correction term.",
+        ]
+    return [
+        "- Narrow the scope of the modification so it changes one part of the system at a time.",
+        "- Add diagnostics that verify prediction variance, per-task gradients, and spike-rate stability before interpreting the result as a true model finding.",
+    ]
+
+
 def _write_experiment_report(
     context: StageContext,
     stage_root: Path,
@@ -902,6 +972,10 @@ def _write_experiment_report(
             "",
             "The control is included to check whether the edited experimental harness itself is collapsing to flat predictions. If the control retains substantial prediction variance and low error, then the flat-response issue is specific to the modified variants rather than the evaluation stack.",
             "",
+            "Proposed solution:",
+            "- Keep Experiment 0 as a required sanity check for every future run.",
+            "- Add automatic guards that flag a candidate when prediction standard deviation collapses far below the target standard deviation.",
+            "",
             "![Experiment 0 loss](experiments/baseline/loss.png)",
             "![Experiment 0 distance](experiments/baseline/test_distance_prediction.png)",
             "![Experiment 0 azimuth](experiments/baseline/test_azimuth_prediction.png)",
@@ -932,6 +1006,12 @@ def _write_experiment_report(
                 f"- Test elevation MAE: `{result.test_metrics['elevation_mae_deg']:.4f} deg`",
                 f"- Test spike rate: `{result.test_metrics['mean_spike_rate']:.4f}`",
                 f"- Combined delta vs reference: `{result.comparison['against_active']['combined_error_delta']:.4f}`",
+                "",
+                "Failure analysis:",
+                *_failure_analysis_lines(result),
+                "",
+                "Proposed solution:",
+                *_proposed_solution_lines(result),
                 "",
                 f"![{result.title} loss](experiments/{result.name}/loss.png)",
                 f"![{result.title} comparison](experiments/{result.name}/comparison.png)",
