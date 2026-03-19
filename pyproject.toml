@@ -12,5 +12,5 @@ dependencies = [
     "optuna-dashboard>=0.20.0",
     "pandas>=2.3.3",
     "snntorch>=0.9.4",
-    "torch>=2.10.0",
+    "torch==2.6.0",
 ]

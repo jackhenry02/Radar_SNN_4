@@ -1,0 +1,63 @@
+{
+  "status": "success",
+  "device": "cpu",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "dataset_mode": "training_improved",
+  "dataset_counts": {
+    "train": 3500,
+    "val": 750,
+    "test": 750
+  },
+  "training_config": {
+    "max_epochs": 50,
+    "early_stopping_patience": 10,
+    "early_stopping_min_delta": 0.0001,
+    "scheduler_patience": 4,
+    "scheduler_factor": 0.5,
+    "scheduler_threshold": 0.0001,
+    "scheduler_min_lr": 1e-05,
+    "learning_rate": 0.003131591952200811,
+    "batch_size": 32
+  },
+  "timings": {
+    "dataset_prep_seconds": 1.1621,
+    "feature_prep_seconds": 718.4274,
+    "training_seconds": 9.9906,
+    "evaluation_seconds": 0.0111,
+    "total_seconds": 729.6005
+  },
+  "artifacts": {
+    "loss": "outputs/training_improved_experiments/cpu/baseline/loss.png",
+    "test_distance_prediction": "outputs/training_improved_experiments/cpu/baseline/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/training_improved_experiments/cpu/baseline/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/training_improved_experiments/cpu/baseline/test_elevation_prediction.png",
+    "test_distance_error": "outputs/training_improved_experiments/cpu/baseline/test_distance_error.png",
+    "test_azimuth_error": "outputs/training_improved_experiments/cpu/baseline/test_azimuth_error.png",
+    "test_elevation_error": "outputs/training_improved_experiments/cpu/baseline/test_elevation_error.png",
+    "summary": "outputs/training_improved_experiments/cpu/baseline/summary.png",
+    "run_summary": "outputs/training_improved_experiments/cpu/run_summary.png"
+  },
+  "training": {
+    "executed_epochs": 35,
+    "best_epoch": 25,
+    "stopped_early": true,
+    "best_val_loss": 0.0456,
+    "best_val_combined_error": 0.0651,
+    "initial_learning_rate": 0.003132,
+    "final_learning_rate": 0.000391
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.0339,
+    "azimuth_mae_deg": 2.7113,
+    "elevation_mae_deg": 5.1482,
+    "combined_error": 0.0651,
+    "mean_spike_rate": 0.1217
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.035,
+    "azimuth_mae_deg": 2.5537,
+    "elevation_mae_deg": 5.175,
+    "combined_error": 0.0648,
+    "mean_spike_rate": 0.1193
+  }
+}

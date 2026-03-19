@@ -1,0 +1,395 @@
+{
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "dataset_mode": "training_improved",
+  "experiments": [
+    {
+      "name": "improved_experiment_1_learned_features",
+      "title": "Improved Experiment 1: Residual Learned Elevation",
+      "description": "Keep handcrafted distance/azimuth features and replace only the elevation branch with a residual learned spectral module.",
+      "rationale": "This targets the weakest cue branch first while preserving the baseline timing and binaural inductive bias.",
+      "implemented_steps": [
+        "Step 1: keep handcrafted distance and azimuth pathways unchanged.",
+        "Step 2: replace only the elevation branch with a learned residual spectral CNN.",
+        "Step 3: keep the learned residual contribution small at initialization so the baseline pathway still dominates early training."
+      ],
+      "remaining_steps": [
+        "Add explicit bandpass and smoothness regularization to the learned spectral filters.",
+        "Warm-start from the stable dataset split if the dev split is still too small."
+      ],
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "variant": "residual_elevation",
+      "loss_mode": "baseline_standardized",
+      "training_config": {
+        "learning_rate": 0.00281843275698073,
+        "batch_size": 24,
+        "max_epochs": 50
+      },
+      "training": {
+        "executed_epochs": 34,
+        "best_epoch": 24,
+        "stopped_early": true,
+        "best_val_loss": 0.0461,
+        "best_val_combined_error": 0.0654,
+        "initial_learning_rate": 0.002818,
+        "final_learning_rate": 0.000352,
+        "training_seconds": 3332.8738
+      },
+      "previous_combined_error": 0.0838,
+      "artifacts": {
+        "loss": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/loss.png",
+        "test_distance_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/test_elevation_error.png",
+        "comparison": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/comparison.png",
+        "summary": "outputs/training_improved_experiments/cpu/improved_experiment_1_learned_features/summary.png"
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0323,
+        "azimuth_mae_deg": 2.645,
+        "elevation_mae_deg": 5.2132,
+        "combined_error": 0.0654,
+        "mean_spike_rate": 0.1377,
+        "predicted_distance_std": 0.5793,
+        "predicted_azimuth_std": 25.6299,
+        "predicted_elevation_std": 16.0187,
+        "target_distance_std": 0.5806,
+        "target_azimuth_std": 25.6936,
+        "target_elevation_std": 17.4997
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0338,
+        "azimuth_mae_deg": 2.4254,
+        "elevation_mae_deg": 5.1221,
+        "combined_error": 0.0639,
+        "mean_spike_rate": 0.1349,
+        "predicted_distance_std": 0.5632,
+        "predicted_azimuth_std": 25.6581,
+        "predicted_elevation_std": 15.7246,
+        "target_distance_std": 0.5688,
+        "target_azimuth_std": 25.8114,
+        "target_elevation_std": 17.5666
+      },
+      "comparison": {
+        "combined_error_delta": -0.0009,
+        "distance_mae_delta": -0.0012,
+        "azimuth_mae_delta": -0.1283,
+        "elevation_mae_delta": -0.0529,
+        "spike_rate_delta": 0.0156
+      }
+    },
+    {
+      "name": "improved_experiment_2_compound_loss",
+      "title": "Improved Experiment 2: Corrected Compound Loss",
+      "description": "Use a compound loss with distance, azimuth, and elevation normalized by their actual sampled ranges rather than by global angular bounds.",
+      "rationale": "The previous compound loss likely collapsed angle learning because its angular terms were too weak relative to distance.",
+      "implemented_steps": [
+        "Step 1: keep the baseline architecture unchanged.",
+        "Step 2: normalize distance by max range, azimuth by 45 deg, and elevation by 30 deg.",
+        "Step 3: reuse the manual task weights only after correcting the term scales."
+      ],
+      "remaining_steps": [
+        "Tune the task weights after confirming that the corrected scaling no longer collapses angles.",
+        "Log per-task gradient norms to verify balance directly."
+      ],
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "variant": "baseline",
+      "loss_mode": "corrected_compound",
+      "training_config": {
+        "learning_rate": 0.003131591952200811,
+        "batch_size": 32,
+        "max_epochs": 50
+      },
+      "training": {
+        "executed_epochs": 34,
+        "best_epoch": 24,
+        "stopped_early": true,
+        "best_val_loss": 0.1076,
+        "best_val_combined_error": 0.0643,
+        "initial_learning_rate": 0.003132,
+        "final_learning_rate": 0.000391,
+        "training_seconds": 22.2717
+      },
+      "previous_combined_error": 0.0857,
+      "artifacts": {
+        "loss": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/loss.png",
+        "test_distance_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/test_elevation_error.png",
+        "comparison": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/comparison.png",
+        "summary": "outputs/training_improved_experiments/cpu/improved_experiment_2_compound_loss/summary.png"
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0372,
+        "azimuth_mae_deg": 2.3818,
+        "elevation_mae_deg": 5.0799,
+        "combined_error": 0.0643,
+        "mean_spike_rate": 0.135,
+        "predicted_distance_std": 0.5733,
+        "predicted_azimuth_std": 25.4139,
+        "predicted_elevation_std": 16.7277,
+        "target_distance_std": 0.5806,
+        "target_azimuth_std": 25.6936,
+        "target_elevation_std": 17.4997
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0383,
+        "azimuth_mae_deg": 2.3782,
+        "elevation_mae_deg": 5.1312,
+        "combined_error": 0.0648,
+        "mean_spike_rate": 0.1322,
+        "predicted_distance_std": 0.5589,
+        "predicted_azimuth_std": 25.296,
+        "predicted_elevation_std": 16.4787,
+        "target_distance_std": 0.5688,
+        "target_azimuth_std": 25.8114,
+        "target_elevation_std": 17.5666
+      },
+      "comparison": {
+        "combined_error_delta": -0.0,
+        "distance_mae_delta": 0.0033,
+        "azimuth_mae_delta": -0.1755,
+        "elevation_mae_delta": -0.0438,
+        "spike_rate_delta": 0.0129
+      }
+    },
+    {
+      "name": "improved_experiment_3_uncertainty_weighting",
+      "title": "Improved Experiment 3: Corrected Uncertainty Weighting",
+      "description": "Apply uncertainty weighting only after correcting the task normalization and initialize the uncertainty terms near the successful manual weighting.",
+      "rationale": "This tests uncertainty weighting under a fairer objective instead of asking it to rescue a mis-scaled loss.",
+      "implemented_steps": [
+        "Step 1: use the corrected per-task normalization from Improved Experiment 2.",
+        "Step 2: initialize the uncertainty parameters from the baseline manual weights.",
+        "Step 3: freeze the uncertainty parameters during a short warm-up so the task head stabilizes first."
+      ],
+      "remaining_steps": [
+        "Add regularization toward the manual weighting if the learned sigmas drift too early.",
+        "Test a longer warm-up period on the stable split."
+      ],
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "variant": "baseline",
+      "loss_mode": "corrected_uncertainty",
+      "training_config": {
+        "learning_rate": 0.00281843275698073,
+        "batch_size": 32,
+        "max_epochs": 50
+      },
+      "training": {
+        "executed_epochs": 34,
+        "best_epoch": 24,
+        "stopped_early": true,
+        "best_val_loss": -2.0901,
+        "best_val_combined_error": 0.0636,
+        "initial_learning_rate": 0.002818,
+        "final_learning_rate": 0.000352,
+        "training_seconds": 22.1241
+      },
+      "previous_combined_error": 0.0819,
+      "artifacts": {
+        "loss": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/loss.png",
+        "test_distance_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/test_elevation_error.png",
+        "comparison": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/comparison.png",
+        "summary": "outputs/training_improved_experiments/cpu/improved_experiment_3_uncertainty_weighting/summary.png"
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0249,
+        "azimuth_mae_deg": 2.4134,
+        "elevation_mae_deg": 5.2212,
+        "combined_error": 0.0636,
+        "mean_spike_rate": 0.1532,
+        "predicted_distance_std": 0.5795,
+        "predicted_azimuth_std": 25.9049,
+        "predicted_elevation_std": 16.5948,
+        "target_distance_std": 0.5806,
+        "target_azimuth_std": 25.6936,
+        "target_elevation_std": 17.4997
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.027,
+        "azimuth_mae_deg": 2.2791,
+        "elevation_mae_deg": 5.2784,
+        "combined_error": 0.0642,
+        "mean_spike_rate": 0.1506,
+        "predicted_distance_std": 0.5661,
+        "predicted_azimuth_std": 25.7837,
+        "predicted_elevation_std": 16.3528,
+        "target_distance_std": 0.5688,
+        "target_azimuth_std": 25.8114,
+        "target_elevation_std": 17.5666
+      },
+      "comparison": {
+        "combined_error_delta": -0.0006,
+        "distance_mae_delta": -0.008,
+        "azimuth_mae_delta": -0.2746,
+        "elevation_mae_delta": 0.1034,
+        "spike_rate_delta": 0.0313
+      }
+    },
+    {
+      "name": "improved_experiment_4_resonant_neurons",
+      "title": "Improved Experiment 4: Distance-Only Resonance",
+      "description": "Confine resonant dynamics to the distance pathway and keep the baseline fusion stage for azimuth and elevation.",
+      "rationale": "The original resonant experiment changed too much at once and likely destabilized all three outputs.",
+      "implemented_steps": [
+        "Step 1: keep the handcrafted branch encoder and the baseline fusion head.",
+        "Step 2: apply resonant dynamics only to the distance branch before fusion.",
+        "Step 3: constrain resonance frequency and damping to a narrow range and increase the spike penalty slightly."
+      ],
+      "remaining_steps": [
+        "Sweep the resonance band against the echo envelope timescale rather than using a single constrained range.",
+        "Test the resonant block in the distance pathway only on the stable split."
+      ],
+      "accepted": false,
+      "decision": "REJECTED",
+      "variant": "distance_resonance",
+      "loss_mode": "baseline_standardized",
+      "training_config": {
+        "learning_rate": 0.00281843275698073,
+        "batch_size": 24,
+        "max_epochs": 50
+      },
+      "training": {
+        "executed_epochs": 27,
+        "best_epoch": 17,
+        "stopped_early": true,
+        "best_val_loss": 0.0499,
+        "best_val_combined_error": 0.0746,
+        "initial_learning_rate": 0.002818,
+        "final_learning_rate": 0.000352,
+        "training_seconds": 22.3994
+      },
+      "previous_combined_error": 0.0897,
+      "artifacts": {
+        "loss": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/loss.png",
+        "test_distance_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/test_elevation_error.png",
+        "comparison": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/comparison.png",
+        "summary": "outputs/training_improved_experiments/cpu/improved_experiment_4_resonant_neurons/summary.png"
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0782,
+        "azimuth_mae_deg": 2.7976,
+        "elevation_mae_deg": 5.1296,
+        "combined_error": 0.0746,
+        "mean_spike_rate": 0.0657,
+        "predicted_distance_std": 0.5755,
+        "predicted_azimuth_std": 25.3795,
+        "predicted_elevation_std": 16.3642,
+        "target_distance_std": 0.5806,
+        "target_azimuth_std": 25.6936,
+        "target_elevation_std": 17.4997
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0745,
+        "azimuth_mae_deg": 2.8157,
+        "elevation_mae_deg": 5.1595,
+        "combined_error": 0.0736,
+        "mean_spike_rate": 0.0656,
+        "predicted_distance_std": 0.5748,
+        "predicted_azimuth_std": 25.5078,
+        "predicted_elevation_std": 16.0591,
+        "target_distance_std": 0.5688,
+        "target_azimuth_std": 25.8114,
+        "target_elevation_std": 17.5666
+      },
+      "comparison": {
+        "combined_error_delta": 0.0088,
+        "distance_mae_delta": 0.0395,
+        "azimuth_mae_delta": 0.262,
+        "elevation_mae_delta": -0.0155,
+        "spike_rate_delta": -0.0537
+      }
+    },
+    {
+      "name": "improved_experiment_5_sconv2dlstm",
+      "title": "Improved Experiment 5: Elevation SConv Residual",
+      "description": "Move SConv2dLSTM into the elevation pathway as a residual spectral-temporal correction instead of a global fusion addition.",
+      "rationale": "This keeps the baseline timing path intact while giving the elevation branch extra spectral-temporal capacity.",
+      "implemented_steps": [
+        "Step 1: keep the baseline handcrafted pathway encoder as the main route.",
+        "Step 2: add an SConv2dLSTM branch only inside the elevation pathway.",
+        "Step 3: inject the recurrent output as a small residual correction rather than as a new dominant fusion feature."
+      ],
+      "remaining_steps": [
+        "Reduce temporal pooling further if CPU budget allows and timing detail is still being blurred.",
+        "Try an ear-specific spectral branch before the recurrent block for stronger elevation cues."
+      ],
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "variant": "elevation_sconv_residual",
+      "loss_mode": "baseline_standardized",
+      "training_config": {
+        "learning_rate": 0.002661853159370689,
+        "batch_size": 16,
+        "max_epochs": 50
+      },
+      "training": {
+        "executed_epochs": 24,
+        "best_epoch": 14,
+        "stopped_early": true,
+        "best_val_loss": 0.0439,
+        "best_val_combined_error": 0.0653,
+        "initial_learning_rate": 0.002662,
+        "final_learning_rate": 0.000333,
+        "training_seconds": 428.3272
+      },
+      "previous_combined_error": 0.0813,
+      "artifacts": {
+        "loss": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/loss.png",
+        "test_distance_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/test_elevation_error.png",
+        "comparison": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/comparison.png",
+        "summary": "outputs/training_improved_experiments/cpu/improved_experiment_5_sconv2dlstm/summary.png"
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0396,
+        "azimuth_mae_deg": 2.7601,
+        "elevation_mae_deg": 5.0936,
+        "combined_error": 0.0653,
+        "mean_spike_rate": 0.1257,
+        "predicted_distance_std": 0.5737,
+        "predicted_azimuth_std": 26.1522,
+        "predicted_elevation_std": 16.3592,
+        "target_distance_std": 0.5806,
+        "target_azimuth_std": 25.6936,
+        "target_elevation_std": 17.4997
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.04,
+        "azimuth_mae_deg": 2.5799,
+        "elevation_mae_deg": 4.9465,
+        "combined_error": 0.0635,
+        "mean_spike_rate": 0.1239,
+        "predicted_distance_std": 0.5587,
+        "predicted_azimuth_std": 26.3327,
+        "predicted_elevation_std": 16.0222,
+        "target_distance_std": 0.5688,
+        "target_azimuth_std": 25.8114,
+        "target_elevation_std": 17.5666
+      },
+      "comparison": {
+        "combined_error_delta": -0.0013,
+        "distance_mae_delta": 0.005,
+        "azimuth_mae_delta": 0.0262,
+        "elevation_mae_delta": -0.2285,
+        "spike_rate_delta": 0.0046
+      }
+    }
+  ],
+  "artifacts": {
+    "overall_experiment_comparison": "outputs/training_improved_experiments/cpu/overall_experiment_comparison.png",
+    "experiment_training_runtime": "outputs/training_improved_experiments/cpu/experiment_training_runtime.png"
+  }
+}

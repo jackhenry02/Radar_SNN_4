@@ -338,6 +338,99 @@ class ElevationSConvResidualEncoder(nn.Module):
         )
 
 
+class CombinedElevationEncoder(nn.Module):
+    def __init__(
+        self,
+        distance_dim: int,
+        azimuth_dim: int,
+        elevation_dim: int,
+        branch_hidden_dim: int,
+        *,
+        sconv_channels: int = 4,
+        temporal_pool: int = 12,
+    ) -> None:
+        super().__init__()
+        self.branch_hidden_dim = branch_hidden_dim
+        self.temporal_pool = max(4, temporal_pool)
+        self.distance_branch = nn.Linear(distance_dim, branch_hidden_dim)
+        self.azimuth_branch = nn.Linear(azimuth_dim, branch_hidden_dim)
+        self.elevation_branch = nn.Linear(elevation_dim, branch_hidden_dim)
+        self.elevation_conv1 = nn.Conv2d(2, 8, kernel_size=(5, 7), padding=(2, 3))
+        self.elevation_conv2 = nn.Conv2d(8, 8, kernel_size=(3, 5), padding=(1, 2))
+        self.elevation_residual = nn.Linear(8 * 4 * 4, branch_hidden_dim)
+        self.sconv = snn.SConv2dLSTM(
+            in_channels=1,
+            out_channels=sconv_channels,
+            kernel_size=(3, 1),
+            threshold=1.0,
+            spike_grad=surrogate.fast_sigmoid(),
+            reset_mechanism="none",
+            output=True,
+        )
+        self.sconv_projection = nn.Linear(sconv_channels, branch_hidden_dim)
+        self.cnn_residual_gain = nn.Parameter(torch.tensor(-0.8))
+        self.sconv_residual_gain = nn.Parameter(torch.tensor(-1.0))
+
+    def _sconv_context(self, spectral_source: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        self.sconv.reset_mem()
+        reduced = F.avg_pool1d(
+            spectral_source.reshape(-1, 1, spectral_source.shape[-1]),
+            kernel_size=self.temporal_pool,
+            stride=self.temporal_pool,
+        ).reshape(spectral_source.shape[0], spectral_source.shape[1], spectral_source.shape[2], -1)
+        syn = None
+        mem = None
+        spike_trace = []
+        for time_index in range(reduced.shape[-1]):
+            frame = reduced[:, :, :, time_index].permute(0, 2, 1).unsqueeze(1)
+            spikes, syn, mem = self.sconv(frame, syn, mem)
+            spike_trace.append(spikes)
+        spike_tensor = torch.stack(spike_trace, dim=1)
+        self.sconv.reset_mem()
+        pooled = spike_tensor.mean(dim=(1, 3, 4))
+        return pooled, spike_tensor
+
+    def forward(self, batch: ExperimentBatch) -> BranchEncoding:
+        if batch.pathway is None or batch.receive_spikes is None:
+            raise ValueError("CombinedElevationEncoder requires pathway and spike inputs.")
+        distance_latent = F.relu(self.distance_branch(batch.pathway.distance))
+        azimuth_latent = F.relu(self.azimuth_branch(batch.pathway.azimuth))
+        base_elevation = F.relu(self.elevation_branch(batch.pathway.elevation))
+
+        spectral_source = batch.receive_spikes.float()
+        elevation_map = F.relu(self.elevation_conv1(spectral_source))
+        elevation_map = F.relu(self.elevation_conv2(elevation_map))
+        learned_elevation = self.elevation_residual(F.adaptive_avg_pool2d(elevation_map, (4, 4)).flatten(start_dim=1))
+
+        sconv_context, spike_trace = self._sconv_context(spectral_source)
+        sconv_residual = self.sconv_projection(sconv_context)
+
+        cnn_scale = 0.5 * torch.sigmoid(self.cnn_residual_gain)
+        sconv_scale = 0.4 * torch.sigmoid(self.sconv_residual_gain)
+        elevation_latent = F.relu(base_elevation + cnn_scale * learned_elevation + sconv_scale * sconv_residual)
+
+        diagnostics = {
+            "distance_latent": distance_latent,
+            "azimuth_latent": azimuth_latent,
+            "base_elevation_latent": base_elevation,
+            "learned_elevation_latent": learned_elevation,
+            "sconv_elevation_residual": sconv_residual,
+            "elevation_latent": elevation_latent,
+            "elevation_map": elevation_map,
+            "elevation_sconv_spikes": spike_trace,
+            "cnn_residual_scale": cnn_scale.detach(),
+            "sconv_residual_scale": sconv_scale.detach(),
+        }
+        return BranchEncoding(
+            distance_latent=distance_latent,
+            azimuth_latent=azimuth_latent,
+            elevation_latent=elevation_latent,
+            spectral_source=spectral_source,
+            spike_proxy=batch.spike_count.float(),
+            diagnostics=diagnostics,
+        )
+
+
 class ExperimentalPathwayModel(nn.Module):
     def __init__(
         self,

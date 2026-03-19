@@ -1,0 +1,10 @@
+{
+  "status": "failed",
+  "device": "mps",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "dataset_mode": "training_improved",
+  "error": "NotImplementedError: aten::logspace.out is not currently implemented for the MPS device during cochlea_filterbank center-frequency construction.",
+  "artifacts": {
+    "failure": "outputs/training_improved_experiments/mps/failure.png"
+  }
+}

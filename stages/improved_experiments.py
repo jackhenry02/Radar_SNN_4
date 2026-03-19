@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from models.experimental_variants import (
+    CombinedElevationEncoder,
     DistanceResonanceModel,
     ElevationSConvResidualEncoder,
     ExperimentalPathwayModel,
@@ -300,6 +301,23 @@ def _instantiate_improved_model(data: Any, spec: ImprovedExperimentSpec) -> nn.M
 
     if spec.variant == "elevation_sconv_residual":
         encoder = ElevationSConvResidualEncoder(
+            distance_dim=data.train_batch.pathway.distance.shape[-1],
+            azimuth_dim=data.train_batch.pathway.azimuth.shape[-1],
+            elevation_dim=data.train_batch.pathway.elevation.shape[-1],
+            branch_hidden_dim=branch_hidden_dim,
+        )
+        return ExperimentalPathwayModel(
+            encoder=encoder,
+            hidden_dim=int(params["hidden_dim"]),
+            output_dim=3,
+            num_steps=int(params["num_steps"]),
+            beta=float(params["membrane_beta"]),
+            threshold=float(params["fusion_threshold"]),
+            reset_mechanism=str(params["reset_mechanism"]),
+        ).to(data.train_targets_raw.device)
+
+    if spec.variant == "combined_residual_elevation":
+        encoder = CombinedElevationEncoder(
             distance_dim=data.train_batch.pathway.distance.shape[-1],
             azimuth_dim=data.train_batch.pathway.azimuth.shape[-1],
             elevation_dim=data.train_batch.pathway.elevation.shape[-1],

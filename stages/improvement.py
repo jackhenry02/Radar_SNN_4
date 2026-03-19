@@ -38,6 +38,7 @@ DATASET_MODE_SPECS: dict[str, dict[str, int]] = {
     "dev": {"train": 512, "val": 256, "test": 256},
     "stable": {"train": 2_000, "val": 512, "test": 512},
     "final": {"train": 5_000, "val": 512, "test": 512},
+    "training_improved": {"train": 3_500, "val": 750, "test": 750},
 }
 
 
@@ -312,7 +313,7 @@ def _prepare_dataset_bundle(context: StageContext, mode: str) -> DatasetBundle:
         return context.shared[cache_key]
 
     counts = _dataset_mode_spec(mode)
-    mode_offsets = {"legacy": 0, "dev": 1_000, "stable": 2_000, "final": 3_000}
+    mode_offsets = {"legacy": 0, "dev": 1_000, "stable": 2_000, "final": 3_000, "training_improved": 4_000}
     base_seed = context.config.seed + mode_offsets.get(mode, 0)
     train_batch, train_targets_raw = _sample_dataset_split(
         context.config,
