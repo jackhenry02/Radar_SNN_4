@@ -1,0 +1,96 @@
+{
+  "name": "combined_experiment_1235",
+  "title": "Combined Experiment: Residual Elevation + Corrected Uncertainty + Elevation SConv",
+  "description": "Combine the accepted architectural changes from Experiments 1 and 5 inside the elevation pathway and train them with the corrected per-task objective from Experiments 2 and 3.",
+  "rationale": "Experiments 1 and 5 each improved elevation while preserving the baseline distance and azimuth inductive bias, and Experiments 2 and 3 improved task balance through better-scaled losses. This run tests whether those gains stack when they are applied together under the same long-training regime.",
+  "decision": "ACCEPTED",
+  "accepted": true,
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "baseline_source": "reused existing training-improved baseline",
+  "dataset_mode": "training_improved",
+  "dataset_counts": {
+    "train": 3500,
+    "val": 750,
+    "test": 750
+  },
+  "training_config": {
+    "max_epochs": 50,
+    "early_stopping_patience": 10,
+    "scheduler_patience": 4,
+    "scheduler_factor": 0.5,
+    "learning_rate_scale": 0.85,
+    "batch_size": 16,
+    "uncertainty_warmup_epochs": 4
+  },
+  "training": {
+    "executed_epochs": 50,
+    "best_epoch": 44,
+    "stopped_early": false,
+    "best_val_loss": -2.1503,
+    "best_val_combined_error": 0.0626,
+    "initial_learning_rate": 0.002662,
+    "final_learning_rate": 0.000166
+  },
+  "timings": {
+    "data_prep_seconds": 689.8919,
+    "training_seconds": 5552.3186,
+    "evaluation_seconds": 12.6743,
+    "total_seconds": 6254.8908
+  },
+  "baseline_metrics": {
+    "distance_mae_m": 0.035,
+    "azimuth_mae_deg": 2.5537,
+    "elevation_mae_deg": 5.175,
+    "combined_error": 0.0648,
+    "mean_spike_rate": 0.1193
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.0208,
+    "azimuth_mae_deg": 2.3906,
+    "elevation_mae_deg": 5.1715,
+    "combined_error": 0.0626,
+    "mean_spike_rate": 0.1294,
+    "predicted_distance_std": 0.5754,
+    "predicted_azimuth_std": 25.8718,
+    "predicted_elevation_std": 16.7465,
+    "target_distance_std": 0.5806,
+    "target_azimuth_std": 25.6936,
+    "target_elevation_std": 17.4997
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.0216,
+    "azimuth_mae_deg": 2.1857,
+    "elevation_mae_deg": 5.1975,
+    "combined_error": 0.0623,
+    "mean_spike_rate": 0.128,
+    "predicted_distance_std": 0.5647,
+    "predicted_azimuth_std": 25.9914,
+    "predicted_elevation_std": 16.4371,
+    "target_distance_std": 0.5688,
+    "target_azimuth_std": 25.8114,
+    "target_elevation_std": 17.5666
+  },
+  "comparison": {
+    "combined_error_delta": -0.0025,
+    "distance_mae_delta": -0.0134,
+    "azimuth_mae_delta": -0.368,
+    "elevation_mae_delta": 0.0225,
+    "spike_rate_delta": 0.0087
+  },
+  "learned_sigmas": {
+    "distance": 0.1192,
+    "azimuth": 0.273,
+    "elevation": 0.5394
+  },
+  "artifacts": {
+    "loss": "outputs/combined_experiment/combined_experiment_1235/loss.png",
+    "test_distance_prediction": "outputs/combined_experiment/combined_experiment_1235/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/combined_experiment/combined_experiment_1235/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/combined_experiment/combined_experiment_1235/test_elevation_prediction.png",
+    "test_elevation_error": "outputs/combined_experiment/combined_experiment_1235/test_elevation_error.png",
+    "comparison": "outputs/combined_experiment/combined_experiment_1235/comparison.png",
+    "summary": "outputs/combined_experiment/combined_experiment_1235/summary.png",
+    "baseline_vs_combined": "outputs/combined_experiment/baseline_vs_combined.png",
+    "run_summary": "outputs/combined_experiment/run_summary.png"
+  }
+}
