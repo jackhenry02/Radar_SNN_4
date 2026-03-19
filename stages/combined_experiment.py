@@ -205,6 +205,74 @@ def _save_coordinate_error_profiles(cache_path: Path, output_path: Path, title: 
     return str(output_path)
 
 
+def _parameter_inventory_lines(
+    config: Any,
+    params: dict[str, Any],
+    training_config: EnhancedTrainingConfig,
+    result: dict[str, Any],
+) -> list[str]:
+    return [
+        "## Parameter Inventory",
+        "",
+        "Status here means whether a parameter is updated by gradient descent inside the current combined-model training run. Optuna-tuned values that stay constant during a run are marked as `Fixed`.",
+        "",
+        "### Fixed Parameters",
+        "",
+        "| Parameter | What it does | Status | Current value |",
+        "| --- | --- | --- | --- |",
+        f"| `sample_rate_hz` | Sets waveform and cochlear time resolution. | Fixed | `{config.sample_rate_hz}` |",
+        f"| `chirp_start_hz`, `chirp_end_hz`, `chirp_duration_s` | Define the transmit FM chirp sweep. | Fixed | `{config.chirp_start_hz:.0f} -> {config.chirp_end_hz:.0f} Hz`, `{config.chirp_duration_s*1e3:.1f} ms` |",
+        f"| `signal_duration_s` | Sets the receive window length. | Fixed | `{config.signal_duration_s*1e3:.1f} ms` |",
+        f"| `speed_of_sound_m_s` | Converts echo delay into distance. | Fixed | `{config.speed_of_sound_m_s}` |",
+        f"| `ear_spacing_m` | Sets binaural receiver spacing for ITD geometry. | Fixed | `{config.ear_spacing_m:.3f} m` |",
+        f"| `noise_std`, `jitter_std_s` | Control additive noise and timing jitter in the simulator. | Fixed | `{config.noise_std}`, `{config.jitter_std_s}` |",
+        f"| `head_shadow_strength` | Sets azimuth-dependent interaural level asymmetry. | Fixed | `{config.head_shadow_strength}` |",
+        f"| `elevation_spectral_strength` | Sets the synthetic elevation spectral cue strength. | Fixed | `{config.elevation_spectral_strength}` |",
+        f"| `num_frequency_channels` | Sets the cochlear channel count and pathway spectral resolution. | Fixed | `{int(params['num_frequency_channels'])}` |",
+        f"| `cochlea_low_hz`, `cochlea_high_hz`, `filter_bandwidth_sigma` | Define the fixed cochlear filterbank span and bandwidth. | Fixed | `{config.cochlea_low_hz:.0f} - {config.cochlea_high_hz:.0f} Hz`, `{float(params['filter_bandwidth_sigma']):.4f}` |",
+        f"| `envelope_lowpass_hz`, `envelope_downsample` | Control cochlear envelope smoothing and temporal downsampling. | Fixed | `{config.envelope_lowpass_hz:.0f} Hz`, `{config.envelope_downsample}` |",
+        f"| `spike_threshold`, `spike_beta` | Control the fixed cochlear LIF spike encoder. | Fixed | `{float(params['spike_threshold']):.4f}`, `{config.spike_beta:.2f}` |",
+        f"| `num_delay_lines` | Sets the number of fixed delay/ITD candidates in the handcrafted timing pathways. | Fixed | `{int(params['num_delay_lines'])}` |",
+        f"| `branch_hidden_dim`, `hidden_dim` | Set latent width per branch and fused hidden width. | Fixed | `{int(params['branch_hidden_dim'])}`, `{int(params['hidden_dim'])}` |",
+        f"| `num_steps`, `membrane_beta`, `fusion_threshold`, `reset_mechanism` | Set the fusion SNN temporal dynamics. | Fixed | `{int(params['num_steps'])}`, `{float(params['membrane_beta']):.4f}`, `{float(params['fusion_threshold']):.4f}`, `{params['reset_mechanism']}` |",
+        f"| `learning_rate` | Sets the initial optimizer step size for the combined run. | Fixed | `{float(result['training']['initial_learning_rate']):.6f}` |",
+        f"| `loss_weighting`, `angle_weight`, `elevation_weight` | Set spike penalty strength and the manual weighting used to initialize task balance. | Fixed | `{float(params['loss_weighting']):.6f}`, `{float(params['angle_weight']):.4f}`, `{float(params['elevation_weight']):.4f}` |",
+        f"| `batch_size`, `max_epochs`, `early_stopping_patience` | Set the current training budget. | Fixed | `{int(result['training_config']['batch_size'])}`, `{training_config.max_epochs}`, `{training_config.early_stopping_patience}` |",
+        f"| `scheduler_patience`, `scheduler_factor`, `scheduler_threshold`, `scheduler_min_lr` | Set `ReduceLROnPlateau` behavior. | Fixed | `{training_config.scheduler_patience}`, `{training_config.scheduler_factor}`, `{training_config.scheduler_threshold}`, `{training_config.scheduler_min_lr}` |",
+        "",
+        "### Learned Parameters",
+        "",
+        "| Parameter | What it does | Status | Current form |",
+        "| --- | --- | --- | --- |",
+        "| `encoder.distance_branch.{weight,bias}` | Projects handcrafted delay-bank distance features into the distance latent. | Learned | `Linear(16 -> 24)` |",
+        "| `encoder.azimuth_branch.{weight,bias}` | Projects handcrafted ITD/ILD azimuth features into the azimuth latent. | Learned | `Linear(16 -> 24)` |",
+        "| `encoder.elevation_branch.{weight,bias}` | Projects the fixed elevation feature vector into the baseline elevation latent. | Learned | `Linear(144 -> 24)` |",
+        "| `encoder.elevation_conv1.{weight,bias}` | First learned spectral CNN block for elevation refinement. | Learned | `Conv2d(2 -> 8, kernel 5x7)` |",
+        "| `encoder.elevation_conv2.{weight,bias}` | Second learned spectral CNN block for elevation refinement. | Learned | `Conv2d(8 -> 8, kernel 3x5)` |",
+        "| `encoder.elevation_residual.{weight,bias}` | Projects CNN elevation features into the residual elevation latent. | Learned | `Linear(128 -> 24)` |",
+        "| `encoder.sconv.conv.{weight,bias}` | Learned recurrent spectral-temporal kernel inside the elevation `SConv2dLSTM` block. | Learned | `conv weight shape (16, 5, 3, 1)` |",
+        "| `encoder.sconv_projection.{weight,bias}` | Projects recurrent elevation context into the elevation latent. | Learned | `Linear(4 -> 24)` |",
+        "| `encoder.cnn_residual_gain` | Scalar gate on the CNN elevation residual contribution. | Learned | `1 scalar` |",
+        "| `encoder.sconv_residual_gain` | Scalar gate on the SConv elevation residual contribution. | Learned | `1 scalar` |",
+        "| `fusion.{weight,bias}` | Mixes the distance, azimuth, and elevation latents before the spiking fusion layer. | Learned | `Linear(72 -> 112)` |",
+        "| `integration.{weight,bias}` | Applies the second dense transform inside the fusion SNN head. | Learned | `Linear(112 -> 112)` |",
+        "| `readout.{weight,bias}` | Maps the fused hidden state to distance, azimuth, and elevation outputs. | Learned | `Linear(112 -> 3)` |",
+        "| `log_sigma_distance`, `log_sigma_azimuth`, `log_sigma_elevation` | Learn task uncertainty weights for the corrected multi-task loss. | Learned | `3 scalars` |",
+        "",
+        "### Handcrafted But Not Learned",
+        "",
+        "| Parameter or transform | What it does | Status | Current form |",
+        "| --- | --- | --- | --- |",
+        "| `distance_candidates` | Defines the fixed delay bins used by the distance coincidence bank. | Fixed | `8 candidate delays` |",
+        "| `itd_candidates` | Defines the fixed binaural delay bins used by the azimuth ITD bank. | Fixed | `8 candidate delays` |",
+        "| `delay_bank_features` | Computes distance features by fixed onset-and-coincidence matching. | Fixed | handcrafted transform |",
+        "| `itd_features` | Computes azimuth timing cues from fixed signed delay sweeps. | Fixed | handcrafted transform |",
+        "| `ild_features` | Computes azimuth level cues from left-right spike-count contrasts. | Fixed | handcrafted transform |",
+        "| `spectral_norm`, `spectral_notches`, `spectral_slope` | Build the baseline elevation feature vector before learned residual correction. | Fixed | handcrafted transform |",
+        "",
+    ]
+
+
 def _write_combined_report(
     outputs_root: Path,
     baseline_label: str,
@@ -214,6 +282,7 @@ def _write_combined_report(
     training_config: EnhancedTrainingConfig,
     spec: ImprovedExperimentSpec,
     result: dict[str, Any],
+    parameter_lines: list[str],
     short_run_result: dict[str, Any] | None = None,
 ) -> Path:
     report_path = outputs_root / "combined_experiment_report.md"
@@ -326,6 +395,7 @@ def _write_combined_report(
             "",
         ]
     )
+    lines.extend(parameter_lines)
 
     long_profile = result.get("artifacts", {}).get("coordinate_error_profile")
     if long_profile:
@@ -544,6 +614,7 @@ def run_combined_experiment(config: Any, outputs: Any) -> dict[str, Any]:
         },
     }
     save_json(output_root / "result.json", result)
+    parameter_lines = _parameter_inventory_lines(config, params, training_config, result)
     report_path = _write_combined_report(
         outputs.root,
         baseline_label,
@@ -553,6 +624,7 @@ def run_combined_experiment(config: Any, outputs: Any) -> dict[str, Any]:
         training_config,
         spec,
         result,
+        parameter_lines,
     )
 
     summary = {
@@ -718,6 +790,7 @@ def run_combined_small_data_test(config: Any, outputs: Any) -> dict[str, Any]:
     save_json(output_root / "short_data_1000_result.json", result)
 
     baseline_metrics = _baseline_metrics(cpu_baseline)
+    parameter_lines = _parameter_inventory_lines(config, params, EnhancedTrainingConfig(), long_result)
     report_path = _write_combined_report(
         outputs.root,
         baseline_label,
@@ -727,6 +800,7 @@ def run_combined_small_data_test(config: Any, outputs: Any) -> dict[str, Any]:
         EnhancedTrainingConfig(),
         _combined_spec(),
         long_result,
+        parameter_lines,
         short_run_result=result,
     )
 

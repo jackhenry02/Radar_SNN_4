@@ -80,6 +80,64 @@ This combines the accepted pieces as follows:
 - Because the distance and azimuth branches stayed handcrafted, any gain here should be attributable mainly to the combined elevation augmentation and the corrected task weighting.
 - Acceptance still requires beating the same long-training CPU baseline on combined error and at least one individual metric.
 
+## Parameter Inventory
+
+Status here means whether a parameter is updated by gradient descent inside the current combined-model training run. Optuna-tuned values that stay constant during a run are marked as `Fixed`.
+
+### Fixed Parameters
+
+| Parameter | What it does | Status | Current value |
+| --- | --- | --- | --- |
+| `sample_rate_hz` | Sets waveform and cochlear time resolution. | Fixed | `256000` |
+| `chirp_start_hz`, `chirp_end_hz`, `chirp_duration_s` | Define the transmit FM chirp sweep. | Fixed | `80000 -> 20000 Hz`, `3.0 ms` |
+| `signal_duration_s` | Sets the receive window length. | Fixed | `22.0 ms` |
+| `speed_of_sound_m_s` | Converts echo delay into distance. | Fixed | `343.0` |
+| `ear_spacing_m` | Sets binaural receiver spacing for ITD geometry. | Fixed | `0.030 m` |
+| `noise_std`, `jitter_std_s` | Control additive noise and timing jitter in the simulator. | Fixed | `0.008`, `2.5e-05` |
+| `head_shadow_strength` | Sets azimuth-dependent interaural level asymmetry. | Fixed | `0.32` |
+| `elevation_spectral_strength` | Sets the synthetic elevation spectral cue strength. | Fixed | `0.75` |
+| `num_frequency_channels` | Sets the cochlear channel count and pathway spectral resolution. | Fixed | `48` |
+| `cochlea_low_hz`, `cochlea_high_hz`, `filter_bandwidth_sigma` | Define the fixed cochlear filterbank span and bandwidth. | Fixed | `20000 - 90000 Hz`, `0.1057` |
+| `envelope_lowpass_hz`, `envelope_downsample` | Control cochlear envelope smoothing and temporal downsampling. | Fixed | `1800 Hz`, `4` |
+| `spike_threshold`, `spike_beta` | Control the fixed cochlear LIF spike encoder. | Fixed | `0.3366`, `0.88` |
+| `num_delay_lines` | Sets the number of fixed delay/ITD candidates in the handcrafted timing pathways. | Fixed | `8` |
+| `branch_hidden_dim`, `hidden_dim` | Set latent width per branch and fused hidden width. | Fixed | `24`, `112` |
+| `num_steps`, `membrane_beta`, `fusion_threshold`, `reset_mechanism` | Set the fusion SNN temporal dynamics. | Fixed | `8`, `0.9475`, `1.1845`, `subtract` |
+| `learning_rate` | Sets the initial optimizer step size for the combined run. | Fixed | `0.002662` |
+| `loss_weighting`, `angle_weight`, `elevation_weight` | Set spike penalty strength and the manual weighting used to initialize task balance. | Fixed | `0.008996`, `1.2818`, `1.3961` |
+| `batch_size`, `max_epochs`, `early_stopping_patience` | Set the current training budget. | Fixed | `16`, `50`, `10` |
+| `scheduler_patience`, `scheduler_factor`, `scheduler_threshold`, `scheduler_min_lr` | Set `ReduceLROnPlateau` behavior. | Fixed | `4`, `0.5`, `0.0001`, `1e-05` |
+
+### Learned Parameters
+
+| Parameter | What it does | Status | Current form |
+| --- | --- | --- | --- |
+| `encoder.distance_branch.{weight,bias}` | Projects handcrafted delay-bank distance features into the distance latent. | Learned | `Linear(16 -> 24)` |
+| `encoder.azimuth_branch.{weight,bias}` | Projects handcrafted ITD/ILD azimuth features into the azimuth latent. | Learned | `Linear(16 -> 24)` |
+| `encoder.elevation_branch.{weight,bias}` | Projects the fixed elevation feature vector into the baseline elevation latent. | Learned | `Linear(144 -> 24)` |
+| `encoder.elevation_conv1.{weight,bias}` | First learned spectral CNN block for elevation refinement. | Learned | `Conv2d(2 -> 8, kernel 5x7)` |
+| `encoder.elevation_conv2.{weight,bias}` | Second learned spectral CNN block for elevation refinement. | Learned | `Conv2d(8 -> 8, kernel 3x5)` |
+| `encoder.elevation_residual.{weight,bias}` | Projects CNN elevation features into the residual elevation latent. | Learned | `Linear(128 -> 24)` |
+| `encoder.sconv.conv.{weight,bias}` | Learned recurrent spectral-temporal kernel inside the elevation `SConv2dLSTM` block. | Learned | `conv weight shape (16, 5, 3, 1)` |
+| `encoder.sconv_projection.{weight,bias}` | Projects recurrent elevation context into the elevation latent. | Learned | `Linear(4 -> 24)` |
+| `encoder.cnn_residual_gain` | Scalar gate on the CNN elevation residual contribution. | Learned | `1 scalar` |
+| `encoder.sconv_residual_gain` | Scalar gate on the SConv elevation residual contribution. | Learned | `1 scalar` |
+| `fusion.{weight,bias}` | Mixes the distance, azimuth, and elevation latents before the spiking fusion layer. | Learned | `Linear(72 -> 112)` |
+| `integration.{weight,bias}` | Applies the second dense transform inside the fusion SNN head. | Learned | `Linear(112 -> 112)` |
+| `readout.{weight,bias}` | Maps the fused hidden state to distance, azimuth, and elevation outputs. | Learned | `Linear(112 -> 3)` |
+| `log_sigma_distance`, `log_sigma_azimuth`, `log_sigma_elevation` | Learn task uncertainty weights for the corrected multi-task loss. | Learned | `3 scalars` |
+
+### Handcrafted But Not Learned
+
+| Parameter or transform | What it does | Status | Current form |
+| --- | --- | --- | --- |
+| `distance_candidates` | Defines the fixed delay bins used by the distance coincidence bank. | Fixed | `8 candidate delays` |
+| `itd_candidates` | Defines the fixed binaural delay bins used by the azimuth ITD bank. | Fixed | `8 candidate delays` |
+| `delay_bank_features` | Computes distance features by fixed onset-and-coincidence matching. | Fixed | handcrafted transform |
+| `itd_features` | Computes azimuth timing cues from fixed signed delay sweeps. | Fixed | handcrafted transform |
+| `ild_features` | Computes azimuth level cues from left-right spike-count contrasts. | Fixed | handcrafted transform |
+| `spectral_norm`, `spectral_notches`, `spectral_slope` | Build the baseline elevation feature vector before learned residual correction. | Fixed | handcrafted transform |
+
 ## Coordinate Error Profiles
 
 The saved long-training combined run did not cache per-sample predictions, so the coordinate-wise MAE/MAPE profile cannot be generated for that run without rerunning the full training job.
