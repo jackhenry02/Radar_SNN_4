@@ -70,6 +70,7 @@ This combines the accepted pieces as follows:
 ![Combined metrics](combined_experiment/baseline_vs_combined.png)
 ![Combined loss](combined_experiment/combined_experiment_1235/loss.png)
 ![Combined summary](combined_experiment/combined_experiment_1235/summary.png)
+![Combined distance](combined_experiment/combined_experiment_1235/test_distance_prediction.png)
 ![Combined azimuth](combined_experiment/combined_experiment_1235/test_azimuth_prediction.png)
 ![Combined elevation](combined_experiment/combined_experiment_1235/test_elevation_prediction.png)
 
@@ -78,6 +79,34 @@ This combines the accepted pieces as follows:
 - This run tests whether the two accepted elevation-pathway changes stack while the loss correction keeps distance and angle training balanced.
 - Because the distance and azimuth branches stayed handcrafted, any gain here should be attributable mainly to the combined elevation augmentation and the corrected task weighting.
 - Acceptance still requires beating the same long-training CPU baseline on combined error and at least one individual metric.
+
+## Reduced Data Check
+
+This section reuses the saved long-training result above and compares it against a smaller run of the same combined model.
+- Reduced-data split: `700 / 150 / 150`
+- Reduced-data max epochs: `10`
+- Reduced-data decision: `REJECTED`
+- Reduced-data executed epochs: `10`
+- Reduced-data best epoch: `7`
+- Reduced-data early stopped: `False`
+- Reduced-data total runtime: `364.14 s`
+- Reduced-data training time: `230.08 s`
+- Relative speedup vs long training: `17.18x`
+
+- Reduced-data combined error: `0.0894`
+- Reduced-data distance MAE: `0.0997 m`
+- Reduced-data azimuth MAE: `4.2173 deg`
+- Reduced-data elevation MAE: `5.7061 deg`
+- Combined error delta vs long training: `0.0271`
+- Distance delta vs long training: `0.0781`
+- Azimuth delta vs long training: `2.0316`
+- Elevation delta vs long training: `0.5086`
+
+![Short-vs-long metrics](combined_experiment/short_data_vs_full.png)
+![Short-data loss](combined_experiment/combined_experiment_1235_small_data/loss.png)
+![Short-data distance](combined_experiment/combined_experiment_1235_small_data/test_distance_prediction.png)
+![Short-data azimuth](combined_experiment/combined_experiment_1235_small_data/test_azimuth_prediction.png)
+![Short-data elevation](combined_experiment/combined_experiment_1235_small_data/test_elevation_prediction.png)
 
 ## Remaining Follow-Up
 

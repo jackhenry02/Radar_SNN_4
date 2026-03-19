@@ -57,6 +57,35 @@ def _combined_spec() -> ImprovedExperimentSpec:
     )
 
 
+def _combined_short_spec() -> ImprovedExperimentSpec:
+    base = _combined_spec()
+    return ImprovedExperimentSpec(
+        name="combined_experiment_1235_small_data",
+        title="Combined Experiment: Small-Data Check",
+        description=(
+            "Run the same combined model on a reduced 1000-sample dataset with a 700 / 150 / 150 split and only 10 epochs "
+            "to measure speed and accuracy trade-offs."
+        ),
+        rationale=(
+            "This isolates how much the accepted combined architecture depends on the larger training set and longer "
+            "training horizon used in the main run."
+        ),
+        implemented_steps=[
+            "Step 1: keep the combined architecture from the accepted long-training run unchanged.",
+            "Step 2: reduce the dataset to 700 train, 150 validation, and 150 test samples.",
+            "Step 3: cap training at 10 epochs while keeping the same optimizer family and scheduler logic.",
+            "Step 4: compare the short run directly against the saved long-training combined result rather than retraining that reference.",
+        ],
+        remaining_steps=[
+            "Repeat the same reduced-data check with 20 epochs to separate dataset-size effects from epoch-budget effects.",
+            "Test a cached-feature path if data preparation dominates the short-run wall time.",
+        ],
+        variant=base.variant,
+        loss_mode=base.loss_mode,
+        training_overrides=dict(base.training_overrides),
+    )
+
+
 def _load_or_build_cpu_baseline(
     config: Any,
     outputs: Any,
@@ -91,6 +120,13 @@ def _baseline_metrics(cpu_result: dict[str, Any]) -> dict[str, float]:
     }
 
 
+def _load_saved_combined_result(outputs_root: Path) -> dict[str, Any]:
+    result_path = outputs_root / "combined_experiment" / "result.json"
+    if not result_path.exists():
+        raise FileNotFoundError("Saved long-training combined result was not found at outputs/combined_experiment/result.json.")
+    return json.loads(result_path.read_text(encoding="utf-8"))
+
+
 def _write_combined_report(
     outputs_root: Path,
     baseline_label: str,
@@ -100,6 +136,7 @@ def _write_combined_report(
     training_config: EnhancedTrainingConfig,
     spec: ImprovedExperimentSpec,
     result: dict[str, Any],
+    short_run_result: dict[str, Any] | None = None,
 ) -> Path:
     report_path = outputs_root / "combined_experiment_report.md"
     relative_root = Path("combined_experiment")
@@ -199,6 +236,7 @@ def _write_combined_report(
             f"![Combined metrics](combined_experiment/baseline_vs_combined.png)",
             f"![Combined loss]({experiment_dir.as_posix()}/loss.png)",
             f"![Combined summary]({experiment_dir.as_posix()}/summary.png)",
+            f"![Combined distance]({experiment_dir.as_posix()}/test_distance_prediction.png)",
             f"![Combined azimuth]({experiment_dir.as_posix()}/test_azimuth_prediction.png)",
             f"![Combined elevation]({experiment_dir.as_posix()}/test_elevation_prediction.png)",
             "",
@@ -208,10 +246,46 @@ def _write_combined_report(
             "- Because the distance and azimuth branches stayed handcrafted, any gain here should be attributable mainly to the combined elevation augmentation and the corrected task weighting.",
             "- Acceptance still requires beating the same long-training CPU baseline on combined error and at least one individual metric.",
             "",
-            "## Remaining Follow-Up",
-            "",
         ]
     )
+
+    if short_run_result is not None:
+        short_dir = relative_root / short_run_result["name"]
+        speedup = float(result["timings"]["total_seconds"]) / max(float(short_run_result["timings"]["total_seconds"]), 1e-6)
+        lines.extend(
+            [
+                "## Reduced Data Check",
+                "",
+                "This section reuses the saved long-training result above and compares it against a smaller run of the same combined model.",
+                f"- Reduced-data split: `{short_run_result['dataset_counts']['train']} / {short_run_result['dataset_counts']['val']} / {short_run_result['dataset_counts']['test']}`",
+                f"- Reduced-data max epochs: `{short_run_result['training_config']['max_epochs']}`",
+                f"- Reduced-data decision: `{short_run_result['decision']}`",
+                f"- Reduced-data executed epochs: `{short_run_result['training']['executed_epochs']}`",
+                f"- Reduced-data best epoch: `{short_run_result['training']['best_epoch']}`",
+                f"- Reduced-data early stopped: `{short_run_result['training']['stopped_early']}`",
+                f"- Reduced-data total runtime: `{short_run_result['timings']['total_seconds']:.2f} s`",
+                f"- Reduced-data training time: `{short_run_result['timings']['training_seconds']:.2f} s`",
+                f"- Relative speedup vs long training: `{speedup:.2f}x`",
+                "",
+                f"- Reduced-data combined error: `{short_run_result['test_metrics']['combined_error']:.4f}`",
+                f"- Reduced-data distance MAE: `{short_run_result['test_metrics']['distance_mae_m']:.4f} m`",
+                f"- Reduced-data azimuth MAE: `{short_run_result['test_metrics']['azimuth_mae_deg']:.4f} deg`",
+                f"- Reduced-data elevation MAE: `{short_run_result['test_metrics']['elevation_mae_deg']:.4f} deg`",
+                f"- Combined error delta vs long training: `{short_run_result['comparison_vs_full']['combined_error_delta']:.4f}`",
+                f"- Distance delta vs long training: `{short_run_result['comparison_vs_full']['distance_mae_delta']:.4f}`",
+                f"- Azimuth delta vs long training: `{short_run_result['comparison_vs_full']['azimuth_mae_delta']:.4f}`",
+                f"- Elevation delta vs long training: `{short_run_result['comparison_vs_full']['elevation_mae_delta']:.4f}`",
+                "",
+                "![Short-vs-long metrics](combined_experiment/short_data_vs_full.png)",
+                f"![Short-data loss]({short_dir.as_posix()}/loss.png)",
+                f"![Short-data distance]({short_dir.as_posix()}/test_distance_prediction.png)",
+                f"![Short-data azimuth]({short_dir.as_posix()}/test_azimuth_prediction.png)",
+                f"![Short-data elevation]({short_dir.as_posix()}/test_elevation_prediction.png)",
+                "",
+            ]
+        )
+
+    lines.extend(["## Remaining Follow-Up", ""])
     lines.extend([f"- {step}" for step in spec.remaining_steps])
 
     report_path.write_text("\n".join(lines), encoding="utf-8")
@@ -381,4 +455,176 @@ def run_combined_experiment(config: Any, outputs: Any) -> dict[str, Any]:
         "report_path": str(report_path),
     }
     save_json(outputs.root / "combined_experiment_summary.json", summary)
+    return summary
+
+
+def run_combined_small_data_test(config: Any, outputs: Any) -> dict[str, Any]:
+    long_result = _load_saved_combined_result(outputs.root)
+    training_config = EnhancedTrainingConfig(
+        dataset_mode="combined_small",
+        max_epochs=10,
+        early_stopping_patience=10,
+        scheduler_patience=3,
+    )
+    baseline_label, cpu_baseline, mps_result, baseline_source = _load_or_build_cpu_baseline(
+        config,
+        outputs,
+        EnhancedTrainingConfig(),
+    )
+    if cpu_baseline.get("status") != "success":
+        raise RuntimeError("CPU baseline is required before running the reduced-data combined test.")
+
+    context = StageContext(config=config, device=torch.device("cpu"), outputs=outputs)
+    params, _ = _baseline_reference_params(context)
+    spec = _combined_short_spec()
+    output_root = outputs.root / "combined_experiment"
+    output_root.mkdir(parents=True, exist_ok=True)
+
+    total_start = time.perf_counter()
+    prep_start = time.perf_counter()
+    print(f"[combined_experiment] preparing reduced dataset on cpu with dataset_mode={training_config.dataset_mode}", flush=True)
+    data = _prepare_experiment_data(context, params, training_config.dataset_mode)
+    target_bundle = _prepare_target_bundle(data)
+    data_prep_seconds = time.perf_counter() - prep_start
+
+    print("[combined_experiment] training reduced-data combined model on cpu", flush=True)
+    model = _instantiate_improved_model(data, spec)
+    training_start = time.perf_counter()
+    train_result, uncertainty_module = _train_improved_model_with_training_improvements(
+        model,
+        data,
+        target_bundle,
+        spec,
+        training_config,
+    )
+    training_seconds = time.perf_counter() - training_start
+
+    model.load_state_dict(train_result.best_state)
+    learned_sigmas = None
+    if uncertainty_module is not None and train_result.best_auxiliary_state is not None:
+        uncertainty_module.load_state_dict(train_result.best_auxiliary_state)
+        sigma = torch.exp(uncertainty_module.log_sigma.detach().clamp(-3.0, 2.0))
+        learned_sigmas = {
+            "distance": float(sigma[0].item()),
+            "azimuth": float(sigma[1].item()),
+            "elevation": float(sigma[2].item()),
+        }
+
+    evaluation_start = time.perf_counter()
+    val_eval = _evaluate_improved_model(model, data.val_batch, data.val_targets_raw, target_bundle, data.local_config)
+    test_eval = _evaluate_improved_model(model, data.test_batch, data.test_targets_raw, target_bundle, data.local_config)
+    evaluation_seconds = time.perf_counter() - evaluation_start
+    total_seconds = time.perf_counter() - total_start
+
+    full_metrics = {
+        "distance_mae_m": float(long_result["test_metrics"]["distance_mae_m"]),
+        "azimuth_mae_deg": float(long_result["test_metrics"]["azimuth_mae_deg"]),
+        "elevation_mae_deg": float(long_result["test_metrics"]["elevation_mae_deg"]),
+        "combined_error": float(long_result["test_metrics"]["combined_error"]),
+        "mean_spike_rate": float(long_result["test_metrics"]["mean_spike_rate"]),
+    }
+    comparison_vs_full = _metrics_delta(test_eval.metrics, full_metrics)
+    accepted_vs_full = _is_accepted(test_eval.metrics, full_metrics)
+    artifacts = _save_improved_outputs(output_root, spec, train_result, test_eval, full_metrics, model)
+
+    save_grouped_bar_chart(
+        ["Distance MAE", "Azimuth MAE", "Elevation MAE", "Combined Error"],
+        {
+            "Full Combined": [
+                float(full_metrics["distance_mae_m"]),
+                float(full_metrics["azimuth_mae_deg"]),
+                float(full_metrics["elevation_mae_deg"]),
+                float(full_metrics["combined_error"]),
+            ],
+            "Small Data": [
+                float(test_eval.metrics["distance_mae_m"]),
+                float(test_eval.metrics["azimuth_mae_deg"]),
+                float(test_eval.metrics["elevation_mae_deg"]),
+                float(test_eval.metrics["combined_error"]),
+            ],
+        },
+        output_root / "short_data_vs_full.png",
+        "Reduced-Data Combined Model vs Full Combined Model",
+        ylabel="Error",
+    )
+
+    result = {
+        "name": spec.name,
+        "title": spec.title,
+        "description": spec.description,
+        "rationale": spec.rationale,
+        "decision": "ACCEPTED" if accepted_vs_full else "REJECTED",
+        "accepted": accepted_vs_full,
+        "comparison_reference": "saved long-training combined result",
+        "baseline_label": baseline_label,
+        "baseline_source": baseline_source,
+        "dataset_mode": training_config.dataset_mode,
+        "dataset_counts": {"train": 700, "val": 150, "test": 150},
+        "training_config": {
+            "max_epochs": training_config.max_epochs,
+            "early_stopping_patience": training_config.early_stopping_patience,
+            "scheduler_patience": training_config.scheduler_patience,
+            "scheduler_factor": training_config.scheduler_factor,
+            "learning_rate_scale": spec.training_overrides["learning_rate_scale"],
+            "batch_size": spec.training_overrides["batch_size"],
+            "uncertainty_warmup_epochs": spec.training_overrides["uncertainty_warmup_epochs"],
+        },
+        "training": {
+            "executed_epochs": train_result.executed_epochs,
+            "best_epoch": train_result.best_epoch + 1,
+            "stopped_early": train_result.stopped_early,
+            "best_val_loss": format_float(train_result.best_loss),
+            "best_val_combined_error": format_float(train_result.best_combined_error),
+            "initial_learning_rate": format_float(
+                float(params["learning_rate"]) * float(spec.training_overrides["learning_rate_scale"]),
+                digits=6,
+            ),
+            "final_learning_rate": format_float(train_result.lr_history[-1], digits=6),
+        },
+        "timings": {
+            "data_prep_seconds": format_float(data_prep_seconds),
+            "training_seconds": format_float(training_seconds),
+            "evaluation_seconds": format_float(evaluation_seconds),
+            "total_seconds": format_float(total_seconds),
+        },
+        "reference_full_metrics": {key: format_float(value) for key, value in full_metrics.items()},
+        "val_metrics": {key: format_float(value) for key, value in val_eval.metrics.items()},
+        "test_metrics": {key: format_float(value) for key, value in test_eval.metrics.items()},
+        "comparison_vs_full": {key: format_float(value) for key, value in comparison_vs_full.items()},
+        "learned_sigmas": None if learned_sigmas is None else {key: format_float(value) for key, value in learned_sigmas.items()},
+        "artifacts": {
+            **artifacts,
+            "short_data_vs_full": str(output_root / "short_data_vs_full.png"),
+        },
+    }
+    save_json(output_root / "short_data_1000_result.json", result)
+
+    baseline_metrics = _baseline_metrics(cpu_baseline)
+    report_path = _write_combined_report(
+        outputs.root,
+        baseline_label,
+        baseline_source,
+        baseline_metrics,
+        mps_result,
+        EnhancedTrainingConfig(),
+        _combined_spec(),
+        long_result,
+        short_run_result=result,
+    )
+
+    summary_path = outputs.root / "combined_experiment_summary.json"
+    existing_summary = {}
+    if summary_path.exists():
+        existing_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    summary = {
+        **existing_summary,
+        "baseline_label": baseline_label,
+        "baseline_source": baseline_source,
+        "dataset_mode": EnhancedTrainingConfig().dataset_mode,
+        "mps_reference_status": mps_result.get("status", "unknown"),
+        "result": long_result,
+        "short_data_test": result,
+        "report_path": str(report_path),
+    }
+    save_json(summary_path, summary)
     return summary
