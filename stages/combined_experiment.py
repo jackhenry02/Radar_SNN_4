@@ -5,6 +5,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 
 from stages.base import StageContext
@@ -125,6 +127,82 @@ def _load_saved_combined_result(outputs_root: Path) -> dict[str, Any]:
     if not result_path.exists():
         raise FileNotFoundError("Saved long-training combined result was not found at outputs/combined_experiment/result.json.")
     return json.loads(result_path.read_text(encoding="utf-8"))
+
+
+def _save_prediction_cache(
+    stage_dir: Path,
+    predictions: dict[str, torch.Tensor],
+    targets_raw: torch.Tensor,
+) -> str:
+    cache_path = stage_dir / "test_predictions.npz"
+    np.savez(
+        cache_path,
+        predicted_distance=predictions["predicted_distance"].detach().cpu().numpy(),
+        predicted_azimuth=predictions["predicted_azimuth"].detach().cpu().numpy(),
+        predicted_elevation=predictions["predicted_elevation"].detach().cpu().numpy(),
+        target_distance=targets_raw[:, 0].detach().cpu().numpy(),
+        target_azimuth=targets_raw[:, 1].detach().cpu().numpy(),
+        target_elevation=targets_raw[:, 2].detach().cpu().numpy(),
+    )
+    return str(cache_path)
+
+
+def _save_coordinate_error_profiles(cache_path: Path, output_path: Path, title: str) -> str:
+    payload = np.load(cache_path)
+    specs = [
+        ("Distance", payload["target_distance"], payload["predicted_distance"], "m", 0.1),
+        ("Azimuth", payload["target_azimuth"], payload["predicted_azimuth"], "deg", 1.0),
+        ("Elevation", payload["target_elevation"], payload["predicted_elevation"], "deg", 1.0),
+    ]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5))
+
+    for axis, (name, truth, prediction, unit, mape_floor) in zip(axes, specs):
+        truth = np.asarray(truth)
+        prediction = np.asarray(prediction)
+        abs_error = np.abs(prediction - truth)
+        percentage_error = 100.0 * abs_error / np.maximum(np.abs(truth), mape_floor)
+
+        if truth.min() == truth.max():
+            edges = np.array([truth.min() - 0.5, truth.max() + 0.5], dtype=float)
+        else:
+            edges = np.linspace(float(truth.min()), float(truth.max()), 13)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+
+        mae_values = []
+        mape_values = []
+        kept_centers = []
+        for index in range(len(edges) - 1):
+            if index == len(edges) - 2:
+                mask = (truth >= edges[index]) & (truth <= edges[index + 1])
+            else:
+                mask = (truth >= edges[index]) & (truth < edges[index + 1])
+            if int(mask.sum()) == 0:
+                continue
+            kept_centers.append(centers[index])
+            mae_values.append(float(abs_error[mask].mean()))
+            mape_values.append(float(percentage_error[mask].mean()))
+
+        axis.plot(kept_centers, mae_values, color="tab:blue", linewidth=2, marker="o", label="MAE")
+        axis.set_title(name)
+        axis.set_xlabel(f"True {name} ({unit})")
+        axis.set_ylabel(f"MAE ({unit})", color="tab:blue")
+        axis.tick_params(axis="y", labelcolor="tab:blue")
+        axis.grid(True, alpha=0.25)
+
+        twin = axis.twinx()
+        twin.plot(kept_centers, mape_values, color="tab:orange", linewidth=2, marker="s", label="MAPE")
+        twin.set_ylabel("MAPE (%)", color="tab:orange")
+        twin.tick_params(axis="y", labelcolor="tab:orange")
+
+        handles_1, labels_1 = axis.get_legend_handles_labels()
+        handles_2, labels_2 = twin.get_legend_handles_labels()
+        axis.legend(handles_1 + handles_2, labels_1 + labels_2, loc="upper left", fontsize=8)
+
+    fig.suptitle(title + "\nMAPE uses denominator floors of 0.1 m for distance and 1 deg for angles.")
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return str(output_path)
 
 
 def _write_combined_report(
@@ -249,6 +327,27 @@ def _write_combined_report(
         ]
     )
 
+    long_profile = result.get("artifacts", {}).get("coordinate_error_profile")
+    if long_profile:
+        lines.extend(
+            [
+                "## Coordinate Error Profiles",
+                "",
+                "The figure below shows MAE and MAPE against the true coordinate for the saved long-training run.",
+                f"![Long-run coordinate profiles](combined_experiment/{Path(long_profile).parent.name}/{Path(long_profile).name})",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "## Coordinate Error Profiles",
+                "",
+                "The saved long-training combined run did not cache per-sample predictions, so the coordinate-wise MAE/MAPE profile cannot be generated for that run without rerunning the full training job.",
+                "",
+            ]
+        )
+
     if short_run_result is not None:
         short_dir = relative_root / short_run_result["name"]
         speedup = float(result["timings"]["total_seconds"]) / max(float(short_run_result["timings"]["total_seconds"]), 1e-6)
@@ -281,6 +380,7 @@ def _write_combined_report(
                 f"![Short-data distance]({short_dir.as_posix()}/test_distance_prediction.png)",
                 f"![Short-data azimuth]({short_dir.as_posix()}/test_azimuth_prediction.png)",
                 f"![Short-data elevation]({short_dir.as_posix()}/test_elevation_prediction.png)",
+                f"![Short-data coordinate profiles]({short_dir.as_posix()}/coordinate_error_profile.png)",
                 "",
             ]
         )
@@ -344,6 +444,13 @@ def run_combined_experiment(config: Any, outputs: Any) -> dict[str, Any]:
     comparison = _metrics_delta(test_eval.metrics, baseline_metrics)
     accepted = _is_accepted(test_eval.metrics, baseline_metrics)
     artifacts = _save_improved_outputs(output_root, spec, train_result, test_eval, baseline_metrics, model)
+    stage_dir = output_root / spec.name
+    prediction_cache = _save_prediction_cache(stage_dir, test_eval.predictions, data.test_targets_raw)
+    coordinate_error_profile = _save_coordinate_error_profiles(
+        Path(prediction_cache),
+        stage_dir / "coordinate_error_profile.png",
+        f"{spec.title} Coordinate Error Profile",
+    )
 
     save_grouped_bar_chart(
         ["Distance MAE", "Azimuth MAE", "Elevation MAE", "Combined Error"],
@@ -430,6 +537,8 @@ def run_combined_experiment(config: Any, outputs: Any) -> dict[str, Any]:
         "learned_sigmas": None if learned_sigmas is None else {key: format_float(value) for key, value in learned_sigmas.items()},
         "artifacts": {
             **artifacts,
+            "prediction_cache": prediction_cache,
+            "coordinate_error_profile": coordinate_error_profile,
             "baseline_vs_combined": str(output_root / "baseline_vs_combined.png"),
             "run_summary": str(output_root / "run_summary.png"),
         },
@@ -526,6 +635,13 @@ def run_combined_small_data_test(config: Any, outputs: Any) -> dict[str, Any]:
     comparison_vs_full = _metrics_delta(test_eval.metrics, full_metrics)
     accepted_vs_full = _is_accepted(test_eval.metrics, full_metrics)
     artifacts = _save_improved_outputs(output_root, spec, train_result, test_eval, full_metrics, model)
+    stage_dir = output_root / spec.name
+    prediction_cache = _save_prediction_cache(stage_dir, test_eval.predictions, data.test_targets_raw)
+    coordinate_error_profile = _save_coordinate_error_profiles(
+        Path(prediction_cache),
+        stage_dir / "coordinate_error_profile.png",
+        f"{spec.title} Coordinate Error Profile",
+    )
 
     save_grouped_bar_chart(
         ["Distance MAE", "Azimuth MAE", "Elevation MAE", "Combined Error"],
@@ -594,6 +710,8 @@ def run_combined_small_data_test(config: Any, outputs: Any) -> dict[str, Any]:
         "learned_sigmas": None if learned_sigmas is None else {key: format_float(value) for key, value in learned_sigmas.items()},
         "artifacts": {
             **artifacts,
+            "prediction_cache": prediction_cache,
+            "coordinate_error_profile": coordinate_error_profile,
             "short_data_vs_full": str(output_root / "short_data_vs_full.png"),
         },
     }

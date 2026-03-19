@@ -80,6 +80,10 @@ This combines the accepted pieces as follows:
 - Because the distance and azimuth branches stayed handcrafted, any gain here should be attributable mainly to the combined elevation augmentation and the corrected task weighting.
 - Acceptance still requires beating the same long-training CPU baseline on combined error and at least one individual metric.
 
+## Coordinate Error Profiles
+
+The saved long-training combined run did not cache per-sample predictions, so the coordinate-wise MAE/MAPE profile cannot be generated for that run without rerunning the full training job.
+
 ## Reduced Data Check
 
 This section reuses the saved long-training result above and compares it against a smaller run of the same combined model.
@@ -89,9 +93,9 @@ This section reuses the saved long-training result above and compares it against
 - Reduced-data executed epochs: `10`
 - Reduced-data best epoch: `7`
 - Reduced-data early stopped: `False`
-- Reduced-data total runtime: `364.14 s`
-- Reduced-data training time: `230.08 s`
-- Relative speedup vs long training: `17.18x`
+- Reduced-data total runtime: `367.10 s`
+- Reduced-data training time: `220.85 s`
+- Relative speedup vs long training: `17.04x`
 
 - Reduced-data combined error: `0.0894`
 - Reduced-data distance MAE: `0.0997 m`
@@ -107,6 +111,7 @@ This section reuses the saved long-training result above and compares it against
 ![Short-data distance](combined_experiment/combined_experiment_1235_small_data/test_distance_prediction.png)
 ![Short-data azimuth](combined_experiment/combined_experiment_1235_small_data/test_azimuth_prediction.png)
 ![Short-data elevation](combined_experiment/combined_experiment_1235_small_data/test_elevation_prediction.png)
+![Short-data coordinate profiles](combined_experiment/combined_experiment_1235_small_data/coordinate_error_profile.png)
 
 ## Remaining Follow-Up
 

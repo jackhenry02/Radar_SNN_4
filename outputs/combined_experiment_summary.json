@@ -135,10 +135,10 @@
       "final_learning_rate": 0.002662
     },
     "timings": {
-      "data_prep_seconds": 132.2963,
-      "training_seconds": 230.0779,
-      "evaluation_seconds": 1.7405,
-      "total_seconds": 364.1435
+      "data_prep_seconds": 144.2971,
+      "training_seconds": 220.8452,
+      "evaluation_seconds": 1.9328,
+      "total_seconds": 367.1048
     },
     "reference_full_metrics": {
       "distance_mae_m": 0.0216,
@@ -193,6 +193,8 @@
       "test_elevation_error": "outputs/combined_experiment/combined_experiment_1235_small_data/test_elevation_error.png",
       "comparison": "outputs/combined_experiment/combined_experiment_1235_small_data/comparison.png",
       "summary": "outputs/combined_experiment/combined_experiment_1235_small_data/summary.png",
+      "prediction_cache": "outputs/combined_experiment/combined_experiment_1235_small_data/test_predictions.npz",
+      "coordinate_error_profile": "outputs/combined_experiment/combined_experiment_1235_small_data/coordinate_error_profile.png",
       "short_data_vs_full": "outputs/combined_experiment/short_data_vs_full.png"
     }
   }
