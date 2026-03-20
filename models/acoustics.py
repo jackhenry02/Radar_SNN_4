@@ -164,6 +164,77 @@ def matched_filter_distance(
     return distance_m, correlation
 
 
+def _log_spaced_frequencies(
+    low_hz: float,
+    high_hz: float,
+    count: int,
+    *,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    log_min = math.log(low_hz)
+    log_max = math.log(high_hz)
+    return torch.exp(torch.linspace(log_min, log_max, count, device=device, dtype=dtype))
+
+
+def cochlea_filterbank_stages(
+    signal: torch.Tensor,
+    sample_rate_hz: int,
+    num_channels: int,
+    low_hz: float,
+    high_hz: float,
+    filter_bandwidth_sigma: float,
+    envelope_lowpass_hz: float,
+    downsample: int,
+) -> dict[str, torch.Tensor]:
+    total_samples = signal.shape[-1]
+    flat_signal = signal.reshape(-1, total_samples)
+    spectrum = torch.fft.rfft(flat_signal, dim=-1)
+    frequencies = torch.fft.rfftfreq(total_samples, d=1.0 / sample_rate_hz, device=signal.device)
+    safe_frequencies = frequencies.clamp_min(low_hz / 4.0)
+    log_frequencies = torch.log(safe_frequencies)
+    center_frequencies = _log_spaced_frequencies(
+        low_hz,
+        high_hz,
+        num_channels,
+        device=signal.device,
+        dtype=safe_frequencies.dtype,
+    )
+    log_centers = torch.log(center_frequencies)
+    filters = torch.exp(-0.5 * ((log_frequencies[None, :] - log_centers[:, None]) / filter_bandwidth_sigma).square())
+    filters[:, 0] = 0.0
+    filtered = torch.fft.irfft(spectrum[:, None, :] * filters[None, :, :], n=total_samples, dim=-1)
+    rectified = F.relu(filtered)
+
+    lowpass_kernel_size = max(3, int(round(sample_rate_hz / envelope_lowpass_hz)))
+    if lowpass_kernel_size % 2 == 0:
+        lowpass_kernel_size += 1
+    lowpass_kernel = torch.hann_window(lowpass_kernel_size, periodic=False, device=signal.device, dtype=signal.dtype)
+    lowpass_kernel = lowpass_kernel / lowpass_kernel.sum()
+    kernel = lowpass_kernel.view(1, 1, -1)
+    smoothed = F.conv1d(
+        rectified.reshape(-1, 1, total_samples),
+        kernel,
+        padding=lowpass_kernel_size // 2,
+    ).reshape(rectified.shape)
+    if downsample > 1:
+        cochleagram = F.avg_pool1d(smoothed, kernel_size=downsample, stride=downsample)
+    else:
+        cochleagram = smoothed
+
+    shaped_prefix = signal.shape[:-1]
+    return {
+        "frequencies_hz": frequencies,
+        "center_frequencies_hz": center_frequencies,
+        "filters": filters,
+        "filtered": filtered.reshape(*shaped_prefix, num_channels, total_samples),
+        "rectified": rectified.reshape(*shaped_prefix, num_channels, total_samples),
+        "smoothed": smoothed.reshape(*shaped_prefix, num_channels, total_samples),
+        "cochleagram": cochleagram.reshape(*shaped_prefix, num_channels, -1),
+        "lowpass_kernel": lowpass_kernel,
+    }
+
+
 def cochlea_filterbank(
     signal: torch.Tensor,
     sample_rate_hz: int,
@@ -174,41 +245,20 @@ def cochlea_filterbank(
     envelope_lowpass_hz: float,
     downsample: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    total_samples = signal.shape[-1]
-    flat_signal = signal.reshape(-1, total_samples)
-    spectrum = torch.fft.rfft(flat_signal, dim=-1)
-    frequencies = torch.fft.rfftfreq(total_samples, d=1.0 / sample_rate_hz, device=signal.device)
-    safe_frequencies = frequencies.clamp_min(low_hz / 4.0)
-    log_frequencies = torch.log(safe_frequencies)
-    center_frequencies = torch.logspace(
-        math.log10(low_hz),
-        math.log10(high_hz),
-        num_channels,
-        device=signal.device,
+    stages = cochlea_filterbank_stages(
+        signal=signal,
+        sample_rate_hz=sample_rate_hz,
+        num_channels=num_channels,
+        low_hz=low_hz,
+        high_hz=high_hz,
+        filter_bandwidth_sigma=filter_bandwidth_sigma,
+        envelope_lowpass_hz=envelope_lowpass_hz,
+        downsample=downsample,
     )
-    log_centers = torch.log(center_frequencies)
-    sigma = filter_bandwidth_sigma
-    filters = torch.exp(-0.5 * ((log_frequencies[None, :] - log_centers[:, None]) / sigma).square())
-    filters[:, 0] = 0.0
-    filtered = torch.fft.irfft(spectrum[:, None, :] * filters[None, :, :], n=total_samples, dim=-1)
-    rectified = F.relu(filtered)
-
-    lowpass_kernel_size = max(3, int(round(sample_rate_hz / envelope_lowpass_hz)))
-    if lowpass_kernel_size % 2 == 0:
-        lowpass_kernel_size += 1
-    kernel = torch.hann_window(lowpass_kernel_size, periodic=False, device=signal.device)
-    kernel = (kernel / kernel.sum()).view(1, 1, -1)
-    smoothed = F.conv1d(
-        rectified.reshape(-1, 1, total_samples),
-        kernel,
-        padding=lowpass_kernel_size // 2,
-    ).reshape(rectified.shape)
-    if downsample > 1:
-        smoothed = F.avg_pool1d(smoothed, kernel_size=downsample, stride=downsample)
-    return smoothed.reshape(*signal.shape[:-1], num_channels, -1), center_frequencies
+    return stages["cochleagram"], stages["center_frequencies_hz"]
 
 
-def lif_encode(envelope: torch.Tensor, threshold: float, beta: float) -> tuple[torch.Tensor, torch.Tensor]:
+def lif_encode_stages(envelope: torch.Tensor, threshold: float, beta: float) -> dict[str, torch.Tensor]:
     total_steps = envelope.shape[-1]
     scaled_envelope = 1.35 * envelope / envelope.amax().clamp_min(1e-6)
     flat_envelope = scaled_envelope.reshape(-1, total_steps)
@@ -223,7 +273,16 @@ def lif_encode(envelope: torch.Tensor, threshold: float, beta: float) -> tuple[t
         spikes.append(spike)
     spike_tensor = torch.stack(spikes, dim=-1).reshape_as(envelope)
     membrane_tensor = torch.stack(membrane_trace, dim=-1).reshape_as(envelope)
-    return spike_tensor, membrane_tensor
+    return {
+        "scaled_envelope": scaled_envelope,
+        "spikes": spike_tensor,
+        "membrane": membrane_tensor,
+    }
+
+
+def lif_encode(envelope: torch.Tensor, threshold: float, beta: float) -> tuple[torch.Tensor, torch.Tensor]:
+    stages = lif_encode_stages(envelope, threshold, beta)
+    return stages["spikes"], stages["membrane"]
 
 
 def cochlea_to_spikes(
