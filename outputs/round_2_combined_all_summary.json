@@ -247,10 +247,10 @@
       "final_learning_rate": 0.001331
     },
     "timings": {
-      "data_prep_seconds": 135.9771,
+      "data_prep_seconds": 164.6456,
       "training_seconds": 946.0731,
       "evaluation_seconds": 5.0558,
-      "total_seconds": 1087.1382
+      "total_seconds": 1115.7745
     },
     "val_metrics": {
       "distance_mae_m": 0.0602,
@@ -335,6 +335,162 @@
       "prediction_cache": "outputs/round_2_combined_all/test_predictions.npz",
       "coordinate_error_profile": "outputs/round_2_combined_all/coordinate_error_profile.png",
       "triple_comparison": "outputs/round_2_combined_all/triple_comparison.png"
+    }
+  },
+  "prep_profile": {
+    "dataset_generation_seconds": 0.3030725000135135,
+    "candidate_setup_seconds": 0.0025193339970428497,
+    "standardization_seconds": 0.007425167015753686,
+    "split_timings": {
+      "train": {
+        "samples": 700,
+        "chunks": 11,
+        "front_end_seconds": 119.80765670799883,
+        "pathway_seconds": 0.5226066250179429,
+        "concatenate_seconds": 0.02456275001168251
+      },
+      "val": {
+        "samples": 150,
+        "chunks": 3,
+        "front_end_seconds": 22.5676501239941,
+        "pathway_seconds": 0.11307212398969568,
+        "concatenate_seconds": 0.003946959011955187
+      },
+      "test": {
+        "samples": 150,
+        "chunks": 3,
+        "front_end_seconds": 21.13679237497854,
+        "pathway_seconds": 0.11632879197713919,
+        "concatenate_seconds": 0.0029416250181384385
+      }
+    },
+    "front_end_seconds_total": 163.51209920697147,
+    "pathway_seconds_total": 0.7520075409847777,
+    "concatenate_seconds_total": 0.031451334041776136,
+    "total_profiled_seconds": 164.64561458301614,
+    "chunk_size": 64
+  },
+  "interface_summary": {
+    "boundary_stage": "cochlea_to_spikes -> build_pathway_features",
+    "upstream_output": {
+      "transmit_spikes_shape": [
+        700,
+        48,
+        1408
+      ],
+      "receive_spikes_shape": [
+        700,
+        2,
+        48,
+        1408
+      ],
+      "time_base_hz": 64000.0,
+      "num_frequency_channels": 48
+    },
+    "downstream_input": {
+      "distance_feature_shape": [
+        700,
+        16
+      ],
+      "azimuth_feature_shape": [
+        700,
+        16
+      ],
+      "elevation_feature_shape": [
+        700,
+        144
+      ]
+    },
+    "swap_difficulty": "moderate",
+    "swap_condition": "The easiest replacement keeps the same spike tensor contract: transmit spikes shaped [batch, channel, time] and receive spikes shaped [batch, ear, channel, time] on the same envelope-rate time base.",
+    "what_breaks_if_changed": "If an alternative cochlea changes channel count, time resolution, or stops emitting spikes, then build_pathway_features and the pre-pathway residual branch need an adapter or a rewrite."
+  },
+  "optuna": {
+    "study_name": "round2_combined_all_short_v1",
+    "storage_uri": "sqlite:///outputs/round_2_combined_all/optuna_study.db",
+    "trial_count": 5,
+    "completed_trials": 2,
+    "best_trial_number": 0,
+    "best_params": {
+      "hidden_dim": 112,
+      "num_steps": 8,
+      "membrane_beta": 0.9475477253452869,
+      "fusion_threshold": 1.1844936591445887,
+      "learning_rate_scale": 0.85,
+      "batch_size": 12,
+      "cartesian_mix_weight": 0.5,
+      "spike_weight_scale": 1.0
+    },
+    "best_objective": 0.08087944239377975,
+    "best_metrics": {
+      "combined_error": 0.08007907122373581,
+      "distance_mae_m": 0.07833435386419296,
+      "azimuth_mae_deg": 3.6519808769226074,
+      "elevation_mae_deg": 5.550222396850586,
+      "euclidean_error_m": 0.24868594110012054
+    },
+    "improvement_vs_saved_combined_all": {
+      "combined_error_delta": 0.0011790712237358114,
+      "euclidean_error_delta": 0.015485941100120554
+    },
+    "parameter_importances": {
+      "batch_size": 0.125,
+      "cartesian_mix_weight": 0.125,
+      "fusion_threshold": 0.125,
+      "hidden_dim": 0.125,
+      "learning_rate_scale": 0.125,
+      "membrane_beta": 0.125,
+      "num_steps": 0.125,
+      "spike_weight_scale": 0.125
+    },
+    "artifacts": {
+      "history_plot": "outputs/round_2_combined_all/optuna_history.png",
+      "importance_plot": "outputs/round_2_combined_all/optuna_importance.png",
+      "comparison_plot": "outputs/round_2_combined_all/optuna_vs_baseline.png",
+      "dashboard_script": "outputs/round_2_combined_all/run_optuna_dashboard.sh",
+      "trials_json": "outputs/round_2_combined_all/optuna_trials.json"
+    },
+    "baseline_trial": {
+      "number": 0,
+      "objective": 0.08087944239377975,
+      "params": {
+        "hidden_dim": 112,
+        "num_steps": 8,
+        "membrane_beta": 0.9475477253452869,
+        "fusion_threshold": 1.1844936591445887,
+        "learning_rate_scale": 0.85,
+        "batch_size": 12,
+        "cartesian_mix_weight": 0.5,
+        "spike_weight_scale": 1.0
+      },
+      "metrics": {
+        "combined_error": 0.08007907122373581,
+        "euclidean_error_m": 0.24868594110012054
+      },
+      "training_breakdown": {
+        "forward_seconds": 305.0228855063615,
+        "loss_seconds": 7.28852921150974,
+        "backward_seconds": 694.9971039608063,
+        "optimizer_seconds": 0.8418477204686496,
+        "val_forward_seconds": 31.149177540035453,
+        "val_loss_seconds": 0.002028040966251865,
+        "val_metrics_seconds": 28.398379956081044,
+        "batch_count": 590,
+        "epoch_seconds": [
+          95.52401345799444,
+          96.32708491600351,
+          100.72564833299839,
+          105.17407883302076,
+          110.61009391699918,
+          109.48778920900077,
+          110.74805379100144,
+          110.90313020898611,
+          117.90427954201004,
+          111.51004891699995
+        ],
+        "total_training_loop_seconds": 1068.9142211250146,
+        "mean_epoch_seconds": 106.89142211250146
+      }
     }
   },
   "report_path": "outputs/round_2_combined_all_report.md"

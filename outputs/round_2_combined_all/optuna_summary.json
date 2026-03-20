@@ -1,0 +1,88 @@
+{
+  "study_name": "round2_combined_all_short_v1",
+  "storage_uri": "sqlite:///outputs/round_2_combined_all/optuna_study.db",
+  "trial_count": 5,
+  "completed_trials": 2,
+  "best_trial_number": 0,
+  "best_params": {
+    "hidden_dim": 112,
+    "num_steps": 8,
+    "membrane_beta": 0.9475477253452869,
+    "fusion_threshold": 1.1844936591445887,
+    "learning_rate_scale": 0.85,
+    "batch_size": 12,
+    "cartesian_mix_weight": 0.5,
+    "spike_weight_scale": 1.0
+  },
+  "best_objective": 0.08087944239377975,
+  "best_metrics": {
+    "combined_error": 0.08007907122373581,
+    "distance_mae_m": 0.07833435386419296,
+    "azimuth_mae_deg": 3.6519808769226074,
+    "elevation_mae_deg": 5.550222396850586,
+    "euclidean_error_m": 0.24868594110012054
+  },
+  "improvement_vs_saved_combined_all": {
+    "combined_error_delta": 0.0011790712237358114,
+    "euclidean_error_delta": 0.015485941100120554
+  },
+  "parameter_importances": {
+    "batch_size": 0.125,
+    "cartesian_mix_weight": 0.125,
+    "fusion_threshold": 0.125,
+    "hidden_dim": 0.125,
+    "learning_rate_scale": 0.125,
+    "membrane_beta": 0.125,
+    "num_steps": 0.125,
+    "spike_weight_scale": 0.125
+  },
+  "artifacts": {
+    "history_plot": "outputs/round_2_combined_all/optuna_history.png",
+    "importance_plot": "outputs/round_2_combined_all/optuna_importance.png",
+    "comparison_plot": "outputs/round_2_combined_all/optuna_vs_baseline.png",
+    "dashboard_script": "outputs/round_2_combined_all/run_optuna_dashboard.sh",
+    "trials_json": "outputs/round_2_combined_all/optuna_trials.json"
+  },
+  "baseline_trial": {
+    "number": 0,
+    "objective": 0.08087944239377975,
+    "params": {
+      "hidden_dim": 112,
+      "num_steps": 8,
+      "membrane_beta": 0.9475477253452869,
+      "fusion_threshold": 1.1844936591445887,
+      "learning_rate_scale": 0.85,
+      "batch_size": 12,
+      "cartesian_mix_weight": 0.5,
+      "spike_weight_scale": 1.0
+    },
+    "metrics": {
+      "combined_error": 0.08007907122373581,
+      "euclidean_error_m": 0.24868594110012054
+    },
+    "training_breakdown": {
+      "forward_seconds": 305.0228855063615,
+      "loss_seconds": 7.28852921150974,
+      "backward_seconds": 694.9971039608063,
+      "optimizer_seconds": 0.8418477204686496,
+      "val_forward_seconds": 31.149177540035453,
+      "val_loss_seconds": 0.002028040966251865,
+      "val_metrics_seconds": 28.398379956081044,
+      "batch_count": 590,
+      "epoch_seconds": [
+        95.52401345799444,
+        96.32708491600351,
+        100.72564833299839,
+        105.17407883302076,
+        110.61009391699918,
+        109.48778920900077,
+        110.74805379100144,
+        110.90313020898611,
+        117.90427954201004,
+        111.51004891699995
+      ],
+      "total_training_loop_seconds": 1068.9142211250146,
+      "mean_epoch_seconds": 106.89142211250146
+    }
+  }
+}

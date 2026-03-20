@@ -1,0 +1,36 @@
+{
+  "trials": [
+    {
+      "number": 0,
+      "objective": 0.08087944239377975,
+      "params": {
+        "hidden_dim": 112,
+        "num_steps": 8,
+        "membrane_beta": 0.9475477253452869,
+        "fusion_threshold": 1.1844936591445887,
+        "learning_rate_scale": 0.85,
+        "batch_size": 12,
+        "cartesian_mix_weight": 0.5,
+        "spike_weight_scale": 1.0
+      },
+      "combined_error": 0.08007907122373581,
+      "euclidean_error_m": 0.24868594110012054
+    },
+    {
+      "number": 1,
+      "objective": 0.08738598227500916,
+      "params": {
+        "hidden_dim": 112,
+        "num_steps": 6,
+        "membrane_beta": 0.9336540641513991,
+        "fusion_threshold": 1.2140712063664336,
+        "learning_rate_scale": 0.9607709277976288,
+        "batch_size": 8,
+        "cartesian_mix_weight": 0.4296655196885971,
+        "spike_weight_scale": 1.204796763859807
+      },
+      "combined_error": 0.08725931495428085,
+      "euclidean_error_m": 0.2664935290813446
+    }
+  ]
+}
