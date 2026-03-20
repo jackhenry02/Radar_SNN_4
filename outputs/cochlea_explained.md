@@ -75,7 +75,7 @@ The smoothed envelope is normalized, integrated through a fixed LIF neuron per c
 
 ## 6. Final Cochleagram And Spike Raster
 
-The final cochleagram is the smoothed, downsampled envelope across all channels. The spike raster is the binary output that the rest of the localisation system consumes.
+The final cochleagram is the smoothed, downsampled envelope across all channels. The spike raster is the binary output that the rest of the localisation system consumes. This figure is zoomed to the actual echo window so the short FM sweep is visible on the millisecond axis.
 
 ![Cochleagram and spikes](cochlea_explained/cochleagram_spikes.png)
 
@@ -91,3 +91,38 @@ Everything downstream assumes those spike tensors already exist. That makes the 
 ## Current Interpretation
 
 This cochlea is fixed and hand-designed. It is not currently trainable. The expensive part is the fixed FFT filterbank plus spike conversion, not the later handcrafted pathway feature extraction.
+
+## Bandwidth And Sampling Experiment
+
+This comparison tests the effect of lowering the acoustic and cochlear bandwidth and reducing the sampling rate on the full short-data combined-all localisation system.
+
+Protocol:
+- Ultrasonic baseline: saved short-data round-2 combined-all result using the existing `20 kHz to 90 kHz` cochlea, `80 kHz to 20 kHz` chirp, and `256 kHz` sample rate.
+- Human-band analogue: fresh rerun of the same short-data combined-all model with cochlea range `20 Hz to 20 kHz`, sample rate `64 kHz`, and a practical downward FM chirp `18 kHz to 2 kHz`.
+- The lower chirp edge was not set literally to `20 Hz` because a `3 ms` chirp cannot meaningfully encode 20 Hz content; one 20 Hz period is `50 ms`.
+- Same dataset size and training budget: `700 / 150 / 150`, `10` epochs, one thread, no Optuna retuning.
+
+Runtime comparison:
+- Ultrasonic baseline total: `1115.77 s`
+- Human-band analogue total: `143.36 s`
+- Overall speedup: `7.78x`
+- Prep speedup: `20.68x`
+- Training speedup: `7.05x`
+
+Accuracy comparison:
+- Ultrasonic combined error: `0.0789`
+- Human-band combined error: `0.1288`
+- Ultrasonic distance / azimuth / elevation: `0.0636 m`, `3.5316 deg`, `5.6846 deg`
+- Human-band distance / azimuth / elevation: `0.0890 m`, `7.9520 deg`, `9.2961 deg`
+- Ultrasonic Euclidean error: `0.2332 m`
+- Human-band Euclidean error: `0.4231 m`
+
+Interpretation:
+- This is not only a cochlea-bandwidth change. It also reduces raw waveform sampling resolution and moves the chirp into a much lower carrier band.
+- The comparison therefore measures the practical effect of a lower-bandwidth, lower-sample-rate auditory front end on the full localisation stack.
+- Because the downstream model was not retuned for the human-band configuration, the result should be treated as a direct transfer test rather than an optimized redesign.
+
+![Bandwidth runtime comparison](cochlea_explained/bandwidth_runtime_comparison.png)
+![Bandwidth accuracy comparison](cochlea_explained/bandwidth_accuracy_comparison.png)
+![Human-band example signal](cochlea_explained/human_example_signal.png)
+![Human-band cochleagram](cochlea_explained/human_cochleagram_spikes.png)

@@ -234,12 +234,20 @@ def save_cochlea_plot(
     sample_rate_hz: int,
     path: str | Path,
     title: str,
+    xlim_ms: tuple[float, float] | None = None,
 ) -> None:
     cochlea_np = _to_numpy(cochleagram)
     spikes_np = _to_numpy(spikes)
     time_axis_ms = np.arange(cochlea_np.shape[-1]) / sample_rate_hz * 1_000.0
+    time_end_ms = cochlea_np.shape[-1] / sample_rate_hz * 1_000.0
     fig, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
-    axes[0].imshow(cochlea_np, aspect="auto", origin="lower", cmap="viridis")
+    axes[0].imshow(
+        cochlea_np,
+        aspect="auto",
+        origin="lower",
+        cmap="viridis",
+        extent=[0.0, time_end_ms, -0.5, cochlea_np.shape[0] - 0.5],
+    )
     axes[0].set_title(title)
     axes[0].set_ylabel("Channel")
     spike_y, spike_x = np.nonzero(spikes_np > 0.0)
@@ -247,6 +255,8 @@ def save_cochlea_plot(
         axes[1].scatter(time_axis_ms[spike_x], spike_y, s=4, c="black")
     axes[1].set_xlabel("Time (ms)")
     axes[1].set_ylabel("Spike Channel")
+    if xlim_ms is not None:
+        axes[1].set_xlim(*xlim_ms)
     _finalize_figure(path)
 
 
