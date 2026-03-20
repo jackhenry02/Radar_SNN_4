@@ -1,0 +1,108 @@
+{
+  "name": "round2_experiment_5a_cartesian_loss",
+  "title": "Round 2 Experiment 5A: Pure Cartesian Loss",
+  "description": "Keep the accepted combined architecture fixed and train it with a pure Cartesian-position loss plus the usual spike penalty.",
+  "rationale": "This tests whether optimizing directly for physical position improves localization in Euclidean space even if the polar-coordinate metrics shift differently.",
+  "implemented_steps": [
+    "Decode the model output to polar coordinates as usual.",
+    "Convert both prediction and target to Cartesian coordinates.",
+    "Optimize only the normalized Cartesian error and the spike penalty.",
+    "Still report both Cartesian and polar metrics at evaluation time."
+  ],
+  "analysis_focus": [
+    "Whether Euclidean position error improves relative to the short combined baseline.",
+    "Whether pure Cartesian optimization hurts the angular metrics even if position improves."
+  ],
+  "loss_mode": "pure_cartesian",
+  "accepted": true,
+  "cartesian_improved": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "dataset_mode": "combined_small",
+  "training_config": {
+    "max_epochs": 10,
+    "early_stopping_patience": 10,
+    "scheduler_patience": 3,
+    "scheduler_factor": 0.5,
+    "learning_rate_scale": 0.85,
+    "batch_size": 16
+  },
+  "training": {
+    "executed_epochs": 10,
+    "best_epoch": 9,
+    "stopped_early": false,
+    "best_val_loss": 0.0465,
+    "best_val_combined_error": 0.0811,
+    "initial_learning_rate": 0.002662,
+    "final_learning_rate": 0.002662
+  },
+  "timings": {
+    "data_prep_seconds": 159.2292,
+    "training_seconds": 221.895,
+    "evaluation_seconds": 1.7892,
+    "total_seconds": 223.6845
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.0697,
+    "azimuth_mae_deg": 3.5847,
+    "elevation_mae_deg": 5.8983,
+    "combined_error": 0.0811,
+    "mean_spike_rate": 0.1732,
+    "predicted_distance_std": 0.507,
+    "predicted_azimuth_std": 26.6343,
+    "predicted_elevation_std": 16.4636,
+    "target_distance_std": 0.5571,
+    "target_azimuth_std": 25.7247,
+    "target_elevation_std": 17.2909,
+    "x_mae_m": 0.0883,
+    "y_mae_m": 0.0893,
+    "z_mae_m": 0.1596,
+    "euclidean_error_m": 0.2284
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.0772,
+    "azimuth_mae_deg": 3.7977,
+    "elevation_mae_deg": 5.8794,
+    "combined_error": 0.0832,
+    "mean_spike_rate": 0.1656,
+    "predicted_distance_std": 0.5022,
+    "predicted_azimuth_std": 26.2718,
+    "predicted_elevation_std": 16.4141,
+    "target_distance_std": 0.5625,
+    "target_azimuth_std": 25.5067,
+    "target_elevation_std": 16.6835,
+    "x_mae_m": 0.0946,
+    "y_mae_m": 0.1004,
+    "z_mae_m": 0.176,
+    "euclidean_error_m": 0.2524
+  },
+  "comparison": {
+    "combined_error_delta": -0.0062,
+    "distance_mae_delta": -0.0225,
+    "azimuth_mae_delta": -0.4196,
+    "elevation_mae_delta": 0.1733,
+    "spike_rate_delta": -0.0389
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.0172,
+    "y_mae_delta": -0.0145,
+    "z_mae_delta": 0.0113,
+    "euclidean_error_delta": -0.0135
+  },
+  "learned_sigmas": null,
+  "artifacts": {
+    "loss": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/loss.png",
+    "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_elevation_prediction.png",
+    "test_elevation_error": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_elevation_error.png",
+    "comparison": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/comparison.png",
+    "summary": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/summary.png",
+    "test_x_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_x_prediction.png",
+    "test_y_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_y_prediction.png",
+    "test_z_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_z_prediction.png",
+    "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/cartesian_comparison.png",
+    "prediction_cache": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/coordinate_error_profile.png"
+  }
+}

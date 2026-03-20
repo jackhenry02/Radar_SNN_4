@@ -1,0 +1,117 @@
+{
+  "name": "round2_experiment_1_adaptive_filters_delays",
+  "title": "Round 2 Experiment 1: Adaptive Delay And Spectral Filters",
+  "description": "Keep the accepted combined model intact and add constrained trainable delay offsets, delay weights, and spectral-channel gains/offsets as small residual corrections.",
+  "rationale": "This tests the recommendation to learn small deviations around the fixed biologically motivated delays and spectral channels rather than replacing them with fully free filters.",
+  "implemented_steps": [
+    "Use the combined model as the base path.",
+    "Add learnable offset-and-gain transforms to the fixed distance, ITD, and spectral feature axes.",
+    "Keep all residual gains small at initialization so the fixed cue geometry still dominates early training.",
+    "Log the learned offsets and gains so they can be compared directly against the original fixed values."
+  ],
+  "analysis_focus": [
+    "Whether learned delay offsets stay near zero or move substantially.",
+    "Whether spectral channel gains become strongly non-uniform.",
+    "Whether the constrained adaptive version improves on the saved short-data combined baseline."
+  ],
+  "loss_mode": "corrected_uncertainty",
+  "accepted": true,
+  "cartesian_improved": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "dataset_mode": "combined_small",
+  "training_config": {
+    "max_epochs": 10,
+    "early_stopping_patience": 10,
+    "scheduler_patience": 3,
+    "scheduler_factor": 0.5,
+    "learning_rate_scale": 0.9,
+    "batch_size": 16,
+    "uncertainty_warmup_epochs": 4
+  },
+  "training": {
+    "executed_epochs": 10,
+    "best_epoch": 9,
+    "stopped_early": false,
+    "best_val_loss": -0.7421,
+    "best_val_combined_error": 0.0895,
+    "initial_learning_rate": 0.002818,
+    "final_learning_rate": 0.002818
+  },
+  "timings": {
+    "data_prep_seconds": 159.2292,
+    "training_seconds": 231.2137,
+    "evaluation_seconds": 2.0143,
+    "total_seconds": 233.2285
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.0916,
+    "azimuth_mae_deg": 4.1952,
+    "elevation_mae_deg": 6.0404,
+    "combined_error": 0.0895,
+    "mean_spike_rate": 0.1792,
+    "predicted_distance_std": 0.5475,
+    "predicted_azimuth_std": 25.2899,
+    "predicted_elevation_std": 15.9939,
+    "target_distance_std": 0.5571,
+    "target_azimuth_std": 25.7247,
+    "target_elevation_std": 17.2909,
+    "x_mae_m": 0.0889,
+    "y_mae_m": 0.1129,
+    "z_mae_m": 0.1673,
+    "euclidean_error_m": 0.2539
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.0912,
+    "azimuth_mae_deg": 3.8537,
+    "elevation_mae_deg": 5.9913,
+    "combined_error": 0.0882,
+    "mean_spike_rate": 0.1791,
+    "predicted_distance_std": 0.5448,
+    "predicted_azimuth_std": 25.2464,
+    "predicted_elevation_std": 15.9847,
+    "target_distance_std": 0.5625,
+    "target_azimuth_std": 25.5067,
+    "target_elevation_std": 16.6835,
+    "x_mae_m": 0.1002,
+    "y_mae_m": 0.1107,
+    "z_mae_m": 0.1796,
+    "euclidean_error_m": 0.2645
+  },
+  "comparison": {
+    "combined_error_delta": -0.0012,
+    "distance_mae_delta": -0.0085,
+    "azimuth_mae_delta": -0.3636,
+    "elevation_mae_delta": 0.2852,
+    "spike_rate_delta": -0.0254
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.0116,
+    "y_mae_delta": -0.0041,
+    "z_mae_delta": 0.0149,
+    "euclidean_error_delta": -0.0014
+  },
+  "learned_sigmas": {
+    "distance": 0.5484,
+    "azimuth": 0.5161,
+    "elevation": 0.6109
+  },
+  "artifacts": {
+    "loss": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/loss.png",
+    "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_elevation_prediction.png",
+    "test_elevation_error": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_elevation_error.png",
+    "comparison": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/comparison.png",
+    "summary": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/summary.png",
+    "test_x_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_x_prediction.png",
+    "test_y_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_y_prediction.png",
+    "test_z_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_z_prediction.png",
+    "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/cartesian_comparison.png",
+    "adaptive_delay_offsets": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/adaptive_delay_offsets.png",
+    "adaptive_spectral_offsets": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/adaptive_spectral_offsets.png",
+    "adaptive_gains": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/adaptive_gains.png",
+    "prediction_cache": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/coordinate_error_profile.png"
+  }
+}

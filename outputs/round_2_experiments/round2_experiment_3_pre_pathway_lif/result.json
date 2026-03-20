@@ -1,0 +1,113 @@
+{
+  "name": "round2_experiment_3_pre_pathway_lif",
+  "title": "Round 2 Experiment 3: Pre-Pathway LIF Residual",
+  "description": "Insert an extra learnable LIF preprocessing stage on the spike trains before rebuilding the fixed pathway features, then add the resulting features back as small residuals.",
+  "rationale": "This tests whether another spiking preprocessing step can improve feature extraction without replacing the strong handcrafted cue pathways.",
+  "implemented_steps": [
+    "Process transmit and receive spike trains with learned 1x1 channel mixing and LIF neurons.",
+    "Rebuild distance, azimuth, and elevation pathway features from the processed spikes.",
+    "Project the rebuilt features into residual pathway corrections rather than replacing the baseline pathways."
+  ],
+  "analysis_focus": [
+    "Whether early spiking preprocessing sharpens the pathways or blurs their timing structure.",
+    "Whether the learned residual stays small or dominates the baseline cues."
+  ],
+  "loss_mode": "corrected_uncertainty",
+  "accepted": true,
+  "cartesian_improved": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "dataset_mode": "combined_small",
+  "training_config": {
+    "max_epochs": 10,
+    "early_stopping_patience": 10,
+    "scheduler_patience": 3,
+    "scheduler_factor": 0.5,
+    "learning_rate_scale": 0.8,
+    "batch_size": 12,
+    "uncertainty_warmup_epochs": 4
+  },
+  "training": {
+    "executed_epochs": 10,
+    "best_epoch": 7,
+    "stopped_early": false,
+    "best_val_loss": -0.5558,
+    "best_val_combined_error": 0.0893,
+    "initial_learning_rate": 0.002505,
+    "final_learning_rate": 0.002505
+  },
+  "timings": {
+    "data_prep_seconds": 159.2292,
+    "training_seconds": 911.5415,
+    "evaluation_seconds": 4.5618,
+    "total_seconds": 916.1038
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.0722,
+    "azimuth_mae_deg": 4.0879,
+    "elevation_mae_deg": 6.4178,
+    "combined_error": 0.0893,
+    "mean_spike_rate": 0.2072,
+    "predicted_distance_std": 0.5628,
+    "predicted_azimuth_std": 26.4571,
+    "predicted_elevation_std": 14.8863,
+    "target_distance_std": 0.5571,
+    "target_azimuth_std": 25.7247,
+    "target_elevation_std": 17.2909,
+    "x_mae_m": 0.0825,
+    "y_mae_m": 0.1049,
+    "z_mae_m": 0.1753,
+    "euclidean_error_m": 0.2504
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.0744,
+    "azimuth_mae_deg": 3.8629,
+    "elevation_mae_deg": 6.0904,
+    "combined_error": 0.0862,
+    "mean_spike_rate": 0.2087,
+    "predicted_distance_std": 0.5475,
+    "predicted_azimuth_std": 25.5325,
+    "predicted_elevation_std": 14.9593,
+    "target_distance_std": 0.5625,
+    "target_azimuth_std": 25.5067,
+    "target_elevation_std": 16.6835,
+    "x_mae_m": 0.0892,
+    "y_mae_m": 0.1047,
+    "z_mae_m": 0.1754,
+    "euclidean_error_m": 0.2542
+  },
+  "comparison": {
+    "combined_error_delta": -0.0032,
+    "distance_mae_delta": -0.0253,
+    "azimuth_mae_delta": -0.3544,
+    "elevation_mae_delta": 0.3843,
+    "spike_rate_delta": 0.0042
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.0226,
+    "y_mae_delta": -0.0102,
+    "z_mae_delta": 0.0107,
+    "euclidean_error_delta": -0.0117
+  },
+  "learned_sigmas": {
+    "distance": 0.6471,
+    "azimuth": 0.5895,
+    "elevation": 0.658
+  },
+  "artifacts": {
+    "loss": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/loss.png",
+    "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_elevation_prediction.png",
+    "test_elevation_error": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_elevation_error.png",
+    "comparison": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/comparison.png",
+    "summary": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/summary.png",
+    "test_x_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_x_prediction.png",
+    "test_y_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_y_prediction.png",
+    "test_z_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_z_prediction.png",
+    "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/cartesian_comparison.png",
+    "pre_pathway_left_spikes": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/pre_pathway_left_spikes.png",
+    "prediction_cache": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/coordinate_error_profile.png"
+  }
+}

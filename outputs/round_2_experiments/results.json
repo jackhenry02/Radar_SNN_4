@@ -1,0 +1,889 @@
+{
+  "baseline": {
+    "name": "combined_experiment_1235_small_data",
+    "title": "Combined Experiment: Small-Data Check",
+    "description": "Run the same combined model on a reduced 1000-sample dataset with a 700 / 150 / 150 split and only 10 epochs to measure speed and accuracy trade-offs.",
+    "rationale": "This isolates how much the accepted combined architecture depends on the larger training set and longer training horizon used in the main run.",
+    "decision": "REJECTED",
+    "accepted": false,
+    "comparison_reference": "saved long-training combined result",
+    "baseline_label": "pathway_split_enhanced trial 10",
+    "baseline_source": "reused existing training-improved baseline",
+    "dataset_mode": "combined_small",
+    "dataset_counts": {
+      "train": 700,
+      "val": 150,
+      "test": 150
+    },
+    "training_config": {
+      "max_epochs": 10,
+      "early_stopping_patience": 10,
+      "scheduler_patience": 3,
+      "scheduler_factor": 0.5,
+      "learning_rate_scale": 0.85,
+      "batch_size": 16,
+      "uncertainty_warmup_epochs": 4
+    },
+    "training": {
+      "executed_epochs": 10,
+      "best_epoch": 7,
+      "stopped_early": false,
+      "best_val_loss": -0.4887,
+      "best_val_combined_error": 0.0866,
+      "initial_learning_rate": 0.002662,
+      "final_learning_rate": 0.002662
+    },
+    "timings": {
+      "data_prep_seconds": 144.2971,
+      "training_seconds": 220.8452,
+      "evaluation_seconds": 1.9328,
+      "total_seconds": 367.1048
+    },
+    "reference_full_metrics": {
+      "distance_mae_m": 0.0216,
+      "azimuth_mae_deg": 2.1857,
+      "elevation_mae_deg": 5.1975,
+      "combined_error": 0.0623,
+      "mean_spike_rate": 0.128
+    },
+    "val_metrics": {
+      "distance_mae_m": 0.0898,
+      "azimuth_mae_deg": 3.7337,
+      "elevation_mae_deg": 5.8449,
+      "combined_error": 0.0866,
+      "mean_spike_rate": 0.2009,
+      "predicted_distance_std": 0.5142,
+      "predicted_azimuth_std": 25.8822,
+      "predicted_elevation_std": 16.34,
+      "target_distance_std": 0.5571,
+      "target_azimuth_std": 25.7247,
+      "target_elevation_std": 17.2909
+    },
+    "test_metrics": {
+      "distance_mae_m": 0.0997,
+      "azimuth_mae_deg": 4.2173,
+      "elevation_mae_deg": 5.7061,
+      "combined_error": 0.0894,
+      "mean_spike_rate": 0.2045,
+      "predicted_distance_std": 0.4895,
+      "predicted_azimuth_std": 25.5494,
+      "predicted_elevation_std": 16.4616,
+      "target_distance_std": 0.5625,
+      "target_azimuth_std": 25.5067,
+      "target_elevation_std": 16.6835
+    },
+    "comparison_vs_full": {
+      "combined_error_delta": 0.0271,
+      "distance_mae_delta": 0.0781,
+      "azimuth_mae_delta": 2.0316,
+      "elevation_mae_delta": 0.5086,
+      "spike_rate_delta": 0.0765
+    },
+    "learned_sigmas": {
+      "distance": 0.7063,
+      "azimuth": 0.6373,
+      "elevation": 0.6575
+    },
+    "artifacts": {
+      "loss": "outputs/combined_experiment/combined_experiment_1235_small_data/loss.png",
+      "test_distance_prediction": "outputs/combined_experiment/combined_experiment_1235_small_data/test_distance_prediction.png",
+      "test_azimuth_prediction": "outputs/combined_experiment/combined_experiment_1235_small_data/test_azimuth_prediction.png",
+      "test_elevation_prediction": "outputs/combined_experiment/combined_experiment_1235_small_data/test_elevation_prediction.png",
+      "test_elevation_error": "outputs/combined_experiment/combined_experiment_1235_small_data/test_elevation_error.png",
+      "comparison": "outputs/combined_experiment/combined_experiment_1235_small_data/comparison.png",
+      "summary": "outputs/combined_experiment/combined_experiment_1235_small_data/summary.png",
+      "prediction_cache": "outputs/combined_experiment/combined_experiment_1235_small_data/test_predictions.npz",
+      "coordinate_error_profile": "outputs/combined_experiment/combined_experiment_1235_small_data/coordinate_error_profile.png",
+      "short_data_vs_full": "outputs/combined_experiment/short_data_vs_full.png"
+    }
+  },
+  "experiments": [
+    {
+      "name": "round2_experiment_1_adaptive_filters_delays",
+      "title": "Round 2 Experiment 1: Adaptive Delay And Spectral Filters",
+      "description": "Keep the accepted combined model intact and add constrained trainable delay offsets, delay weights, and spectral-channel gains/offsets as small residual corrections.",
+      "rationale": "This tests the recommendation to learn small deviations around the fixed biologically motivated delays and spectral channels rather than replacing them with fully free filters.",
+      "implemented_steps": [
+        "Use the combined model as the base path.",
+        "Add learnable offset-and-gain transforms to the fixed distance, ITD, and spectral feature axes.",
+        "Keep all residual gains small at initialization so the fixed cue geometry still dominates early training.",
+        "Log the learned offsets and gains so they can be compared directly against the original fixed values."
+      ],
+      "analysis_focus": [
+        "Whether learned delay offsets stay near zero or move substantially.",
+        "Whether spectral channel gains become strongly non-uniform.",
+        "Whether the constrained adaptive version improves on the saved short-data combined baseline."
+      ],
+      "loss_mode": "corrected_uncertainty",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.9,
+        "batch_size": 16,
+        "uncertainty_warmup_epochs": 4
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 9,
+        "stopped_early": false,
+        "best_val_loss": -0.7421,
+        "best_val_combined_error": 0.0895,
+        "initial_learning_rate": 0.002818,
+        "final_learning_rate": 0.002818
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 231.2137,
+        "evaluation_seconds": 2.0143,
+        "total_seconds": 233.2285
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0916,
+        "azimuth_mae_deg": 4.1952,
+        "elevation_mae_deg": 6.0404,
+        "combined_error": 0.0895,
+        "mean_spike_rate": 0.1792,
+        "predicted_distance_std": 0.5475,
+        "predicted_azimuth_std": 25.2899,
+        "predicted_elevation_std": 15.9939,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0889,
+        "y_mae_m": 0.1129,
+        "z_mae_m": 0.1673,
+        "euclidean_error_m": 0.2539
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0912,
+        "azimuth_mae_deg": 3.8537,
+        "elevation_mae_deg": 5.9913,
+        "combined_error": 0.0882,
+        "mean_spike_rate": 0.1791,
+        "predicted_distance_std": 0.5448,
+        "predicted_azimuth_std": 25.2464,
+        "predicted_elevation_std": 15.9847,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.1002,
+        "y_mae_m": 0.1107,
+        "z_mae_m": 0.1796,
+        "euclidean_error_m": 0.2645
+      },
+      "comparison": {
+        "combined_error_delta": -0.0012,
+        "distance_mae_delta": -0.0085,
+        "azimuth_mae_delta": -0.3636,
+        "elevation_mae_delta": 0.2852,
+        "spike_rate_delta": -0.0254
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.0116,
+        "y_mae_delta": -0.0041,
+        "z_mae_delta": 0.0149,
+        "euclidean_error_delta": -0.0014
+      },
+      "learned_sigmas": {
+        "distance": 0.5484,
+        "azimuth": 0.5161,
+        "elevation": 0.6109
+      },
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/cartesian_comparison.png",
+        "adaptive_delay_offsets": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/adaptive_delay_offsets.png",
+        "adaptive_spectral_offsets": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/adaptive_spectral_offsets.png",
+        "adaptive_gains": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/adaptive_gains.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_1_adaptive_filters_delays/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round2_experiment_2a_resonance_fusion",
+      "title": "Round 2 Experiment 2A: Resonant Branch At Fusion",
+      "description": "Add a corollary-discharge resonant branch in parallel with the current distance/azimuth/elevation latents and fuse it only at the final fusion stage.",
+      "rationale": "This is the least invasive resonance test: the existing pathways stay unchanged while the SNN gets an extra resonant timing summary built from negative transmit drive plus positive echo drive.",
+      "implemented_steps": [
+        "Build signed resonance drives using positive receive activity and negative transmit activity.",
+        "Run the signed drives through a learnable bank of damped oscillatory resonators.",
+        "Project the pooled resonant spikes into one extra latent block and concatenate that at fusion."
+      ],
+      "analysis_focus": [
+        "Whether the resonant branch improves distance or angular metrics without destabilising the existing latents.",
+        "Whether the learned resonance frequencies cluster in a useful range rather than saturating."
+      ],
+      "loss_mode": "corrected_uncertainty",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.85,
+        "batch_size": 12,
+        "uncertainty_warmup_epochs": 4
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 6,
+        "stopped_early": false,
+        "best_val_loss": -0.4127,
+        "best_val_combined_error": 0.0885,
+        "initial_learning_rate": 0.002662,
+        "final_learning_rate": 0.001331
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 193.5851,
+        "evaluation_seconds": 1.8314,
+        "total_seconds": 195.4168
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0791,
+        "azimuth_mae_deg": 3.7876,
+        "elevation_mae_deg": 6.2602,
+        "combined_error": 0.0885,
+        "mean_spike_rate": 0.1048,
+        "predicted_distance_std": 0.549,
+        "predicted_azimuth_std": 25.6027,
+        "predicted_elevation_std": 15.4798,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0836,
+        "y_mae_m": 0.1038,
+        "z_mae_m": 0.1687,
+        "euclidean_error_m": 0.2431
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.09,
+        "azimuth_mae_deg": 3.9982,
+        "elevation_mae_deg": 5.744,
+        "combined_error": 0.0868,
+        "mean_spike_rate": 0.1,
+        "predicted_distance_std": 0.5286,
+        "predicted_azimuth_std": 25.1279,
+        "predicted_elevation_std": 15.8583,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.0958,
+        "y_mae_m": 0.1159,
+        "z_mae_m": 0.1719,
+        "euclidean_error_m": 0.26
+      },
+      "comparison": {
+        "combined_error_delta": -0.0026,
+        "distance_mae_delta": -0.0097,
+        "azimuth_mae_delta": -0.2191,
+        "elevation_mae_delta": 0.0379,
+        "spike_rate_delta": -0.1045
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.0159,
+        "y_mae_delta": 0.001,
+        "z_mae_delta": 0.0072,
+        "euclidean_error_delta": -0.0059
+      },
+      "learned_sigmas": {
+        "distance": 0.7329,
+        "azimuth": 0.6553,
+        "elevation": 0.6741
+      },
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/cartesian_comparison.png",
+        "resonant_tuning": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/resonant_tuning.png",
+        "resonant_spikes": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/resonant_spikes.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_2a_resonance_fusion/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round2_experiment_2b_resonance_per_pathway",
+      "title": "Round 2 Experiment 2B: Resonant Branch Per Pathway",
+      "description": "Add one shared resonant bank but project its output separately into residual corrections for the distance, azimuth, and elevation pathways.",
+      "rationale": "This tests whether the resonance features are more useful when each pathway can consume them with its own learned projection rather than only at the final fusion layer.",
+      "implemented_steps": [
+        "Reuse the same signed resonant input construction as Experiment 2A.",
+        "Project the pooled resonant spikes separately into distance, azimuth, and elevation residuals.",
+        "Inject the resonant pathway residuals with small learned gains."
+      ],
+      "analysis_focus": [
+        "Whether pathway-specific resonance routing is better than fusion-only resonance.",
+        "Whether any one pathway benefits disproportionately from the resonant information."
+      ],
+      "loss_mode": "corrected_uncertainty",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.85,
+        "batch_size": 16,
+        "uncertainty_warmup_epochs": 4
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 9,
+        "stopped_early": false,
+        "best_val_loss": -0.7828,
+        "best_val_combined_error": 0.083,
+        "initial_learning_rate": 0.002662,
+        "final_learning_rate": 0.002662
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 224.1859,
+        "evaluation_seconds": 1.8807,
+        "total_seconds": 226.0671
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0639,
+        "azimuth_mae_deg": 3.805,
+        "elevation_mae_deg": 5.9734,
+        "combined_error": 0.083,
+        "mean_spike_rate": 0.1987,
+        "predicted_distance_std": 0.5568,
+        "predicted_azimuth_std": 25.0497,
+        "predicted_elevation_std": 15.1224,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0915,
+        "y_mae_m": 0.0983,
+        "z_mae_m": 0.1582,
+        "euclidean_error_m": 0.2379
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0838,
+        "azimuth_mae_deg": 3.9352,
+        "elevation_mae_deg": 5.5873,
+        "combined_error": 0.0831,
+        "mean_spike_rate": 0.1936,
+        "predicted_distance_std": 0.5626,
+        "predicted_azimuth_std": 23.9475,
+        "predicted_elevation_std": 15.1978,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.1111,
+        "y_mae_m": 0.1018,
+        "z_mae_m": 0.1681,
+        "euclidean_error_m": 0.2569
+      },
+      "comparison": {
+        "combined_error_delta": -0.0063,
+        "distance_mae_delta": -0.0159,
+        "azimuth_mae_delta": -0.2821,
+        "elevation_mae_delta": -0.1188,
+        "spike_rate_delta": -0.0109
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.0006,
+        "y_mae_delta": -0.0131,
+        "z_mae_delta": 0.0034,
+        "euclidean_error_delta": -0.009
+      },
+      "learned_sigmas": {
+        "distance": 0.5666,
+        "azimuth": 0.5271,
+        "elevation": 0.6187
+      },
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/cartesian_comparison.png",
+        "resonant_tuning": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/resonant_tuning.png",
+        "resonant_spikes": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/resonant_spikes.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_2b_resonance_per_pathway/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round2_experiment_3_pre_pathway_lif",
+      "title": "Round 2 Experiment 3: Pre-Pathway LIF Residual",
+      "description": "Insert an extra learnable LIF preprocessing stage on the spike trains before rebuilding the fixed pathway features, then add the resulting features back as small residuals.",
+      "rationale": "This tests whether another spiking preprocessing step can improve feature extraction without replacing the strong handcrafted cue pathways.",
+      "implemented_steps": [
+        "Process transmit and receive spike trains with learned 1x1 channel mixing and LIF neurons.",
+        "Rebuild distance, azimuth, and elevation pathway features from the processed spikes.",
+        "Project the rebuilt features into residual pathway corrections rather than replacing the baseline pathways."
+      ],
+      "analysis_focus": [
+        "Whether early spiking preprocessing sharpens the pathways or blurs their timing structure.",
+        "Whether the learned residual stays small or dominates the baseline cues."
+      ],
+      "loss_mode": "corrected_uncertainty",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.8,
+        "batch_size": 12,
+        "uncertainty_warmup_epochs": 4
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 7,
+        "stopped_early": false,
+        "best_val_loss": -0.5558,
+        "best_val_combined_error": 0.0893,
+        "initial_learning_rate": 0.002505,
+        "final_learning_rate": 0.002505
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 911.5415,
+        "evaluation_seconds": 4.5618,
+        "total_seconds": 916.1038
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0722,
+        "azimuth_mae_deg": 4.0879,
+        "elevation_mae_deg": 6.4178,
+        "combined_error": 0.0893,
+        "mean_spike_rate": 0.2072,
+        "predicted_distance_std": 0.5628,
+        "predicted_azimuth_std": 26.4571,
+        "predicted_elevation_std": 14.8863,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0825,
+        "y_mae_m": 0.1049,
+        "z_mae_m": 0.1753,
+        "euclidean_error_m": 0.2504
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0744,
+        "azimuth_mae_deg": 3.8629,
+        "elevation_mae_deg": 6.0904,
+        "combined_error": 0.0862,
+        "mean_spike_rate": 0.2087,
+        "predicted_distance_std": 0.5475,
+        "predicted_azimuth_std": 25.5325,
+        "predicted_elevation_std": 14.9593,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.0892,
+        "y_mae_m": 0.1047,
+        "z_mae_m": 0.1754,
+        "euclidean_error_m": 0.2542
+      },
+      "comparison": {
+        "combined_error_delta": -0.0032,
+        "distance_mae_delta": -0.0253,
+        "azimuth_mae_delta": -0.3544,
+        "elevation_mae_delta": 0.3843,
+        "spike_rate_delta": 0.0042
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.0226,
+        "y_mae_delta": -0.0102,
+        "z_mae_delta": 0.0107,
+        "euclidean_error_delta": -0.0117
+      },
+      "learned_sigmas": {
+        "distance": 0.6471,
+        "azimuth": 0.5895,
+        "elevation": 0.658
+      },
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/cartesian_comparison.png",
+        "pre_pathway_left_spikes": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/pre_pathway_left_spikes.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_3_pre_pathway_lif/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round2_experiment_4_post_pathway_lif",
+      "title": "Round 2 Experiment 4: Post-Pathway LIF Residual",
+      "description": "Add one extra LIF processing block on each pathway latent after the current branch encoders and before fusion so the model can do deeper branch-specific processing.",
+      "rationale": "This is the safer depth experiment because it preserves the current pathway feature extraction and only adds extra processing after those cues already exist.",
+      "implemented_steps": [
+        "Keep the accepted combined encoder untouched.",
+        "Add a branch-specific linear-plus-LIF residual block after each pathway latent.",
+        "Feed the updated latents into the existing fusion SNN head."
+      ],
+      "analysis_focus": [
+        "Whether extra branch-specific processing helps without flattening the learned representation.",
+        "Whether post-pathway depth is safer than pre-pathway depth on the short run."
+      ],
+      "loss_mode": "corrected_uncertainty",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.9,
+        "batch_size": 16,
+        "uncertainty_warmup_epochs": 4
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 10,
+        "stopped_early": false,
+        "best_val_loss": -0.897,
+        "best_val_combined_error": 0.0836,
+        "initial_learning_rate": 0.002818,
+        "final_learning_rate": 0.001409
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 219.6827,
+        "evaluation_seconds": 1.8676,
+        "total_seconds": 221.5508
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0723,
+        "azimuth_mae_deg": 3.3454,
+        "elevation_mae_deg": 6.072,
+        "combined_error": 0.0836,
+        "mean_spike_rate": 0.1753,
+        "predicted_distance_std": 0.5222,
+        "predicted_azimuth_std": 25.8027,
+        "predicted_elevation_std": 16.463,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0837,
+        "y_mae_m": 0.0908,
+        "z_mae_m": 0.1652,
+        "euclidean_error_m": 0.2357
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0718,
+        "azimuth_mae_deg": 3.4273,
+        "elevation_mae_deg": 6.148,
+        "combined_error": 0.0843,
+        "mean_spike_rate": 0.1753,
+        "predicted_distance_std": 0.5214,
+        "predicted_azimuth_std": 25.6303,
+        "predicted_elevation_std": 16.7417,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.0926,
+        "y_mae_m": 0.0942,
+        "z_mae_m": 0.185,
+        "euclidean_error_m": 0.2566
+      },
+      "comparison": {
+        "combined_error_delta": -0.0051,
+        "distance_mae_delta": -0.0279,
+        "azimuth_mae_delta": -0.79,
+        "elevation_mae_delta": 0.4419,
+        "spike_rate_delta": -0.0292
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.0192,
+        "y_mae_delta": -0.0207,
+        "z_mae_delta": 0.0203,
+        "euclidean_error_delta": -0.0094
+      },
+      "learned_sigmas": {
+        "distance": 0.5164,
+        "azimuth": 0.4983,
+        "elevation": 0.6017
+      },
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/cartesian_comparison.png",
+        "post_pathway_distance_spikes": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/post_pathway_distance_spikes.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_4_post_pathway_lif/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round2_experiment_5a_cartesian_loss",
+      "title": "Round 2 Experiment 5A: Pure Cartesian Loss",
+      "description": "Keep the accepted combined architecture fixed and train it with a pure Cartesian-position loss plus the usual spike penalty.",
+      "rationale": "This tests whether optimizing directly for physical position improves localization in Euclidean space even if the polar-coordinate metrics shift differently.",
+      "implemented_steps": [
+        "Decode the model output to polar coordinates as usual.",
+        "Convert both prediction and target to Cartesian coordinates.",
+        "Optimize only the normalized Cartesian error and the spike penalty.",
+        "Still report both Cartesian and polar metrics at evaluation time."
+      ],
+      "analysis_focus": [
+        "Whether Euclidean position error improves relative to the short combined baseline.",
+        "Whether pure Cartesian optimization hurts the angular metrics even if position improves."
+      ],
+      "loss_mode": "pure_cartesian",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.85,
+        "batch_size": 16
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 9,
+        "stopped_early": false,
+        "best_val_loss": 0.0465,
+        "best_val_combined_error": 0.0811,
+        "initial_learning_rate": 0.002662,
+        "final_learning_rate": 0.002662
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 221.895,
+        "evaluation_seconds": 1.7892,
+        "total_seconds": 223.6845
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0697,
+        "azimuth_mae_deg": 3.5847,
+        "elevation_mae_deg": 5.8983,
+        "combined_error": 0.0811,
+        "mean_spike_rate": 0.1732,
+        "predicted_distance_std": 0.507,
+        "predicted_azimuth_std": 26.6343,
+        "predicted_elevation_std": 16.4636,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0883,
+        "y_mae_m": 0.0893,
+        "z_mae_m": 0.1596,
+        "euclidean_error_m": 0.2284
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0772,
+        "azimuth_mae_deg": 3.7977,
+        "elevation_mae_deg": 5.8794,
+        "combined_error": 0.0832,
+        "mean_spike_rate": 0.1656,
+        "predicted_distance_std": 0.5022,
+        "predicted_azimuth_std": 26.2718,
+        "predicted_elevation_std": 16.4141,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.0946,
+        "y_mae_m": 0.1004,
+        "z_mae_m": 0.176,
+        "euclidean_error_m": 0.2524
+      },
+      "comparison": {
+        "combined_error_delta": -0.0062,
+        "distance_mae_delta": -0.0225,
+        "azimuth_mae_delta": -0.4196,
+        "elevation_mae_delta": 0.1733,
+        "spike_rate_delta": -0.0389
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.0172,
+        "y_mae_delta": -0.0145,
+        "z_mae_delta": 0.0113,
+        "euclidean_error_delta": -0.0135
+      },
+      "learned_sigmas": null,
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/cartesian_comparison.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_5a_cartesian_loss/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round2_experiment_5b_mixed_cartesian_loss",
+      "title": "Round 2 Experiment 5B: Mixed Cartesian And Polar Loss",
+      "description": "Keep the accepted combined architecture fixed and train with a mixed loss made of Cartesian error, polar error regularization, and the spike penalty.",
+      "rationale": "This checks whether a mixed objective can improve physical position without giving up the stable distance, azimuth, and elevation behavior learned by the current polar formulation.",
+      "implemented_steps": [
+        "Compute the same normalized Cartesian error as Experiment 5A.",
+        "Add a smaller corrected polar loss term as a regularizer.",
+        "Keep all evaluation outputs in both coordinate systems for a fair comparison to the pure Cartesian run."
+      ],
+      "analysis_focus": [
+        "Whether mixed optimization is a safer compromise than pure Cartesian optimization.",
+        "Whether the mixed loss retains the baseline angular behavior better than the pure Cartesian loss."
+      ],
+      "loss_mode": "mixed_cartesian",
+      "accepted": true,
+      "cartesian_improved": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "dataset_mode": "combined_small",
+      "training_config": {
+        "max_epochs": 10,
+        "early_stopping_patience": 10,
+        "scheduler_patience": 3,
+        "scheduler_factor": 0.5,
+        "learning_rate_scale": 0.85,
+        "batch_size": 16,
+        "cartesian_mix_weight": 0.5
+      },
+      "training": {
+        "executed_epochs": 10,
+        "best_epoch": 6,
+        "stopped_early": false,
+        "best_val_loss": 0.1079,
+        "best_val_combined_error": 0.0783,
+        "initial_learning_rate": 0.002662,
+        "final_learning_rate": 0.001331
+      },
+      "timings": {
+        "data_prep_seconds": 159.2292,
+        "training_seconds": 223.476,
+        "evaluation_seconds": 1.9042,
+        "total_seconds": 225.3805
+      },
+      "val_metrics": {
+        "distance_mae_m": 0.0654,
+        "azimuth_mae_deg": 3.1362,
+        "elevation_mae_deg": 5.7006,
+        "combined_error": 0.0783,
+        "mean_spike_rate": 0.1973,
+        "predicted_distance_std": 0.5418,
+        "predicted_azimuth_std": 24.8255,
+        "predicted_elevation_std": 16.1644,
+        "target_distance_std": 0.5571,
+        "target_azimuth_std": 25.7247,
+        "target_elevation_std": 17.2909,
+        "x_mae_m": 0.0751,
+        "y_mae_m": 0.0861,
+        "z_mae_m": 0.1586,
+        "euclidean_error_m": 0.2203
+      },
+      "test_metrics": {
+        "distance_mae_m": 0.0676,
+        "azimuth_mae_deg": 4.2933,
+        "elevation_mae_deg": 5.77,
+        "combined_error": 0.0816,
+        "mean_spike_rate": 0.1956,
+        "predicted_distance_std": 0.5507,
+        "predicted_azimuth_std": 24.7482,
+        "predicted_elevation_std": 16.2053,
+        "target_distance_std": 0.5625,
+        "target_azimuth_std": 25.5067,
+        "target_elevation_std": 16.6835,
+        "x_mae_m": 0.0928,
+        "y_mae_m": 0.1164,
+        "z_mae_m": 0.1646,
+        "euclidean_error_m": 0.2517
+      },
+      "comparison": {
+        "combined_error_delta": -0.0078,
+        "distance_mae_delta": -0.0321,
+        "azimuth_mae_delta": 0.076,
+        "elevation_mae_delta": 0.0639,
+        "spike_rate_delta": -0.0089
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.019,
+        "y_mae_delta": 0.0016,
+        "z_mae_delta": -0.0001,
+        "euclidean_error_delta": -0.0142
+      },
+      "learned_sigmas": null,
+      "artifacts": {
+        "loss": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/loss.png",
+        "test_distance_prediction": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_elevation_prediction.png",
+        "test_elevation_error": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_elevation_error.png",
+        "comparison": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/comparison.png",
+        "summary": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/summary.png",
+        "test_x_prediction": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_x_prediction.png",
+        "test_y_prediction": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_y_prediction.png",
+        "test_z_prediction": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_z_prediction.png",
+        "cartesian_comparison": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/cartesian_comparison.png",
+        "prediction_cache": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_2_experiments/round2_experiment_5b_mixed_cartesian_loss/coordinate_error_profile.png"
+      }
+    }
+  ]
+}
