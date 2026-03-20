@@ -34,6 +34,123 @@ Implemented steps:
 - Step 3: add the residual elevation SConv2dLSTM context branch from Experiment 5 in parallel with the spectral CNN.
 - Step 4: fuse both residual elevation corrections back into the baseline elevation latent with small learned gains.
 - Step 5: train with corrected per-task normalization from Experiment 2 and uncertainty weighting with warm-up from Experiment 3.
+## Full Combined Model
+
+The current combined model is a bat-inspired localisation pipeline with a fixed acoustic front end, handcrafted distance and azimuth cue extraction, and a hybrid elevation branch that mixes fixed spectral cues with two learned residual pathways.
+
+### End-to-End Pipeline
+
+```mermaid
+flowchart LR
+    subgraph A["1. Acoustic Scene"]
+        A1["Target label\nr, azimuth, elevation"]
+        A2["FM chirp\n80000 -> 20000 Hz, 3.0 ms"]
+        A3["Binaural echo simulator\nfractional delay + attenuation + head shadow + elevation spectral cue + noise"]
+        A1 --> A3
+        A2 --> A3
+    end
+
+    subgraph B["2. Cochlea And Spike Encoding"]
+        subgraph B1["Transmit Front End"]
+            B1a["Transmit waveform"] --> B1b["Cochlea filterbank"] --> B1c["Rectify + LPF + downsample"] --> B1d["Transmit spikes"]
+        end
+        subgraph B2["Binaural Receive Front End"]
+            B2a["Left/right receive waveforms"] --> B2b["Cochlea filterbank"] --> B2c["Rectify + LPF + downsample"] --> B2d["Receive spikes"]
+        end
+    end
+
+    subgraph C["3. Fixed Cue Extraction"]
+        C1["Distance features\ndelay bank over 8 candidates"]
+        C2["Azimuth features\nITD bank + ILD comparison -> 16 dims"]
+        C3["Elevation base features\nspectral norm + notches + slope -> 144 dims"]
+    end
+
+    subgraph D["4. Combined Pathway Encoder"]
+        D1["Distance latent\nLinear 16 -> 24"]
+        D2["Azimuth latent\nLinear 16 -> 24"]
+        D3["Elevation latent\nbase + CNN residual + SConv residual -> 24"]
+    end
+
+    subgraph E["5. Fusion SNN"]
+        E1["Concat latents\n24 + 24 + 24 = 72"]
+        E2["Linear 72 -> 112"]
+        E3["Leaky LIF\n8 steps"]
+        E4["Linear 112 -> 112"]
+        E5["Leaky LIF\n8 steps"]
+        E6["Readout\nDistance, azimuth, elevation"]
+        E1 --> E2 --> E3 --> E4 --> E5 --> E6
+    end
+
+    subgraph F["6. Training Objective"]
+        F1["Per-task absolute error"] --> F2["Normalize by\n2.5 m, 45 deg, 30 deg"] --> F3["Uncertainty weighting\nsigma_d, sigma_a, sigma_e"]
+        F4["Spike-rate penalty"] --> F5["Total loss"]
+        F3 --> F5
+    end
+
+    A3 --> B1a
+    A3 --> B2a
+    B1d --> C1
+    B2d --> C1
+    B2d --> C2
+    B2d --> C3
+    C1 --> D1
+    C2 --> D2
+    C3 --> D3
+    D1 --> E1
+    D2 --> E1
+    D3 --> E1
+    E6 --> F1
+    E5 --> F4
+```
+
+### Combined Encoder Detail
+
+```mermaid
+flowchart TD
+    subgraph ROOT["Combined Encoder And Fusion Head"]
+        subgraph DIST["Distance Branch"]
+            DIST0["Handcrafted distance vector\n16 dims"] --> DIST1["Linear + ReLU\n16 -> 24"]
+        end
+
+        subgraph AZ["Azimuth Branch"]
+            AZ0["Handcrafted azimuth vector\n16 dims"] --> AZ1["Linear + ReLU\n16 -> 24"]
+        end
+
+        subgraph EL["Elevation Branch"]
+            EL0["Handcrafted elevation vector\n144 dims"] --> EL1["Base linear + ReLU\n144 -> 24"]
+            subgraph EL2["Residual CNN Path"]
+                EL2a["Receive spikes\n2 ears x 48 channels x time"] --> EL2b["Conv2d 2 -> 8\nkernel 5x7"] --> EL2c["Conv2d 8 -> 8\nkernel 3x5"] --> EL2d["Adaptive avg pool"] --> EL2e["Linear 128 -> 24"]
+            end
+            subgraph EL3["Residual SConv Path"]
+                EL3a["Receive spikes"] --> EL3b["Temporal pooling"] --> EL3c["SConv2dLSTM"] --> EL3d["Linear 4 -> 24"]
+            end
+            EL4["Learned gated sum\nbase + g_cnn * cnn + g_sconv * sconv"]
+            EL1 --> EL4
+            EL2e --> EL4
+            EL3d --> EL4
+        end
+
+        subgraph FUSE["Fusion SNN"]
+            F0["Concat latents\n72 dims"] --> F1["Linear 72 -> 112"] --> F2["Leaky LIF x 8"] --> F3["Linear 112 -> 112"] --> F4["Leaky LIF x 8"] --> F5["Linear 112 -> 3"]
+        end
+
+        DIST1 --> F0
+        AZ1 --> F0
+        EL4 --> F0
+    end
+```
+
+### Stage-By-Stage Explanation
+
+- Acoustic stage: a downward FM chirp is emitted and reflected from a synthetic target. The simulator applies round-trip delay, inverse-distance attenuation, binaural geometry from `ear_spacing_m = 0.030 m`, azimuth-dependent head shadow, elevation spectral shaping, timing jitter, and Gaussian noise.
+- Cochlea and spikes: the transmit waveform and the left/right receive waveforms pass through a fixed `48`-channel cochlear filterbank, then through rectification, envelope smoothing, downsampling, and a fixed LIF spike encoder. This creates one transmit spike tensor and one binaural receive spike tensor.
+- Distance pathway: the model forms onset responses and runs a fixed delay-bank coincidence calculation between transmit spikes and each ear. Those left and right coincidence maps are resized over `8` delay bins and concatenated into a `16`-dimensional handcrafted distance feature vector.
+- Azimuth pathway: the model computes a fixed ITD sweep and a fixed ILD comparison from the binaural spikes. After resizing, those features become a `16`-dimensional handcrafted azimuth feature vector.
+- Elevation pathway: the baseline elevation input is still handcrafted, using spectral normalization, spectral notch strength, and spectral slope, giving `144` fixed features. The combined model then adds two learned residuals on top of that fixed base: a spectral CNN residual and a recurrent spectral-temporal `SConv2dLSTM` residual.
+- Branch projection: the handcrafted distance and azimuth vectors are not replaced by learned front ends. They are each passed through a learned `Linear -> ReLU` map into `24`-dimensional latents. The elevation branch also ends as a `24`-dimensional latent after the learned gated residual sum.
+- Fusion SNN: the three branch latents are concatenated into `72` features, passed through a learned linear layer, run through a leaky spiking layer for `8` steps, transformed again by another learned linear layer, passed through a second leaky spiking layer for `8` steps, and finally mapped to three outputs: distance, azimuth, and elevation.
+- Loss function: training uses corrected per-task scaling, then learnable uncertainty weighting with three task-specific sigma parameters. A spike-rate penalty is added so the model does not solve the task by simply firing more everywhere.
+
 
 This combines the accepted pieces as follows:
 - Experiment 1 contribution: residual learned spectral CNN in the elevation branch.
