@@ -99,8 +99,10 @@ This comparison tests the effect of lowering the acoustic and cochlear bandwidth
 Protocol:
 - Ultrasonic baseline: saved short-data round-2 combined-all result using the existing `20 kHz to 90 kHz` cochlea, `80 kHz to 20 kHz` chirp, and `256 kHz` sample rate.
 - Human-band analogue: fresh rerun of the same short-data combined-all model with cochlea range `20 Hz to 20 kHz`, sample rate `64 kHz`, and a practical downward FM chirp `18 kHz to 2 kHz`.
+- Matched human-band analogue: second fresh rerun with the same `64 kHz` sample rate and `18 kHz to 2 kHz` chirp, but with the cochlea restricted to the active signal band `2 kHz to 20 kHz`.
 - The lower chirp edge was not set literally to `20 Hz` because a `3 ms` chirp cannot meaningfully encode 20 Hz content; one 20 Hz period is `50 ms`.
 - Same dataset size and training budget: `700 / 150 / 150`, `10` epochs, one thread, no Optuna retuning.
+- The original wide human-band result is retained below for comparison; the new matched-band result is additional.
 
 Runtime comparison:
 - Ultrasonic baseline total: `1115.77 s`
@@ -108,21 +110,31 @@ Runtime comparison:
 - Overall speedup: `7.78x`
 - Prep speedup: `20.68x`
 - Training speedup: `7.05x`
+- Matched human-band total: `142.92 s`
+- Matched overall speedup: `7.81x`
+- Matched prep speedup: `29.47x`
+- Matched training speedup: `6.95x`
 
 Accuracy comparison:
 - Ultrasonic combined error: `0.0789`
 - Human-band combined error: `0.1288`
+- Matched human-band combined error: `0.1221`
 - Ultrasonic distance / azimuth / elevation: `0.0636 m`, `3.5316 deg`, `5.6846 deg`
 - Human-band distance / azimuth / elevation: `0.0890 m`, `7.9520 deg`, `9.2961 deg`
+- Matched human-band distance / azimuth / elevation: `0.0946 m`, `7.8027 deg`, `8.4785 deg`
 - Ultrasonic Euclidean error: `0.2332 m`
 - Human-band Euclidean error: `0.4231 m`
+- Matched human-band Euclidean error: `0.3964 m`
 
 Interpretation:
 - This is not only a cochlea-bandwidth change. It also reduces raw waveform sampling resolution and moves the chirp into a much lower carrier band.
 - The comparison therefore measures the practical effect of a lower-bandwidth, lower-sample-rate auditory front end on the full localisation stack.
-- Because the downstream model was not retuned for the human-band configuration, the result should be treated as a direct transfer test rather than an optimized redesign.
+- The matched human-band variant specifically tests whether excluding irrelevant sub-2 kHz channels helps once the signal itself only occupies `2 kHz to 18 kHz`.
+- Because the downstream model was not retuned for either human-band configuration, both should be treated as direct transfer tests rather than optimized redesigns.
 
 ![Bandwidth runtime comparison](cochlea_explained/bandwidth_runtime_comparison.png)
 ![Bandwidth accuracy comparison](cochlea_explained/bandwidth_accuracy_comparison.png)
 ![Human-band example signal](cochlea_explained/human_example_signal.png)
 ![Human-band cochleagram](cochlea_explained/human_cochleagram_spikes.png)
+![Matched human-band example signal](cochlea_explained/human_matched_example_signal.png)
+![Matched human-band cochleagram](cochlea_explained/human_matched_cochleagram_spikes.png)

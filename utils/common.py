@@ -20,6 +20,7 @@ os.environ.setdefault("XDG_CACHE_HOME", "outputs/.cache")
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 import numpy as np
 import torch
 
@@ -215,15 +216,33 @@ def save_waveform_and_spectrogram(
 ) -> None:
     waveform = _to_numpy(signal)
     time_axis_ms = np.arange(waveform.shape[-1]) / sample_rate_hz * 1_000.0
-    nfft = min(256, max(32, int(waveform.shape[-1])))
-    noverlap = min(192, max(0, nfft // 2))
+    signal_duration_s = waveform.shape[-1] / max(sample_rate_hz, 1)
+    target_window_s = min(0.0010, max(0.0005, signal_duration_s / 32.0))
+    desired_window_samples = max(32, int(round(sample_rate_hz * target_window_s)))
+    if desired_window_samples >= waveform.shape[-1]:
+        nfft = max(32, min(int(waveform.shape[-1]), desired_window_samples))
+    else:
+        nfft = 1 << int(math.ceil(math.log2(desired_window_samples)))
+        nfft = min(nfft, int(waveform.shape[-1]))
+    noverlap = min(nfft - 1, max(0, int(round(0.875 * nfft))))
+    pad_to = max(256, 4 * nfft)
     fig, axes = plt.subplots(2, 1, figsize=(10, 6))
     axes[0].plot(time_axis_ms, waveform, linewidth=1.0)
     axes[0].set_title(title)
     axes[0].set_xlabel("Time (ms)")
     axes[0].set_ylabel("Amplitude")
-    axes[1].specgram(waveform, Fs=sample_rate_hz, NFFT=nfft, noverlap=noverlap, cmap="magma")
-    axes[1].set_xlabel("Time (s)")
+    _, _, _, image = axes[1].specgram(
+        waveform,
+        Fs=sample_rate_hz,
+        NFFT=nfft,
+        noverlap=noverlap,
+        pad_to=pad_to,
+        cmap="magma",
+    )
+    if hasattr(image, "set_interpolation"):
+        image.set_interpolation("bilinear")
+    axes[1].xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value * 1_000.0:.1f}"))
+    axes[1].set_xlabel("Time (ms)")
     axes[1].set_ylabel("Frequency (Hz)")
     _finalize_figure(path)
 

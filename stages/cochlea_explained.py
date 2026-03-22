@@ -242,13 +242,35 @@ def _human_band_config(base: GlobalConfig) -> GlobalConfig:
     return GlobalConfig(**payload)
 
 
-def _run_human_band_system_experiment(base_config: GlobalConfig, outputs: OutputPaths, figure_dir: Path) -> dict:
-    result_path = figure_dir / "human_band_experiment.json"
+def _matched_human_band_config(base: GlobalConfig) -> GlobalConfig:
+    payload = {**base.__dict__}
+    payload.update(
+        {
+            "sample_rate_hz": 64_000,
+            "chirp_start_hz": 18_000.0,
+            "chirp_end_hz": 2_000.0,
+            "cochlea_low_hz": 2_000.0,
+            "cochlea_high_hz": 20_000.0,
+        }
+    )
+    return GlobalConfig(**payload)
+
+
+def _run_band_system_experiment(
+    band_config: GlobalConfig,
+    outputs: OutputPaths,
+    figure_dir: Path,
+    *,
+    result_name: str,
+    signal_name: str,
+    cochlea_name: str,
+    title_prefix: str,
+) -> dict:
+    result_path = figure_dir / result_name
     if result_path.exists():
         return json.loads(result_path.read_text(encoding="utf-8"))
 
-    human_config = _human_band_config(base_config)
-    context = StageContext(config=human_config, device=torch.device("cpu"), outputs=outputs)
+    context = StageContext(config=band_config, device=torch.device("cpu"), outputs=outputs)
     params, baseline_label = _baseline_reference_params(context)
     spec = _combined_all_spec()
     training_config = EnhancedTrainingConfig(
@@ -258,7 +280,7 @@ def _run_human_band_system_experiment(base_config: GlobalConfig, outputs: Output
         scheduler_patience=3,
     )
 
-    seed_everything(human_config.seed)
+    seed_everything(band_config.seed)
     prep_start = time.perf_counter()
     data, prep_profile = _prepare_profiled_experiment_data(context, params, training_config.dataset_mode)
     target_bundle = _prepare_target_bundle(data)
@@ -291,8 +313,8 @@ def _run_human_band_system_experiment(base_config: GlobalConfig, outputs: Output
     evaluation_seconds = time.perf_counter() - eval_start
     total_seconds = prep_seconds + training_seconds + evaluation_seconds
 
-    human_example = simulate_echo_batch(
-        human_config,
+    example_batch = simulate_echo_batch(
+        band_config,
         torch.tensor([1.4], device=context.device),
         torch.tensor([18.0], device=context.device),
         torch.tensor([12.0], device=context.device),
@@ -300,51 +322,51 @@ def _run_human_band_system_experiment(base_config: GlobalConfig, outputs: Output
         add_noise=False,
         include_elevation_cues=True,
     )
-    human_filter_stages = cochlea_filterbank_stages(
-        human_example.receive[0, 0].unsqueeze(0),
-        sample_rate_hz=human_config.sample_rate_hz,
-        num_channels=human_config.num_cochlea_channels,
-        low_hz=human_config.cochlea_low_hz,
-        high_hz=human_config.cochlea_high_hz,
-        filter_bandwidth_sigma=human_config.filter_bandwidth_sigma,
-        envelope_lowpass_hz=human_config.envelope_lowpass_hz,
-        downsample=human_config.envelope_downsample,
+    filter_stages = cochlea_filterbank_stages(
+        example_batch.receive[0, 0].unsqueeze(0),
+        sample_rate_hz=band_config.sample_rate_hz,
+        num_channels=band_config.num_cochlea_channels,
+        low_hz=band_config.cochlea_low_hz,
+        high_hz=band_config.cochlea_high_hz,
+        filter_bandwidth_sigma=band_config.filter_bandwidth_sigma,
+        envelope_lowpass_hz=band_config.envelope_lowpass_hz,
+        downsample=band_config.envelope_downsample,
     )
-    human_lif = lif_encode_stages(
-        human_filter_stages["cochleagram"],
-        threshold=human_config.spike_threshold,
-        beta=human_config.spike_beta,
+    lif_stages = lif_encode_stages(
+        filter_stages["cochleagram"],
+        threshold=band_config.spike_threshold,
+        beta=band_config.spike_beta,
     )
-    human_start_ms = float(human_example.delays_s[0, 0].item() * 1_000.0)
-    human_end_ms = human_start_ms + human_config.chirp_duration_s * 1_000.0
-    human_xlim_ms = (
-        max(0.0, human_start_ms - 1.0),
-        min(human_config.signal_duration_s * 1_000.0, human_end_ms + 1.0),
+    echo_start_ms = float(example_batch.delays_s[0, 0].item() * 1_000.0)
+    echo_end_ms = echo_start_ms + band_config.chirp_duration_s * 1_000.0
+    xlim_ms = (
+        max(0.0, echo_start_ms - 1.0),
+        min(band_config.signal_duration_s * 1_000.0, echo_end_ms + 1.0),
     )
     save_waveform_and_spectrogram(
-        human_example.receive[0, 0],
-        human_config.sample_rate_hz,
-        figure_dir / "human_example_signal.png",
-        "Human-Band Example Receive Waveform And Spectrogram",
+        example_batch.receive[0, 0],
+        band_config.sample_rate_hz,
+        figure_dir / signal_name,
+        f"{title_prefix} Receive Waveform And Spectrogram",
     )
     save_cochlea_plot(
-        human_filter_stages["cochleagram"][0],
-        human_lif["spikes"][0],
-        human_config.envelope_rate_hz,
-        figure_dir / "human_cochleagram_spikes.png",
-        "Human-Band Cochleagram And Spike Raster",
-        xlim_ms=human_xlim_ms,
+        filter_stages["cochleagram"][0],
+        lif_stages["spikes"][0],
+        band_config.envelope_rate_hz,
+        figure_dir / cochlea_name,
+        f"{title_prefix} Cochleagram And Spike Raster",
+        xlim_ms=xlim_ms,
     )
 
     result = {
         "baseline_label": baseline_label,
         "config": {
-            "sample_rate_hz": human_config.sample_rate_hz,
-            "chirp_start_hz": human_config.chirp_start_hz,
-            "chirp_end_hz": human_config.chirp_end_hz,
-            "cochlea_low_hz": human_config.cochlea_low_hz,
-            "cochlea_high_hz": human_config.cochlea_high_hz,
-            "envelope_rate_hz": human_config.envelope_rate_hz,
+            "sample_rate_hz": band_config.sample_rate_hz,
+            "chirp_start_hz": band_config.chirp_start_hz,
+            "chirp_end_hz": band_config.chirp_end_hz,
+            "cochlea_low_hz": band_config.cochlea_low_hz,
+            "cochlea_high_hz": band_config.cochlea_high_hz,
+            "envelope_rate_hz": band_config.envelope_rate_hz,
         },
         "training_config": {
             "dataset_mode": training_config.dataset_mode,
@@ -370,12 +392,36 @@ def _run_human_band_system_experiment(base_config: GlobalConfig, outputs: Output
         "val_metrics": {key: format_float(value) for key, value in val_eval.metrics.items()},
         "test_metrics": {key: format_float(value) for key, value in test_eval.metrics.items()},
         "artifacts": {
-            "human_example_signal": str(figure_dir / "human_example_signal.png"),
-            "human_cochleagram_spikes": str(figure_dir / "human_cochleagram_spikes.png"),
+            "example_signal": str(figure_dir / signal_name),
+            "cochleagram_spikes": str(figure_dir / cochlea_name),
         },
     }
     save_json(result_path, result)
     return result
+
+
+def _run_human_band_system_experiment(base_config: GlobalConfig, outputs: OutputPaths, figure_dir: Path) -> dict:
+    return _run_band_system_experiment(
+        _human_band_config(base_config),
+        outputs,
+        figure_dir,
+        result_name="human_band_experiment.json",
+        signal_name="human_example_signal.png",
+        cochlea_name="human_cochleagram_spikes.png",
+        title_prefix="Human-Band Example",
+    )
+
+
+def _run_matched_human_band_system_experiment(base_config: GlobalConfig, outputs: OutputPaths, figure_dir: Path) -> dict:
+    return _run_band_system_experiment(
+        _matched_human_band_config(base_config),
+        outputs,
+        figure_dir,
+        result_name="human_matched_band_experiment.json",
+        signal_name="human_matched_example_signal.png",
+        cochlea_name="human_matched_cochleagram_spikes.png",
+        title_prefix="Matched Human-Band Example",
+    )
 
 
 def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[str, str]:
@@ -475,6 +521,7 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
 
     baseline_system_result = _load_saved_round2_combined_baseline(outputs)
     human_band_result = _run_human_band_system_experiment(config, outputs, figure_dir)
+    matched_human_band_result = _run_matched_human_band_system_experiment(config, outputs, figure_dir)
     save_grouped_bar_chart(
         ["Prep", "Training", "Evaluation", "Total"],
         {
@@ -489,6 +536,12 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
                 float(human_band_result["timings"]["training_seconds"]),
                 float(human_band_result["timings"]["evaluation_seconds"]),
                 float(human_band_result["timings"]["total_seconds"]),
+            ],
+            "Matched human-band": [
+                float(matched_human_band_result["timings"]["data_prep_seconds"]),
+                float(matched_human_band_result["timings"]["training_seconds"]),
+                float(matched_human_band_result["timings"]["evaluation_seconds"]),
+                float(matched_human_band_result["timings"]["total_seconds"]),
             ],
         },
         figure_dir / "bandwidth_runtime_comparison.png",
@@ -512,6 +565,13 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
                 float(human_band_result["test_metrics"]["elevation_mae_deg"]),
                 float(human_band_result["test_metrics"]["euclidean_error_m"]),
             ],
+            "Matched human-band": [
+                float(matched_human_band_result["test_metrics"]["combined_error"]),
+                float(matched_human_band_result["test_metrics"]["distance_mae_m"]),
+                float(matched_human_band_result["test_metrics"]["azimuth_mae_deg"]),
+                float(matched_human_band_result["test_metrics"]["elevation_mae_deg"]),
+                float(matched_human_band_result["test_metrics"]["euclidean_error_m"]),
+            ],
         },
         figure_dir / "bandwidth_accuracy_comparison.png",
         "Bandwidth / Sample Rate Accuracy Comparison",
@@ -528,6 +588,18 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
     )
     training_speedup = float(baseline_system_result["timings"]["training_seconds"]) / max(
         float(human_band_result["timings"]["training_seconds"]),
+        1e-6,
+    )
+    matched_runtime_speedup = float(baseline_system_result["timings"]["total_seconds"]) / max(
+        float(matched_human_band_result["timings"]["total_seconds"]),
+        1e-6,
+    )
+    matched_prep_speedup = float(baseline_system_result["timings"]["data_prep_seconds"]) / max(
+        float(matched_human_band_result["timings"]["data_prep_seconds"]),
+        1e-6,
+    )
+    matched_training_speedup = float(baseline_system_result["timings"]["training_seconds"]) / max(
+        float(matched_human_band_result["timings"]["training_seconds"]),
         1e-6,
     )
 
@@ -633,8 +705,10 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "Protocol:",
         "- Ultrasonic baseline: saved short-data round-2 combined-all result using the existing `20 kHz to 90 kHz` cochlea, `80 kHz to 20 kHz` chirp, and `256 kHz` sample rate.",
         "- Human-band analogue: fresh rerun of the same short-data combined-all model with cochlea range `20 Hz to 20 kHz`, sample rate `64 kHz`, and a practical downward FM chirp `18 kHz to 2 kHz`.",
+        "- Matched human-band analogue: second fresh rerun with the same `64 kHz` sample rate and `18 kHz to 2 kHz` chirp, but with the cochlea restricted to the active signal band `2 kHz to 20 kHz`.",
         "- The lower chirp edge was not set literally to `20 Hz` because a `3 ms` chirp cannot meaningfully encode 20 Hz content; one 20 Hz period is `50 ms`.",
         "- Same dataset size and training budget: `700 / 150 / 150`, `10` epochs, one thread, no Optuna retuning.",
+        "- The original wide human-band result is retained below for comparison; the new matched-band result is additional.",
         "",
         "Runtime comparison:",
         f"- Ultrasonic baseline total: `{float(baseline_system_result['timings']['total_seconds']):.2f} s`",
@@ -642,24 +716,34 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         f"- Overall speedup: `{runtime_speedup:.2f}x`",
         f"- Prep speedup: `{prep_speedup:.2f}x`",
         f"- Training speedup: `{training_speedup:.2f}x`",
+        f"- Matched human-band total: `{float(matched_human_band_result['timings']['total_seconds']):.2f} s`",
+        f"- Matched overall speedup: `{matched_runtime_speedup:.2f}x`",
+        f"- Matched prep speedup: `{matched_prep_speedup:.2f}x`",
+        f"- Matched training speedup: `{matched_training_speedup:.2f}x`",
         "",
         "Accuracy comparison:",
         f"- Ultrasonic combined error: `{float(baseline_system_result['test_metrics']['combined_error']):.4f}`",
         f"- Human-band combined error: `{float(human_band_result['test_metrics']['combined_error']):.4f}`",
+        f"- Matched human-band combined error: `{float(matched_human_band_result['test_metrics']['combined_error']):.4f}`",
         f"- Ultrasonic distance / azimuth / elevation: `{float(baseline_system_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(baseline_system_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(baseline_system_result['test_metrics']['elevation_mae_deg']):.4f} deg`",
         f"- Human-band distance / azimuth / elevation: `{float(human_band_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(human_band_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(human_band_result['test_metrics']['elevation_mae_deg']):.4f} deg`",
+        f"- Matched human-band distance / azimuth / elevation: `{float(matched_human_band_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(matched_human_band_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(matched_human_band_result['test_metrics']['elevation_mae_deg']):.4f} deg`",
         f"- Ultrasonic Euclidean error: `{float(baseline_system_result['test_metrics']['euclidean_error_m']):.4f} m`",
         f"- Human-band Euclidean error: `{float(human_band_result['test_metrics']['euclidean_error_m']):.4f} m`",
+        f"- Matched human-band Euclidean error: `{float(matched_human_band_result['test_metrics']['euclidean_error_m']):.4f} m`",
         "",
         "Interpretation:",
         "- This is not only a cochlea-bandwidth change. It also reduces raw waveform sampling resolution and moves the chirp into a much lower carrier band.",
         "- The comparison therefore measures the practical effect of a lower-bandwidth, lower-sample-rate auditory front end on the full localisation stack.",
-        "- Because the downstream model was not retuned for the human-band configuration, the result should be treated as a direct transfer test rather than an optimized redesign.",
+        "- The matched human-band variant specifically tests whether excluding irrelevant sub-2 kHz channels helps once the signal itself only occupies `2 kHz to 18 kHz`.",
+        "- Because the downstream model was not retuned for either human-band configuration, both should be treated as direct transfer tests rather than optimized redesigns.",
         "",
         "![Bandwidth runtime comparison](cochlea_explained/bandwidth_runtime_comparison.png)",
         "![Bandwidth accuracy comparison](cochlea_explained/bandwidth_accuracy_comparison.png)",
         "![Human-band example signal](cochlea_explained/human_example_signal.png)",
         "![Human-band cochleagram](cochlea_explained/human_cochleagram_spikes.png)",
+        "![Matched human-band example signal](cochlea_explained/human_matched_example_signal.png)",
+        "![Matched human-band cochleagram](cochlea_explained/human_matched_cochleagram_spikes.png)",
     ]
     report_path = outputs.root / "cochlea_explained.md"
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
