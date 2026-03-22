@@ -344,6 +344,32 @@ def _save_direct_drive_gain_plot(
     _finalize(path)
 
 
+def _save_required_source_level_vs_distance_plot(
+    distances_m: np.ndarray,
+    required_source_db: np.ndarray,
+    empirical_distances_m: list[float],
+    empirical_source_db: list[float],
+    path: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(distances_m, required_source_db, linewidth=1.8, label="Predicted minimum source level")
+    if empirical_distances_m:
+        ax.scatter(
+            empirical_distances_m,
+            empirical_source_db,
+            s=45,
+            color="#b56576",
+            label="Empirical first-spike points",
+            zorder=3,
+        )
+    ax.set_title("Source Level Needed For First Spikes vs Distance")
+    ax.set_xlabel("Distance (m)")
+    ax.set_ylabel("Required Source Level (dB SPL, assuming 1x = 80 dB)")
+    ax.grid(True, alpha=0.25)
+    ax.legend()
+    _finalize(path)
+
+
 def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
     config = _matched_human_band_config(base_config)
     device = torch.device("cpu")
@@ -430,6 +456,66 @@ def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) ->
         },
     }
     save_json(figure_dir / "direct_drive_gain_sweep.json", summary)
+    return summary
+
+
+def _run_attenuation_threshold_projection(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
+    config = _matched_human_band_config(base_config)
+    direct_drive_summary = json.loads((figure_dir / "direct_drive_gain_sweep.json").read_text(encoding="utf-8"))
+    threshold_db = float(direct_drive_summary["first_level_with_spikes_db_spl"]["unnormalized"])
+
+    distances_m = np.linspace(config.min_range_m, 20.0, 400)
+    ear_offset = config.ear_spacing_m / 2.0
+    path_lengths = distances_m + np.sqrt(np.square(distances_m) + ear_offset**2)
+    attenuation = 0.7 / np.maximum(np.square(path_lengths), 0.25)
+    attenuation_db = 20.0 * np.log10(np.maximum(attenuation, 1e-12))
+    required_source_db = threshold_db - attenuation_db
+
+    empirical_distances_m = [2.5, 10.0, 20.0]
+    empirical_source_db = [100.0, 134.0, 140.0]
+
+    _save_required_source_level_vs_distance_plot(
+        distances_m,
+        required_source_db,
+        empirical_distances_m,
+        empirical_source_db,
+        figure_dir / "required_source_level_vs_distance.png",
+    )
+
+    summary = {
+        "assumption": {
+            "direct_drive_threshold_db_spl": threshold_db,
+            "reference_level_db_spl": float(direct_drive_summary["assumption"]["reference_level_db_spl"]),
+            "meaning": "Required source level is projected from the unnormalized direct-drive first-spike threshold through the simulator attenuation law.",
+        },
+        "config": {
+            "sample_rate_hz": config.sample_rate_hz,
+            "chirp_start_hz": config.chirp_start_hz,
+            "chirp_end_hz": config.chirp_end_hz,
+            "chirp_duration_s": config.chirp_duration_s,
+            "signal_duration_s": config.signal_duration_s,
+            "num_cochlea_channels": config.num_cochlea_channels,
+            "cochlea_low_hz": config.cochlea_low_hz,
+            "cochlea_high_hz": config.cochlea_high_hz,
+            "cochlea_spacing_mode": config.cochlea_spacing_mode,
+            "filter_bandwidth_sigma": config.filter_bandwidth_sigma,
+            "envelope_lowpass_hz": config.envelope_lowpass_hz,
+            "envelope_downsample": config.envelope_downsample,
+            "envelope_rate_hz": config.envelope_rate_hz,
+            "spike_threshold": config.spike_threshold,
+            "spike_beta": config.spike_beta,
+            "ear_spacing_m": config.ear_spacing_m,
+            "attenuation_model": "0.7 / path_length^2",
+        },
+        "empirical_points": {
+            "distances_m": empirical_distances_m,
+            "source_db_spl": empirical_source_db,
+        },
+        "artifacts": {
+            "required_source_level_plot": str(figure_dir / "required_source_level_vs_distance.png"),
+        },
+    }
+    save_json(figure_dir / "attenuation_threshold_projection.json", summary)
     return summary
 
 
@@ -753,6 +839,7 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
     matched_dense_700_result = _run_matched_human_dense_channel_experiment(config, outputs, figure_dir)
     matched_mel_result = _run_matched_human_mel_experiment(config, outputs, figure_dir)
     direct_drive_gain_result = _run_direct_drive_gain_sweep(config, figure_dir)
+    attenuation_threshold_result = _run_attenuation_threshold_projection(config, figure_dir)
 
     matched_baseline_center_frequencies = cochlea_filterbank_stages(
         torch.zeros(1, _matched_human_band_config(config).signal_samples, dtype=torch.float32),
@@ -1065,6 +1152,38 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "- This direct-drive test isolates the cochlea and spike encoder from propagation, attenuation, and additive noise.",
         "",
         "![Direct-drive spike count vs level](cochlea_explained/direct_drive_spike_count_vs_level.png)",
+        "",
+        "## 8. Source Level Needed vs Distance",
+        "",
+        "Using the unnormalized direct-drive threshold above, the figure below projects the source level needed to reach first-spike conditions at the receiver after the simulator attenuation law is applied.",
+        "",
+        "Projection assumptions:",
+        f"- unnormalized direct-drive first-spike threshold: `{attenuation_threshold_result['assumption']['direct_drive_threshold_db_spl']:.0f} dB SPL` at the cochlea input",
+        f"- attenuation model: `{attenuation_threshold_result['config']['attenuation_model']}`",
+        f"- ear spacing: `{attenuation_threshold_result['config']['ear_spacing_m']:.3f} m`",
+        "- centerline geometry: `azimuth = 0 deg`, `elevation = 0 deg`, binaural path length to one ear",
+        "- plotted empirical points are the coarse first-spike source levels observed in the no-normalization distance sweeps",
+        "",
+        "Cochlea configuration used for this threshold projection:",
+        f"- sample rate: `{attenuation_threshold_result['config']['sample_rate_hz']} Hz`",
+        f"- chirp: `{attenuation_threshold_result['config']['chirp_start_hz']:.0f} Hz -> {attenuation_threshold_result['config']['chirp_end_hz']:.0f} Hz` over `{attenuation_threshold_result['config']['chirp_duration_s']:.3f} s`",
+        f"- signal duration: `{attenuation_threshold_result['config']['signal_duration_s']:.3f} s`",
+        f"- cochlea channels: `{attenuation_threshold_result['config']['num_cochlea_channels']}`",
+        f"- cochlea band: `{attenuation_threshold_result['config']['cochlea_low_hz']:.0f} Hz -> {attenuation_threshold_result['config']['cochlea_high_hz']:.0f} Hz`",
+        f"- spacing: `{attenuation_threshold_result['config']['cochlea_spacing_mode']}`",
+        f"- filter bandwidth sigma: `{attenuation_threshold_result['config']['filter_bandwidth_sigma']:.3f}`",
+        f"- envelope low-pass: `{attenuation_threshold_result['config']['envelope_lowpass_hz']:.0f} Hz`",
+        f"- downsample: `{attenuation_threshold_result['config']['envelope_downsample']}`",
+        f"- envelope rate: `{attenuation_threshold_result['config']['envelope_rate_hz']} Hz`",
+        f"- spike threshold: `{attenuation_threshold_result['config']['spike_threshold']:.2f}`",
+        f"- spike beta: `{attenuation_threshold_result['config']['spike_beta']:.2f}`",
+        "",
+        "Interpretation:",
+        "- The smooth curve is the attenuation-only prediction, so it is a lower-complexity estimate rather than a full noisy simulation.",
+        "- The empirical points tend to sit on or above the curve because the actual sweeps include noise, waveform structure, and a coarse tested gain grid.",
+        "- This makes the graph useful for intuition about how quickly source-level demands rise with range under the current front end.",
+        "",
+        "![Required source level vs distance](cochlea_explained/required_source_level_vs_distance.png)",
         "",
         "## Interface To The Rest Of The Model",
         "",

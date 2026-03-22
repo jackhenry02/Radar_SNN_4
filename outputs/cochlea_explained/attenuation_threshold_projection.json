@@ -1,0 +1,41 @@
+{
+  "assumption": {
+    "direct_drive_threshold_db_spl": 70.0,
+    "reference_level_db_spl": 80.0,
+    "meaning": "Required source level is projected from the unnormalized direct-drive first-spike threshold through the simulator attenuation law."
+  },
+  "config": {
+    "sample_rate_hz": 64000,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "chirp_duration_s": 0.003,
+    "signal_duration_s": 0.022,
+    "num_cochlea_channels": 24,
+    "cochlea_low_hz": 2000.0,
+    "cochlea_high_hz": 20000.0,
+    "cochlea_spacing_mode": "log",
+    "filter_bandwidth_sigma": 0.16,
+    "envelope_lowpass_hz": 1800.0,
+    "envelope_downsample": 4,
+    "envelope_rate_hz": 16000,
+    "spike_threshold": 0.42,
+    "spike_beta": 0.88,
+    "ear_spacing_m": 0.03,
+    "attenuation_model": "0.7 / path_length^2"
+  },
+  "empirical_points": {
+    "distances_m": [
+      2.5,
+      10.0,
+      20.0
+    ],
+    "source_db_spl": [
+      100.0,
+      134.0,
+      140.0
+    ]
+  },
+  "artifacts": {
+    "required_source_level_plot": "outputs/cochlea_explained/required_source_level_vs_distance.png"
+  }
+}

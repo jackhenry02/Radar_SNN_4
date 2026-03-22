@@ -108,6 +108,38 @@ Interpretation:
 
 ![Direct-drive spike count vs level](cochlea_explained/direct_drive_spike_count_vs_level.png)
 
+## 8. Source Level Needed vs Distance
+
+Using the unnormalized direct-drive threshold above, the figure below projects the source level needed to reach first-spike conditions at the receiver after the simulator attenuation law is applied.
+
+Projection assumptions:
+- unnormalized direct-drive first-spike threshold: `70 dB SPL` at the cochlea input
+- attenuation model: `0.7 / path_length^2`
+- ear spacing: `0.030 m`
+- centerline geometry: `azimuth = 0 deg`, `elevation = 0 deg`, binaural path length to one ear
+- plotted empirical points are the coarse first-spike source levels observed in the no-normalization distance sweeps
+
+Cochlea configuration used for this threshold projection:
+- sample rate: `64000 Hz`
+- chirp: `18000 Hz -> 2000 Hz` over `0.003 s`
+- signal duration: `0.022 s`
+- cochlea channels: `24`
+- cochlea band: `2000 Hz -> 20000 Hz`
+- spacing: `log`
+- filter bandwidth sigma: `0.160`
+- envelope low-pass: `1800 Hz`
+- downsample: `4`
+- envelope rate: `16000 Hz`
+- spike threshold: `0.42`
+- spike beta: `0.88`
+
+Interpretation:
+- The smooth curve is the attenuation-only prediction, so it is a lower-complexity estimate rather than a full noisy simulation.
+- The empirical points tend to sit on or above the curve because the actual sweeps include noise, waveform structure, and a coarse tested gain grid.
+- This makes the graph useful for intuition about how quickly source-level demands rise with range under the current front end.
+
+![Required source level vs distance](cochlea_explained/required_source_level_vs_distance.png)
+
 ## Interface To The Rest Of The Model
 
 The current barrier is after spike generation:
