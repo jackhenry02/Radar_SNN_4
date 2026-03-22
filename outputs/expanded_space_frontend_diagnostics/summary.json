@@ -1,0 +1,67 @@
+{
+  "config": {
+    "sample_rate_hz": 64000,
+    "signal_duration_s": 0.1396,
+    "chirp_duration_s": 0.003,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "num_cochlea_channels": 48
+  },
+  "note": "0 m is not included because the current echo simulator uses inverse-square attenuation and a two-way delay model, so 0.5 m is the nearest practical diagnostic point.",
+  "diagnostics": [
+    {
+      "distance_m": 0.5,
+      "delay_ms": 2.9124,
+      "receive_peak_abs": 0.695879,
+      "cochleagram_peak": 0.189507,
+      "spike_count": 484,
+      "waveform_plot": "outputs/expanded_space_frontend_diagnostics/distance_0p5_signal.png",
+      "cochlea_plot": "outputs/expanded_space_frontend_diagnostics/distance_0p5_cochleagram_spikes.png"
+    },
+    {
+      "distance_m": 2.5,
+      "delay_ms": 14.5842,
+      "receive_peak_abs": 0.045582,
+      "cochleagram_peak": 0.007484,
+      "spike_count": 31025,
+      "waveform_plot": "outputs/expanded_space_frontend_diagnostics/distance_2p5_signal.png",
+      "cochlea_plot": "outputs/expanded_space_frontend_diagnostics/distance_2p5_cochleagram_spikes.png"
+    },
+    {
+      "distance_m": 5.0,
+      "delay_ms": 29.1557,
+      "receive_peak_abs": 0.034623,
+      "cochleagram_peak": 0.003716,
+      "spike_count": 64364,
+      "waveform_plot": "outputs/expanded_space_frontend_diagnostics/distance_5p0_signal.png",
+      "cochlea_plot": "outputs/expanded_space_frontend_diagnostics/distance_5p0_cochleagram_spikes.png"
+    },
+    {
+      "distance_m": 10.0,
+      "delay_ms": 58.294,
+      "receive_peak_abs": 0.03274,
+      "cochleagram_peak": 0.002717,
+      "spike_count": 80493,
+      "waveform_plot": "outputs/expanded_space_frontend_diagnostics/distance_10p0_signal.png",
+      "cochlea_plot": "outputs/expanded_space_frontend_diagnostics/distance_10p0_cochleagram_spikes.png"
+    },
+    {
+      "distance_m": 15.0,
+      "delay_ms": 87.482,
+      "receive_peak_abs": 0.034823,
+      "cochleagram_peak": 0.003047,
+      "spike_count": 75561,
+      "waveform_plot": "outputs/expanded_space_frontend_diagnostics/distance_15p0_signal.png",
+      "cochlea_plot": "outputs/expanded_space_frontend_diagnostics/distance_15p0_cochleagram_spikes.png"
+    },
+    {
+      "distance_m": 20.0,
+      "delay_ms": 116.6128,
+      "receive_peak_abs": 0.031619,
+      "cochleagram_peak": 0.002756,
+      "spike_count": 80071,
+      "waveform_plot": "outputs/expanded_space_frontend_diagnostics/distance_20p0_signal.png",
+      "cochlea_plot": "outputs/expanded_space_frontend_diagnostics/distance_20p0_cochleagram_spikes.png"
+    }
+  ]
+}

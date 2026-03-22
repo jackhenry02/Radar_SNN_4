@@ -1,0 +1,123 @@
+{
+  "result": {
+    "name": "expanded_space_quick_test",
+    "title": "Expanded Space Quick Test",
+    "description": "Run the matched-human round-2 combined-all model on a much larger spatial support: distance up to 20 m and azimuth/elevation across +/-90 degrees.",
+    "rationale": "This is a stress test of the accepted short-data round-2 combined-all architecture under a much larger range-and-angle support, while keeping the cheaper matched-human front end.",
+    "reference_result": "combined_experiment short_data_1000_result",
+    "dataset_counts": {
+      "train": 700,
+      "val": 150,
+      "test": 150
+    },
+    "target_space": {
+      "distance_m": [
+        0.5,
+        20.0
+      ],
+      "azimuth_deg": [
+        -90.0,
+        90.0
+      ],
+      "elevation_deg": [
+        -90.0,
+        90.0
+      ]
+    },
+    "config": {
+      "sample_rate_hz": 64000,
+      "signal_duration_s": 0.1396,
+      "chirp_duration_s": 0.003,
+      "chirp_start_hz": 18000.0,
+      "chirp_end_hz": 2000.0,
+      "num_cochlea_channels": 48,
+      "model_num_frequency_channels": 48,
+      "cochlea_low_hz": 2000.0,
+      "cochlea_high_hz": 20000.0
+    },
+    "training_config": {
+      "max_epochs": 10,
+      "batch_size": 6,
+      "scheduler_patience": 2,
+      "early_stopping_patience": 4,
+      "learning_rate_scale": 0.65,
+      "cartesian_mix_weight": 0.65
+    },
+    "training": {
+      "executed_epochs": 7,
+      "best_epoch": 3,
+      "stopped_early": true,
+      "best_val_loss": 1.4323,
+      "best_val_combined_error": 0.6332,
+      "initial_learning_rate": 0.002036,
+      "final_learning_rate": 0.001018
+    },
+    "timings": {
+      "data_prep_seconds": 46.7135,
+      "training_seconds": 1972.7096,
+      "evaluation_seconds": 13.2358,
+      "total_seconds": 2032.6654
+    },
+    "reference_metrics": {
+      "distance_mae_m": 0.0946,
+      "azimuth_mae_deg": 7.8027,
+      "elevation_mae_deg": 8.4785,
+      "combined_error": 0.1221,
+      "mean_spike_rate": 0.0339
+    },
+    "val_metrics": {
+      "distance_mae_m": 4.0747,
+      "azimuth_mae_deg": 40.3358,
+      "elevation_mae_deg": 44.9179,
+      "combined_error": 0.6332,
+      "mean_spike_rate": 0.0318,
+      "predicted_distance_std": 2.9416,
+      "predicted_azimuth_std": 3.2594,
+      "predicted_elevation_std": 7.7254,
+      "target_distance_std": 5.4883,
+      "target_azimuth_std": 47.1368,
+      "target_elevation_std": 52.1367,
+      "x_mae_m": 6.4159,
+      "y_mae_m": 3.7005,
+      "z_mae_m": 6.3076,
+      "euclidean_error_m": 11.1237
+    },
+    "test_metrics": {
+      "distance_mae_m": 4.1299,
+      "azimuth_mae_deg": 41.2251,
+      "elevation_mae_deg": 43.767,
+      "combined_error": 0.6315,
+      "mean_spike_rate": 0.0354,
+      "predicted_distance_std": 3.3986,
+      "predicted_azimuth_std": 4.4844,
+      "predicted_elevation_std": 9.8007,
+      "target_distance_std": 5.4917,
+      "target_azimuth_std": 48.5789,
+      "target_elevation_std": 49.7505,
+      "x_mae_m": 5.9981,
+      "y_mae_m": 3.9221,
+      "z_mae_m": 6.0723,
+      "euclidean_error_m": 10.7116
+    },
+    "comparison_vs_reference": {
+      "combined_error_delta": 0.5094,
+      "distance_mae_delta": 4.0353,
+      "azimuth_mae_delta": 33.4224,
+      "elevation_mae_delta": 35.2885,
+      "spike_rate_delta": 0.0015
+    },
+    "artifacts": {
+      "loss": "outputs/expanded_space_test/expanded_space_quick_test/loss.png",
+      "test_distance_prediction": "outputs/expanded_space_test/expanded_space_quick_test/test_distance_prediction.png",
+      "test_azimuth_prediction": "outputs/expanded_space_test/expanded_space_quick_test/test_azimuth_prediction.png",
+      "test_elevation_prediction": "outputs/expanded_space_test/expanded_space_quick_test/test_elevation_prediction.png",
+      "test_elevation_error": "outputs/expanded_space_test/expanded_space_quick_test/test_elevation_error.png",
+      "comparison": "outputs/expanded_space_test/expanded_space_quick_test/comparison.png",
+      "summary": "outputs/expanded_space_test/summary.png",
+      "prediction_cache": "outputs/expanded_space_test/expanded_space_quick_test/test_predictions.npz",
+      "coordinate_error_profile": "outputs/expanded_space_test/expanded_space_quick_test/coordinate_error_profile.png",
+      "reference_vs_expanded": "outputs/expanded_space_test/reference_vs_expanded.png"
+    }
+  },
+  "report_path": "outputs/expanded_space_test_report.md"
+}

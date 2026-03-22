@@ -1,0 +1,120 @@
+{
+  "name": "expanded_space_control_test",
+  "title": "Original-Range Control Test",
+  "description": "Run the matched-human round-2 combined-all model through the same control harness, but keep the original short-domain spatial support.",
+  "rationale": "This is a harness-control check. It uses the same training loop, output formatting, and matched-human front end as the expanded-space test, but keeps the original target range and angular limits.",
+  "reference_result": "combined_experiment short_data_1000_result",
+  "dataset_counts": {
+    "train": 700,
+    "val": 150,
+    "test": 150
+  },
+  "target_space": {
+    "distance_m": [
+      0.5,
+      2.5
+    ],
+    "azimuth_deg": [
+      -45.0,
+      45.0
+    ],
+    "elevation_deg": [
+      -30.0,
+      30.0
+    ]
+  },
+  "config": {
+    "sample_rate_hz": 64000,
+    "signal_duration_s": 0.0376,
+    "chirp_duration_s": 0.003,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "num_cochlea_channels": 48,
+    "model_num_frequency_channels": 48,
+    "cochlea_low_hz": 2000.0,
+    "cochlea_high_hz": 20000.0
+  },
+  "training_config": {
+    "max_epochs": 10,
+    "batch_size": 8,
+    "scheduler_patience": 2,
+    "early_stopping_patience": 4,
+    "learning_rate_scale": 0.85,
+    "cartesian_mix_weight": 0.5
+  },
+  "training": {
+    "executed_epochs": 10,
+    "best_epoch": 7,
+    "stopped_early": false,
+    "best_val_loss": 0.1595,
+    "best_val_combined_error": 0.1075,
+    "initial_learning_rate": 0.002662,
+    "final_learning_rate": 0.001331
+  },
+  "timings": {
+    "data_prep_seconds": 11.5114,
+    "training_seconds": 322.8726,
+    "evaluation_seconds": 2.4047,
+    "total_seconds": 336.7964
+  },
+  "reference_metrics": {
+    "distance_mae_m": 0.0946,
+    "azimuth_mae_deg": 7.8027,
+    "elevation_mae_deg": 8.4785,
+    "combined_error": 0.1221,
+    "mean_spike_rate": 0.0339
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.0816,
+    "azimuth_mae_deg": 5.3043,
+    "elevation_mae_deg": 7.7684,
+    "combined_error": 0.1075,
+    "mean_spike_rate": 0.0383,
+    "predicted_distance_std": 0.5259,
+    "predicted_azimuth_std": 24.2205,
+    "predicted_elevation_std": 15.7851,
+    "target_distance_std": 0.5629,
+    "target_azimuth_std": 23.5684,
+    "target_elevation_std": 17.3789,
+    "x_mae_m": 0.0997,
+    "y_mae_m": 0.1394,
+    "z_mae_m": 0.2117,
+    "euclidean_error_m": 0.3126
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.072,
+    "azimuth_mae_deg": 5.4033,
+    "elevation_mae_deg": 8.668,
+    "combined_error": 0.115,
+    "mean_spike_rate": 0.038,
+    "predicted_distance_std": 0.5402,
+    "predicted_azimuth_std": 24.1809,
+    "predicted_elevation_std": 14.8356,
+    "target_distance_std": 0.5632,
+    "target_azimuth_std": 24.2894,
+    "target_elevation_std": 16.5835,
+    "x_mae_m": 0.0945,
+    "y_mae_m": 0.1399,
+    "z_mae_m": 0.2344,
+    "euclidean_error_m": 0.3293
+  },
+  "comparison_vs_reference": {
+    "combined_error_delta": -0.0071,
+    "distance_mae_delta": -0.0226,
+    "azimuth_mae_delta": -2.3994,
+    "elevation_mae_delta": 0.1895,
+    "spike_rate_delta": 0.0041
+  },
+  "artifacts": {
+    "loss": "outputs/expanded_space_control_test/expanded_space_control_test/loss.png",
+    "test_distance_prediction": "outputs/expanded_space_control_test/expanded_space_control_test/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/expanded_space_control_test/expanded_space_control_test/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/expanded_space_control_test/expanded_space_control_test/test_elevation_prediction.png",
+    "test_elevation_error": "outputs/expanded_space_control_test/expanded_space_control_test/test_elevation_error.png",
+    "comparison": "outputs/expanded_space_control_test/expanded_space_control_test/comparison.png",
+    "summary": "outputs/expanded_space_control_test/summary.png",
+    "prediction_cache": "outputs/expanded_space_control_test/expanded_space_control_test/test_predictions.npz",
+    "coordinate_error_profile": "outputs/expanded_space_control_test/expanded_space_control_test/coordinate_error_profile.png",
+    "reference_vs_expanded": "outputs/expanded_space_control_test/reference_vs_expanded.png"
+  }
+}
