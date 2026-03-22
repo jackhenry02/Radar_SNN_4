@@ -11,7 +11,9 @@ import torch
 
 from models.acoustics import (
     cochlea_filterbank_stages,
+    generate_fm_chirp,
     lif_encode_stages,
+    pad_signal,
     simulate_echo_batch,
 )
 from stages.base import StageContext
@@ -323,6 +325,112 @@ def _save_spacing_center_frequency_plot(
     ax.grid(True, alpha=0.25)
     ax.legend()
     _finalize(path)
+
+
+def _save_direct_drive_gain_plot(
+    levels_db: list[float],
+    normalized_spike_counts: list[float],
+    unnormalized_spike_counts: list[float],
+    path: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(levels_db, normalized_spike_counts, linewidth=1.8, marker="o", label="Normalized encoder")
+    ax.plot(levels_db, unnormalized_spike_counts, linewidth=1.8, marker="s", label="Unnormalized encoder")
+    ax.set_title("Direct-Drive Cochlea Spike Count vs Effective Source Level")
+    ax.set_xlabel("Effective Source Level (dB SPL, assuming 1x = 80 dB)")
+    ax.set_ylabel("Total Spike Count")
+    ax.grid(True, alpha=0.25)
+    ax.legend()
+    _finalize(path)
+
+
+def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
+    config = _matched_human_band_config(base_config)
+    device = torch.device("cpu")
+    chirp, _ = generate_fm_chirp(config, batch_size=1, device=device, transmit_gain=1.0)
+    direct_signal = pad_signal(chirp, config.signal_samples)
+
+    levels_db = list(range(0, 141, 5))
+    reference_db = 80.0
+    gain_factors = [10.0 ** ((level_db - reference_db) / 20.0) for level_db in levels_db]
+
+    normalized_spike_counts: list[int] = []
+    unnormalized_spike_counts: list[int] = []
+    normalized_peaks: list[float] = []
+    unnormalized_peaks: list[float] = []
+
+    for gain in gain_factors:
+        driven_signal = direct_signal * gain
+        filter_stages = cochlea_filterbank_stages(
+            driven_signal,
+            sample_rate_hz=config.sample_rate_hz,
+            num_channels=config.num_cochlea_channels,
+            low_hz=config.cochlea_low_hz,
+            high_hz=config.cochlea_high_hz,
+            spacing_mode=config.cochlea_spacing_mode,
+            filter_bandwidth_sigma=config.filter_bandwidth_sigma,
+            envelope_lowpass_hz=config.envelope_lowpass_hz,
+            downsample=config.envelope_downsample,
+        )
+        norm_stages = lif_encode_stages(
+            filter_stages["cochleagram"],
+            threshold=config.spike_threshold,
+            beta=config.spike_beta,
+            normalize_envelope=True,
+        )
+        no_norm_stages = lif_encode_stages(
+            filter_stages["cochleagram"],
+            threshold=config.spike_threshold,
+            beta=config.spike_beta,
+            normalize_envelope=False,
+        )
+        normalized_spike_counts.append(int(norm_stages["spikes"].sum().item()))
+        unnormalized_spike_counts.append(int(no_norm_stages["spikes"].sum().item()))
+        normalized_peaks.append(float(norm_stages["scaled_envelope"].amax().item()))
+        unnormalized_peaks.append(float(no_norm_stages["scaled_envelope"].amax().item()))
+
+    _save_direct_drive_gain_plot(
+        levels_db,
+        [float(value) for value in normalized_spike_counts],
+        [float(value) for value in unnormalized_spike_counts],
+        figure_dir / "direct_drive_spike_count_vs_level.png",
+    )
+
+    first_norm_level = next((level for level, count in zip(levels_db, normalized_spike_counts, strict=True) if count > 0), None)
+    first_no_norm_level = next((level for level, count in zip(levels_db, unnormalized_spike_counts, strict=True) if count > 0), None)
+
+    summary = {
+        "assumption": {
+            "reference_level_db_spl": reference_db,
+            "meaning": "1x simulator chirp amplitude is treated as 80 dB SPL for the x-axis labeling only.",
+        },
+        "config": {
+            "sample_rate_hz": config.sample_rate_hz,
+            "chirp_start_hz": config.chirp_start_hz,
+            "chirp_end_hz": config.chirp_end_hz,
+            "chirp_duration_s": config.chirp_duration_s,
+            "num_cochlea_channels": config.num_cochlea_channels,
+            "cochlea_low_hz": config.cochlea_low_hz,
+            "cochlea_high_hz": config.cochlea_high_hz,
+            "spike_threshold": config.spike_threshold,
+            "spike_beta": config.spike_beta,
+        },
+        "levels_db_spl": levels_db,
+        "gain_factors_re_1x": [format_float(value, digits=6) for value in gain_factors],
+        "normalized_spike_counts": normalized_spike_counts,
+        "unnormalized_spike_counts": unnormalized_spike_counts,
+        "normalized_scaled_envelope_peak": [format_float(value, digits=6) for value in normalized_peaks],
+        "unnormalized_envelope_peak": [format_float(value, digits=6) for value in unnormalized_peaks],
+        "first_level_with_spikes_db_spl": {
+            "normalized": first_norm_level,
+            "unnormalized": first_no_norm_level,
+        },
+        "artifacts": {
+            "spike_count_plot": str(figure_dir / "direct_drive_spike_count_vs_level.png"),
+        },
+    }
+    save_json(figure_dir / "direct_drive_gain_sweep.json", summary)
+    return summary
 
 
 def _run_band_system_experiment(
@@ -644,6 +752,7 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
     matched_human_band_result = _run_matched_human_band_system_experiment(config, outputs, figure_dir)
     matched_dense_700_result = _run_matched_human_dense_channel_experiment(config, outputs, figure_dir)
     matched_mel_result = _run_matched_human_mel_experiment(config, outputs, figure_dir)
+    direct_drive_gain_result = _run_direct_drive_gain_sweep(config, figure_dir)
 
     matched_baseline_center_frequencies = cochlea_filterbank_stages(
         torch.zeros(1, _matched_human_band_config(config).signal_samples, dtype=torch.float32),
@@ -935,6 +1044,27 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "The final cochleagram is the smoothed, downsampled envelope across all channels. The spike raster is the binary output that the rest of the localisation system consumes. This figure is zoomed to the actual echo window so the short FM sweep is visible on the millisecond axis.",
         "",
         "![Cochleagram and spikes](cochlea_explained/cochleagram_spikes.png)",
+        "",
+        "## 7. Direct-Drive Gain Sweep",
+        "",
+        "This diagnostic removes propagation and echo attenuation entirely. It drives the matched human-band cochlea directly with the padded transmit chirp and sweeps an effective source level from `0 dB SPL` to `140 dB SPL`.",
+        "",
+        "Assumption used for the x-axis:",
+        "- `1x` simulator chirp amplitude is treated as `80 dB SPL`",
+        "- each plotted level is converted to amplitude with `gain = 10^((level_dB - 80) / 20)`",
+        "- this is only a labeling convention for the direct-drive experiment, not a full physical calibration of the simulator",
+        "",
+        "Both the current normalized spike encoder and the unnormalized variant are shown, so the effect of normalization on level sensitivity is visible directly.",
+        "",
+        f"- First level with spikes, normalized encoder: `{direct_drive_gain_result['first_level_with_spikes_db_spl']['normalized']} dB SPL`",
+        f"- First level with spikes, unnormalized encoder: `{direct_drive_gain_result['first_level_with_spikes_db_spl']['unnormalized']} dB SPL`",
+        "",
+        "Interpretation:",
+        "- If the normalized curve is nearly flat, that means the current encoder is mostly insensitive to absolute input level under direct drive.",
+        "- If the unnormalized curve rises only at higher levels, that shows the thresholding regime required for spikes without per-sample renormalization.",
+        "- This direct-drive test isolates the cochlea and spike encoder from propagation, attenuation, and additive noise.",
+        "",
+        "![Direct-drive spike count vs level](cochlea_explained/direct_drive_spike_count_vs_level.png)",
         "",
         "## Interface To The Rest Of The Model",
         "",

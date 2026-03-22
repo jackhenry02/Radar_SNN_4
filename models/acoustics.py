@@ -22,7 +22,13 @@ class AcousticBatch:
     ild_db: torch.Tensor | None = None
 
 
-def generate_fm_chirp(config: GlobalConfig, batch_size: int, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+def generate_fm_chirp(
+    config: GlobalConfig,
+    batch_size: int,
+    device: torch.device,
+    *,
+    transmit_gain: float = 1.0,
+) -> tuple[torch.Tensor, torch.Tensor]:
     time_axis = torch.arange(config.chirp_samples, device=device, dtype=torch.float32) / config.sample_rate_hz
     sweep_rate = (config.chirp_end_hz - config.chirp_start_hz) / config.chirp_duration_s
     phase = 2.0 * math.pi * (
@@ -31,6 +37,7 @@ def generate_fm_chirp(config: GlobalConfig, batch_size: int, device: torch.devic
     window = torch.hann_window(config.chirp_samples, periodic=False, device=device)
     chirp = torch.sin(phase) * window
     chirp = chirp / chirp.abs().amax().clamp_min(1e-6)
+    chirp = chirp * transmit_gain
     return chirp.unsqueeze(0).repeat(batch_size, 1), time_axis
 
 
@@ -76,13 +83,14 @@ def simulate_echo_batch(
     binaural: bool = False,
     add_noise: bool = True,
     include_elevation_cues: bool = False,
+    transmit_gain: float = 1.0,
 ) -> AcousticBatch:
     batch_size = radii_m.shape[0]
     device = radii_m.device
     azimuth_deg = torch.zeros_like(radii_m) if azimuth_deg is None else azimuth_deg
     elevation_deg = torch.zeros_like(radii_m) if elevation_deg is None else elevation_deg
 
-    chirp, _ = generate_fm_chirp(config, batch_size=batch_size, device=device)
+    chirp, _ = generate_fm_chirp(config, batch_size=batch_size, device=device, transmit_gain=transmit_gain)
     transmit = pad_signal(chirp, config.signal_samples)
 
     azimuth_rad = torch.deg2rad(azimuth_deg)
@@ -320,9 +328,19 @@ def cochlea_filterbank(
     return stages["cochleagram"], stages["center_frequencies_hz"]
 
 
-def lif_encode_stages(envelope: torch.Tensor, threshold: float, beta: float) -> dict[str, torch.Tensor]:
+def lif_encode_stages(
+    envelope: torch.Tensor,
+    threshold: float,
+    beta: float,
+    *,
+    normalize_envelope: bool = True,
+    normalization_gain: float = 1.35,
+) -> dict[str, torch.Tensor]:
     total_steps = envelope.shape[-1]
-    scaled_envelope = 1.35 * envelope / envelope.amax().clamp_min(1e-6)
+    if normalize_envelope:
+        scaled_envelope = normalization_gain * envelope / envelope.amax().clamp_min(1e-6)
+    else:
+        scaled_envelope = envelope
     flat_envelope = scaled_envelope.reshape(-1, total_steps)
     membrane = torch.zeros(flat_envelope.shape[0], device=envelope.device, dtype=envelope.dtype)
     membrane_trace = []
@@ -342,8 +360,21 @@ def lif_encode_stages(envelope: torch.Tensor, threshold: float, beta: float) -> 
     }
 
 
-def lif_encode(envelope: torch.Tensor, threshold: float, beta: float) -> tuple[torch.Tensor, torch.Tensor]:
-    stages = lif_encode_stages(envelope, threshold, beta)
+def lif_encode(
+    envelope: torch.Tensor,
+    threshold: float,
+    beta: float,
+    *,
+    normalize_envelope: bool = True,
+    normalization_gain: float = 1.35,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    stages = lif_encode_stages(
+        envelope,
+        threshold,
+        beta,
+        normalize_envelope=normalize_envelope,
+        normalization_gain=normalization_gain,
+    )
     return stages["spikes"], stages["membrane"]
 
 

@@ -180,6 +180,41 @@ def _load_control_result(outputs_root: Path) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _load_frontend_diagnostics_summary(outputs_root: Path) -> dict[str, Any] | None:
+    path = outputs_root / "expanded_space_frontend_diagnostics" / "summary.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_frontend_no_norm_diagnostics_summary(outputs_root: Path) -> dict[str, Any] | None:
+    path = outputs_root / "expanded_space_frontend_diagnostics_no_norm" / "summary.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_frontend_gain_diagnostics_summary(outputs_root: Path) -> dict[str, Any] | None:
+    path = outputs_root / "expanded_space_frontend_gain_diagnostics" / "summary.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_frontend_gain_no_norm_diagnostics_summary(outputs_root: Path) -> dict[str, Any] | None:
+    path = outputs_root / "expanded_space_frontend_gain_no_norm_diagnostics" / "summary.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_frontend_gain_no_norm_high_diagnostics_summary(outputs_root: Path) -> dict[str, Any] | None:
+    path = outputs_root / "expanded_space_frontend_gain_no_norm_high_diagnostics" / "summary.json"
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _sample_expanded_dataset_split(
     config: GlobalConfig,
     device: torch.device,
@@ -741,6 +776,11 @@ def _run_spatial_support_test(config: GlobalConfig, outputs: OutputPaths, suppor
     save_json(output_root / "result.json", result)
 
     control_result = None if support_spec.max_range_m <= 2.5 else _load_control_result(outputs.root)
+    frontend_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_diagnostics_summary(outputs.root)
+    frontend_no_norm_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_no_norm_diagnostics_summary(outputs.root)
+    frontend_gain_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_gain_diagnostics_summary(outputs.root)
+    frontend_gain_no_norm_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_gain_no_norm_diagnostics_summary(outputs.root)
+    frontend_gain_no_norm_high_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_gain_no_norm_high_diagnostics_summary(outputs.root)
     report_lines = [
         f"# {support_spec.title}",
         "",
@@ -828,16 +868,211 @@ def _run_spatial_support_test(config: GlobalConfig, outputs: OutputPaths, suppor
         "- The round-2 combined-all architecture is still the base model; the main changes are support-aware delay-bank and latent-capacity scaling.",
         "- If performance degrades sharply but predictions still show non-trivial spread, that suggests the pipeline remains functional but is out of its previously tuned operating regime.",
         "",
-        "## Plots",
-        "",
-        f"![Loss]({support_spec.output_dirname}/{spec.name}/loss.png)",
-        f"![Distance prediction]({support_spec.output_dirname}/{spec.name}/test_distance_prediction.png)",
-        f"![Azimuth prediction]({support_spec.output_dirname}/{spec.name}/test_azimuth_prediction.png)",
-        f"![Elevation prediction]({support_spec.output_dirname}/{spec.name}/test_elevation_prediction.png)",
-        f"![Coordinate error profile]({support_spec.output_dirname}/{spec.name}/coordinate_error_profile.png)",
-        f"![Reference vs scenario]({support_spec.output_dirname}/reference_vs_expanded.png)",
     ]
     )
+    if frontend_summary is not None:
+        report_lines.extend(
+            [
+                "## Failure Analysis",
+                "",
+                "The current evidence points away from a generic code or report bug and toward a front-end failure mode under the expanded-space acoustics:",
+                "",
+                "- The control run uses the same matched-human front end and the same round-2 combined-all harness, and it does not collapse.",
+                "- Increasing delay lines and latent capacity only changed the expanded result slightly. That means the collapse is not primarily caused by the original short-range delay-bank width.",
+                "- The `1/r^2` attenuation was intentionally left unchanged. At `20 m`, the return is much weaker than in the original task, so the effective cue SNR is much worse.",
+                "- The strongest new clue is in the spike encoder itself: `lif_encode_stages()` rescales every sample by its own maximum envelope before thresholding. That means weak long-range echoes are renormalized upward, so noise and low-level background structure can dominate the spike raster instead of simply disappearing.",
+                "- That combination is a plausible explanation for the observed behavior: the model gets less trustworthy cue structure at long range, then regresses toward mean-like predictions in azimuth and elevation.",
+                "",
+                "## Front-End Distance Sweep",
+                "",
+                "To make that visible, matched-human receive-waveform, cochleagram, and spike-raster diagnostics were generated at several fixed distances with `azimuth = 0`, `elevation = 0`, and `add_noise = True`.",
+                "",
+                f"- Diagnostic summary: [summary.json](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_diagnostics/summary.json)",
+                f"- Diagnostic figures directory: [expanded_space_frontend_diagnostics](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_diagnostics)",
+                "",
+                "Important note:",
+                "- `0 m` is not included because the current simulator uses inverse-square attenuation and a two-way delay model, so `0.5 m` is the nearest practical diagnostic point.",
+                "",
+                "Key observations:",
+            ]
+        )
+        for item in frontend_summary.get("diagnostics", []):
+            report_lines.append(
+                f"- `{float(item['distance_m']):.1f} m`: receive peak `{float(item['receive_peak_abs']):.6f}`, "
+                f"cochleagram peak `{float(item['cochleagram_peak']):.6f}`, spike count `{int(item['spike_count'])}`"
+            )
+        report_lines.extend(
+            [
+                "",
+                "The important pattern is not just that the waveform/cochleagram amplitudes fall with distance. It is that the spike count explodes once the return becomes weak. That strongly suggests the current normalization-plus-thresholding front end is turning weak long-range/noisy inputs into broad, noise-dominated spike activity instead of preserving clean range-dependent structure.",
+                "",
+                "Diagnostic figures:",
+                "![0.5 m cochleagram and spikes](expanded_space_frontend_diagnostics/distance_0p5_cochleagram_spikes.png)",
+                "![2.5 m cochleagram and spikes](expanded_space_frontend_diagnostics/distance_2p5_cochleagram_spikes.png)",
+                "![5.0 m cochleagram and spikes](expanded_space_frontend_diagnostics/distance_5p0_cochleagram_spikes.png)",
+                "![10.0 m cochleagram and spikes](expanded_space_frontend_diagnostics/distance_10p0_cochleagram_spikes.png)",
+                "![15.0 m cochleagram and spikes](expanded_space_frontend_diagnostics/distance_15p0_cochleagram_spikes.png)",
+                "![20.0 m cochleagram and spikes](expanded_space_frontend_diagnostics/distance_20p0_cochleagram_spikes.png)",
+                "",
+            ]
+        )
+    report_lines.extend(
+        [
+            "## Plots",
+            "",
+            f"![Loss]({support_spec.output_dirname}/{spec.name}/loss.png)",
+            f"![Distance prediction]({support_spec.output_dirname}/{spec.name}/test_distance_prediction.png)",
+            f"![Azimuth prediction]({support_spec.output_dirname}/{spec.name}/test_azimuth_prediction.png)",
+            f"![Elevation prediction]({support_spec.output_dirname}/{spec.name}/test_elevation_prediction.png)",
+            f"![Coordinate error profile]({support_spec.output_dirname}/{spec.name}/coordinate_error_profile.png)",
+            f"![Reference vs scenario]({support_spec.output_dirname}/reference_vs_expanded.png)",
+        ]
+    )
+    if frontend_no_norm_summary is not None:
+        report_lines.extend(
+            [
+                "",
+                "## Appendix: No-Normalization Spike Raster Test",
+                "",
+                "This second diagnostic repeats the same fixed-distance cochleagram and spike-raster sweep, but disables the per-sample envelope normalization before the LIF stage. The original normalized figures above are kept unchanged; this section is an additional comparison only.",
+                "",
+                f"- Diagnostic summary: [summary.json](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_diagnostics_no_norm/summary.json)",
+                f"- Diagnostic figures directory: [expanded_space_frontend_diagnostics_no_norm](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_diagnostics_no_norm)",
+                "",
+                "Key observations:",
+            ]
+        )
+        for item in frontend_no_norm_summary.get("diagnostics", []):
+            report_lines.append(
+                f"- `{float(item['distance_m']):.1f} m`: receive peak `{float(item['receive_peak_abs']):.6f}`, "
+                f"cochleagram peak `{float(item['cochleagram_peak']):.6f}`, spike count `{int(item['spike_count'])}`"
+            )
+        report_lines.extend(
+            [
+                "",
+                "No-normalization diagnostic figures:",
+                "![0.5 m no-norm cochleagram and spikes](expanded_space_frontend_diagnostics_no_norm/distance_0p5_cochleagram_spikes.png)",
+                "![2.5 m no-norm cochleagram and spikes](expanded_space_frontend_diagnostics_no_norm/distance_2p5_cochleagram_spikes.png)",
+                "![5.0 m no-norm cochleagram and spikes](expanded_space_frontend_diagnostics_no_norm/distance_5p0_cochleagram_spikes.png)",
+                "![10.0 m no-norm cochleagram and spikes](expanded_space_frontend_diagnostics_no_norm/distance_10p0_cochleagram_spikes.png)",
+                "![15.0 m no-norm cochleagram and spikes](expanded_space_frontend_diagnostics_no_norm/distance_15p0_cochleagram_spikes.png)",
+                "![20.0 m no-norm cochleagram and spikes](expanded_space_frontend_diagnostics_no_norm/distance_20p0_cochleagram_spikes.png)",
+            ]
+        )
+    if frontend_gain_summary is not None:
+        report_lines.extend(
+            [
+                "",
+                "## Appendix: High-Amplitude Spike Raster Test",
+                "",
+                "This diagnostic keeps the original normalized spike encoder, but increases transmit gain before propagation and before additive noise is applied. It is intended to test whether stronger signal amplitude restores cleaner long-range spike structure without changing the attenuation law.",
+                "The gain labels below are also shown in relative dB, computed as `20 * log10(gain)` with `1x = 0 dB` referenced to the baseline simulated chirp amplitude. They are not absolute SPL values.",
+                "",
+                f"- Diagnostic summary: [summary.json](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_gain_diagnostics/summary.json)",
+                f"- Diagnostic figures directory: [expanded_space_frontend_gain_diagnostics](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_gain_diagnostics)",
+                "",
+                "Key observations:",
+            ]
+        )
+        for item in frontend_gain_summary.get("diagnostics", []):
+            gain = float(item["transmit_gain"])
+            gain_db = 20.0 * math.log10(gain)
+            report_lines.append(
+                f"- gain `{gain:.1f}x` (`{gain_db:+.1f} dB re 1x`), distance `{float(item['distance_m']):.1f} m`: "
+                f"receive peak `{float(item['receive_peak_abs']):.6f}`, cochleagram peak `{float(item['cochleagram_peak']):.6f}`, "
+                f"spike count `{int(item['spike_count'])}`"
+            )
+        report_lines.extend(
+            [
+                "",
+                "Representative high-amplitude diagnostic figures:",
+                "![2.5 m gain 4x](expanded_space_frontend_gain_diagnostics/gain_4p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 4x](expanded_space_frontend_gain_diagnostics/gain_4p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 4x](expanded_space_frontend_gain_diagnostics/gain_4p0_distance_20p0_cochleagram_spikes.png)",
+                "![2.5 m gain 10x](expanded_space_frontend_gain_diagnostics/gain_10p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 10x](expanded_space_frontend_gain_diagnostics/gain_10p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 10x](expanded_space_frontend_gain_diagnostics/gain_10p0_distance_20p0_cochleagram_spikes.png)",
+                "![2.5 m gain 20x](expanded_space_frontend_gain_diagnostics/gain_20p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 20x](expanded_space_frontend_gain_diagnostics/gain_20p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 20x](expanded_space_frontend_gain_diagnostics/gain_20p0_distance_20p0_cochleagram_spikes.png)",
+            ]
+        )
+    if frontend_gain_no_norm_summary is not None:
+        report_lines.extend(
+            [
+                "",
+                "## Appendix: High-Amplitude No-Normalization Spike Raster Test",
+                "",
+                "This diagnostic repeats the same transmit-gain sweep, but also disables per-sample envelope normalization before the LIF stage. It is the direct comparison to the normalized high-amplitude sweep above.",
+                "The gain labels below are also shown in relative dB, computed as `20 * log10(gain)` with `1x = 0 dB` referenced to the baseline simulated chirp amplitude. They are not absolute SPL values.",
+                "",
+                f"- Diagnostic summary: [summary.json](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_gain_no_norm_diagnostics/summary.json)",
+                f"- Diagnostic figures directory: [expanded_space_frontend_gain_no_norm_diagnostics](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_gain_no_norm_diagnostics)",
+                "",
+                "Key observations:",
+            ]
+        )
+        for item in frontend_gain_no_norm_summary.get("diagnostics", []):
+            gain = float(item["transmit_gain"])
+            gain_db = 20.0 * math.log10(gain)
+            report_lines.append(
+                f"- gain `{gain:.1f}x` (`{gain_db:+.1f} dB re 1x`), distance `{float(item['distance_m']):.1f} m`: "
+                f"receive peak `{float(item['receive_peak_abs']):.6f}`, cochleagram peak `{float(item['cochleagram_peak']):.6f}`, "
+                f"spike count `{int(item['spike_count'])}`"
+            )
+        report_lines.extend(
+            [
+                "",
+                "Representative high-amplitude no-normalization diagnostic figures:",
+                "![2.5 m gain 4x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_4p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 4x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_4p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 4x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_4p0_distance_20p0_cochleagram_spikes.png)",
+                "![2.5 m gain 10x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_10p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 10x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_10p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 10x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_10p0_distance_20p0_cochleagram_spikes.png)",
+                "![2.5 m gain 20x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_20p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 20x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_20p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 20x no-norm](expanded_space_frontend_gain_no_norm_diagnostics/gain_20p0_distance_20p0_cochleagram_spikes.png)",
+            ]
+        )
+    if frontend_gain_no_norm_high_summary is not None:
+        report_lines.extend(
+            [
+                "",
+                "## Appendix: Extreme-Amplitude No-Normalization Spike Raster Test",
+                "",
+                "This diagnostic extends the no-normalization comparison to much larger transmit amplitudes. It is intended to test whether the unnormalized front end can be driven back into a useful spiking regime by very large source levels alone.",
+                "The gain labels below are also shown in relative dB, computed as `20 * log10(gain)` with `1x = 0 dB` referenced to the baseline simulated chirp amplitude. They are not absolute SPL values.",
+                "",
+                f"- Diagnostic summary: [summary.json](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/summary.json)",
+                f"- Diagnostic figures directory: [expanded_space_frontend_gain_no_norm_high_diagnostics](/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB%20Project%20work/Radar_SNN_4/outputs/expanded_space_frontend_gain_no_norm_high_diagnostics)",
+                "",
+                "Key observations:",
+            ]
+        )
+        for item in frontend_gain_no_norm_high_summary.get("diagnostics", []):
+            gain = float(item["transmit_gain"])
+            gain_db = 20.0 * math.log10(gain)
+            report_lines.append(
+                f"- gain `{gain:.1f}x` (`{gain_db:+.1f} dB re 1x`), distance `{float(item['distance_m']):.1f} m`: "
+                f"receive peak `{float(item['receive_peak_abs']):.6f}`, cochleagram peak `{float(item['cochleagram_peak']):.6f}`, "
+                f"spike count `{int(item['spike_count'])}`"
+            )
+        report_lines.extend(
+            [
+                "",
+                "Representative extreme-amplitude no-normalization diagnostic figures:",
+                "![2.5 m gain 100x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_100p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 100x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_100p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 100x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_100p0_distance_20p0_cochleagram_spikes.png)",
+                "![2.5 m gain 500x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_500p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 500x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_500p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 500x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_500p0_distance_20p0_cochleagram_spikes.png)",
+                "![2.5 m gain 1000x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_2p5_cochleagram_spikes.png)",
+                "![10.0 m gain 1000x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_10p0_cochleagram_spikes.png)",
+                "![20.0 m gain 1000x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_20p0_cochleagram_spikes.png)",
+            ]
+        )
     report_path = outputs.root / support_spec.report_filename
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
@@ -857,7 +1092,14 @@ def run_expanded_space_control_test(config: GlobalConfig, outputs: OutputPaths) 
     return _run_spatial_support_test(config, outputs, _control_run_spec())
 
 
-def run_expanded_space_frontend_diagnostics(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
+def _run_expanded_space_frontend_diagnostics(
+    config: GlobalConfig,
+    outputs: OutputPaths,
+    *,
+    normalize_envelope: bool,
+    output_dirname: str,
+    title_prefix: str,
+) -> dict[str, Any]:
     support_spec = _expanded_run_spec()
     effective_config = _expanded_space_config(_matched_human_band_config(config), support_spec.max_range_m)
     context = StageContext(config=effective_config, device=torch.device("cpu"), outputs=outputs)
@@ -870,7 +1112,7 @@ def run_expanded_space_frontend_diagnostics(config: GlobalConfig, outputs: Outpu
         filter_bandwidth_sigma=float(params["filter_bandwidth_sigma"]),
     )
 
-    output_dir = outputs.root / "expanded_space_frontend_diagnostics"
+    output_dir = outputs.root / output_dirname
     output_dir.mkdir(parents=True, exist_ok=True)
     distances_m = [0.5, 2.5, 5.0, 10.0, 15.0, 20.0]
     diagnostics: list[dict[str, Any]] = []
@@ -902,6 +1144,7 @@ def run_expanded_space_frontend_diagnostics(config: GlobalConfig, outputs: Outpu
             filter_stages["cochleagram"],
             threshold=effective_config.spike_threshold,
             beta=effective_config.spike_beta,
+            normalize_envelope=normalize_envelope,
         )
         delay_ms = float(batch.delays_s[0, 0].item() * 1_000.0)
         xlim_ms = (
@@ -915,14 +1158,14 @@ def run_expanded_space_frontend_diagnostics(config: GlobalConfig, outputs: Outpu
             batch.receive[0, 0],
             effective_config.sample_rate_hz,
             waveform_path,
-            f"Expanded-Space Echo At {distance_m:.1f} m",
+            f"{title_prefix} Echo At {distance_m:.1f} m",
         )
         save_cochlea_plot(
             filter_stages["cochleagram"][0],
             lif_stages["spikes"][0],
             effective_config.envelope_rate_hz,
             cochlea_path,
-            f"Expanded-Space Cochleagram And Spikes At {distance_m:.1f} m",
+            f"{title_prefix} Cochleagram And Spikes At {distance_m:.1f} m",
             xlim_ms=xlim_ms,
         )
         diagnostics.append(
@@ -946,8 +1189,157 @@ def run_expanded_space_frontend_diagnostics(config: GlobalConfig, outputs: Outpu
             "chirp_end_hz": format_float(effective_config.chirp_end_hz),
             "num_cochlea_channels": int(effective_config.num_cochlea_channels),
         },
+        "normalize_envelope": normalize_envelope,
         "note": "0 m is not included because the current echo simulator uses inverse-square attenuation and a two-way delay model, so 0.5 m is the nearest practical diagnostic point.",
         "diagnostics": diagnostics,
     }
     save_json(output_dir / "summary.json", summary)
     return summary
+
+
+def run_expanded_space_frontend_diagnostics(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
+    return _run_expanded_space_frontend_diagnostics(
+        config,
+        outputs,
+        normalize_envelope=True,
+        output_dirname="expanded_space_frontend_diagnostics",
+        title_prefix="Expanded-Space",
+    )
+
+
+def run_expanded_space_frontend_no_norm_diagnostics(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
+    return _run_expanded_space_frontend_diagnostics(
+        config,
+        outputs,
+        normalize_envelope=False,
+        output_dirname="expanded_space_frontend_diagnostics_no_norm",
+        title_prefix="Expanded-Space No-Norm",
+    )
+
+
+def run_expanded_space_frontend_gain_diagnostics(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
+    return _run_expanded_space_frontend_gain_diagnostics(config, outputs, normalize_envelope=True, output_dirname="expanded_space_frontend_gain_diagnostics")
+
+
+def _run_expanded_space_frontend_gain_diagnostics(
+    config: GlobalConfig,
+    outputs: OutputPaths,
+    *,
+    normalize_envelope: bool,
+    output_dirname: str,
+    gains: list[float] | None = None,
+    distances_m: list[float] | None = None,
+) -> dict[str, Any]:
+    support_spec = _expanded_run_spec()
+    effective_config = _expanded_space_config(_matched_human_band_config(config), support_spec.max_range_m)
+    context = StageContext(config=effective_config, device=torch.device("cpu"), outputs=outputs)
+    params, _ = _baseline_reference_params(context)
+    params = _expanded_space_param_overrides(params, support_spec)
+    effective_config = _copy_config(
+        effective_config,
+        num_cochlea_channels=int(params["num_frequency_channels"]),
+        spike_threshold=float(params["spike_threshold"]),
+        filter_bandwidth_sigma=float(params["filter_bandwidth_sigma"]),
+    )
+
+    output_dir = outputs.root / output_dirname
+    output_dir.mkdir(parents=True, exist_ok=True)
+    distances_m = [2.5, 10.0, 20.0] if distances_m is None else [float(value) for value in distances_m]
+    gains = [1.0, 4.0, 10.0, 20.0] if gains is None else [float(value) for value in gains]
+    diagnostics: list[dict[str, Any]] = []
+
+    for gain in gains:
+        for index, distance_m in enumerate(distances_m):
+            seed_everything(effective_config.seed + index)
+            batch = simulate_echo_batch(
+                effective_config,
+                torch.tensor([distance_m], device=context.device),
+                torch.tensor([0.0], device=context.device),
+                torch.tensor([0.0], device=context.device),
+                binaural=True,
+                add_noise=True,
+                include_elevation_cues=True,
+                transmit_gain=gain,
+            )
+            receive_left = batch.receive[0, 0].unsqueeze(0)
+            filter_stages = cochlea_filterbank_stages(
+                receive_left,
+                sample_rate_hz=effective_config.sample_rate_hz,
+                num_channels=effective_config.num_cochlea_channels,
+                low_hz=effective_config.cochlea_low_hz,
+                high_hz=effective_config.cochlea_high_hz,
+                spacing_mode=effective_config.cochlea_spacing_mode,
+                filter_bandwidth_sigma=effective_config.filter_bandwidth_sigma,
+                envelope_lowpass_hz=effective_config.envelope_lowpass_hz,
+                downsample=effective_config.envelope_downsample,
+            )
+            lif_stages = lif_encode_stages(
+                filter_stages["cochleagram"],
+                threshold=effective_config.spike_threshold,
+                beta=effective_config.spike_beta,
+                normalize_envelope=normalize_envelope,
+            )
+            delay_ms = float(batch.delays_s[0, 0].item() * 1_000.0)
+            xlim_ms = (
+                max(0.0, delay_ms - 1.0),
+                min(effective_config.signal_duration_s * 1_000.0, delay_ms + effective_config.chirp_duration_s * 1_000.0 + 1.0),
+            )
+            gain_tag = str(gain).replace(".", "p")
+            distance_tag = str(distance_m).replace(".", "p")
+            cochlea_path = output_dir / f"gain_{gain_tag}_distance_{distance_tag}_cochleagram_spikes.png"
+            save_cochlea_plot(
+                filter_stages["cochleagram"][0],
+                lif_stages["spikes"][0],
+                effective_config.envelope_rate_hz,
+                cochlea_path,
+                f"Expanded-Space Gain {gain:.1f}x At {distance_m:.1f} m",
+                xlim_ms=xlim_ms,
+            )
+            diagnostics.append(
+                {
+                    "transmit_gain": gain,
+                    "distance_m": distance_m,
+                    "delay_ms": format_float(delay_ms),
+                    "receive_peak_abs": format_float(batch.receive[0, 0].abs().amax().item(), digits=6),
+                    "cochleagram_peak": format_float(filter_stages["cochleagram"][0].amax().item(), digits=6),
+                "spike_count": int(lif_stages["spikes"][0].sum().item()),
+                "cochlea_plot": str(cochlea_path),
+            }
+        )
+
+    summary = {
+        "config": {
+            "sample_rate_hz": effective_config.sample_rate_hz,
+            "signal_duration_s": format_float(effective_config.signal_duration_s, digits=4),
+            "chirp_duration_s": format_float(effective_config.chirp_duration_s, digits=4),
+            "chirp_start_hz": format_float(effective_config.chirp_start_hz),
+            "chirp_end_hz": format_float(effective_config.chirp_end_hz),
+            "num_cochlea_channels": int(effective_config.num_cochlea_channels),
+        },
+        "normalize_envelope": normalize_envelope,
+        "gains": gains,
+        "distances_m": distances_m,
+        "diagnostics": diagnostics,
+    }
+    save_json(output_dir / "summary.json", summary)
+    return summary
+
+
+def run_expanded_space_frontend_gain_no_norm_diagnostics(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
+    return _run_expanded_space_frontend_gain_diagnostics(
+        config,
+        outputs,
+        normalize_envelope=False,
+        output_dirname="expanded_space_frontend_gain_no_norm_diagnostics",
+    )
+
+
+def run_expanded_space_frontend_gain_no_norm_high_diagnostics(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
+    return _run_expanded_space_frontend_gain_diagnostics(
+        config,
+        outputs,
+        normalize_envelope=False,
+        output_dirname="expanded_space_frontend_gain_no_norm_high_diagnostics",
+        gains=[100.0, 500.0, 1000.0],
+        distances_m=[2.5, 10.0, 20.0],
+    )

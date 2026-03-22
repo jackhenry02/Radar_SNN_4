@@ -87,6 +87,27 @@ The final cochleagram is the smoothed, downsampled envelope across all channels.
 
 ![Cochleagram and spikes](cochlea_explained/cochleagram_spikes.png)
 
+## 7. Direct-Drive Gain Sweep
+
+This diagnostic removes propagation and echo attenuation entirely. It drives the matched human-band cochlea directly with the padded transmit chirp and sweeps an effective source level from `0 dB SPL` to `140 dB SPL`.
+
+Assumption used for the x-axis:
+- `1x` simulator chirp amplitude is treated as `80 dB SPL`
+- each plotted level is converted to amplitude with `gain = 10^((level_dB - 80) / 20)`
+- this is only a labeling convention for the direct-drive experiment, not a full physical calibration of the simulator
+
+Both the current normalized spike encoder and the unnormalized variant are shown, so the effect of normalization on level sensitivity is visible directly.
+
+- First level with spikes, normalized encoder: `0 dB SPL`
+- First level with spikes, unnormalized encoder: `70 dB SPL`
+
+Interpretation:
+- If the normalized curve is nearly flat, that means the current encoder is mostly insensitive to absolute input level under direct drive.
+- If the unnormalized curve rises only at higher levels, that shows the thresholding regime required for spikes without per-sample renormalization.
+- This direct-drive test isolates the cochlea and spike encoder from propagation, attenuation, and additive noise.
+
+![Direct-drive spike count vs level](cochlea_explained/direct_drive_spike_count_vs_level.png)
+
 ## Interface To The Rest Of The Model
 
 The current barrier is after spike generation:

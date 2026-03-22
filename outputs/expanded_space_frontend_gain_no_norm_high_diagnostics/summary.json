@@ -1,0 +1,104 @@
+{
+  "config": {
+    "sample_rate_hz": 64000,
+    "signal_duration_s": 0.1396,
+    "chirp_duration_s": 0.003,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "num_cochlea_channels": 48
+  },
+  "normalize_envelope": false,
+  "gains": [
+    100.0,
+    500.0,
+    1000.0
+  ],
+  "distances_m": [
+    2.5,
+    10.0,
+    20.0
+  ],
+  "diagnostics": [
+    {
+      "transmit_gain": 100.0,
+      "distance_m": 2.5,
+      "delay_ms": 14.5737,
+      "receive_peak_abs": 2.827017,
+      "cochleagram_peak": 0.729218,
+      "spike_count": 311,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_100p0_distance_2p5_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 100.0,
+      "distance_m": 10.0,
+      "delay_ms": 58.3159,
+      "receive_peak_abs": 0.180975,
+      "cochleagram_peak": 0.0473,
+      "spike_count": 0,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_100p0_distance_10p0_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 100.0,
+      "distance_m": 20.0,
+      "delay_ms": 116.6192,
+      "receive_peak_abs": 0.050307,
+      "cochleagram_peak": 0.011263,
+      "spike_count": 0,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_100p0_distance_20p0_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 500.0,
+      "distance_m": 2.5,
+      "delay_ms": 14.5737,
+      "receive_peak_abs": 14.11398,
+      "cochleagram_peak": 3.645511,
+      "spike_count": 833,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_500p0_distance_2p5_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 500.0,
+      "distance_m": 10.0,
+      "delay_ms": 58.3159,
+      "receive_peak_abs": 0.878807,
+      "cochleagram_peak": 0.235481,
+      "spike_count": 78,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_500p0_distance_10p0_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 500.0,
+      "distance_m": 20.0,
+      "delay_ms": 116.6192,
+      "receive_peak_abs": 0.226245,
+      "cochleagram_peak": 0.057505,
+      "spike_count": 0,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_500p0_distance_20p0_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 1000.0,
+      "distance_m": 2.5,
+      "delay_ms": 14.5737,
+      "receive_peak_abs": 28.222683,
+      "cochleagram_peak": 7.290877,
+      "spike_count": 1116,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_2p5_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 1000.0,
+      "distance_m": 10.0,
+      "delay_ms": 58.3159,
+      "receive_peak_abs": 1.752803,
+      "cochleagram_peak": 0.470707,
+      "spike_count": 197,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_10p0_cochleagram_spikes.png"
+    },
+    {
+      "transmit_gain": 1000.0,
+      "distance_m": 20.0,
+      "delay_ms": 116.6192,
+      "receive_peak_abs": 0.447518,
+      "cochleagram_peak": 0.115309,
+      "spike_count": 23,
+      "cochlea_plot": "outputs/expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_20p0_cochleagram_spikes.png"
+    }
+  ]
+}
