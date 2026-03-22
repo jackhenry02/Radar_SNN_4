@@ -39,6 +39,7 @@ class GlobalConfig:
     num_cochlea_channels: int = 24
     cochlea_low_hz: float = 20_000.0
     cochlea_high_hz: float = 90_000.0
+    cochlea_spacing_mode: str = "log"
     filter_bandwidth_sigma: float = 0.16
     envelope_lowpass_hz: float = 1_800.0
     envelope_downsample: int = 4

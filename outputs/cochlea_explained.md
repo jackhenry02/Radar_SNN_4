@@ -138,3 +138,37 @@ Interpretation:
 ![Human-band cochleagram](cochlea_explained/human_cochleagram_spikes.png)
 ![Matched human-band example signal](cochlea_explained/human_matched_example_signal.png)
 ![Matched human-band cochleagram](cochlea_explained/human_matched_cochleagram_spikes.png)
+
+## Channel Count And Spacing Experiments
+
+This comparison keeps the matched human-band setup as the baseline and changes one cochlea design variable at a time.
+
+Protocol:
+- Matched human-band baseline: `48` cochlea channels, `log` spacing, `2 kHz to 20 kHz` cochlea range, downstream model width `48`.
+- Dense-channel variant: same matched human-band setup, but increase only the cochlea front end to `700` channels while keeping the downstream model width fixed at `48` via channel-axis compression at the cochlea boundary.
+- Mel-spacing variant: same matched human-band setup and channel count, but replace the log-spaced cochlea with a mel-spaced cochlea.
+- Same dataset and training budget for all three: `700 / 150 / 150`, `10` epochs, one thread, no Optuna retuning.
+
+Runtime comparison against the matched human-band baseline:
+- Matched log baseline total: `142.92 s`
+- Matched log 700-channel total: `336.95 s` (`2.36x` baseline)
+- Matched log 700-channel prep / training multipliers: `32.66x`, `1.13x`
+- Matched mel total: `170.06 s` (`1.19x` baseline)
+- Matched mel prep / training multipliers: `1.01x`, `1.20x`
+
+Accuracy comparison against the matched human-band baseline:
+- Matched log baseline combined / Euclidean: `0.1221`, `0.3964 m`
+- Matched log baseline distance / azimuth / elevation: `0.0946 m`, `7.8027 deg`, `8.4785 deg`
+- Matched log 700-channel combined / Euclidean: `0.1088`, `0.3585 m`
+- Matched log 700-channel distance / azimuth / elevation: `0.0859 m`, `7.1216 deg`, `7.5448 deg`
+- Matched mel combined / Euclidean: `0.1222`, `0.4004 m`
+- Matched mel distance / azimuth / elevation: `0.0812 m`, `7.2090 deg`, `8.8032 deg`
+
+Interpretation:
+- The `700`-channel test isolates the cost and benefit of much finer cochlear frequency resolution under the same matched human-band chirp and training budget, without also widening the downstream combined model.
+- The mel-spacing test isolates a change in channel placement along frequency while keeping the rest of the front end and downstream model structure fixed.
+- In this implementation, the mel-spaced bank uses mel-spaced centers with the same Gaussian FFT filter construction and a bandwidth rescaling so filter width stays comparable across the covered band.
+
+![Matched center frequencies](cochlea_explained/matched_channel_spacing_centers.png)
+![Matched runtime comparison](cochlea_explained/matched_channel_spacing_runtime_comparison.png)
+![Matched accuracy comparison](cochlea_explained/matched_channel_spacing_accuracy_comparison.png)

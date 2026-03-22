@@ -155,6 +155,29 @@ def _timed_build_experiment_split(
         "concatenate_seconds": 0.0,
     }
 
+    def _resize_spike_channels(spikes: torch.Tensor, target_channels: int) -> torch.Tensor:
+        current_channels = spikes.shape[-2]
+        if current_channels == target_channels:
+            return spikes.to(torch.bool)
+        if spikes.ndim == 3:
+            resized = nn.functional.interpolate(
+                spikes.float().permute(0, 2, 1),
+                size=target_channels,
+                mode="linear",
+                align_corners=False,
+            ).permute(0, 2, 1)
+            return resized.to(torch.float16)
+        if spikes.ndim == 4:
+            batch, ears, channels, steps = spikes.shape
+            resized = nn.functional.interpolate(
+                spikes.float().permute(0, 1, 3, 2).reshape(batch * ears, steps, channels),
+                size=target_channels,
+                mode="linear",
+                align_corners=False,
+            ).reshape(batch, ears, steps, target_channels).permute(0, 1, 3, 2)
+            return resized.to(torch.float16)
+        raise ValueError(f"Unsupported spike tensor rank {spikes.ndim} for channel resizing.")
+
     for start in range(0, acoustic_batch.receive.shape[0], chunk_size):
         stop = min(acoustic_batch.receive.shape[0], start + chunk_size)
         chunk_batch = _slice_acoustic_batch(acoustic_batch, slice(start, stop))
@@ -175,8 +198,8 @@ def _timed_build_experiment_split(
         )
         timing["pathway_seconds"] += time.perf_counter() - pathway_start
 
-        transmit_spike_chunks.append(front["transmit_spikes"].to(torch.bool))
-        receive_spike_chunks.append(front["receive_spikes"].to(torch.bool))
+        transmit_spike_chunks.append(_resize_spike_channels(front["transmit_spikes"], num_frequency_channels))
+        receive_spike_chunks.append(_resize_spike_channels(front["receive_spikes"], num_frequency_channels))
         distance_chunks.append(pathways.distance)
         azimuth_chunks.append(pathways.azimuth)
         elevation_chunks.append(pathways.elevation)
@@ -216,9 +239,10 @@ def _prepare_profiled_experiment_data(
     dataset_bundle = _prepare_dataset_bundle(context, dataset_mode)
     dataset_seconds = time.perf_counter() - dataset_start
 
+    front_end_num_frequency_channels = int(params.get("front_end_num_frequency_channels", params["num_frequency_channels"]))
     local_config = _copy_config(
         context.config,
-        num_cochlea_channels=int(params["num_frequency_channels"]),
+        num_cochlea_channels=front_end_num_frequency_channels,
         spike_threshold=float(params["spike_threshold"]),
         filter_bandwidth_sigma=float(params["filter_bandwidth_sigma"]),
     )

@@ -1,0 +1,124 @@
+{
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "config": {
+    "sample_rate_hz": 64000,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "num_cochlea_channels": 24,
+    "cochlea_low_hz": 2000.0,
+    "cochlea_high_hz": 20000.0,
+    "cochlea_spacing_mode": "mel",
+    "envelope_rate_hz": 16000
+  },
+  "training_config": {
+    "dataset_mode": "combined_small",
+    "max_epochs": 10,
+    "scheduler_patience": 3
+  },
+  "training": {
+    "executed_epochs": 10,
+    "best_epoch": 10,
+    "stopped_early": false
+  },
+  "timings": {
+    "data_prep_seconds": 5.3054,
+    "training_seconds": 152.2934,
+    "evaluation_seconds": 1.2331,
+    "total_seconds": 158.832
+  },
+  "prep_profile": {
+    "dataset_generation_seconds": 0.07,
+    "candidate_setup_seconds": 0.0001,
+    "standardization_seconds": 0.0013,
+    "split_timings": {
+      "train": {
+        "samples": 700,
+        "chunks": 11,
+        "front_end_seconds": 3.5281763749953825,
+        "pathway_seconds": 0.1515012499585282,
+        "concatenate_seconds": 0.002705249993596226
+      },
+      "val": {
+        "samples": 150,
+        "chunks": 3,
+        "front_end_seconds": 0.7617429579840973,
+        "pathway_seconds": 0.0323827080137562,
+        "concatenate_seconds": 0.0004399169993121177
+      },
+      "test": {
+        "samples": 150,
+        "chunks": 3,
+        "front_end_seconds": 0.7157147919933777,
+        "pathway_seconds": 0.0284647089720238,
+        "concatenate_seconds": 0.00039558298885822296
+      }
+    },
+    "front_end_seconds_total": 5.0056,
+    "pathway_seconds_total": 0.2123,
+    "concatenate_seconds_total": 0.0035,
+    "total_profiled_seconds": 5.3054,
+    "chunk_size": 64
+  },
+  "training_breakdown": {
+    "forward_seconds": 71.3387,
+    "loss_seconds": 1.8719,
+    "backward_seconds": 65.124,
+    "optimizer_seconds": 0.8045,
+    "val_forward_seconds": 6.4633,
+    "val_loss_seconds": 0.0016,
+    "val_metrics_seconds": 6.4732,
+    "batch_count": 590.0,
+    "epoch_seconds": [
+      14.5743,
+      15.0319,
+      16.2197,
+      16.5522,
+      16.4492,
+      16.6548,
+      14.4408,
+      14.1796,
+      14.0138,
+      14.1646
+    ],
+    "total_training_loop_seconds": 152.2809,
+    "mean_epoch_seconds": 15.2281
+  },
+  "val_metrics": {
+    "distance_mae_m": 0.072,
+    "azimuth_mae_deg": 6.4976,
+    "elevation_mae_deg": 8.9744,
+    "combined_error": 0.12,
+    "mean_spike_rate": 0.0352,
+    "predicted_distance_std": 0.5296,
+    "predicted_azimuth_std": 25.5837,
+    "predicted_elevation_std": 14.3608,
+    "target_distance_std": 0.5571,
+    "target_azimuth_std": 25.7247,
+    "target_elevation_std": 17.2909,
+    "x_mae_m": 0.0984,
+    "y_mae_m": 0.1765,
+    "z_mae_m": 0.2547,
+    "euclidean_error_m": 0.3619
+  },
+  "test_metrics": {
+    "distance_mae_m": 0.0812,
+    "azimuth_mae_deg": 7.209,
+    "elevation_mae_deg": 8.8032,
+    "combined_error": 0.1222,
+    "mean_spike_rate": 0.0354,
+    "predicted_distance_std": 0.5249,
+    "predicted_azimuth_std": 23.5047,
+    "predicted_elevation_std": 14.6349,
+    "target_distance_std": 0.5625,
+    "target_azimuth_std": 25.5067,
+    "target_elevation_std": 16.6835,
+    "x_mae_m": 0.0992,
+    "y_mae_m": 0.2126,
+    "z_mae_m": 0.2595,
+    "euclidean_error_m": 0.4004
+  },
+  "artifacts": {
+    "example_signal": "outputs/cochlea_explained/human_matched_mel_example_signal.png",
+    "cochleagram_spikes": "outputs/cochlea_explained/human_matched_mel_cochleagram_spikes.png"
+  }
+}

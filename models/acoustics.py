@@ -177,12 +177,69 @@ def _log_spaced_frequencies(
     return torch.exp(torch.linspace(log_min, log_max, count, device=device, dtype=dtype))
 
 
+def _hz_to_mel(frequencies_hz: torch.Tensor) -> torch.Tensor:
+    return 2_595.0 * torch.log10(1.0 + frequencies_hz / 700.0)
+
+
+def _mel_to_hz(mel_values: torch.Tensor) -> torch.Tensor:
+    return 700.0 * (torch.pow(10.0, mel_values / 2_595.0) - 1.0)
+
+
+def _mel_spaced_frequencies(
+    low_hz: float,
+    high_hz: float,
+    count: int,
+    *,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    mel_min = 2_595.0 * math.log10(1.0 + low_hz / 700.0)
+    mel_max = 2_595.0 * math.log10(1.0 + high_hz / 700.0)
+    mel_values = torch.linspace(mel_min, mel_max, count, device=device, dtype=dtype)
+    return _mel_to_hz(mel_values)
+
+
+def _spaced_frequencies(
+    low_hz: float,
+    high_hz: float,
+    count: int,
+    *,
+    spacing_mode: str,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    if spacing_mode == "log":
+        return _log_spaced_frequencies(low_hz, high_hz, count, device=device, dtype=dtype)
+    if spacing_mode == "mel":
+        return _mel_spaced_frequencies(low_hz, high_hz, count, device=device, dtype=dtype)
+    raise ValueError(f"Unsupported cochlea spacing mode '{spacing_mode}'.")
+
+
+def _scaled_frequency_axis(frequencies_hz: torch.Tensor, spacing_mode: str) -> torch.Tensor:
+    if spacing_mode == "log":
+        return torch.log(frequencies_hz)
+    if spacing_mode == "mel":
+        return _hz_to_mel(frequencies_hz)
+    raise ValueError(f"Unsupported cochlea spacing mode '{spacing_mode}'.")
+
+
+def _scaled_bandwidth_sigma(low_hz: float, high_hz: float, filter_bandwidth_sigma: float, spacing_mode: str) -> float:
+    if spacing_mode == "log":
+        return filter_bandwidth_sigma
+    if spacing_mode == "mel":
+        log_range = math.log(high_hz) - math.log(low_hz)
+        mel_range = 2_595.0 * math.log10(1.0 + high_hz / 700.0) - 2_595.0 * math.log10(1.0 + low_hz / 700.0)
+        return filter_bandwidth_sigma * mel_range / max(log_range, 1e-6)
+    raise ValueError(f"Unsupported cochlea spacing mode '{spacing_mode}'.")
+
+
 def cochlea_filterbank_stages(
     signal: torch.Tensor,
     sample_rate_hz: int,
     num_channels: int,
     low_hz: float,
     high_hz: float,
+    spacing_mode: str,
     filter_bandwidth_sigma: float,
     envelope_lowpass_hz: float,
     downsample: int,
@@ -192,16 +249,18 @@ def cochlea_filterbank_stages(
     spectrum = torch.fft.rfft(flat_signal, dim=-1)
     frequencies = torch.fft.rfftfreq(total_samples, d=1.0 / sample_rate_hz, device=signal.device)
     safe_frequencies = frequencies.clamp_min(low_hz / 4.0)
-    log_frequencies = torch.log(safe_frequencies)
-    center_frequencies = _log_spaced_frequencies(
+    scaled_frequencies = _scaled_frequency_axis(safe_frequencies, spacing_mode)
+    center_frequencies = _spaced_frequencies(
         low_hz,
         high_hz,
         num_channels,
+        spacing_mode=spacing_mode,
         device=signal.device,
         dtype=safe_frequencies.dtype,
     )
-    log_centers = torch.log(center_frequencies)
-    filters = torch.exp(-0.5 * ((log_frequencies[None, :] - log_centers[:, None]) / filter_bandwidth_sigma).square())
+    scaled_centers = _scaled_frequency_axis(center_frequencies, spacing_mode)
+    scaled_sigma = _scaled_bandwidth_sigma(low_hz, high_hz, filter_bandwidth_sigma, spacing_mode)
+    filters = torch.exp(-0.5 * ((scaled_frequencies[None, :] - scaled_centers[:, None]) / scaled_sigma).square())
     filters[:, 0] = 0.0
     filtered = torch.fft.irfft(spectrum[:, None, :] * filters[None, :, :], n=total_samples, dim=-1)
     rectified = F.relu(filtered)
@@ -227,6 +286,7 @@ def cochlea_filterbank_stages(
         "frequencies_hz": frequencies,
         "center_frequencies_hz": center_frequencies,
         "filters": filters,
+        "spacing_mode": torch.tensor(0 if spacing_mode == "log" else 1, device=signal.device),
         "filtered": filtered.reshape(*shaped_prefix, num_channels, total_samples),
         "rectified": rectified.reshape(*shaped_prefix, num_channels, total_samples),
         "smoothed": smoothed.reshape(*shaped_prefix, num_channels, total_samples),
@@ -241,6 +301,7 @@ def cochlea_filterbank(
     num_channels: int,
     low_hz: float,
     high_hz: float,
+    spacing_mode: str,
     filter_bandwidth_sigma: float,
     envelope_lowpass_hz: float,
     downsample: int,
@@ -251,6 +312,7 @@ def cochlea_filterbank(
         num_channels=num_channels,
         low_hz=low_hz,
         high_hz=high_hz,
+        spacing_mode=spacing_mode,
         filter_bandwidth_sigma=filter_bandwidth_sigma,
         envelope_lowpass_hz=envelope_lowpass_hz,
         downsample=downsample,
@@ -295,6 +357,7 @@ def cochlea_to_spikes(
         num_channels=config.num_cochlea_channels,
         low_hz=config.cochlea_low_hz,
         high_hz=config.cochlea_high_hz,
+        spacing_mode=config.cochlea_spacing_mode,
         filter_bandwidth_sigma=config.filter_bandwidth_sigma,
         envelope_lowpass_hz=config.envelope_lowpass_hz,
         downsample=config.envelope_downsample,
