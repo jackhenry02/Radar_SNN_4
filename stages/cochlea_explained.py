@@ -78,6 +78,42 @@ def _save_center_frequency_plot(center_frequencies_hz: torch.Tensor, path: Path)
     _finalize(path)
 
 
+def _save_elevation_spectral_cue_plot(config: GlobalConfig, path: Path) -> None:
+    total_samples = config.signal_samples
+    frequencies_hz = torch.fft.rfftfreq(total_samples, d=1.0 / config.sample_rate_hz)
+    normalized_bins = torch.linspace(0.0, 1.0, frequencies_hz.shape[0], dtype=torch.float32)
+    sampled_elevations = torch.linspace(-30.0, 30.0, 121, dtype=torch.float32)
+    elevation_scale = torch.tanh(torch.deg2rad(sampled_elevations) / (math.pi / 6.0))
+    spectral_tilt = torch.exp(
+        config.elevation_spectral_strength
+        * elevation_scale[:, None]
+        * (normalized_bins[None, :] - 0.5)
+    )
+    gain_db = 20.0 * torch.log10(spectral_tilt.clamp_min(1e-6))
+
+    freq_np = _to_numpy(frequencies_hz) / 1_000.0
+    gain_db_np = _to_numpy(gain_db)
+    elevations_np = _to_numpy(sampled_elevations)
+
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+    visible_max_khz = min(float(config.sample_rate_hz) / 2_000.0, max(config.cochlea_high_hz, config.chirp_start_hz) / 1_000.0 * 1.05)
+    visible_mask = freq_np <= visible_max_khz
+    contour = ax.contourf(
+        freq_np[visible_mask],
+        elevations_np,
+        gain_db_np[:, visible_mask],
+        levels=25,
+        cmap="coolwarm",
+    )
+    ax.set_title("Simulator Elevation Spectral Cue")
+    ax.set_xlabel("Frequency (kHz)")
+    ax.set_ylabel("Elevation (deg)")
+    ax.grid(True, alpha=0.15)
+    colorbar = fig.colorbar(contour, ax=ax)
+    colorbar.set_label("Gain (dB)")
+    _finalize(path)
+
+
 def _save_filter_response_plot(
     frequencies_hz: torch.Tensor,
     filters: torch.Tensor,
@@ -552,6 +588,7 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "Example Receive Waveform And Spectrogram",
     )
     _save_transmit_receive_plot(transmit, receive_left, config.sample_rate_hz, figure_dir / "transmit_receive.png")
+    _save_elevation_spectral_cue_plot(config, figure_dir / "elevation_spectral_cue.png")
     _save_center_frequency_plot(filter_stages["center_frequencies_hz"], figure_dir / "center_frequencies.png")
     _save_filter_response_plot(
         filter_stages["frequencies_hz"],
@@ -857,6 +894,14 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "",
         "![Input spectrogram](cochlea_explained/example_signal.png)",
         "![Transmit vs receive](cochlea_explained/transmit_receive.png)",
+        "",
+        "## 1A. Upstream Elevation Spectral Cue",
+        "",
+        "Before the waveform reaches the cochlea, the simulator applies a fixed elevation-dependent spectral tilt to the echo. This is not part of the cochlea itself, but it is part of the current elevation cue model and is already baked into the cached spike datasets.",
+        "",
+        "Positive elevation boosts higher frequencies relative to lower ones, negative elevation does the opposite, and `0 deg` is flat.",
+        "",
+        "![Elevation spectral cue](cochlea_explained/elevation_spectral_cue.png)",
         "",
         "## 2. Log-Spaced Filterbank",
         "",

@@ -46,6 +46,14 @@ The cochlea receives the left-ear echo waveform. The transmitted chirp is shown 
 ![Input spectrogram](cochlea_explained/example_signal.png)
 ![Transmit vs receive](cochlea_explained/transmit_receive.png)
 
+## 1A. Upstream Elevation Spectral Cue
+
+Before the waveform reaches the cochlea, the simulator applies a fixed elevation-dependent spectral tilt to the echo. This is not part of the cochlea itself, but it is part of the current elevation cue model and is already baked into the cached spike datasets.
+
+Positive elevation boosts higher frequencies relative to lower ones, negative elevation does the opposite, and `0 deg` is flat.
+
+![Elevation spectral cue](cochlea_explained/elevation_spectral_cue.png)
+
 ## 2. Log-Spaced Filterbank
 
 The raw waveform is transformed into the frequency domain, multiplied by a bank of Gaussian filters in log-frequency space, and returned to the time domain channel by channel.
