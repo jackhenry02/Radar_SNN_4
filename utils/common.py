@@ -45,6 +45,8 @@ class GlobalConfig:
     envelope_downsample: int = 4
     spike_threshold: float = 0.42
     spike_beta: float = 0.88
+    normalize_spike_envelope: bool = True
+    transmit_gain: float = 1.0
     noise_std: float = 0.008
     jitter_std_s: float = 2.5e-5
     head_shadow_strength: float = 0.32

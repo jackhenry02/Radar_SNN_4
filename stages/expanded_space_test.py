@@ -215,6 +215,14 @@ def _load_frontend_gain_no_norm_high_diagnostics_summary(outputs_root: Path) -> 
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _load_expanded_140db_result(outputs_root: Path) -> dict[str, Any] | None:
+    for dirname in ("expanded_space_test_140db_unnormalized", "expanded_space_test_140db_normalized"):
+        path = outputs_root / dirname / "result.json"
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    return None
+
+
 def _sample_expanded_dataset_split(
     config: GlobalConfig,
     device: torch.device,
@@ -241,6 +249,7 @@ def _sample_expanded_dataset_split(
         binaural=True,
         add_noise=True,
         include_elevation_cues=True,
+        transmit_gain=config.transmit_gain,
     )
     targets = torch.stack([radii, azimuth, elevation], dim=-1)
     return batch, targets
@@ -781,6 +790,7 @@ def _run_spatial_support_test(config: GlobalConfig, outputs: OutputPaths, suppor
     frontend_gain_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_gain_diagnostics_summary(outputs.root)
     frontend_gain_no_norm_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_gain_no_norm_diagnostics_summary(outputs.root)
     frontend_gain_no_norm_high_summary = None if support_spec.max_range_m <= 2.5 else _load_frontend_gain_no_norm_high_diagnostics_summary(outputs.root)
+    expanded_140db_result = None if support_spec.max_range_m <= 2.5 else _load_expanded_140db_result(outputs.root)
     report_lines = [
         f"# {support_spec.title}",
         "",
@@ -1073,6 +1083,38 @@ def _run_spatial_support_test(config: GlobalConfig, outputs: OutputPaths, suppor
                 "![20.0 m gain 1000x no-norm](expanded_space_frontend_gain_no_norm_high_diagnostics/gain_1000p0_distance_20p0_cochleagram_spikes.png)",
             ]
         )
+    if expanded_140db_result is not None:
+        report_lines.extend(
+            [
+                "",
+                "## Appendix: 140 dB Expanded-Space Rerun",
+                "",
+                "After the short-domain 140 dB comparison, the better front-end variant was rerun on the expanded-space task. The `140 dB` label again uses the convention `1x = 80 dB SPL`, so this means `1000x` transmit gain.",
+                "",
+                f"- Selected variant: `{expanded_140db_result['title']}`",
+                f"- Test combined error: `{float(expanded_140db_result['test_metrics']['combined_error']):.4f}`",
+                f"- Test distance / azimuth / elevation: `{float(expanded_140db_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(expanded_140db_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(expanded_140db_result['test_metrics']['elevation_mae_deg']):.4f} deg`",
+                f"- Test Euclidean error: `{float(expanded_140db_result['test_metrics']['euclidean_error_m']):.4f} m`",
+                f"- Mean spike rate: `{float(expanded_140db_result['test_metrics']['mean_spike_rate']):.4f}`",
+                f"- Runtime: prep `{float(expanded_140db_result['timings']['data_prep_seconds']):.2f} s`, training `{float(expanded_140db_result['timings']['training_seconds']):.2f} s`, total `{float(expanded_140db_result['timings']['total_seconds']):.2f} s`",
+                "",
+                "Comparison to the standard expanded-space rerun above:",
+                f"- Combined error delta: `{float(expanded_140db_result['test_metrics']['combined_error']) - float(result['test_metrics']['combined_error']):.4f}`",
+                f"- Distance MAE delta: `{float(expanded_140db_result['test_metrics']['distance_mae_m']) - float(result['test_metrics']['distance_mae_m']):.4f} m`",
+                f"- Azimuth MAE delta: `{float(expanded_140db_result['test_metrics']['azimuth_mae_deg']) - float(result['test_metrics']['azimuth_mae_deg']):.4f} deg`",
+                f"- Elevation MAE delta: `{float(expanded_140db_result['test_metrics']['elevation_mae_deg']) - float(result['test_metrics']['elevation_mae_deg']):.4f} deg`",
+                "",
+                "Interpretation:",
+                "- This is the direct end-to-end test of whether the stronger source level and the winning short-domain normalization mode transfer to the expanded task.",
+                "- Unlike the earlier front-end-only raster diagnostics, this result includes the full trainable pipeline and therefore reflects both changed cue quality and changed optimization behavior.",
+                "",
+                "![140 dB loss](expanded_space_test_140db_unnormalized/expanded_space_140db_unnormalized/loss.png)" if "unnormalized" in expanded_140db_result["name"] else "![140 dB loss](expanded_space_test_140db_normalized/expanded_space_140db_normalized/loss.png)",
+                "![140 dB distance prediction](expanded_space_test_140db_unnormalized/expanded_space_140db_unnormalized/test_distance_prediction.png)" if "unnormalized" in expanded_140db_result["name"] else "![140 dB distance prediction](expanded_space_test_140db_normalized/expanded_space_140db_normalized/test_distance_prediction.png)",
+                "![140 dB azimuth prediction](expanded_space_test_140db_unnormalized/expanded_space_140db_unnormalized/test_azimuth_prediction.png)" if "unnormalized" in expanded_140db_result["name"] else "![140 dB azimuth prediction](expanded_space_test_140db_normalized/expanded_space_140db_normalized/test_azimuth_prediction.png)",
+                "![140 dB elevation prediction](expanded_space_test_140db_unnormalized/expanded_space_140db_unnormalized/test_elevation_prediction.png)" if "unnormalized" in expanded_140db_result["name"] else "![140 dB elevation prediction](expanded_space_test_140db_normalized/expanded_space_140db_normalized/test_elevation_prediction.png)",
+                "![140 dB coordinate profile](expanded_space_test_140db_unnormalized/expanded_space_140db_unnormalized/coordinate_error_profile.png)" if "unnormalized" in expanded_140db_result["name"] else "![140 dB coordinate profile](expanded_space_test_140db_normalized/expanded_space_140db_normalized/coordinate_error_profile.png)",
+            ]
+        )
     report_path = outputs.root / support_spec.report_filename
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
@@ -1090,6 +1132,42 @@ def run_expanded_space_test(config: GlobalConfig, outputs: OutputPaths) -> dict[
 
 def run_expanded_space_control_test(config: GlobalConfig, outputs: OutputPaths) -> dict[str, Any]:
     return _run_spatial_support_test(config, outputs, _control_run_spec())
+
+
+def run_expanded_space_140db_test(
+    config: GlobalConfig,
+    outputs: OutputPaths,
+    *,
+    normalize_spike_envelope: bool,
+) -> dict[str, Any]:
+    variant = "normalized" if normalize_spike_envelope else "unnormalized"
+    support_spec = SpatialSupportSpec(
+        name=f"expanded_space_140db_{variant}",
+        title=f"Expanded Space 140 dB Test ({variant.capitalize()})",
+        description=(
+            "Run the matched-human round-2 combined-all model on the expanded spatial support with a 140 dB-equivalent "
+            "source level, using the chosen cochlea normalization mode."
+        ),
+        rationale=(
+            "This rerun tests whether the better-performing 140 dB front-end variant from the short-domain baseline "
+            "comparison transfers to the expanded-space stress test."
+        ),
+        output_dirname=f"expanded_space_test_140db_{variant}",
+        report_filename=f"expanded_space_test_140db_{variant}_report.md",
+        max_range_m=20.0,
+        azimuth_limits_deg=(-90.0, 90.0),
+        elevation_limits_deg=(-90.0, 90.0),
+        reference_note=(
+            "The saved reference below is the original short-domain matched-human round-2 combined-all run "
+            "(`0.5 to 2.5 m`, `-45 to 45 deg`, `-30 to 30 deg`). It is included only as context."
+        ),
+    )
+    configured = _copy_config(
+        config,
+        transmit_gain=1_000.0,
+        normalize_spike_envelope=normalize_spike_envelope,
+    )
+    return _run_spatial_support_test(configured, outputs, support_spec)
 
 
 def _run_expanded_space_frontend_diagnostics(

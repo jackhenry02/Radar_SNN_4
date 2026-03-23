@@ -87,7 +87,7 @@ The final cochleagram is the smoothed, downsampled envelope across all channels.
 
 ![Cochleagram and spikes](cochlea_explained/cochleagram_spikes.png)
 
-## 7. Direct-Drive Gain Sweep
+## 7. Direct-Drive Gain Sweep (24-Channel Reference)
 
 This diagnostic removes propagation and echo attenuation entirely. It drives the matched human-band cochlea directly with the padded transmit chirp and sweeps an effective source level from `0 dB SPL` to `140 dB SPL`.
 
@@ -98,17 +98,17 @@ Assumption used for the x-axis:
 
 Both the current normalized spike encoder and the unnormalized variant are shown, so the effect of normalization on level sensitivity is visible directly.
 
-- First level with spikes, normalized encoder: `0 dB SPL`
-- First level with spikes, unnormalized encoder: `70 dB SPL`
+- 24-channel reference first level with spikes, normalized encoder: `0 dB SPL`
+- 24-channel reference first level with spikes, unnormalized encoder: `70 dB SPL`
 
 Interpretation:
 - If the normalized curve is nearly flat, that means the current encoder is mostly insensitive to absolute input level under direct drive.
 - If the unnormalized curve rises only at higher levels, that shows the thresholding regime required for spikes without per-sample renormalization.
 - This direct-drive test isolates the cochlea and spike encoder from propagation, attenuation, and additive noise.
 
-![Direct-drive spike count vs level](cochlea_explained/direct_drive_spike_count_vs_level.png)
+![Direct-drive spike count vs level, 24-channel reference](cochlea_explained/direct_drive_gain_sweep_spike_count_vs_level.png)
 
-## 8. Source Level Needed vs Distance
+## 8. Source Level Needed vs Distance (24-Channel Reference)
 
 Using the unnormalized direct-drive threshold above, the figure below projects the source level needed to reach first-spike conditions at the receiver after the simulator attenuation law is applied.
 
@@ -119,7 +119,7 @@ Projection assumptions:
 - centerline geometry: `azimuth = 0 deg`, `elevation = 0 deg`, binaural path length to one ear
 - plotted empirical points are the coarse first-spike source levels observed in the no-normalization distance sweeps
 
-Cochlea configuration used for this threshold projection:
+24-channel reference cochlea configuration used for this threshold projection:
 - sample rate: `64000 Hz`
 - chirp: `18000 Hz -> 2000 Hz` over `0.003 s`
 - signal duration: `0.022 s`
@@ -138,7 +138,52 @@ Interpretation:
 - The empirical points tend to sit on or above the curve because the actual sweeps include noise, waveform structure, and a coarse tested gain grid.
 - This makes the graph useful for intuition about how quickly source-level demands rise with range under the current front end.
 
-![Required source level vs distance](cochlea_explained/required_source_level_vs_distance.png)
+![Required source level vs distance, 24-channel reference](cochlea_explained/attenuation_threshold_projection.png)
+
+## 9. Direct-Drive Gain Sweep (700-Channel Model)
+
+This reruns the same direct-drive test, but with the matched human-band `700`-channel cochlea used in the dense front-end experiment.
+
+- 700-channel first level with spikes, normalized encoder: `0 dB SPL`
+- 700-channel first level with spikes, unnormalized encoder: `70 dB SPL`
+
+Interpretation:
+- This is the cleaner threshold result to use if the `700`-channel front end is the intended model of interest.
+- Comparing this plot to the 24-channel reference shows whether increasing cochlear resolution changes absolute level sensitivity or mainly changes spike-count scale.
+
+![Direct-drive spike count vs level, 700-channel](cochlea_explained/direct_drive_gain_sweep_700_spike_count_vs_level.png)
+
+## 10. Source Level Needed vs Distance (700-Channel Model)
+
+Using the unnormalized direct-drive threshold from the `700`-channel model, the figure below projects the source level needed to reach first-spike conditions at the receiver after attenuation.
+
+Projection assumptions:
+- unnormalized direct-drive first-spike threshold: `70 dB SPL` at the cochlea input
+- attenuation model: `0.7 / path_length^2`
+- ear spacing: `0.030 m`
+- centerline geometry: `azimuth = 0 deg`, `elevation = 0 deg`, binaural path length to one ear
+- this curve is attenuation-only; the expanded-space distance sweeps were not rerun at 700 channels, so there is no empirical point overlay here
+
+700-channel cochlea configuration used for this threshold projection:
+- sample rate: `64000 Hz`
+- chirp: `18000 Hz -> 2000 Hz` over `0.003 s`
+- signal duration: `0.022 s`
+- cochlea channels: `700`
+- cochlea band: `2000 Hz -> 20000 Hz`
+- spacing: `log`
+- filter bandwidth sigma: `0.160`
+- envelope low-pass: `1800 Hz`
+- downsample: `4`
+- envelope rate: `16000 Hz`
+- spike threshold: `0.42`
+- spike beta: `0.88`
+
+Interpretation:
+- This is the direct attenuation projection for the `700`-channel front end.
+- If the threshold is lower than the 24-channel reference, the dense cochlea is effectively more sensitive to weak direct-drive inputs under the same LIF parameters.
+- If the threshold is unchanged, then the extra frequency resolution is mostly changing representation richness rather than minimum spike-onset level.
+
+![Required source level vs distance, 700-channel](cochlea_explained/attenuation_threshold_projection_700.png)
 
 ## Interface To The Rest Of The Model
 
@@ -233,3 +278,28 @@ Interpretation:
 ![Matched center frequencies](cochlea_explained/matched_channel_spacing_centers.png)
 ![Matched runtime comparison](cochlea_explained/matched_channel_spacing_runtime_comparison.png)
 ![Matched accuracy comparison](cochlea_explained/matched_channel_spacing_accuracy_comparison.png)
+
+## 140 dB Training Tests
+
+These two runs test the original matched human-band round-2 combined-all baseline under a much larger source level, using the same short-data training setup as the saved baseline. The `140 dB` label uses the same convention as above: `1x = 80 dB SPL`, so `140 dB` corresponds to `1000x` transmit gain.
+
+Tested variants:
+- Baseline reference: saved matched human-band combined-all run at `1x`, normalized cochlea envelope, combined error `0.1221`
+- `140 dB` normalized: transmit gain `1000x`, normalize envelope `True`, combined error `0.1198`
+- `140 dB` unnormalized: transmit gain `1000x`, normalize envelope `False`, combined error `0.0522`
+
+Metric comparison:
+- Baseline distance / azimuth / elevation / Euclidean: `0.0946 m`, `7.8027 deg`, `8.4785 deg`, `0.3964 m`
+- `140 dB` normalized distance / azimuth / elevation / Euclidean: `0.0908 m`, `7.1150 deg`, `8.3037 deg`, `0.4066 m`
+- `140 dB` unnormalized distance / azimuth / elevation / Euclidean: `0.0641 m`, `2.5352 deg`, `3.2643 deg`, `0.1459 m`
+
+Runtime comparison:
+- Baseline total runtime: `142.92 s`
+- `140 dB` normalized total runtime: `153.91 s`
+- `140 dB` unnormalized total runtime: `171.20 s`
+
+Interpretation:
+- Better `140 dB` variant by combined error: `unnormalized`
+- The normalized and unnormalized runs can be compared directly to the saved baseline because they reuse the same dataset size, model family, and training budget.
+- This comparison isolates the effect of source level and cochlea-envelope normalization on end-to-end localization, rather than only on front-end spike rasters.
+

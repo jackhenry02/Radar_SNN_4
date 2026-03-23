@@ -303,6 +303,7 @@ def _sample_dataset_split(
         binaural=True,
         add_noise=True,
         include_elevation_cues=True,
+        transmit_gain=config.transmit_gain,
     )
     targets = torch.stack([radii, azimuth, elevation], dim=-1)
     return batch, targets

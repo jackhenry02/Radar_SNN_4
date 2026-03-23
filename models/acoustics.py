@@ -397,6 +397,7 @@ def cochlea_to_spikes(
         envelope=cochleagram,
         threshold=config.spike_threshold,
         beta=config.spike_beta,
+        normalize_envelope=config.normalize_spike_envelope,
     )
     return {
         "cochleagram": cochleagram,

@@ -10,7 +10,7 @@
     "chirp_end_hz": 2000.0,
     "chirp_duration_s": 0.003,
     "signal_duration_s": 0.022,
-    "num_cochlea_channels": 24,
+    "num_cochlea_channels": 700,
     "cochlea_low_hz": 2000.0,
     "cochlea_high_hz": 20000.0,
     "cochlea_spacing_mode": "log",
@@ -24,18 +24,10 @@
     "attenuation_model": "0.7 / path_length^2"
   },
   "empirical_points": {
-    "distances_m": [
-      2.5,
-      10.0,
-      20.0
-    ],
-    "source_db_spl": [
-      100.0,
-      134.0,
-      140.0
-    ]
+    "distances_m": [],
+    "source_db_spl": []
   },
   "artifacts": {
-    "required_source_level_plot": "outputs/cochlea_explained/attenuation_threshold_projection.png"
+    "required_source_level_plot": "outputs/cochlea_explained/attenuation_threshold_projection_700.png"
   }
 }

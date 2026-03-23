@@ -27,6 +27,7 @@ from stages.round_2_combined_all import (
 )
 from stages.round_2_experiments import _augment_with_cartesian_metrics
 from stages.training_improved_experiments import EnhancedTrainingConfig
+from stages.improvement import _copy_config
 from utils.common import (
     GlobalConfig,
     OutputPaths,
@@ -370,8 +371,12 @@ def _save_required_source_level_vs_distance_plot(
     _finalize(path)
 
 
-def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
-    config = _matched_human_band_config(base_config)
+def _run_direct_drive_gain_sweep_for_config(
+    config: GlobalConfig,
+    figure_dir: Path,
+    *,
+    artifact_stem: str,
+) -> dict[str, object]:
     device = torch.device("cpu")
     chirp, _ = generate_fm_chirp(config, batch_size=1, device=device, transmit_gain=1.0)
     direct_signal = pad_signal(chirp, config.signal_samples)
@@ -419,7 +424,7 @@ def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) ->
         levels_db,
         [float(value) for value in normalized_spike_counts],
         [float(value) for value in unnormalized_spike_counts],
-        figure_dir / "direct_drive_spike_count_vs_level.png",
+        figure_dir / f"{artifact_stem}_spike_count_vs_level.png",
     )
 
     first_norm_level = next((level for level, count in zip(levels_db, normalized_spike_counts, strict=True) if count > 0), None)
@@ -452,16 +457,38 @@ def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) ->
             "unnormalized": first_no_norm_level,
         },
         "artifacts": {
-            "spike_count_plot": str(figure_dir / "direct_drive_spike_count_vs_level.png"),
+            "spike_count_plot": str(figure_dir / f"{artifact_stem}_spike_count_vs_level.png"),
         },
     }
-    save_json(figure_dir / "direct_drive_gain_sweep.json", summary)
+    save_json(figure_dir / f"{artifact_stem}.json", summary)
     return summary
 
 
-def _run_attenuation_threshold_projection(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
-    config = _matched_human_band_config(base_config)
-    direct_drive_summary = json.loads((figure_dir / "direct_drive_gain_sweep.json").read_text(encoding="utf-8"))
+def _run_direct_drive_gain_sweep(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
+    return _run_direct_drive_gain_sweep_for_config(
+        _matched_human_band_config(base_config),
+        figure_dir,
+        artifact_stem="direct_drive_gain_sweep",
+    )
+
+
+def _run_direct_drive_gain_sweep_700(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
+    return _run_direct_drive_gain_sweep_for_config(
+        _matched_human_dense_channel_config(base_config),
+        figure_dir,
+        artifact_stem="direct_drive_gain_sweep_700",
+    )
+
+
+def _run_attenuation_threshold_projection_for_config(
+    config: GlobalConfig,
+    figure_dir: Path,
+    direct_drive_summary: dict[str, object],
+    *,
+    artifact_stem: str,
+    empirical_distances_m: list[float] | None = None,
+    empirical_source_db: list[float] | None = None,
+) -> dict[str, object]:
     threshold_db = float(direct_drive_summary["first_level_with_spikes_db_spl"]["unnormalized"])
 
     distances_m = np.linspace(config.min_range_m, 20.0, 400)
@@ -471,15 +498,15 @@ def _run_attenuation_threshold_projection(base_config: GlobalConfig, figure_dir:
     attenuation_db = 20.0 * np.log10(np.maximum(attenuation, 1e-12))
     required_source_db = threshold_db - attenuation_db
 
-    empirical_distances_m = [2.5, 10.0, 20.0]
-    empirical_source_db = [100.0, 134.0, 140.0]
+    empirical_distances_m = [] if empirical_distances_m is None else empirical_distances_m
+    empirical_source_db = [] if empirical_source_db is None else empirical_source_db
 
     _save_required_source_level_vs_distance_plot(
         distances_m,
         required_source_db,
         empirical_distances_m,
         empirical_source_db,
-        figure_dir / "required_source_level_vs_distance.png",
+        figure_dir / f"{artifact_stem}.png",
     )
 
     summary = {
@@ -512,11 +539,31 @@ def _run_attenuation_threshold_projection(base_config: GlobalConfig, figure_dir:
             "source_db_spl": empirical_source_db,
         },
         "artifacts": {
-            "required_source_level_plot": str(figure_dir / "required_source_level_vs_distance.png"),
+            "required_source_level_plot": str(figure_dir / f"{artifact_stem}.png"),
         },
     }
-    save_json(figure_dir / "attenuation_threshold_projection.json", summary)
+    save_json(figure_dir / f"{artifact_stem}.json", summary)
     return summary
+
+
+def _run_attenuation_threshold_projection(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
+    return _run_attenuation_threshold_projection_for_config(
+        _matched_human_band_config(base_config),
+        figure_dir,
+        json.loads((figure_dir / "direct_drive_gain_sweep.json").read_text(encoding="utf-8")),
+        artifact_stem="attenuation_threshold_projection",
+        empirical_distances_m=[2.5, 10.0, 20.0],
+        empirical_source_db=[100.0, 134.0, 140.0],
+    )
+
+
+def _run_attenuation_threshold_projection_700(base_config: GlobalConfig, figure_dir: Path) -> dict[str, object]:
+    return _run_attenuation_threshold_projection_for_config(
+        _matched_human_dense_channel_config(base_config),
+        figure_dir,
+        json.loads((figure_dir / "direct_drive_gain_sweep_700.json").read_text(encoding="utf-8")),
+        artifact_stem="attenuation_threshold_projection_700",
+    )
 
 
 def _run_band_system_experiment(
@@ -647,6 +694,8 @@ def _run_band_system_experiment(
             "cochlea_high_hz": effective_config.cochlea_high_hz,
             "cochlea_spacing_mode": effective_config.cochlea_spacing_mode,
             "envelope_rate_hz": effective_config.envelope_rate_hz,
+            "normalize_spike_envelope": effective_config.normalize_spike_envelope,
+            "transmit_gain": effective_config.transmit_gain,
         },
         "training_config": {
             "dataset_mode": training_config.dataset_mode,
@@ -727,6 +776,30 @@ def _run_matched_human_mel_experiment(base_config: GlobalConfig, outputs: Output
         signal_name="human_matched_mel_spacing_example_signal.png",
         cochlea_name="human_matched_mel_spacing_cochleagram_spikes.png",
         title_prefix="Matched Human-Band Mel-Spaced Example",
+    )
+
+
+def _run_matched_human_140db_experiment(
+    base_config: GlobalConfig,
+    outputs: OutputPaths,
+    figure_dir: Path,
+    *,
+    normalize_spike_envelope: bool,
+) -> dict:
+    signal_mode = "normalized" if normalize_spike_envelope else "unnormalized"
+    configured = _copy_config(
+        _matched_human_band_config(base_config),
+        transmit_gain=1_000.0,
+        normalize_spike_envelope=normalize_spike_envelope,
+    )
+    return _run_band_system_experiment(
+        configured,
+        outputs,
+        figure_dir,
+        result_name=f"human_matched_140db_{signal_mode}_experiment.json",
+        signal_name=f"human_matched_140db_{signal_mode}_example_signal.png",
+        cochlea_name=f"human_matched_140db_{signal_mode}_cochleagram_spikes.png",
+        title_prefix=f"Matched Human-Band 140 dB {signal_mode.capitalize()} Example",
     )
 
 
@@ -838,8 +911,16 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
     matched_human_band_result = _run_matched_human_band_system_experiment(config, outputs, figure_dir)
     matched_dense_700_result = _run_matched_human_dense_channel_experiment(config, outputs, figure_dir)
     matched_mel_result = _run_matched_human_mel_experiment(config, outputs, figure_dir)
+    matched_140db_norm_result = _run_matched_human_140db_experiment(
+        config, outputs, figure_dir, normalize_spike_envelope=True
+    )
+    matched_140db_no_norm_result = _run_matched_human_140db_experiment(
+        config, outputs, figure_dir, normalize_spike_envelope=False
+    )
     direct_drive_gain_result = _run_direct_drive_gain_sweep(config, figure_dir)
     attenuation_threshold_result = _run_attenuation_threshold_projection(config, figure_dir)
+    direct_drive_gain_result_700 = _run_direct_drive_gain_sweep_700(config, figure_dir)
+    attenuation_threshold_result_700 = _run_attenuation_threshold_projection_700(config, figure_dir)
 
     matched_baseline_center_frequencies = cochlea_filterbank_stages(
         torch.zeros(1, _matched_human_band_config(config).signal_samples, dtype=torch.float32),
@@ -1041,6 +1122,11 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         float(matched_human_band_result["timings"]["training_seconds"]),
         1e-6,
     )
+    baseline_combined = float(matched_human_band_result["test_metrics"]["combined_error"])
+    norm_combined = float(matched_140db_norm_result["test_metrics"]["combined_error"])
+    no_norm_combined = float(matched_140db_no_norm_result["test_metrics"]["combined_error"])
+    better_140db_result = matched_140db_norm_result if norm_combined <= no_norm_combined else matched_140db_no_norm_result
+    better_140db_label = "normalized" if norm_combined <= no_norm_combined else "unnormalized"
 
     report_lines = [
         "# Cochlea Explained",
@@ -1132,7 +1218,7 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "",
         "![Cochleagram and spikes](cochlea_explained/cochleagram_spikes.png)",
         "",
-        "## 7. Direct-Drive Gain Sweep",
+        "## 7. Direct-Drive Gain Sweep (24-Channel Reference)",
         "",
         "This diagnostic removes propagation and echo attenuation entirely. It drives the matched human-band cochlea directly with the padded transmit chirp and sweeps an effective source level from `0 dB SPL` to `140 dB SPL`.",
         "",
@@ -1143,17 +1229,17 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "",
         "Both the current normalized spike encoder and the unnormalized variant are shown, so the effect of normalization on level sensitivity is visible directly.",
         "",
-        f"- First level with spikes, normalized encoder: `{direct_drive_gain_result['first_level_with_spikes_db_spl']['normalized']} dB SPL`",
-        f"- First level with spikes, unnormalized encoder: `{direct_drive_gain_result['first_level_with_spikes_db_spl']['unnormalized']} dB SPL`",
+        f"- 24-channel reference first level with spikes, normalized encoder: `{direct_drive_gain_result['first_level_with_spikes_db_spl']['normalized']} dB SPL`",
+        f"- 24-channel reference first level with spikes, unnormalized encoder: `{direct_drive_gain_result['first_level_with_spikes_db_spl']['unnormalized']} dB SPL`",
         "",
         "Interpretation:",
         "- If the normalized curve is nearly flat, that means the current encoder is mostly insensitive to absolute input level under direct drive.",
         "- If the unnormalized curve rises only at higher levels, that shows the thresholding regime required for spikes without per-sample renormalization.",
         "- This direct-drive test isolates the cochlea and spike encoder from propagation, attenuation, and additive noise.",
         "",
-        "![Direct-drive spike count vs level](cochlea_explained/direct_drive_spike_count_vs_level.png)",
+        "![Direct-drive spike count vs level, 24-channel reference](cochlea_explained/direct_drive_gain_sweep_spike_count_vs_level.png)",
         "",
-        "## 8. Source Level Needed vs Distance",
+        "## 8. Source Level Needed vs Distance (24-Channel Reference)",
         "",
         "Using the unnormalized direct-drive threshold above, the figure below projects the source level needed to reach first-spike conditions at the receiver after the simulator attenuation law is applied.",
         "",
@@ -1164,7 +1250,7 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "- centerline geometry: `azimuth = 0 deg`, `elevation = 0 deg`, binaural path length to one ear",
         "- plotted empirical points are the coarse first-spike source levels observed in the no-normalization distance sweeps",
         "",
-        "Cochlea configuration used for this threshold projection:",
+        "24-channel reference cochlea configuration used for this threshold projection:",
         f"- sample rate: `{attenuation_threshold_result['config']['sample_rate_hz']} Hz`",
         f"- chirp: `{attenuation_threshold_result['config']['chirp_start_hz']:.0f} Hz -> {attenuation_threshold_result['config']['chirp_end_hz']:.0f} Hz` over `{attenuation_threshold_result['config']['chirp_duration_s']:.3f} s`",
         f"- signal duration: `{attenuation_threshold_result['config']['signal_duration_s']:.3f} s`",
@@ -1183,7 +1269,52 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "- The empirical points tend to sit on or above the curve because the actual sweeps include noise, waveform structure, and a coarse tested gain grid.",
         "- This makes the graph useful for intuition about how quickly source-level demands rise with range under the current front end.",
         "",
-        "![Required source level vs distance](cochlea_explained/required_source_level_vs_distance.png)",
+        "![Required source level vs distance, 24-channel reference](cochlea_explained/attenuation_threshold_projection.png)",
+        "",
+        "## 9. Direct-Drive Gain Sweep (700-Channel Model)",
+        "",
+        "This reruns the same direct-drive test, but with the matched human-band `700`-channel cochlea used in the dense front-end experiment.",
+        "",
+        f"- 700-channel first level with spikes, normalized encoder: `{direct_drive_gain_result_700['first_level_with_spikes_db_spl']['normalized']} dB SPL`",
+        f"- 700-channel first level with spikes, unnormalized encoder: `{direct_drive_gain_result_700['first_level_with_spikes_db_spl']['unnormalized']} dB SPL`",
+        "",
+        "Interpretation:",
+        "- This is the cleaner threshold result to use if the `700`-channel front end is the intended model of interest.",
+        "- Comparing this plot to the 24-channel reference shows whether increasing cochlear resolution changes absolute level sensitivity or mainly changes spike-count scale.",
+        "",
+        "![Direct-drive spike count vs level, 700-channel](cochlea_explained/direct_drive_gain_sweep_700_spike_count_vs_level.png)",
+        "",
+        "## 10. Source Level Needed vs Distance (700-Channel Model)",
+        "",
+        "Using the unnormalized direct-drive threshold from the `700`-channel model, the figure below projects the source level needed to reach first-spike conditions at the receiver after attenuation.",
+        "",
+        "Projection assumptions:",
+        f"- unnormalized direct-drive first-spike threshold: `{attenuation_threshold_result_700['assumption']['direct_drive_threshold_db_spl']:.0f} dB SPL` at the cochlea input",
+        f"- attenuation model: `{attenuation_threshold_result_700['config']['attenuation_model']}`",
+        f"- ear spacing: `{attenuation_threshold_result_700['config']['ear_spacing_m']:.3f} m`",
+        "- centerline geometry: `azimuth = 0 deg`, `elevation = 0 deg`, binaural path length to one ear",
+        "- this curve is attenuation-only; the expanded-space distance sweeps were not rerun at 700 channels, so there is no empirical point overlay here",
+        "",
+        "700-channel cochlea configuration used for this threshold projection:",
+        f"- sample rate: `{attenuation_threshold_result_700['config']['sample_rate_hz']} Hz`",
+        f"- chirp: `{attenuation_threshold_result_700['config']['chirp_start_hz']:.0f} Hz -> {attenuation_threshold_result_700['config']['chirp_end_hz']:.0f} Hz` over `{attenuation_threshold_result_700['config']['chirp_duration_s']:.3f} s`",
+        f"- signal duration: `{attenuation_threshold_result_700['config']['signal_duration_s']:.3f} s`",
+        f"- cochlea channels: `{attenuation_threshold_result_700['config']['num_cochlea_channels']}`",
+        f"- cochlea band: `{attenuation_threshold_result_700['config']['cochlea_low_hz']:.0f} Hz -> {attenuation_threshold_result_700['config']['cochlea_high_hz']:.0f} Hz`",
+        f"- spacing: `{attenuation_threshold_result_700['config']['cochlea_spacing_mode']}`",
+        f"- filter bandwidth sigma: `{attenuation_threshold_result_700['config']['filter_bandwidth_sigma']:.3f}`",
+        f"- envelope low-pass: `{attenuation_threshold_result_700['config']['envelope_lowpass_hz']:.0f} Hz`",
+        f"- downsample: `{attenuation_threshold_result_700['config']['envelope_downsample']}`",
+        f"- envelope rate: `{attenuation_threshold_result_700['config']['envelope_rate_hz']} Hz`",
+        f"- spike threshold: `{attenuation_threshold_result_700['config']['spike_threshold']:.2f}`",
+        f"- spike beta: `{attenuation_threshold_result_700['config']['spike_beta']:.2f}`",
+        "",
+        "Interpretation:",
+        "- This is the direct attenuation projection for the `700`-channel front end.",
+        "- If the threshold is lower than the 24-channel reference, the dense cochlea is effectively more sensitive to weak direct-drive inputs under the same LIF parameters.",
+        "- If the threshold is unchanged, then the extra frequency resolution is mostly changing representation richness rather than minimum spike-onset level.",
+        "",
+        "![Required source level vs distance, 700-channel](cochlea_explained/attenuation_threshold_projection_700.png)",
         "",
         "## Interface To The Rest Of The Model",
         "",
@@ -1278,6 +1409,31 @@ def run_cochlea_explained(config: GlobalConfig, outputs: OutputPaths) -> dict[st
         "![Matched center frequencies](cochlea_explained/matched_channel_spacing_centers.png)",
         "![Matched runtime comparison](cochlea_explained/matched_channel_spacing_runtime_comparison.png)",
         "![Matched accuracy comparison](cochlea_explained/matched_channel_spacing_accuracy_comparison.png)",
+        "",
+        "## 140 dB Training Tests",
+        "",
+        "These two runs test the original matched human-band round-2 combined-all baseline under a much larger source level, using the same short-data training setup as the saved baseline. The `140 dB` label uses the same convention as above: `1x = 80 dB SPL`, so `140 dB` corresponds to `1000x` transmit gain.",
+        "",
+        "Tested variants:",
+        f"- Baseline reference: saved matched human-band combined-all run at `1x`, normalized cochlea envelope, combined error `{baseline_combined:.4f}`",
+        f"- `140 dB` normalized: transmit gain `{float(matched_140db_norm_result['config']['transmit_gain']):.0f}x`, normalize envelope `{matched_140db_norm_result['config']['normalize_spike_envelope']}`, combined error `{norm_combined:.4f}`",
+        f"- `140 dB` unnormalized: transmit gain `{float(matched_140db_no_norm_result['config']['transmit_gain']):.0f}x`, normalize envelope `{matched_140db_no_norm_result['config']['normalize_spike_envelope']}`, combined error `{no_norm_combined:.4f}`",
+        "",
+        "Metric comparison:",
+        f"- Baseline distance / azimuth / elevation / Euclidean: `{float(matched_human_band_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(matched_human_band_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(matched_human_band_result['test_metrics']['elevation_mae_deg']):.4f} deg`, `{float(matched_human_band_result['test_metrics']['euclidean_error_m']):.4f} m`",
+        f"- `140 dB` normalized distance / azimuth / elevation / Euclidean: `{float(matched_140db_norm_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(matched_140db_norm_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(matched_140db_norm_result['test_metrics']['elevation_mae_deg']):.4f} deg`, `{float(matched_140db_norm_result['test_metrics']['euclidean_error_m']):.4f} m`",
+        f"- `140 dB` unnormalized distance / azimuth / elevation / Euclidean: `{float(matched_140db_no_norm_result['test_metrics']['distance_mae_m']):.4f} m`, `{float(matched_140db_no_norm_result['test_metrics']['azimuth_mae_deg']):.4f} deg`, `{float(matched_140db_no_norm_result['test_metrics']['elevation_mae_deg']):.4f} deg`, `{float(matched_140db_no_norm_result['test_metrics']['euclidean_error_m']):.4f} m`",
+        "",
+        "Runtime comparison:",
+        f"- Baseline total runtime: `{float(matched_human_band_result['timings']['total_seconds']):.2f} s`",
+        f"- `140 dB` normalized total runtime: `{float(matched_140db_norm_result['timings']['total_seconds']):.2f} s`",
+        f"- `140 dB` unnormalized total runtime: `{float(matched_140db_no_norm_result['timings']['total_seconds']):.2f} s`",
+        "",
+        "Interpretation:",
+        f"- Better `140 dB` variant by combined error: `{better_140db_label}`",
+        "- The normalized and unnormalized runs can be compared directly to the saved baseline because they reuse the same dataset size, model family, and training budget.",
+        "- This comparison isolates the effect of source level and cochlea-envelope normalization on end-to-end localization, rather than only on front-end spike rasters.",
+        "",
     ]
     report_path = outputs.root / "cochlea_explained.md"
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
