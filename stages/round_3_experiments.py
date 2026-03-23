@@ -13,10 +13,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.acoustics import elevation_spectral_gain_profile
+from models.acoustics import azimuth_spectral_gain_profile, elevation_spectral_gain_profile
 from models.experimental_variants import ExperimentBatch
 from models.round2_variants import AllRound2CombinedModel, AllRound2Encoder
-from models.round3_variants import CombFilterElevationEncoder, LIFCoincidenceRound3Encoder, NotchDetectorElevationEncoder
+from models.round3_variants import AzimuthNotchDetectorEncoder, CombFilterElevationEncoder, LIFCoincidenceRound3Encoder, NotchDetectorElevationEncoder, OrthogonalNotchCombinedEncoder
 from stages.base import StageContext
 from stages.cochlea_explained import _matched_human_band_config
 from stages.combined_experiment import _save_coordinate_error_profiles, _save_prediction_cache
@@ -116,6 +116,44 @@ def _round3_variant_config(base: GlobalConfig, data_variant: str) -> GlobalConfi
                 "elevation_cue_mode": "slope_notch",
                 "elevation_notch_strength": 1.8,
                 "elevation_notch_width": 0.065,
+            }
+        )
+    if data_variant == "azimuth_moving_notch":
+        return GlobalConfig(
+            **{
+                **base.__dict__,
+                "azimuth_cue_mode": "slope_notch",
+                "azimuth_spectral_strength": 0.65,
+                "azimuth_notch_strength": 1.4,
+                "azimuth_notch_width": 0.07,
+            }
+        )
+    if data_variant == "azimuth_notch_only":
+        return GlobalConfig(
+            **{
+                **base.__dict__,
+                "azimuth_cue_mode": "notch",
+                "azimuth_spectral_strength": 0.0,
+                "azimuth_notch_strength": 1.4,
+                "azimuth_notch_width": 0.07,
+            }
+        )
+    if data_variant == "orthogonal_combined_notches":
+        return GlobalConfig(
+            **{
+                **base.__dict__,
+                "elevation_cue_mode": "slope_notch",
+                "elevation_notch_strength": 1.8,
+                "elevation_notch_width": 0.06,
+                "elevation_notch_center_min": 0.32,
+                "elevation_notch_center_max": 0.68,
+                "azimuth_cue_mode": "notch",
+                "azimuth_spectral_strength": 0.0,
+                "azimuth_notch_strength": 1.35,
+                "azimuth_notch_width": 0.055,
+                "azimuth_notch_center_min": 0.08,
+                "azimuth_notch_center_max": 0.28,
+                "azimuth_notch_mirror_across_band": True,
             }
         )
     raise ValueError(f"Unsupported round-3 data variant '{data_variant}'.")
@@ -276,6 +314,88 @@ def _round3_specs() -> list[Round3ExperimentSpec]:
             training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.35, "unit_penalty_weight": 0.1},
         ),
         Round3ExperimentSpec(
+            name="round3_experiment_3a_azimuth_moving_notch_detectors",
+            title="Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors",
+            description=(
+                "Add mirrored ear-specific slope-plus-moving-notch azimuth cues upstream of the cochlea and decode them "
+                "with a dedicated notch-detector residual as a third azimuth pathway stream alongside ITD and ILD."
+            ),
+            rationale=(
+                "This tests whether azimuth benefits from richer ear-specific spectral structure, not just time and "
+                "level differences."
+            ),
+            variant="azimuth_notch_detector",
+            output_mode="baseline",
+            implemented_steps=[
+                "Keep the base round-2 combined model and 140 dB unnormalized front end.",
+                "Inject mirrored ear-specific azimuth slope-plus-moving-notch spectral cues before the cochlea.",
+                "Build per-ear spike-domain notch profiles from the left and right receive spectra.",
+                "Apply a fixed bank of azimuth notch detectors across channel position for each ear.",
+                "Project left, right, and left-right notch-detector responses into an azimuth-only residual latent.",
+            ],
+            analysis_focus=[
+                "Whether explicit ear-specific notch cues improve azimuth beyond the round-3 control.",
+                "Whether the notch-detector responses remain asymmetric across ears rather than collapsing to identical patterns.",
+            ],
+            training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.5},
+            data_variant="azimuth_moving_notch",
+        ),
+        Round3ExperimentSpec(
+            name="round3_experiment_3b_azimuth_notch_only_detectors",
+            title="Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope",
+            description=(
+                "Add mirrored ear-specific moving-notch azimuth cues upstream of the cochlea, but do not add any extra "
+                "azimuth spectral slope cue, then decode them with the same azimuth notch-detector residual."
+            ),
+            rationale=(
+                "This isolates whether the azimuth notch itself is useful, or whether the previous 3A result mainly came "
+                "from interaction between the notch and added spectral slope."
+            ),
+            variant="azimuth_notch_detector",
+            output_mode="baseline",
+            implemented_steps=[
+                "Keep the base round-2 combined model and 140 dB unnormalized front end.",
+                "Inject mirrored ear-specific azimuth moving notches before the cochlea, with no added azimuth slope term.",
+                "Build per-ear spike-domain notch profiles from the left and right receive spectra.",
+                "Apply the same fixed bank of azimuth notch detectors across channel position for each ear.",
+                "Project left, right, and left-right notch-detector responses into an azimuth-only residual latent.",
+            ],
+            analysis_focus=[
+                "Whether azimuth improves when only the notch cue is added, without the extra spectral tilt used in 3A.",
+                "Whether removing the slope reduces interference with the elevation branch.",
+            ],
+            training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.5},
+            data_variant="azimuth_notch_only",
+        ),
+        Round3ExperimentSpec(
+            name="round3_experiment_3c_orthogonal_combined_notches",
+            title="Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches",
+            description=(
+                "Combine a common-mode mid-band elevation slope-plus-notch cue with mirrored edge-band azimuth notch-only "
+                "cues, then decode them with branch-specific detectors that use common-mode features for elevation and "
+                "difference features for azimuth."
+            ),
+            rationale=(
+                "This tests whether cue orthogonality in both the simulator and the branch decoders can keep the two "
+                "angular tasks from interfering with each other."
+            ),
+            variant="orthogonal_combined_notches",
+            output_mode="baseline",
+            implemented_steps=[
+                "Inject a common-mode elevation slope-plus-notch cue in the middle of the spectral band for both ears.",
+                "Inject mirrored ear-specific azimuth notch-only cues toward the spectral edges.",
+                "Decode elevation from binaural-mean notch features with a mid-band detector bank.",
+                "Decode azimuth from ear-difference notch features with an edge-focused detector bank.",
+                "Keep distance and the rest of the round-2 combined architecture unchanged.",
+            ],
+            analysis_focus=[
+                "Whether separating cue design and detector inputs improves both angles simultaneously.",
+                "Whether the new model beats the control and the earlier single-purpose notch experiments on angular error.",
+            ],
+            training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.5},
+            data_variant="orthogonal_combined_notches",
+        ),
+        Round3ExperimentSpec(
             name="round3_experiment_4_distance01_labels",
             title="Round 3 Experiment 4: 0-1 Distance Labels",
             description=(
@@ -356,6 +476,18 @@ def _instantiate_round3_model(
         )
     elif spec.variant == "notch_detector_elevation":
         encoder = NotchDetectorElevationEncoder(
+            base_encoder=base_encoder,
+            branch_hidden_dim=int(params["branch_hidden_dim"]),
+            num_frequency_channels=int(params["num_frequency_channels"]),
+        )
+    elif spec.variant == "azimuth_notch_detector":
+        encoder = AzimuthNotchDetectorEncoder(
+            base_encoder=base_encoder,
+            branch_hidden_dim=int(params["branch_hidden_dim"]),
+            num_frequency_channels=int(params["num_frequency_channels"]),
+        )
+    elif spec.variant == "orthogonal_combined_notches":
+        encoder = OrthogonalNotchCombinedEncoder(
             base_encoder=base_encoder,
             branch_hidden_dim=int(params["branch_hidden_dim"]),
             num_frequency_channels=int(params["num_frequency_channels"]),
@@ -671,6 +803,44 @@ def _save_moving_notch_cue_plot(config: GlobalConfig, path: Path) -> str:
     return str(path)
 
 
+def _save_azimuth_moving_notch_cue_plot(config: GlobalConfig, path: Path) -> str:
+    sampled_azimuth = torch.linspace(-45.0, 45.0, 121, dtype=torch.float32)
+    frequencies_hz = torch.fft.rfftfreq(config.signal_samples, d=1.0 / config.sample_rate_hz)
+    gain, _ = azimuth_spectral_gain_profile(
+        config,
+        sampled_azimuth,
+        frequencies_hz.shape[0],
+        device=sampled_azimuth.device,
+        dtype=torch.float32,
+    )
+    gain_db = 20.0 * torch.log10(gain.clamp_min(1e-6))
+    freq_np = frequencies_hz.detach().cpu().numpy() / 1_000.0
+    az_np = sampled_azimuth.detach().cpu().numpy()
+    left_db = gain_db[:, 0].detach().cpu().numpy()
+    right_db = gain_db[:, 1].detach().cpu().numpy()
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8), sharey=True)
+    visible_max_khz = min(float(config.sample_rate_hz) / 2_000.0, max(config.cochlea_high_hz, config.chirp_start_hz) / 1_000.0 * 1.05)
+    visible_mask = freq_np <= visible_max_khz
+    for axis, db_map, title in zip(axes, [left_db, right_db], ["Left Ear", "Right Ear"], strict=True):
+        contour = axis.contourf(
+            freq_np[visible_mask],
+            az_np,
+            db_map[:, visible_mask],
+            levels=25,
+            cmap="coolwarm",
+        )
+        axis.set_title(title)
+        axis.set_xlabel("Frequency (kHz)")
+    axes[0].set_ylabel("Azimuth (deg)")
+    fig.suptitle("Azimuth Moving-Notch Cue")
+    fig.colorbar(contour, ax=axes.ravel().tolist(), label="Gain (dB)")
+    fig.tight_layout()
+    fig.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return str(path)
+
+
 def _save_round3_outputs(
     stage_root: Path,
     spec: Round3ExperimentSpec,
@@ -764,6 +934,16 @@ def _save_round3_outputs(
 
     if spec.data_variant == "moving_notch":
         artifacts["moving_notch_cue"] = _save_moving_notch_cue_plot(local_config, stage_dir / "moving_notch_cue.png")
+    if spec.data_variant == "orthogonal_combined_notches":
+        artifacts["moving_notch_cue"] = _save_moving_notch_cue_plot(local_config, stage_dir / "moving_notch_cue.png")
+    if spec.data_variant in {"azimuth_moving_notch", "azimuth_notch_only"}:
+        artifacts["azimuth_moving_notch_cue"] = _save_azimuth_moving_notch_cue_plot(
+            local_config, stage_dir / "azimuth_moving_notch_cue.png"
+        )
+    if spec.data_variant == "orthogonal_combined_notches":
+        artifacts["azimuth_moving_notch_cue"] = _save_azimuth_moving_notch_cue_plot(
+            local_config, stage_dir / "azimuth_moving_notch_cue.png"
+        )
 
     if "lif_distance_left_spikes" in diagnostics:
         save_heatmap(
@@ -819,6 +999,68 @@ def _save_round3_outputs(
             "Channel",
         )
 
+    if "az_notch_left_response" in diagnostics:
+        save_heatmap(
+            diagnostics["az_notch_left_response"][:24].detach().cpu(),
+            stage_dir / "az_notch_left_response.png",
+            f"{spec.title} Left Ear Azimuth Notch Responses",
+            xlabel="Detector",
+            ylabel="Sample",
+        )
+        save_heatmap(
+            diagnostics["az_notch_right_response"][:24].detach().cpu(),
+            stage_dir / "az_notch_right_response.png",
+            f"{spec.title} Right Ear Azimuth Notch Responses",
+            xlabel="Detector",
+            ylabel="Sample",
+        )
+        save_heatmap(
+            diagnostics["az_notch_diff_response"][:24].detach().cpu(),
+            stage_dir / "az_notch_diff_response.png",
+            f"{spec.title} Ear-Difference Notch Responses",
+            xlabel="Detector",
+            ylabel="Sample",
+        )
+        artifacts["az_notch_left_response"] = str(stage_dir / "az_notch_left_response.png")
+        artifacts["az_notch_right_response"] = str(stage_dir / "az_notch_right_response.png")
+        artifacts["az_notch_diff_response"] = str(stage_dir / "az_notch_diff_response.png")
+        artifacts["az_notch_detector_centers"] = _save_line_plot(
+            {"Detector Center": diagnostics["az_notch_detector_centers"].detach().cpu().numpy()},
+            stage_dir / "az_notch_detector_centers.png",
+            "Azimuth Notch Detector Centers",
+            "Channel",
+        )
+
+    if "orthogonal_elevation_response" in diagnostics:
+        save_heatmap(
+            diagnostics["orthogonal_elevation_response"][:24].detach().cpu(),
+            stage_dir / "orthogonal_elevation_response.png",
+            f"{spec.title} Orthogonal Elevation Detector Responses",
+            xlabel="Detector",
+            ylabel="Sample",
+        )
+        save_heatmap(
+            diagnostics["orthogonal_azimuth_response"][:24].detach().cpu(),
+            stage_dir / "orthogonal_azimuth_response.png",
+            f"{spec.title} Orthogonal Azimuth Detector Responses",
+            xlabel="Detector",
+            ylabel="Sample",
+        )
+        artifacts["orthogonal_elevation_response"] = str(stage_dir / "orthogonal_elevation_response.png")
+        artifacts["orthogonal_azimuth_response"] = str(stage_dir / "orthogonal_azimuth_response.png")
+        artifacts["orthogonal_elevation_centers"] = _save_line_plot(
+            {"Elevation Detector Center": diagnostics["orthogonal_elevation_centers"].detach().cpu().numpy()},
+            stage_dir / "orthogonal_elevation_centers.png",
+            "Orthogonal Elevation Detector Centers",
+            "Channel",
+        )
+        artifacts["orthogonal_azimuth_centers"] = _save_line_plot(
+            {"Azimuth Detector Center": diagnostics["orthogonal_azimuth_centers"].detach().cpu().numpy()},
+            stage_dir / "orthogonal_azimuth_centers.png",
+            "Orthogonal Azimuth Detector Centers",
+            "Channel",
+        )
+
     if "output_az_raw_norm" in diagnostics:
         artifacts["angle_norms"] = _save_line_plot(
             {
@@ -842,6 +1084,7 @@ def _round3_report(
     params: dict[str, Any],
     results: list[dict[str, Any]],
 ) -> Path:
+    results_by_name = {item["name"]: item for item in results}
     lines = [
         "# Round 3 Experiments",
         "",
@@ -967,6 +1210,60 @@ def _round3_report(
                 ]
             )
             lines.append(f"![{item['title']} moving notch cue](round_3_experiments/{item['name']}/moving_notch_cue.png)")
+        if item["artifacts"].get("azimuth_moving_notch_cue"):
+            if item.get("data_variant") in {"azimuth_notch_only", "orthogonal_combined_notches"}:
+                lines.extend(
+                    [
+                        "",
+                        "Azimuth moving-notch cue explanation:",
+                        "- The simulator applies mirrored ear-specific moving notches before the cochlea, without adding any extra azimuth spectral slope.",
+                        "- At positive azimuth, the left and right ears receive different notch locations; at negative azimuth the pattern mirrors.",
+                        "- This augments the existing ITD and ILD cues with ear-specific spectral asymmetry while trying to reduce interference from added tilt.",
+                    ]
+                )
+            else:
+                lines.extend(
+                    [
+                        "",
+                        "Azimuth moving-notch cue explanation:",
+                        "- The simulator applies mirrored ear-specific slope-plus-moving-notch spectral cues before the cochlea.",
+                        "- At positive azimuth, the left and right ears receive different notch locations and slope tilts; at negative azimuth the pattern mirrors.",
+                        "- This augments the existing ITD and ILD cues with ear-specific spectral asymmetry.",
+                    ]
+                )
+            lines.append(f"![{item['title']} azimuth moving notch cue](round_3_experiments/{item['name']}/azimuth_moving_notch_cue.png)")
+        if item["artifacts"].get("orthogonal_elevation_response"):
+            lines.extend(
+                [
+                    "",
+                    "Orthogonal decoder explanation:",
+                    "- Elevation is decoded only from the binaural-mean notch profile, using a mid-band detector bank.",
+                    "- Azimuth is decoded only from ear-difference notch features, using an edge-focused detector bank.",
+                    "- This keeps the two angular tasks on different spectral statistics instead of letting both read the same raw spectrum.",
+                ]
+            )
+            lines.append(f"![{item['title']} orthogonal elevation responses](round_3_experiments/{item['name']}/orthogonal_elevation_response.png)")
+            lines.append(f"![{item['title']} orthogonal azimuth responses](round_3_experiments/{item['name']}/orthogonal_azimuth_response.png)")
+            lines.append(f"![{item['title']} orthogonal elevation centers](round_3_experiments/{item['name']}/orthogonal_elevation_centers.png)")
+            lines.append(f"![{item['title']} orthogonal azimuth centers](round_3_experiments/{item['name']}/orthogonal_azimuth_centers.png)")
+        if item["name"] == "round3_experiment_3c_orthogonal_combined_notches":
+            comparisons = [
+                ("Control", control),
+                ("Elevation 2A", results_by_name.get("round3_experiment_2a_moving_notch_cue")),
+                ("Elevation 2B", results_by_name.get("round3_experiment_2b_moving_notch_plus_detectors")),
+                ("Azimuth 3A", results_by_name.get("round3_experiment_3a_azimuth_moving_notch_detectors")),
+                ("Azimuth 3B", results_by_name.get("round3_experiment_3b_azimuth_notch_only_detectors")),
+            ]
+            lines.extend(["", "Angle comparison against prior notch models:"])
+            for label, other in comparisons:
+                if other is None:
+                    continue
+                az_delta = item["test_metrics"]["azimuth_mae_deg"] - other["test_metrics"]["azimuth_mae_deg"]
+                el_delta = item["test_metrics"]["elevation_mae_deg"] - other["test_metrics"]["elevation_mae_deg"]
+                combined_delta = item["test_metrics"]["combined_error"] - other["test_metrics"]["combined_error"]
+                lines.append(
+                    f"- vs {label}: combined delta `{combined_delta:.4f}`, azimuth delta `{az_delta:.4f} deg`, elevation delta `{el_delta:.4f} deg`"
+                )
         if item["artifacts"].get("notch_detector_response"):
             lines.extend(
                 [
@@ -980,6 +1277,23 @@ def _round3_report(
             lines.append(f"![{item['title']} notch detector responses](round_3_experiments/{item['name']}/notch_detector_response.png)")
         if item["artifacts"].get("notch_detector_centers"):
             lines.append(f"![{item['title']} notch detector centers](round_3_experiments/{item['name']}/notch_detector_centers.png)")
+        if item["artifacts"].get("az_notch_left_response"):
+            lines.extend(
+                [
+                    "",
+                    "Azimuth notch-detector explanation:",
+                    "- The azimuth branch now gets a third residual stream built from ear-specific spectral notch profiles.",
+                    "- A fixed detector bank scans notch energy across channel position separately for the left and right ears.",
+                    "- Left, right, and ear-difference detector responses are projected into an azimuth-only residual latent and fused with the existing ITD and ILD features.",
+                ]
+            )
+            lines.append(f"![{item['title']} left azimuth notch responses](round_3_experiments/{item['name']}/az_notch_left_response.png)")
+        if item["artifacts"].get("az_notch_right_response"):
+            lines.append(f"![{item['title']} right azimuth notch responses](round_3_experiments/{item['name']}/az_notch_right_response.png)")
+        if item["artifacts"].get("az_notch_diff_response"):
+            lines.append(f"![{item['title']} azimuth notch difference responses](round_3_experiments/{item['name']}/az_notch_diff_response.png)")
+        if item["artifacts"].get("az_notch_detector_centers"):
+            lines.append(f"![{item['title']} azimuth notch detector centers](round_3_experiments/{item['name']}/az_notch_detector_centers.png)")
         if item["artifacts"].get("angle_norms"):
             lines.append(f"![{item['title']} angle norms](round_3_experiments/{item['name']}/angle_norms.png)")
         lines.append("")

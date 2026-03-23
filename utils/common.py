@@ -54,6 +54,15 @@ class GlobalConfig:
     elevation_cue_mode: str = "slope"
     elevation_notch_strength: float = 1.8
     elevation_notch_width: float = 0.065
+    elevation_notch_center_min: float = 0.18
+    elevation_notch_center_max: float = 0.82
+    azimuth_cue_mode: str = "none"
+    azimuth_spectral_strength: float = 0.65
+    azimuth_notch_strength: float = 1.4
+    azimuth_notch_width: float = 0.07
+    azimuth_notch_center_min: float = 0.18
+    azimuth_notch_center_max: float = 0.82
+    azimuth_notch_mirror_across_band: bool = False
     seed: int = 7
 
     @property

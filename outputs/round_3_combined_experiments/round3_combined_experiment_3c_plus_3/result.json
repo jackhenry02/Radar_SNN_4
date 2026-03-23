@@ -1,0 +1,86 @@
+{
+  "name": "round3_combined_experiment_3c_plus_3",
+  "title": "Round 3 Combined B: 3C + 3",
+  "description": "Combine the accepted orthogonal azimuth/elevation notch model from 3C with the sine/cosine angle output coding from Experiment 3.",
+  "rationale": "This tests whether the orthogonal cue separation from 3C benefits further from the better angular output code.",
+  "implemented_steps": [
+    "Use the orthogonal combined azimuth/elevation notch cues and branch-specific detectors from 3C.",
+    "Keep distance and the fusion stack unchanged.",
+    "Replace direct angle regression with sine/cosine output coding and unit-circle regularization from 3."
+  ],
+  "analysis_focus": [
+    "Whether sine/cosine output coding helps the orthogonal notch model improve both angles further.",
+    "Whether the combined model beats both 3C and 3 individually."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "orthogonal_combined_notches",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "test_metrics": {
+    "distance_mae_m": 0.06803575903177261,
+    "azimuth_mae_deg": 3.147510290145874,
+    "elevation_mae_deg": 2.5774548053741455,
+    "combined_error": 0.041463252156972885,
+    "mean_spike_rate": 0.033659227192401886,
+    "predicted_distance_std": 1.2670817375183105,
+    "predicted_azimuth_std": 22.894977569580078,
+    "predicted_elevation_std": 16.693214416503906,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.08480163663625717,
+    "y_mae_m": 0.13383574783802032,
+    "z_mae_m": 0.10592636466026306,
+    "euclidean_error_m": 0.2177223414182663
+  },
+  "comparison": {
+    "combined_error_delta": -0.021558154374361038,
+    "distance_mae_delta": -0.06966713815927505,
+    "azimuth_mae_delta": -0.3167121410369873,
+    "elevation_mae_delta": -1.3346028327941895,
+    "spike_rate_delta": -0.005450889468193054
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.04609828442335129,
+    "y_mae_delta": -0.02830144762992859,
+    "z_mae_delta": -0.0655488520860672,
+    "euclidean_error_delta": -0.0967731922864914
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 25.418359417002648,
+    "training_seconds": 783.0740311660047,
+    "evaluation_seconds": 2.510095874982653,
+    "total_seconds": 785.5867154169828
+  },
+  "loss_summary": {
+    "distance_loss": 0.0021563300397247076,
+    "azimuth_loss": 0.0012250113068148494,
+    "elevation_loss": 0.0008116930839605629,
+    "x_loss": 0.016960328444838524,
+    "y_loss": 0.026767151430249214,
+    "z_loss": 0.021185271441936493,
+    "unit_penalty": 0.003092374186962843,
+    "spike_penalty": 0.033659227192401886
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/loss.png",
+    "test_distance_prediction": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/comparison.png",
+    "summary": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/summary.png",
+    "moving_notch_cue": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/moving_notch_cue.png",
+    "azimuth_moving_notch_cue": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/azimuth_moving_notch_cue.png",
+    "orthogonal_elevation_response": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/orthogonal_elevation_response.png",
+    "orthogonal_azimuth_response": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/orthogonal_azimuth_response.png",
+    "orthogonal_elevation_centers": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/orthogonal_elevation_centers.png",
+    "orthogonal_azimuth_centers": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/orthogonal_azimuth_centers.png",
+    "angle_norms": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/angle_norms.png",
+    "prediction_cache": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_combined_experiments/round3_combined_experiment_3c_plus_3/coordinate_error_profile.png"
+  }
+}

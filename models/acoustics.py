@@ -79,12 +79,54 @@ def elevation_spectral_gain_profile(
         )
 
     if config.elevation_cue_mode in {"notch", "slope_notch"} and config.elevation_notch_strength > 0.0:
-        notch_center = 0.18 + 0.64 * (0.5 * (elevation_scale + 1.0))
+        notch_center = config.elevation_notch_center_min + (
+            config.elevation_notch_center_max - config.elevation_notch_center_min
+        ) * (0.5 * (elevation_scale + 1.0))
         notch_width = max(float(config.elevation_notch_width), 1e-3)
         notch_profile = torch.exp(
             -0.5 * ((normalized_bins[None, :] - notch_center[:, None]) / notch_width).square()
         )
         gain = gain * torch.exp(-float(config.elevation_notch_strength) * notch_profile)
+
+    return gain, normalized_bins
+
+
+def azimuth_spectral_gain_profile(
+    config: GlobalConfig,
+    azimuth_deg: torch.Tensor,
+    num_frequency_bins: int,
+    *,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    normalized_bins = torch.linspace(0.0, 1.0, num_frequency_bins, device=device, dtype=dtype)
+    azimuth_scale = torch.tanh(torch.deg2rad(azimuth_deg.to(dtype)) / (math.pi / 4.0))
+    ear_sign = torch.tensor([-1.0, 1.0], device=device, dtype=dtype)
+    ear_scale = azimuth_scale[:, None] * ear_sign[None, :]
+    gain = torch.ones(azimuth_deg.shape[0], 2, num_frequency_bins, device=device, dtype=dtype)
+
+    if config.azimuth_cue_mode in {"slope", "slope_notch"} and config.azimuth_spectral_strength > 0.0:
+        gain = gain * torch.exp(
+            config.azimuth_spectral_strength
+            * ear_scale[:, :, None]
+            * (normalized_bins[None, None, :] - 0.5)
+        )
+
+    if config.azimuth_cue_mode in {"notch", "slope_notch"} and config.azimuth_notch_strength > 0.0:
+        if config.azimuth_notch_mirror_across_band:
+            base_center = config.azimuth_notch_center_min + (
+                config.azimuth_notch_center_max - config.azimuth_notch_center_min
+            ) * (0.5 * (azimuth_scale + 1.0))
+            notch_center = torch.stack([1.0 - base_center, base_center], dim=1)
+        else:
+            notch_center = config.azimuth_notch_center_min + (
+                config.azimuth_notch_center_max - config.azimuth_notch_center_min
+            ) * (0.5 * (ear_scale + 1.0))
+        notch_width = max(float(config.azimuth_notch_width), 1e-3)
+        notch_profile = torch.exp(
+            -0.5 * ((normalized_bins[None, None, :] - notch_center[:, :, None]) / notch_width).square()
+        )
+        gain = gain * torch.exp(-float(config.azimuth_notch_strength) * notch_profile)
 
     return gain, normalized_bins
 
@@ -106,6 +148,28 @@ def _apply_elevation_spectral_cue(
         dtype=spectrum.real.dtype,
     )
     shaped = torch.fft.irfft(spectrum * gain[:, None, :], n=total_samples, dim=-1)
+    return shaped
+
+
+def _apply_azimuth_spectral_cue(
+    signal: torch.Tensor,
+    azimuth_deg: torch.Tensor,
+    config: GlobalConfig,
+) -> torch.Tensor:
+    if config.azimuth_cue_mode == "none":
+        return signal
+    if signal.shape[1] != 2:
+        return signal
+    total_samples = signal.shape[-1]
+    spectrum = torch.fft.rfft(signal, dim=-1)
+    gain, _ = azimuth_spectral_gain_profile(
+        config,
+        azimuth_deg,
+        spectrum.shape[-1],
+        device=signal.device,
+        dtype=spectrum.real.dtype,
+    )
+    shaped = torch.fft.irfft(spectrum * gain, n=total_samples, dim=-1)
     return shaped
 
 
@@ -163,6 +227,8 @@ def simulate_echo_batch(
 
     if include_elevation_cues:
         echoes = _apply_elevation_spectral_cue(echoes, elevation_deg, config)
+    if binaural and config.azimuth_cue_mode != "none":
+        echoes = _apply_azimuth_spectral_cue(echoes, azimuth_deg, config)
 
     receive = echoes
     if add_noise:

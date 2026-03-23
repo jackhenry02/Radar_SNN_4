@@ -259,3 +259,172 @@ class NotchDetectorElevationEncoder(nn.Module):
             spike_proxy=base.spike_proxy,
             diagnostics=diagnostics,
         )
+
+
+class AzimuthNotchDetectorEncoder(nn.Module):
+    def __init__(
+        self,
+        *,
+        base_encoder: AllRound2Encoder,
+        branch_hidden_dim: int,
+        num_frequency_channels: int,
+        num_detectors: int = 12,
+        detector_width_channels: float = 2.5,
+    ) -> None:
+        super().__init__()
+        self.branch_hidden_dim = branch_hidden_dim
+        self.base_encoder = base_encoder
+        self.fusion_resonance_projection = base_encoder.fusion_resonance_projection
+        self.num_frequency_channels = num_frequency_channels
+
+        channel_axis = torch.arange(num_frequency_channels, dtype=torch.float32)
+        detector_centers = torch.linspace(0.0, float(num_frequency_channels - 1), steps=num_detectors)
+        templates = torch.exp(
+            -0.5 * ((channel_axis.unsqueeze(0) - detector_centers.unsqueeze(1)) / detector_width_channels).square()
+        )
+        templates = templates / templates.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        self.register_buffer("detector_centers", detector_centers)
+        self.register_buffer("detector_templates", templates)
+
+        self.detector_projection = nn.Linear(num_detectors * 3, branch_hidden_dim)
+        self.detector_gain = nn.Parameter(torch.tensor(-1.0))
+
+    def forward(self, batch: ExperimentBatch) -> BranchEncoding:
+        if batch.receive_spikes is None:
+            raise ValueError("AzimuthNotchDetectorEncoder requires receive spikes.")
+        base = self.base_encoder(batch)
+
+        left_counts = batch.receive_spikes[:, 0].float().sum(dim=-1)
+        right_counts = batch.receive_spikes[:, 1].float().sum(dim=-1)
+        left_norm = left_counts / left_counts.sum(dim=-1, keepdim=True).clamp_min(1.0)
+        right_norm = right_counts / right_counts.sum(dim=-1, keepdim=True).clamp_min(1.0)
+
+        left_local = F.avg_pool1d(left_norm.unsqueeze(1), kernel_size=3, stride=1, padding=1).squeeze(1)
+        right_local = F.avg_pool1d(right_norm.unsqueeze(1), kernel_size=3, stride=1, padding=1).squeeze(1)
+        left_notches = F.relu(left_local - left_norm)
+        right_notches = F.relu(right_local - right_norm)
+
+        left_response = left_notches @ self.detector_templates.transpose(0, 1)
+        right_response = right_notches @ self.detector_templates.transpose(0, 1)
+        diff_response = right_response - left_response
+        detector_features = torch.cat([left_response, right_response, diff_response], dim=-1)
+        detector_residual = self.detector_projection(F.layer_norm(detector_features, (detector_features.shape[-1],)))
+        detector_scale = 0.30 * torch.sigmoid(self.detector_gain)
+
+        diagnostics = {
+            **base.diagnostics,
+            "az_notch_left_response": left_response.detach(),
+            "az_notch_right_response": right_response.detach(),
+            "az_notch_diff_response": diff_response.detach(),
+            "az_notch_detector_centers": self.detector_centers.detach(),
+            "az_notch_detector_scale": detector_scale.detach(),
+        }
+        return BranchEncoding(
+            distance_latent=base.distance_latent,
+            azimuth_latent=F.relu(base.azimuth_latent + detector_scale * detector_residual),
+            elevation_latent=base.elevation_latent,
+            spectral_source=base.spectral_source,
+            spike_proxy=base.spike_proxy,
+            diagnostics=diagnostics,
+        )
+
+
+class OrthogonalNotchCombinedEncoder(nn.Module):
+    def __init__(
+        self,
+        *,
+        base_encoder: AllRound2Encoder,
+        branch_hidden_dim: int,
+        num_frequency_channels: int,
+        azimuth_center_range: tuple[float, float] = (0.08, 0.28),
+        elevation_center_range: tuple[float, float] = (0.32, 0.68),
+        num_azimuth_detectors: int = 12,
+        num_elevation_detectors: int = 12,
+        detector_width_channels: float = 2.5,
+    ) -> None:
+        super().__init__()
+        self.branch_hidden_dim = branch_hidden_dim
+        self.base_encoder = base_encoder
+        self.fusion_resonance_projection = base_encoder.fusion_resonance_projection
+        self.num_frequency_channels = num_frequency_channels
+
+        channel_axis = torch.arange(num_frequency_channels, dtype=torch.float32)
+
+        elevation_centers = torch.linspace(
+            elevation_center_range[0] * float(num_frequency_channels - 1),
+            elevation_center_range[1] * float(num_frequency_channels - 1),
+            steps=num_elevation_detectors,
+        )
+        elevation_templates = torch.exp(
+            -0.5 * ((channel_axis.unsqueeze(0) - elevation_centers.unsqueeze(1)) / detector_width_channels).square()
+        )
+        elevation_templates = elevation_templates / elevation_templates.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+
+        low_centers = torch.linspace(
+            azimuth_center_range[0] * float(num_frequency_channels - 1),
+            azimuth_center_range[1] * float(num_frequency_channels - 1),
+            steps=max(1, num_azimuth_detectors // 2),
+        )
+        high_centers = float(num_frequency_channels - 1) - low_centers.flip(0)
+        azimuth_centers = torch.cat([low_centers, high_centers], dim=0)
+        azimuth_templates = torch.exp(
+            -0.5 * ((channel_axis.unsqueeze(0) - azimuth_centers.unsqueeze(1)) / detector_width_channels).square()
+        )
+        azimuth_templates = azimuth_templates / azimuth_templates.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+
+        self.register_buffer("elevation_detector_centers", elevation_centers)
+        self.register_buffer("elevation_detector_templates", elevation_templates)
+        self.register_buffer("azimuth_detector_centers", azimuth_centers)
+        self.register_buffer("azimuth_detector_templates", azimuth_templates)
+
+        self.elevation_projection = nn.Linear(num_elevation_detectors, branch_hidden_dim)
+        self.azimuth_projection = nn.Linear(azimuth_centers.numel(), branch_hidden_dim)
+        self.elevation_gain = nn.Parameter(torch.tensor(-1.0))
+        self.azimuth_gain = nn.Parameter(torch.tensor(-1.0))
+
+    def forward(self, batch: ExperimentBatch) -> BranchEncoding:
+        if batch.receive_spikes is None:
+            raise ValueError("OrthogonalNotchCombinedEncoder requires receive spikes.")
+        base = self.base_encoder(batch)
+
+        left_counts = batch.receive_spikes[:, 0].float().sum(dim=-1)
+        right_counts = batch.receive_spikes[:, 1].float().sum(dim=-1)
+        left_norm = left_counts / left_counts.sum(dim=-1, keepdim=True).clamp_min(1.0)
+        right_norm = right_counts / right_counts.sum(dim=-1, keepdim=True).clamp_min(1.0)
+
+        common_norm = (left_norm + right_norm) / 2.0
+        common_local = F.avg_pool1d(common_norm.unsqueeze(1), kernel_size=3, stride=1, padding=1).squeeze(1)
+        common_notches = F.relu(common_local - common_norm)
+        elevation_response = common_notches @ self.elevation_detector_templates.transpose(0, 1)
+
+        left_local = F.avg_pool1d(left_norm.unsqueeze(1), kernel_size=3, stride=1, padding=1).squeeze(1)
+        right_local = F.avg_pool1d(right_norm.unsqueeze(1), kernel_size=3, stride=1, padding=1).squeeze(1)
+        left_notches = F.relu(left_local - left_norm)
+        right_notches = F.relu(right_local - right_norm)
+        azimuth_difference = right_notches - left_notches
+        azimuth_response = azimuth_difference @ self.azimuth_detector_templates.transpose(0, 1)
+
+        elevation_residual = self.elevation_projection(F.layer_norm(elevation_response, (elevation_response.shape[-1],)))
+        azimuth_residual = self.azimuth_projection(F.layer_norm(azimuth_response, (azimuth_response.shape[-1],)))
+        elevation_scale = 0.30 * torch.sigmoid(self.elevation_gain)
+        azimuth_scale = 0.30 * torch.sigmoid(self.azimuth_gain)
+
+        diagnostics = {
+            **base.diagnostics,
+            "orthogonal_elevation_response": elevation_response.detach(),
+            "orthogonal_elevation_centers": self.elevation_detector_centers.detach(),
+            "orthogonal_azimuth_response": azimuth_response.detach(),
+            "orthogonal_azimuth_centers": self.azimuth_detector_centers.detach(),
+            "orthogonal_common_notches": common_notches.detach(),
+            "orthogonal_azimuth_difference": azimuth_difference.detach(),
+            "orthogonal_elevation_scale": elevation_scale.detach(),
+            "orthogonal_azimuth_scale": azimuth_scale.detach(),
+        }
+        return BranchEncoding(
+            distance_latent=base.distance_latent,
+            azimuth_latent=F.relu(base.azimuth_latent + azimuth_scale * azimuth_residual),
+            elevation_latent=F.relu(base.elevation_latent + elevation_scale * elevation_residual),
+            spectral_source=base.spectral_source,
+            spike_proxy=base.spike_proxy,
+            diagnostics=diagnostics,
+        )

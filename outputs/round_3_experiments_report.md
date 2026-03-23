@@ -43,6 +43,9 @@ Round 3 keeps the round-2 combined model as the structural baseline, changes the
 | Round 3 Experiment 2A: Moving-Notch Elevation Cue | 0.0432 | 0.2249 | 0.1198 | 2.5915 | 2.1565 | Yes |
 | Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors | 0.0396 | 0.2127 | 0.1038 | 2.8270 | 1.9386 | Yes |
 | Round 3 Experiment 3: Sine/Cosine Angle Regression | 0.0593 | 0.2706 | 0.0770 | 3.3350 | 4.2824 | Yes |
+| Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors | 0.0983 | 0.3742 | 0.1304 | 2.2429 | 7.7429 | No |
+| Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope | 0.1005 | 0.4139 | 0.1291 | 2.6449 | 8.0721 | No |
+| Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches | 0.0469 | 0.2391 | 0.1351 | 3.3489 | 2.1144 | Yes |
 | Round 3 Experiment 4: 0-1 Distance Labels | 0.0740 | 0.3653 | 0.2332 | 3.0242 | 3.9133 | No |
 
 ## Detailed Experiments
@@ -284,6 +287,190 @@ Timing:
 ![Round 3 Experiment 3: Sine/Cosine Angle Regression coordinate profile](round_3_experiments/round3_experiment_3_sincos_angle_regression/coordinate_error_profile.png)
 ![Round 3 Experiment 3: Sine/Cosine Angle Regression angle norms](round_3_experiments/round3_experiment_3_sincos_angle_regression/angle_norms.png)
 
+### Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors
+
+- Change: Add mirrored ear-specific slope-plus-moving-notch azimuth cues upstream of the cochlea and decode them with a dedicated notch-detector residual as a third azimuth pathway stream alongside ITD and ILD.
+- Rationale: This tests whether azimuth benefits from richer ear-specific spectral structure, not just time and level differences.
+- Decision vs control: `REJECTED`
+- Data variant: `azimuth_moving_notch`
+
+Implementation details:
+- Keep the base round-2 combined model and 140 dB unnormalized front end.
+- Inject mirrored ear-specific azimuth slope-plus-moving-notch spectral cues before the cochlea.
+- Build per-ear spike-domain notch profiles from the left and right receive spectra.
+- Apply a fixed bank of azimuth notch detectors across channel position for each ear.
+- Project left, right, and left-right notch-detector responses into an azimuth-only residual latent.
+
+Analysis focus:
+- Whether explicit ear-specific notch cues improve azimuth beyond the round-3 control.
+- Whether the notch-detector responses remain asymmetric across ears rather than collapsing to identical patterns.
+
+Metrics:
+- Combined error: `0.0983`
+- Distance MAE: `0.1304 m`
+- Azimuth MAE: `2.2429 deg`
+- Elevation MAE: `7.7429 deg`
+- Euclidean error: `0.3742 m`
+
+Delta vs control:
+- Combined error delta: `0.0353`
+- Distance MAE delta: `-0.0073`
+- Azimuth MAE delta: `-1.2213`
+- Elevation MAE delta: `3.8308`
+- Euclidean delta: `0.0597 m`
+
+Timing:
+- Training: `476.02 s`
+- Evaluation: `2.14 s`
+- Total: `478.17 s`
+
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors loss](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/loss.png)
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors comparison](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/comparison.png)
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors distance](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/test_distance_prediction.png)
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors coordinate profile](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/coordinate_error_profile.png)
+
+Azimuth moving-notch cue explanation:
+- The simulator applies mirrored ear-specific slope-plus-moving-notch spectral cues before the cochlea.
+- At positive azimuth, the left and right ears receive different notch locations and slope tilts; at negative azimuth the pattern mirrors.
+- This augments the existing ITD and ILD cues with ear-specific spectral asymmetry.
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors azimuth moving notch cue](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/azimuth_moving_notch_cue.png)
+
+Azimuth notch-detector explanation:
+- The azimuth branch now gets a third residual stream built from ear-specific spectral notch profiles.
+- A fixed detector bank scans notch energy across channel position separately for the left and right ears.
+- Left, right, and ear-difference detector responses are projected into an azimuth-only residual latent and fused with the existing ITD and ILD features.
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors left azimuth notch responses](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_left_response.png)
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors right azimuth notch responses](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_right_response.png)
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors azimuth notch difference responses](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_diff_response.png)
+![Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors azimuth notch detector centers](round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_detector_centers.png)
+
+### Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope
+
+- Change: Add mirrored ear-specific moving-notch azimuth cues upstream of the cochlea, but do not add any extra azimuth spectral slope cue, then decode them with the same azimuth notch-detector residual.
+- Rationale: This isolates whether the azimuth notch itself is useful, or whether the previous 3A result mainly came from interaction between the notch and added spectral slope.
+- Decision vs control: `REJECTED`
+- Data variant: `azimuth_notch_only`
+
+Implementation details:
+- Keep the base round-2 combined model and 140 dB unnormalized front end.
+- Inject mirrored ear-specific azimuth moving notches before the cochlea, with no added azimuth slope term.
+- Build per-ear spike-domain notch profiles from the left and right receive spectra.
+- Apply the same fixed bank of azimuth notch detectors across channel position for each ear.
+- Project left, right, and left-right notch-detector responses into an azimuth-only residual latent.
+
+Analysis focus:
+- Whether azimuth improves when only the notch cue is added, without the extra spectral tilt used in 3A.
+- Whether removing the slope reduces interference with the elevation branch.
+
+Metrics:
+- Combined error: `0.1005`
+- Distance MAE: `0.1291 m`
+- Azimuth MAE: `2.6449 deg`
+- Elevation MAE: `8.0721 deg`
+- Euclidean error: `0.4139 m`
+
+Delta vs control:
+- Combined error delta: `0.0375`
+- Distance MAE delta: `-0.0086`
+- Azimuth MAE delta: `-0.8193`
+- Elevation MAE delta: `4.1601`
+- Euclidean delta: `0.0994 m`
+
+Timing:
+- Training: `902.05 s`
+- Evaluation: `3.57 s`
+- Total: `905.63 s`
+
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope loss](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/loss.png)
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope comparison](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/comparison.png)
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope distance](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/test_distance_prediction.png)
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope coordinate profile](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/coordinate_error_profile.png)
+
+Azimuth moving-notch cue explanation:
+- The simulator applies mirrored ear-specific moving notches before the cochlea, without adding any extra azimuth spectral slope.
+- At positive azimuth, the left and right ears receive different notch locations; at negative azimuth the pattern mirrors.
+- This augments the existing ITD and ILD cues with ear-specific spectral asymmetry while trying to reduce interference from added tilt.
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope azimuth moving notch cue](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/azimuth_moving_notch_cue.png)
+
+Azimuth notch-detector explanation:
+- The azimuth branch now gets a third residual stream built from ear-specific spectral notch profiles.
+- A fixed detector bank scans notch energy across channel position separately for the left and right ears.
+- Left, right, and ear-difference detector responses are projected into an azimuth-only residual latent and fused with the existing ITD and ILD features.
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope left azimuth notch responses](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/az_notch_left_response.png)
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope right azimuth notch responses](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/az_notch_right_response.png)
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope azimuth notch difference responses](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/az_notch_diff_response.png)
+![Round 3 Experiment 3B: Ear-Specific Azimuth Notch Detectors Without Slope azimuth notch detector centers](round_3_experiments/round3_experiment_3b_azimuth_notch_only_detectors/az_notch_detector_centers.png)
+
+### Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches
+
+- Change: Combine a common-mode mid-band elevation slope-plus-notch cue with mirrored edge-band azimuth notch-only cues, then decode them with branch-specific detectors that use common-mode features for elevation and difference features for azimuth.
+- Rationale: This tests whether cue orthogonality in both the simulator and the branch decoders can keep the two angular tasks from interfering with each other.
+- Decision vs control: `ACCEPTED`
+- Data variant: `orthogonal_combined_notches`
+
+Implementation details:
+- Inject a common-mode elevation slope-plus-notch cue in the middle of the spectral band for both ears.
+- Inject mirrored ear-specific azimuth notch-only cues toward the spectral edges.
+- Decode elevation from binaural-mean notch features with a mid-band detector bank.
+- Decode azimuth from ear-difference notch features with an edge-focused detector bank.
+- Keep distance and the rest of the round-2 combined architecture unchanged.
+
+Analysis focus:
+- Whether separating cue design and detector inputs improves both angles simultaneously.
+- Whether the new model beats the control and the earlier single-purpose notch experiments on angular error.
+
+Metrics:
+- Combined error: `0.0469`
+- Distance MAE: `0.1351 m`
+- Azimuth MAE: `3.3489 deg`
+- Elevation MAE: `2.1144 deg`
+- Euclidean error: `0.2391 m`
+
+Delta vs control:
+- Combined error delta: `-0.0162`
+- Distance MAE delta: `-0.0026`
+- Azimuth MAE delta: `-0.1154`
+- Elevation MAE delta: `-1.7977`
+- Euclidean delta: `-0.0754 m`
+
+Timing:
+- Training: `831.75 s`
+- Evaluation: `2.47 s`
+- Total: `834.22 s`
+
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches loss](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/loss.png)
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches comparison](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/comparison.png)
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches distance](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/test_distance_prediction.png)
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches coordinate profile](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/coordinate_error_profile.png)
+
+Moving-notch cue explanation:
+- The simulator keeps the original elevation-dependent slope cue and multiplies it by a Gaussian spectral notch.
+- The notch center shifts smoothly across frequency with elevation, so lower elevations suppress lower-frequency channels and higher elevations suppress higher-frequency channels.
+- This cue is injected upstream of the cochlea, so it changes the spike distribution before the elevation branch sees the input.
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches moving notch cue](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/moving_notch_cue.png)
+
+Azimuth moving-notch cue explanation:
+- The simulator applies mirrored ear-specific moving notches before the cochlea, without adding any extra azimuth spectral slope.
+- At positive azimuth, the left and right ears receive different notch locations; at negative azimuth the pattern mirrors.
+- This augments the existing ITD and ILD cues with ear-specific spectral asymmetry while trying to reduce interference from added tilt.
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches azimuth moving notch cue](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/azimuth_moving_notch_cue.png)
+
+Orthogonal decoder explanation:
+- Elevation is decoded only from the binaural-mean notch profile, using a mid-band detector bank.
+- Azimuth is decoded only from ear-difference notch features, using an edge-focused detector bank.
+- This keeps the two angular tasks on different spectral statistics instead of letting both read the same raw spectrum.
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches orthogonal elevation responses](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_elevation_response.png)
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches orthogonal azimuth responses](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_azimuth_response.png)
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches orthogonal elevation centers](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_elevation_centers.png)
+![Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches orthogonal azimuth centers](round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_azimuth_centers.png)
+
+Angle comparison against prior notch models:
+- vs Control: combined delta `-0.0162`, azimuth delta `-0.1154 deg`, elevation delta `-1.7977 deg`
+- vs Elevation 2A: combined delta `0.0037`, azimuth delta `0.7574 deg`, elevation delta `-0.0421 deg`
+- vs Elevation 2B: combined delta `0.0073`, azimuth delta `0.5219 deg`, elevation delta `0.1758 deg`
+- vs Azimuth 3A: combined delta `-0.0514`, azimuth delta `1.1060 deg`, elevation delta `-5.6285 deg`
+- vs Azimuth 3B: combined delta `-0.0536`, azimuth delta `0.7039 deg`, elevation delta `-5.9577 deg`
+
 ### Round 3 Experiment 4: 0-1 Distance Labels
 
 - Change: Train the distance output against labels normalized to the 0-1 interval, then decode them back to physical metres for evaluation.
@@ -327,6 +514,6 @@ Timing:
 
 ## Summary
 
-- Accepted experiments: Round 3 Experiment 1: Trainable LIF Coincidence Detectors, Round 3 Experiment 2A: Moving-Notch Elevation Cue, Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors, Round 3 Experiment 3: Sine/Cosine Angle Regression
+- Accepted experiments: Round 3 Experiment 1: Trainable LIF Coincidence Detectors, Round 3 Experiment 2A: Moving-Notch Elevation Cue, Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors, Round 3 Experiment 3: Sine/Cosine Angle Regression, Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches
 - Round 3 uses the fresh 5 m, 140 dB, unnormalized control as the only reference.
 - Any accepted variant should be rerun on a longer schedule before it replaces the current short-run baseline.

@@ -1,0 +1,83 @@
+{
+  "name": "round3_combined_experiment_2b_plus_3",
+  "title": "Round 3 Combined A: 2B + 3",
+  "description": "Combine the accepted elevation moving-notch detector model from 2B with the sine/cosine angle output coding from Experiment 3.",
+  "rationale": "This tests whether the best accepted elevation cue model benefits further from the better angular output code.",
+  "implemented_steps": [
+    "Use the moving-notch elevation cue and elevation notch-detector residual from 2B.",
+    "Keep the rest of the round-2 combined architecture unchanged.",
+    "Replace direct angle regression with sine/cosine output coding and unit-circle regularization from 3."
+  ],
+  "analysis_focus": [
+    "Whether adding sine/cosine output coding improves the already-strong 2B angular model.",
+    "Whether the combined model beats both 2B and 3 individually."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "test_metrics": {
+    "distance_mae_m": 0.06462736427783966,
+    "azimuth_mae_deg": 2.8594982624053955,
+    "elevation_mae_deg": 2.5257928371429443,
+    "combined_error": 0.03943054378032684,
+    "mean_spike_rate": 0.03205059468746185,
+    "predicted_distance_std": 1.2754510641098022,
+    "predicted_azimuth_std": 23.876909255981445,
+    "predicted_elevation_std": 15.70189380645752,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.09415245801210403,
+    "y_mae_m": 0.11303268373012543,
+    "z_mae_m": 0.10031414031982422,
+    "euclidean_error_m": 0.2043345719575882
+  },
+  "comparison": {
+    "combined_error_delta": -0.02359086275100708,
+    "distance_mae_delta": -0.07307553291320801,
+    "azimuth_mae_delta": -0.6047241687774658,
+    "elevation_mae_delta": -1.3862648010253906,
+    "spike_rate_delta": -0.007059521973133087
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.036747463047504425,
+    "y_mae_delta": -0.049104511737823486,
+    "z_mae_delta": -0.07116107642650604,
+    "euclidean_error_delta": -0.1101609617471695
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 26.05523870800971,
+    "training_seconds": 828.5627041250118,
+    "evaluation_seconds": 2.7453885420109145,
+    "total_seconds": 831.312723125011
+  },
+  "loss_summary": {
+    "distance_loss": 0.0018298105569556355,
+    "azimuth_loss": 0.0009589927503839135,
+    "elevation_loss": 0.0009043669560924172,
+    "x_loss": 0.018830493092536926,
+    "y_loss": 0.022606536746025085,
+    "z_loss": 0.020062828436493874,
+    "unit_penalty": 0.002986886538565159,
+    "spike_penalty": 0.03205059468746185
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/loss.png",
+    "test_distance_prediction": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/comparison.png",
+    "summary": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/summary.png",
+    "moving_notch_cue": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/notch_detector_centers.png",
+    "angle_norms": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/angle_norms.png",
+    "prediction_cache": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_combined_experiments/round3_combined_experiment_2b_plus_3/coordinate_error_profile.png"
+  }
+}

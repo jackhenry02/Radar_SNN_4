@@ -1,0 +1,87 @@
+{
+  "name": "round3_experiment_3c_orthogonal_combined_notches",
+  "title": "Round 3 Experiment 3C: Orthogonal Combined Azimuth/Elevation Notches",
+  "description": "Combine a common-mode mid-band elevation slope-plus-notch cue with mirrored edge-band azimuth notch-only cues, then decode them with branch-specific detectors that use common-mode features for elevation and difference features for azimuth.",
+  "rationale": "This tests whether cue orthogonality in both the simulator and the branch decoders can keep the two angular tasks from interfering with each other.",
+  "implemented_steps": [
+    "Inject a common-mode elevation slope-plus-notch cue in the middle of the spectral band for both ears.",
+    "Inject mirrored ear-specific azimuth notch-only cues toward the spectral edges.",
+    "Decode elevation from binaural-mean notch features with a mid-band detector bank.",
+    "Decode azimuth from ear-difference notch features with an edge-focused detector bank.",
+    "Keep distance and the rest of the round-2 combined architecture unchanged."
+  ],
+  "analysis_focus": [
+    "Whether separating cue design and detector inputs improves both angles simultaneously.",
+    "Whether the new model beats the control and the earlier single-purpose notch experiments on angular error."
+  ],
+  "output_mode": "baseline",
+  "data_variant": "orthogonal_combined_notches",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.1351204365491867,
+    "azimuth_mae_deg": 3.348869562149048,
+    "elevation_mae_deg": 2.114401340484619,
+    "combined_error": 0.04687110334634781,
+    "mean_spike_rate": 0.03486160933971405,
+    "predicted_distance_std": 1.2916111946105957,
+    "predicted_azimuth_std": 24.946887969970703,
+    "predicted_elevation_std": 16.0235652923584,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.13303624093532562,
+    "y_mae_m": 0.13116517663002014,
+    "z_mae_m": 0.09004150331020355,
+    "euclidean_error_m": 0.23908327519893646
+  },
+  "comparison": {
+    "combined_error_delta": -0.016150303184986115,
+    "distance_mae_delta": -0.002582460641860962,
+    "azimuth_mae_delta": -0.11535286903381348,
+    "elevation_mae_delta": -1.7976562976837158,
+    "spike_rate_delta": -0.00424850732088089
+  },
+  "cartesian_delta": {
+    "x_mae_delta": 0.002136319875717163,
+    "y_mae_delta": -0.030972018837928772,
+    "z_mae_delta": -0.08143371343612671,
+    "euclidean_error_delta": -0.07541225850582123
+  },
+  "training": {
+    "best_epoch": 8,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 25.655291750008473,
+    "training_seconds": 831.7509151669801,
+    "evaluation_seconds": 2.4698876249894965,
+    "total_seconds": 834.2246609579888
+  },
+  "loss_summary": {
+    "distance_loss": 0.02702409029006958,
+    "azimuth_loss": 0.07441932708024979,
+    "elevation_loss": 0.07048005610704422,
+    "x_loss": 0.026607248932123184,
+    "y_loss": 0.026233036071062088,
+    "z_loss": 0.01800830289721489,
+    "spike_penalty": 0.03486160933971405
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/summary.png",
+    "moving_notch_cue": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/moving_notch_cue.png",
+    "azimuth_moving_notch_cue": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/azimuth_moving_notch_cue.png",
+    "orthogonal_elevation_response": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_elevation_response.png",
+    "orthogonal_azimuth_response": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_azimuth_response.png",
+    "orthogonal_elevation_centers": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_elevation_centers.png",
+    "orthogonal_azimuth_centers": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/orthogonal_azimuth_centers.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_3c_orthogonal_combined_notches/coordinate_error_profile.png"
+  }
+}

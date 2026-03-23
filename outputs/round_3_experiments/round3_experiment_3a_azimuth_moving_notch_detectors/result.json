@@ -1,0 +1,86 @@
+{
+  "name": "round3_experiment_3a_azimuth_moving_notch_detectors",
+  "title": "Round 3 Experiment 3A: Ear-Specific Azimuth Notch Detectors",
+  "description": "Add mirrored ear-specific slope-plus-moving-notch azimuth cues upstream of the cochlea and decode them with a dedicated notch-detector residual as a third azimuth pathway stream alongside ITD and ILD.",
+  "rationale": "This tests whether azimuth benefits from richer ear-specific spectral structure, not just time and level differences.",
+  "implemented_steps": [
+    "Keep the base round-2 combined model and 140 dB unnormalized front end.",
+    "Inject mirrored ear-specific azimuth slope-plus-moving-notch spectral cues before the cochlea.",
+    "Build per-ear spike-domain notch profiles from the left and right receive spectra.",
+    "Apply a fixed bank of azimuth notch detectors across channel position for each ear.",
+    "Project left, right, and left-right notch-detector responses into an azimuth-only residual latent."
+  ],
+  "analysis_focus": [
+    "Whether explicit ear-specific notch cues improve azimuth beyond the round-3 control.",
+    "Whether the notch-detector responses remain asymmetric across ears rather than collapsing to identical patterns."
+  ],
+  "output_mode": "baseline",
+  "data_variant": "azimuth_moving_notch",
+  "accepted": false,
+  "decision": "REJECTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.13042859733104706,
+    "azimuth_mae_deg": 2.2428910732269287,
+    "elevation_mae_deg": 7.742853164672852,
+    "combined_error": 0.09827540814876556,
+    "mean_spike_rate": 0.030772320926189423,
+    "predicted_distance_std": 1.3259493112564087,
+    "predicted_azimuth_std": 24.27029800415039,
+    "predicted_elevation_std": 12.807772636413574,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.15008583664894104,
+    "y_mae_m": 0.11000201106071472,
+    "z_mae_m": 0.2768270671367645,
+    "euclidean_error_m": 0.37415701150894165
+  },
+  "comparison": {
+    "combined_error_delta": 0.03525400161743164,
+    "distance_mae_delta": -0.00727429986000061,
+    "azimuth_mae_delta": -1.2213313579559326,
+    "elevation_mae_delta": 3.8307955265045166,
+    "spike_rate_delta": -0.008337795734405518
+  },
+  "cartesian_delta": {
+    "x_mae_delta": 0.01918591558933258,
+    "y_mae_delta": -0.05213518440723419,
+    "z_mae_delta": 0.10535185039043427,
+    "euclidean_error_delta": 0.05966147780418396
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 15.359024292003596,
+    "training_seconds": 476.02154691697797,
+    "evaluation_seconds": 2.143780540995067,
+    "total_seconds": 478.1663084579923
+  },
+  "loss_summary": {
+    "distance_loss": 0.02608571946620941,
+    "azimuth_loss": 0.049842022359371185,
+    "elevation_loss": 0.2580951452255249,
+    "x_loss": 0.03001716546714306,
+    "y_loss": 0.022000402212142944,
+    "z_loss": 0.05536540970206261,
+    "spike_penalty": 0.030772320926189423
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/summary.png",
+    "azimuth_moving_notch_cue": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/azimuth_moving_notch_cue.png",
+    "az_notch_left_response": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_left_response.png",
+    "az_notch_right_response": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_right_response.png",
+    "az_notch_diff_response": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_diff_response.png",
+    "az_notch_detector_centers": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/az_notch_detector_centers.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_3a_azimuth_moving_notch_detectors/coordinate_error_profile.png"
+  }
+}
