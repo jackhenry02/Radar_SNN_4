@@ -1,0 +1,83 @@
+{
+  "name": "round3_experiment_1_lif_coincidence_detectors",
+  "title": "Round 3 Experiment 1: Trainable LIF Coincidence Detectors",
+  "description": "Replace the fixed distance and ITD overlap banks with explicit spike-domain LIF coincidence banks that receive delayed reference spikes and undelayed target spikes.",
+  "rationale": "This tests whether making coincidence detection explicitly spiking and mildly trainable improves the timing pathways without discarding the round-2 inductive bias.",
+  "implemented_steps": [
+    "Keep the full round-2 combined encoder as the base path.",
+    "Build delay-aligned reference spike banks for transmit-to-echo and left-to-right timing cues.",
+    "Feed the delayed reference spikes and the target spikes into trainable LIF coincidence banks.",
+    "Project the resulting coincidence spike rates into residual distance and azimuth latents.",
+    "Train detector weights and membrane beta while keeping the detector thresholds fixed."
+  ],
+  "analysis_focus": [
+    "Whether explicit LIF coincidence banks improve distance or azimuth beyond the round-3 control.",
+    "Whether the learned beta and input weights stay in a sensible regime rather than saturating."
+  ],
+  "output_mode": "baseline",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.10753430426120758,
+    "azimuth_mae_deg": 2.3062667846679688,
+    "elevation_mae_deg": 3.69600510597229,
+    "combined_error": 0.05310162901878357,
+    "mean_spike_rate": 0.03356696292757988,
+    "predicted_distance_std": 1.2307424545288086,
+    "predicted_azimuth_std": 23.748756408691406,
+    "predicted_elevation_std": 15.899450302124023,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.11613143980503082,
+    "y_mae_m": 0.09508242458105087,
+    "z_mae_m": 0.158058300614357,
+    "euclidean_error_m": 0.2482069879770279
+  },
+  "comparison": {
+    "combined_error_delta": -0.009919777512550354,
+    "distance_mae_delta": -0.030168592929840088,
+    "azimuth_mae_delta": -1.1579556465148926,
+    "elevation_mae_delta": -0.21605253219604492,
+    "spike_rate_delta": -0.00554315373301506
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.014768481254577637,
+    "y_mae_delta": -0.06705477088689804,
+    "z_mae_delta": -0.013416916131973267,
+    "euclidean_error_delta": -0.0662885457277298
+  },
+  "training": {
+    "best_epoch": 9,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 16.304383791983128,
+    "training_seconds": 506.00985449997825,
+    "evaluation_seconds": 1.583337958989432,
+    "total_seconds": 507.59410770901013
+  },
+  "loss_summary": {
+    "distance_loss": 0.021506860852241516,
+    "azimuth_loss": 0.05125037580728531,
+    "elevation_loss": 0.1232001781463623,
+    "x_loss": 0.023226287215948105,
+    "y_loss": 0.019016485661268234,
+    "z_loss": 0.031611666083335876,
+    "spike_penalty": 0.03356696292757988
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/summary.png",
+    "lif_distance_left_spikes": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/lif_distance_left_spikes.png",
+    "lif_itd_spikes": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/lif_itd_spikes.png",
+    "lif_betas": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/lif_betas.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/coordinate_error_profile.png"
+  }
+}

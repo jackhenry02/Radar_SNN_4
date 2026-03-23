@@ -1,0 +1,81 @@
+{
+  "name": "round3_experiment_3_sincos_angle_regression",
+  "title": "Round 3 Experiment 3: Sine/Cosine Angle Regression",
+  "description": "Predict azimuth and elevation as sine/cosine pairs, constrain the outputs toward the unit circle, and decode them back to angles only for evaluation and Cartesian regularization.",
+  "rationale": "This tests whether removing angular wraparound from the raw regression target improves optimization.",
+  "implemented_steps": [
+    "Keep the round-2 combined architecture unchanged up to the final readout.",
+    "Increase the readout size from 3 to 5 outputs: distance, azimuth sin/cos, elevation sin/cos.",
+    "Normalize the predicted angle pairs before decoding with atan2.",
+    "Add a unit-circle penalty on the raw pair norms."
+  ],
+  "analysis_focus": [
+    "Whether angular wraparound handling improves azimuth and elevation errors.",
+    "Whether the unit-circle constraint remains active rather than collapsing to near-zero vectors."
+  ],
+  "output_mode": "sincos",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.07704886049032211,
+    "azimuth_mae_deg": 3.3350019454956055,
+    "elevation_mae_deg": 4.282412528991699,
+    "combined_error": 0.05931270495057106,
+    "mean_spike_rate": 0.03180902823805809,
+    "predicted_distance_std": 1.2648673057556152,
+    "predicted_azimuth_std": 24.648223876953125,
+    "predicted_elevation_std": 16.144176483154297,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.09781188517808914,
+    "y_mae_m": 0.12562865018844604,
+    "z_mae_m": 0.17644482851028442,
+    "euclidean_error_m": 0.2705780565738678
+  },
+  "comparison": {
+    "combined_error_delta": -0.003708701580762863,
+    "distance_mae_delta": -0.060654036700725555,
+    "azimuth_mae_delta": -0.12922048568725586,
+    "elevation_mae_delta": 0.37035489082336426,
+    "spike_rate_delta": -0.00730108842253685
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.03308803588151932,
+    "y_mae_delta": -0.03650854527950287,
+    "z_mae_delta": 0.004969611763954163,
+    "euclidean_error_delta": -0.04391747713088989
+  },
+  "training": {
+    "best_epoch": 9,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 15.82713054199121,
+    "training_seconds": 492.1668355409929,
+    "evaluation_seconds": 1.7263692089763936,
+    "total_seconds": 493.8940746669832
+  },
+  "loss_summary": {
+    "distance_loss": 0.002583744702860713,
+    "azimuth_loss": 0.0014705759240314364,
+    "elevation_loss": 0.0022481256164610386,
+    "x_loss": 0.0195623766630888,
+    "y_loss": 0.02512572705745697,
+    "z_loss": 0.0352889709174633,
+    "unit_penalty": 0.0036446242593228817,
+    "spike_penalty": 0.03180902823805809
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/summary.png",
+    "angle_norms": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/angle_norms.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/coordinate_error_profile.png"
+  }
+}

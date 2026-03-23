@@ -1,0 +1,80 @@
+{
+  "name": "round3_experiment_2_comb_filter_elevation",
+  "title": "Round 3 Experiment 2: Comb-Filtered Elevation Features",
+  "description": "Replace the simple spectral-slope style elevation residual with a comb-response residual that measures periodic spectral structure across frequency channels.",
+  "rationale": "This tests whether a richer fixed spectral operator improves elevation cues more than the current slope-like summary.",
+  "implemented_steps": [
+    "Keep the round-2 combined encoder as the base path.",
+    "Build spectral norm and notch terms exactly as before.",
+    "Replace the residual slope-like term with a multi-lag comb response across channels.",
+    "Project the comb feature vector into an elevation residual latent with a small learned gain."
+  ],
+  "analysis_focus": [
+    "Whether the comb response reduces elevation MAE relative to the round-3 control.",
+    "Whether the richer spectral filter improves elevation without damaging distance and azimuth."
+  ],
+  "output_mode": "baseline",
+  "accepted": false,
+  "decision": "REJECTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.16376012563705444,
+    "azimuth_mae_deg": 4.112278461456299,
+    "elevation_mae_deg": 3.9853458404541016,
+    "combined_error": 0.06769056618213654,
+    "mean_spike_rate": 0.036584820598363876,
+    "predicted_distance_std": 1.2722688913345337,
+    "predicted_azimuth_std": 26.016355514526367,
+    "predicted_elevation_std": 16.16472625732422,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.1982000172138214,
+    "y_mae_m": 0.1427680402994156,
+    "z_mae_m": 0.16511467099189758,
+    "euclidean_error_m": 0.33960992097854614
+  },
+  "comparison": {
+    "combined_error_delta": 0.004669159650802612,
+    "distance_mae_delta": 0.026057228446006775,
+    "azimuth_mae_delta": 0.6480560302734375,
+    "elevation_mae_delta": 0.0732882022857666,
+    "spike_rate_delta": -0.002525296062231064
+  },
+  "cartesian_delta": {
+    "x_mae_delta": 0.06730009615421295,
+    "y_mae_delta": -0.019369155168533325,
+    "z_mae_delta": -0.006360545754432678,
+    "euclidean_error_delta": 0.025114387273788452
+  },
+  "training": {
+    "best_epoch": 7,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 16.304383791983128,
+    "training_seconds": 504.17831250000745,
+    "evaluation_seconds": 1.8826724590035155,
+    "total_seconds": 506.0623033750162
+  },
+  "loss_summary": {
+    "distance_loss": 0.03275202587246895,
+    "azimuth_loss": 0.09138397127389908,
+    "elevation_loss": 0.13284488022327423,
+    "x_loss": 0.03964000567793846,
+    "y_loss": 0.028553606942296028,
+    "z_loss": 0.033022936433553696,
+    "spike_penalty": 0.036584820598363876
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/summary.png",
+    "comb_response": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comb_response.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/coordinate_error_profile.png"
+  }
+}

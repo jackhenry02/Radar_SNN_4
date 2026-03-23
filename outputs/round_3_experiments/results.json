@@ -1,0 +1,415 @@
+{
+  "protocol": {
+    "sample_rate_hz": 64000,
+    "transmit_gain": 1000.0,
+    "normalize_spike_envelope": false,
+    "max_range_m": 5.0
+  },
+  "control": {
+    "name": "round3_control_round2_combined_140db_unnormalized",
+    "title": "Round 3 Experiment 0: 140 dB Unnormalized Control",
+    "description": "Re-run the accepted round-2 combined model under the matched-human 140 dB unnormalized front end, with the original angular support and range support extended to 5 m.",
+    "rationale": "This is the fixed control for round 3. It isolates the effect of the new front-end regime and moderately larger range support before any architectural change is added.",
+    "implemented_steps": [
+      "Keep the round-2 combined architecture unchanged.",
+      "Switch the front end to the matched-human configuration.",
+      "Set transmit gain to 1000x under the 1x = 80 dB convention, corresponding to 140 dB.",
+      "Disable per-sample spike-envelope normalization.",
+      "Increase max range to 5 m and automatically extend the signal window."
+    ],
+    "analysis_focus": [
+      "Whether the 140 dB unnormalized front end remains stable on the 5 m task.",
+      "How much prediction spread is retained when support is widened moderately."
+    ],
+    "output_mode": "baseline",
+    "accepted": false,
+    "decision": "CONTROL",
+    "baseline_label": "pathway_split_enhanced trial 10",
+    "test_metrics": {
+      "distance_mae_m": 0.13770289719104767,
+      "azimuth_mae_deg": 3.4642224311828613,
+      "elevation_mae_deg": 3.912057638168335,
+      "combined_error": 0.06302140653133392,
+      "mean_spike_rate": 0.03911011666059494,
+      "predicted_distance_std": 1.3293066024780273,
+      "predicted_azimuth_std": 25.62200164794922,
+      "predicted_elevation_std": 15.816020011901855,
+      "target_distance_std": 1.2673075199127197,
+      "target_azimuth_std": 24.289430618286133,
+      "target_elevation_std": 16.58349609375,
+      "x_mae_m": 0.13089992105960846,
+      "y_mae_m": 0.1621371954679489,
+      "z_mae_m": 0.17147521674633026,
+      "euclidean_error_m": 0.3144955337047577
+    },
+    "comparison": {
+      "combined_error_delta": 0.0,
+      "distance_mae_delta": 0.0,
+      "azimuth_mae_delta": 0.0,
+      "elevation_mae_delta": 0.0,
+      "spike_rate_delta": 0.0
+    },
+    "cartesian_delta": {
+      "x_mae_delta": 0.0,
+      "y_mae_delta": 0.0,
+      "z_mae_delta": 0.0,
+      "euclidean_error_delta": 0.0
+    },
+    "training": {
+      "best_epoch": 10,
+      "executed_epochs": 10
+    },
+    "timings": {
+      "data_prep_seconds": 16.659154791006586,
+      "training_seconds": 487.0883525419922,
+      "evaluation_seconds": 1.75811395898927,
+      "total_seconds": 488.84871158300666
+    },
+    "loss_summary": {
+      "distance_loss": 0.027540579438209534,
+      "azimuth_loss": 0.07698270678520203,
+      "elevation_loss": 0.13040192425251007,
+      "x_loss": 0.026179984211921692,
+      "y_loss": 0.032427433878183365,
+      "z_loss": 0.03429504483938217,
+      "spike_penalty": 0.03911011666059494
+    },
+    "artifacts": {
+      "loss": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/loss.png",
+      "test_distance_prediction": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_distance_prediction.png",
+      "test_azimuth_prediction": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_azimuth_prediction.png",
+      "test_elevation_prediction": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_elevation_prediction.png",
+      "comparison": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/comparison.png",
+      "summary": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/summary.png",
+      "prediction_cache": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_predictions.npz",
+      "coordinate_error_profile": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/coordinate_error_profile.png"
+    }
+  },
+  "experiments": [
+    {
+      "name": "round3_experiment_1_lif_coincidence_detectors",
+      "title": "Round 3 Experiment 1: Trainable LIF Coincidence Detectors",
+      "description": "Replace the fixed distance and ITD overlap banks with explicit spike-domain LIF coincidence banks that receive delayed reference spikes and undelayed target spikes.",
+      "rationale": "This tests whether making coincidence detection explicitly spiking and mildly trainable improves the timing pathways without discarding the round-2 inductive bias.",
+      "implemented_steps": [
+        "Keep the full round-2 combined encoder as the base path.",
+        "Build delay-aligned reference spike banks for transmit-to-echo and left-to-right timing cues.",
+        "Feed the delayed reference spikes and the target spikes into trainable LIF coincidence banks.",
+        "Project the resulting coincidence spike rates into residual distance and azimuth latents.",
+        "Train detector weights and membrane beta while keeping the detector thresholds fixed."
+      ],
+      "analysis_focus": [
+        "Whether explicit LIF coincidence banks improve distance or azimuth beyond the round-3 control.",
+        "Whether the learned beta and input weights stay in a sensible regime rather than saturating."
+      ],
+      "output_mode": "baseline",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "test_metrics": {
+        "distance_mae_m": 0.10753430426120758,
+        "azimuth_mae_deg": 2.3062667846679688,
+        "elevation_mae_deg": 3.69600510597229,
+        "combined_error": 0.05310162901878357,
+        "mean_spike_rate": 0.03356696292757988,
+        "predicted_distance_std": 1.2307424545288086,
+        "predicted_azimuth_std": 23.748756408691406,
+        "predicted_elevation_std": 15.899450302124023,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.11613143980503082,
+        "y_mae_m": 0.09508242458105087,
+        "z_mae_m": 0.158058300614357,
+        "euclidean_error_m": 0.2482069879770279
+      },
+      "comparison": {
+        "combined_error_delta": -0.009919777512550354,
+        "distance_mae_delta": -0.030168592929840088,
+        "azimuth_mae_delta": -1.1579556465148926,
+        "elevation_mae_delta": -0.21605253219604492,
+        "spike_rate_delta": -0.00554315373301506
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.014768481254577637,
+        "y_mae_delta": -0.06705477088689804,
+        "z_mae_delta": -0.013416916131973267,
+        "euclidean_error_delta": -0.0662885457277298
+      },
+      "training": {
+        "best_epoch": 9,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 16.304383791983128,
+        "training_seconds": 506.00985449997825,
+        "evaluation_seconds": 1.583337958989432,
+        "total_seconds": 507.59410770901013
+      },
+      "loss_summary": {
+        "distance_loss": 0.021506860852241516,
+        "azimuth_loss": 0.05125037580728531,
+        "elevation_loss": 0.1232001781463623,
+        "x_loss": 0.023226287215948105,
+        "y_loss": 0.019016485661268234,
+        "z_loss": 0.031611666083335876,
+        "spike_penalty": 0.03356696292757988
+      },
+      "artifacts": {
+        "loss": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/loss.png",
+        "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_elevation_prediction.png",
+        "comparison": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/comparison.png",
+        "summary": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/summary.png",
+        "lif_distance_left_spikes": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/lif_distance_left_spikes.png",
+        "lif_itd_spikes": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/lif_itd_spikes.png",
+        "lif_betas": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/lif_betas.png",
+        "prediction_cache": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_1_lif_coincidence_detectors/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round3_experiment_2_comb_filter_elevation",
+      "title": "Round 3 Experiment 2: Comb-Filtered Elevation Features",
+      "description": "Replace the simple spectral-slope style elevation residual with a comb-response residual that measures periodic spectral structure across frequency channels.",
+      "rationale": "This tests whether a richer fixed spectral operator improves elevation cues more than the current slope-like summary.",
+      "implemented_steps": [
+        "Keep the round-2 combined encoder as the base path.",
+        "Build spectral norm and notch terms exactly as before.",
+        "Replace the residual slope-like term with a multi-lag comb response across channels.",
+        "Project the comb feature vector into an elevation residual latent with a small learned gain."
+      ],
+      "analysis_focus": [
+        "Whether the comb response reduces elevation MAE relative to the round-3 control.",
+        "Whether the richer spectral filter improves elevation without damaging distance and azimuth."
+      ],
+      "output_mode": "baseline",
+      "accepted": false,
+      "decision": "REJECTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "test_metrics": {
+        "distance_mae_m": 0.16376012563705444,
+        "azimuth_mae_deg": 4.112278461456299,
+        "elevation_mae_deg": 3.9853458404541016,
+        "combined_error": 0.06769056618213654,
+        "mean_spike_rate": 0.036584820598363876,
+        "predicted_distance_std": 1.2722688913345337,
+        "predicted_azimuth_std": 26.016355514526367,
+        "predicted_elevation_std": 16.16472625732422,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.1982000172138214,
+        "y_mae_m": 0.1427680402994156,
+        "z_mae_m": 0.16511467099189758,
+        "euclidean_error_m": 0.33960992097854614
+      },
+      "comparison": {
+        "combined_error_delta": 0.004669159650802612,
+        "distance_mae_delta": 0.026057228446006775,
+        "azimuth_mae_delta": 0.6480560302734375,
+        "elevation_mae_delta": 0.0732882022857666,
+        "spike_rate_delta": -0.002525296062231064
+      },
+      "cartesian_delta": {
+        "x_mae_delta": 0.06730009615421295,
+        "y_mae_delta": -0.019369155168533325,
+        "z_mae_delta": -0.006360545754432678,
+        "euclidean_error_delta": 0.025114387273788452
+      },
+      "training": {
+        "best_epoch": 7,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 16.304383791983128,
+        "training_seconds": 504.17831250000745,
+        "evaluation_seconds": 1.8826724590035155,
+        "total_seconds": 506.0623033750162
+      },
+      "loss_summary": {
+        "distance_loss": 0.03275202587246895,
+        "azimuth_loss": 0.09138397127389908,
+        "elevation_loss": 0.13284488022327423,
+        "x_loss": 0.03964000567793846,
+        "y_loss": 0.028553606942296028,
+        "z_loss": 0.033022936433553696,
+        "spike_penalty": 0.036584820598363876
+      },
+      "artifacts": {
+        "loss": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/loss.png",
+        "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_elevation_prediction.png",
+        "comparison": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comparison.png",
+        "summary": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/summary.png",
+        "comb_response": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comb_response.png",
+        "prediction_cache": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round3_experiment_3_sincos_angle_regression",
+      "title": "Round 3 Experiment 3: Sine/Cosine Angle Regression",
+      "description": "Predict azimuth and elevation as sine/cosine pairs, constrain the outputs toward the unit circle, and decode them back to angles only for evaluation and Cartesian regularization.",
+      "rationale": "This tests whether removing angular wraparound from the raw regression target improves optimization.",
+      "implemented_steps": [
+        "Keep the round-2 combined architecture unchanged up to the final readout.",
+        "Increase the readout size from 3 to 5 outputs: distance, azimuth sin/cos, elevation sin/cos.",
+        "Normalize the predicted angle pairs before decoding with atan2.",
+        "Add a unit-circle penalty on the raw pair norms."
+      ],
+      "analysis_focus": [
+        "Whether angular wraparound handling improves azimuth and elevation errors.",
+        "Whether the unit-circle constraint remains active rather than collapsing to near-zero vectors."
+      ],
+      "output_mode": "sincos",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "test_metrics": {
+        "distance_mae_m": 0.07704886049032211,
+        "azimuth_mae_deg": 3.3350019454956055,
+        "elevation_mae_deg": 4.282412528991699,
+        "combined_error": 0.05931270495057106,
+        "mean_spike_rate": 0.03180902823805809,
+        "predicted_distance_std": 1.2648673057556152,
+        "predicted_azimuth_std": 24.648223876953125,
+        "predicted_elevation_std": 16.144176483154297,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.09781188517808914,
+        "y_mae_m": 0.12562865018844604,
+        "z_mae_m": 0.17644482851028442,
+        "euclidean_error_m": 0.2705780565738678
+      },
+      "comparison": {
+        "combined_error_delta": -0.003708701580762863,
+        "distance_mae_delta": -0.060654036700725555,
+        "azimuth_mae_delta": -0.12922048568725586,
+        "elevation_mae_delta": 0.37035489082336426,
+        "spike_rate_delta": -0.00730108842253685
+      },
+      "cartesian_delta": {
+        "x_mae_delta": -0.03308803588151932,
+        "y_mae_delta": -0.03650854527950287,
+        "z_mae_delta": 0.004969611763954163,
+        "euclidean_error_delta": -0.04391747713088989
+      },
+      "training": {
+        "best_epoch": 9,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 15.82713054199121,
+        "training_seconds": 492.1668355409929,
+        "evaluation_seconds": 1.7263692089763936,
+        "total_seconds": 493.8940746669832
+      },
+      "loss_summary": {
+        "distance_loss": 0.002583744702860713,
+        "azimuth_loss": 0.0014705759240314364,
+        "elevation_loss": 0.0022481256164610386,
+        "x_loss": 0.0195623766630888,
+        "y_loss": 0.02512572705745697,
+        "z_loss": 0.0352889709174633,
+        "unit_penalty": 0.0036446242593228817,
+        "spike_penalty": 0.03180902823805809
+      },
+      "artifacts": {
+        "loss": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/loss.png",
+        "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_elevation_prediction.png",
+        "comparison": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/comparison.png",
+        "summary": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/summary.png",
+        "angle_norms": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/angle_norms.png",
+        "prediction_cache": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_3_sincos_angle_regression/coordinate_error_profile.png"
+      }
+    },
+    {
+      "name": "round3_experiment_4_distance01_labels",
+      "title": "Round 3 Experiment 4: 0-1 Distance Labels",
+      "description": "Train the distance output against labels normalized to the 0-1 interval, then decode them back to physical metres for evaluation.",
+      "rationale": "This tests whether a simpler bounded distance target improves conditioning when the range support is wider than the original short task.",
+      "implemented_steps": [
+        "Keep the round-2 combined architecture unchanged up to the final readout.",
+        "Apply a sigmoid to the distance output and train it against 0-1 normalized range labels.",
+        "Keep angle decoding compatible with the baseline target bundle.",
+        "Decode distance back to metres for all reported metrics."
+      ],
+      "analysis_focus": [
+        "Whether the bounded distance code improves distance MAE without harming angle prediction.",
+        "Whether the decoded 0-1 distance output saturates near the support limits."
+      ],
+      "output_mode": "distance01",
+      "accepted": false,
+      "decision": "REJECTED",
+      "baseline_label": "pathway_split_enhanced trial 10",
+      "test_metrics": {
+        "distance_mae_m": 0.23323430120944977,
+        "azimuth_mae_deg": 3.0242273807525635,
+        "elevation_mae_deg": 3.91326904296875,
+        "combined_error": 0.0739881619811058,
+        "mean_spike_rate": 0.02916865050792694,
+        "predicted_distance_std": 1.214760184288025,
+        "predicted_azimuth_std": 25.700162887573242,
+        "predicted_elevation_std": 15.193426132202148,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.22076593339443207,
+        "y_mae_m": 0.15122169256210327,
+        "z_mae_m": 0.16310811042785645,
+        "euclidean_error_m": 0.36533838510513306
+      },
+      "comparison": {
+        "combined_error_delta": 0.010966755449771881,
+        "distance_mae_delta": 0.0955314040184021,
+        "azimuth_mae_delta": -0.43999505043029785,
+        "elevation_mae_delta": 0.001211404800415039,
+        "spike_rate_delta": -0.009941466152668
+      },
+      "cartesian_delta": {
+        "x_mae_delta": 0.08986601233482361,
+        "y_mae_delta": -0.010915502905845642,
+        "z_mae_delta": -0.008367106318473816,
+        "euclidean_error_delta": 0.050842851400375366
+      },
+      "training": {
+        "best_epoch": 10,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 15.82713054199121,
+        "training_seconds": 565.2699266670097,
+        "evaluation_seconds": 1.7287870839936659,
+        "total_seconds": 566.9998651670176
+      },
+      "loss_summary": {
+        "distance_loss": 0.0022595294285565615,
+        "azimuth_loss": 0.067205049097538,
+        "elevation_loss": 0.1304422914981842,
+        "x_loss": 0.04415318742394447,
+        "y_loss": 0.030244337394833565,
+        "z_loss": 0.03262162208557129,
+        "spike_penalty": 0.02916865050792694,
+        "distance01_mean": 0.48278290033340454
+      },
+      "artifacts": {
+        "loss": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/loss.png",
+        "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_elevation_prediction.png",
+        "comparison": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/comparison.png",
+        "summary": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/summary.png",
+        "prediction_cache": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_predictions.npz",
+        "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/coordinate_error_profile.png"
+      }
+    }
+  ],
+  "report_path": "outputs/round_3_experiments_report.md"
+}

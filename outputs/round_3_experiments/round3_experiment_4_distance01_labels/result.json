@@ -1,0 +1,80 @@
+{
+  "name": "round3_experiment_4_distance01_labels",
+  "title": "Round 3 Experiment 4: 0-1 Distance Labels",
+  "description": "Train the distance output against labels normalized to the 0-1 interval, then decode them back to physical metres for evaluation.",
+  "rationale": "This tests whether a simpler bounded distance target improves conditioning when the range support is wider than the original short task.",
+  "implemented_steps": [
+    "Keep the round-2 combined architecture unchanged up to the final readout.",
+    "Apply a sigmoid to the distance output and train it against 0-1 normalized range labels.",
+    "Keep angle decoding compatible with the baseline target bundle.",
+    "Decode distance back to metres for all reported metrics."
+  ],
+  "analysis_focus": [
+    "Whether the bounded distance code improves distance MAE without harming angle prediction.",
+    "Whether the decoded 0-1 distance output saturates near the support limits."
+  ],
+  "output_mode": "distance01",
+  "accepted": false,
+  "decision": "REJECTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.23323430120944977,
+    "azimuth_mae_deg": 3.0242273807525635,
+    "elevation_mae_deg": 3.91326904296875,
+    "combined_error": 0.0739881619811058,
+    "mean_spike_rate": 0.02916865050792694,
+    "predicted_distance_std": 1.214760184288025,
+    "predicted_azimuth_std": 25.700162887573242,
+    "predicted_elevation_std": 15.193426132202148,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.22076593339443207,
+    "y_mae_m": 0.15122169256210327,
+    "z_mae_m": 0.16310811042785645,
+    "euclidean_error_m": 0.36533838510513306
+  },
+  "comparison": {
+    "combined_error_delta": 0.010966755449771881,
+    "distance_mae_delta": 0.0955314040184021,
+    "azimuth_mae_delta": -0.43999505043029785,
+    "elevation_mae_delta": 0.001211404800415039,
+    "spike_rate_delta": -0.009941466152668
+  },
+  "cartesian_delta": {
+    "x_mae_delta": 0.08986601233482361,
+    "y_mae_delta": -0.010915502905845642,
+    "z_mae_delta": -0.008367106318473816,
+    "euclidean_error_delta": 0.050842851400375366
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 15.82713054199121,
+    "training_seconds": 565.2699266670097,
+    "evaluation_seconds": 1.7287870839936659,
+    "total_seconds": 566.9998651670176
+  },
+  "loss_summary": {
+    "distance_loss": 0.0022595294285565615,
+    "azimuth_loss": 0.067205049097538,
+    "elevation_loss": 0.1304422914981842,
+    "x_loss": 0.04415318742394447,
+    "y_loss": 0.030244337394833565,
+    "z_loss": 0.03262162208557129,
+    "spike_penalty": 0.02916865050792694,
+    "distance01_mean": 0.48278290033340454
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/summary.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_4_distance01_labels/coordinate_error_profile.png"
+  }
+}

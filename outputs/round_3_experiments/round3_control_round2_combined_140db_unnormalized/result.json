@@ -1,0 +1,80 @@
+{
+  "name": "round3_control_round2_combined_140db_unnormalized",
+  "title": "Round 3 Experiment 0: 140 dB Unnormalized Control",
+  "description": "Re-run the accepted round-2 combined model under the matched-human 140 dB unnormalized front end, with the original angular support and range support extended to 5 m.",
+  "rationale": "This is the fixed control for round 3. It isolates the effect of the new front-end regime and moderately larger range support before any architectural change is added.",
+  "implemented_steps": [
+    "Keep the round-2 combined architecture unchanged.",
+    "Switch the front end to the matched-human configuration.",
+    "Set transmit gain to 1000x under the 1x = 80 dB convention, corresponding to 140 dB.",
+    "Disable per-sample spike-envelope normalization.",
+    "Increase max range to 5 m and automatically extend the signal window."
+  ],
+  "analysis_focus": [
+    "Whether the 140 dB unnormalized front end remains stable on the 5 m task.",
+    "How much prediction spread is retained when support is widened moderately."
+  ],
+  "output_mode": "baseline",
+  "accepted": false,
+  "decision": "CONTROL",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.13770289719104767,
+    "azimuth_mae_deg": 3.4642224311828613,
+    "elevation_mae_deg": 3.912057638168335,
+    "combined_error": 0.06302140653133392,
+    "mean_spike_rate": 0.03911011666059494,
+    "predicted_distance_std": 1.3293066024780273,
+    "predicted_azimuth_std": 25.62200164794922,
+    "predicted_elevation_std": 15.816020011901855,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.13089992105960846,
+    "y_mae_m": 0.1621371954679489,
+    "z_mae_m": 0.17147521674633026,
+    "euclidean_error_m": 0.3144955337047577
+  },
+  "comparison": {
+    "combined_error_delta": 0.0,
+    "distance_mae_delta": 0.0,
+    "azimuth_mae_delta": 0.0,
+    "elevation_mae_delta": 0.0,
+    "spike_rate_delta": 0.0
+  },
+  "cartesian_delta": {
+    "x_mae_delta": 0.0,
+    "y_mae_delta": 0.0,
+    "z_mae_delta": 0.0,
+    "euclidean_error_delta": 0.0
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 16.659154791006586,
+    "training_seconds": 487.0883525419922,
+    "evaluation_seconds": 1.75811395898927,
+    "total_seconds": 488.84871158300666
+  },
+  "loss_summary": {
+    "distance_loss": 0.027540579438209534,
+    "azimuth_loss": 0.07698270678520203,
+    "elevation_loss": 0.13040192425251007,
+    "x_loss": 0.026179984211921692,
+    "y_loss": 0.032427433878183365,
+    "z_loss": 0.03429504483938217,
+    "spike_penalty": 0.03911011666059494
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/summary.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_control_round2_combined_140db_unnormalized/coordinate_error_profile.png"
+  }
+}
