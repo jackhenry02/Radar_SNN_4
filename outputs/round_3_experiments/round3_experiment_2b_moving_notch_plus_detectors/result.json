@@ -1,0 +1,83 @@
+{
+  "name": "round3_experiment_2b_moving_notch_plus_detectors",
+  "title": "Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors",
+  "description": "Use the same slope-plus-moving-notch simulator cue as 2A and add an explicit notch-detector bank in the elevation branch to decode notch position from the spike-domain spectrum.",
+  "rationale": "This tests the full two-stage hypothesis: a richer cue may need an aligned decoder before it helps.",
+  "implemented_steps": [
+    "Use the same simulator-side slope-plus-moving-notch cue as Experiment 2A.",
+    "Compute post-cochlea spectral notch features from the binaural spike counts.",
+    "Apply a fixed bank of Gaussian notch detectors across channel position.",
+    "Project detector responses into a learned residual added only to the elevation latent."
+  ],
+  "analysis_focus": [
+    "Whether explicit notch-location decoding improves elevation beyond both the control and 2A.",
+    "Whether the detector responses cover the channel range or collapse to a narrow subset."
+  ],
+  "output_mode": "baseline",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "pathway_split_enhanced trial 10",
+  "test_metrics": {
+    "distance_mae_m": 0.10377191007137299,
+    "azimuth_mae_deg": 2.8269975185394287,
+    "elevation_mae_deg": 1.9385831356048584,
+    "combined_error": 0.03959975764155388,
+    "mean_spike_rate": 0.031495533883571625,
+    "predicted_distance_std": 1.2087178230285645,
+    "predicted_azimuth_std": 23.189111709594727,
+    "predicted_elevation_std": 16.601900100708008,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.10948140174150467,
+    "y_mae_m": 0.11779571324586868,
+    "z_mae_m": 0.08494240790605545,
+    "euclidean_error_m": 0.2126871943473816
+  },
+  "comparison": {
+    "combined_error_delta": -0.023421648889780045,
+    "distance_mae_delta": -0.03393098711967468,
+    "azimuth_mae_delta": -0.6372249126434326,
+    "elevation_mae_delta": -1.9734745025634766,
+    "spike_rate_delta": -0.007614582777023315
+  },
+  "cartesian_delta": {
+    "x_mae_delta": -0.02141851931810379,
+    "y_mae_delta": -0.04434148222208023,
+    "z_mae_delta": -0.08653280884027481,
+    "euclidean_error_delta": -0.1018083393573761
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 15.48948645798373,
+    "training_seconds": 504.57937666698126,
+    "evaluation_seconds": 1.6272765840112697,
+    "total_seconds": 506.20736729100463
+  },
+  "loss_summary": {
+    "distance_loss": 0.020754382014274597,
+    "azimuth_loss": 0.06282217055559158,
+    "elevation_loss": 0.06461942940950394,
+    "x_loss": 0.021896280348300934,
+    "y_loss": 0.023559141904115677,
+    "z_loss": 0.01698848232626915,
+    "spike_penalty": 0.031495533883571625
+  },
+  "artifacts": {
+    "loss": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/loss.png",
+    "test_distance_prediction": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/test_elevation_prediction.png",
+    "comparison": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/comparison.png",
+    "summary": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/summary.png",
+    "moving_notch_cue": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/notch_detector_centers.png",
+    "prediction_cache": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/test_predictions.npz",
+    "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/coordinate_error_profile.png"
+  }
+}

@@ -51,6 +51,9 @@ class GlobalConfig:
     jitter_std_s: float = 2.5e-5
     head_shadow_strength: float = 0.32
     elevation_spectral_strength: float = 0.75
+    elevation_cue_mode: str = "slope"
+    elevation_notch_strength: float = 1.8
+    elevation_notch_width: float = 0.065
     seed: int = 7
 
     @property

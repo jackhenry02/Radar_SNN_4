@@ -40,6 +40,8 @@ Round 3 keeps the round-2 combined model as the structural baseline, changes the
 | --- | --- | --- | --- | --- | --- | --- |
 | Round 3 Experiment 1: Trainable LIF Coincidence Detectors | 0.0531 | 0.2482 | 0.1075 | 2.3063 | 3.6960 | Yes |
 | Round 3 Experiment 2: Comb-Filtered Elevation Features | 0.0677 | 0.3396 | 0.1638 | 4.1123 | 3.9853 | No |
+| Round 3 Experiment 2A: Moving-Notch Elevation Cue | 0.0432 | 0.2249 | 0.1198 | 2.5915 | 2.1565 | Yes |
+| Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors | 0.0396 | 0.2127 | 0.1038 | 2.8270 | 1.9386 | Yes |
 | Round 3 Experiment 3: Sine/Cosine Angle Regression | 0.0593 | 0.2706 | 0.0770 | 3.3350 | 4.2824 | Yes |
 | Round 3 Experiment 4: 0-1 Distance Labels | 0.0740 | 0.3653 | 0.2332 | 3.0242 | 3.9133 | No |
 
@@ -50,6 +52,7 @@ Round 3 keeps the round-2 combined model as the structural baseline, changes the
 - Change: Replace the fixed distance and ITD overlap banks with explicit spike-domain LIF coincidence banks that receive delayed reference spikes and undelayed target spikes.
 - Rationale: This tests whether making coincidence detection explicitly spiking and mildly trainable improves the timing pathways without discarding the round-2 inductive bias.
 - Decision vs control: `ACCEPTED`
+- Data variant: `base`
 
 Implementation details:
 - Keep the full round-2 combined encoder as the base path.
@@ -94,6 +97,7 @@ Timing:
 - Change: Replace the simple spectral-slope style elevation residual with a comb-response residual that measures periodic spectral structure across frequency channels.
 - Rationale: This tests whether a richer fixed spectral operator improves elevation cues more than the current slope-like summary.
 - Decision vs control: `REJECTED`
+- Data variant: `base`
 
 Implementation details:
 - Keep the round-2 combined encoder as the base path.
@@ -131,20 +135,119 @@ Timing:
 
 Comb-filter explanation:
 - This is not a temporal comb filter on the waveform.
-- It is a frequency-channel operator applied to the normalized binaural spike-count spectrum after the cochlea and spike encoding.
-- First, left and right receive spikes are summed over time to get per-channel spike counts, then combined into a normalized spectrum `x[c]`.
-- For each lag `k`, the operator computes `|x[c] - 0.5 * (x[c-k] + x[c+k])|`, so a channel responds strongly when it differs from its symmetric neighbours.
-- Lags `2`, `4`, and `6` channels are averaged, giving a richer periodic spectral-contrast cue than the previous simple slope-like summary.
-- The resulting comb-response vector is concatenated with the existing spectral norm and notch terms, projected through a learned linear layer, and added as a residual only to the elevation latent.
-
+- It is a frequency-channel operator applied to the normalized binaural spike-count spectrum.
+- For each lag `k`, it computes `|x[c] - 0.5 * (x[c-k] + x[c+k])|`, so a channel is large when it differs from its symmetric neighbours.
+- Lags `2`, `4`, and `6` are averaged, giving a richer spectral-periodicity cue than the previous simple slope term.
 ![Round 3 Experiment 2: Comb-Filtered Elevation Features comb response](round_3_experiments/round3_experiment_2_comb_filter_elevation/comb_response.png)
 ![Round 3 Experiment 2: Comb-Filtered Elevation Features comb operator](round_3_experiments/round3_experiment_2_comb_filter_elevation/comb_filter_operator.png)
+
+### Round 3 Experiment 2A: Moving-Notch Elevation Cue
+
+- Change: Keep the round-2 combined model unchanged, but replace the simulator-side slope-only elevation cue with a slope-plus-moving-notch spectral cue whose notch position shifts with elevation.
+- Rationale: This isolates whether richer elevation information in the acoustic front end improves performance even before adding any dedicated notch decoder.
+- Decision vs control: `ACCEPTED`
+- Data variant: `moving_notch`
+
+Implementation details:
+- Keep the round-2 combined encoder and readout unchanged.
+- Change the simulator elevation cue from `slope` to `slope + moving notch`.
+- Map elevation smoothly to notch center position across the cochlear frequency span.
+- Reuse the same matched-human 140 dB unnormalized front end and 5 m support.
+
+Analysis focus:
+- Whether richer elevation structure in the data alone improves elevation MAE.
+- Whether the unchanged decoder can exploit the moving-notch cue without an explicit notch bank.
+
+Metrics:
+- Combined error: `0.0432`
+- Distance MAE: `0.1198 m`
+- Azimuth MAE: `2.5915 deg`
+- Elevation MAE: `2.1565 deg`
+- Euclidean error: `0.2249 m`
+
+Delta vs control:
+- Combined error delta: `-0.0199`
+- Distance MAE delta: `-0.0179`
+- Azimuth MAE delta: `-0.8727`
+- Elevation MAE delta: `-1.7555`
+- Euclidean delta: `-0.0896 m`
+
+Timing:
+- Training: `459.13 s`
+- Evaluation: `1.52 s`
+- Total: `460.66 s`
+
+![Round 3 Experiment 2A: Moving-Notch Elevation Cue loss](round_3_experiments/round3_experiment_2a_moving_notch_cue/loss.png)
+![Round 3 Experiment 2A: Moving-Notch Elevation Cue comparison](round_3_experiments/round3_experiment_2a_moving_notch_cue/comparison.png)
+![Round 3 Experiment 2A: Moving-Notch Elevation Cue distance](round_3_experiments/round3_experiment_2a_moving_notch_cue/test_distance_prediction.png)
+![Round 3 Experiment 2A: Moving-Notch Elevation Cue coordinate profile](round_3_experiments/round3_experiment_2a_moving_notch_cue/coordinate_error_profile.png)
+
+Moving-notch cue explanation:
+- The simulator keeps the original elevation-dependent slope cue and multiplies it by a Gaussian spectral notch.
+- The notch center shifts smoothly across frequency with elevation, so lower elevations suppress lower-frequency channels and higher elevations suppress higher-frequency channels.
+- This cue is injected upstream of the cochlea, so it changes the spike distribution before the elevation branch sees the input.
+![Round 3 Experiment 2A: Moving-Notch Elevation Cue moving notch cue](round_3_experiments/round3_experiment_2a_moving_notch_cue/moving_notch_cue.png)
+
+### Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors
+
+- Change: Use the same slope-plus-moving-notch simulator cue as 2A and add an explicit notch-detector bank in the elevation branch to decode notch position from the spike-domain spectrum.
+- Rationale: This tests the full two-stage hypothesis: a richer cue may need an aligned decoder before it helps.
+- Decision vs control: `ACCEPTED`
+- Data variant: `moving_notch`
+
+Implementation details:
+- Use the same simulator-side slope-plus-moving-notch cue as Experiment 2A.
+- Compute post-cochlea spectral notch features from the binaural spike counts.
+- Apply a fixed bank of Gaussian notch detectors across channel position.
+- Project detector responses into a learned residual added only to the elevation latent.
+
+Analysis focus:
+- Whether explicit notch-location decoding improves elevation beyond both the control and 2A.
+- Whether the detector responses cover the channel range or collapse to a narrow subset.
+
+Metrics:
+- Combined error: `0.0396`
+- Distance MAE: `0.1038 m`
+- Azimuth MAE: `2.8270 deg`
+- Elevation MAE: `1.9386 deg`
+- Euclidean error: `0.2127 m`
+
+Delta vs control:
+- Combined error delta: `-0.0234`
+- Distance MAE delta: `-0.0339`
+- Azimuth MAE delta: `-0.6372`
+- Elevation MAE delta: `-1.9735`
+- Euclidean delta: `-0.1018 m`
+
+Timing:
+- Training: `504.58 s`
+- Evaluation: `1.63 s`
+- Total: `506.21 s`
+
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors loss](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/loss.png)
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors comparison](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/comparison.png)
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors distance](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/test_distance_prediction.png)
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors coordinate profile](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/coordinate_error_profile.png)
+
+Moving-notch cue explanation:
+- The simulator keeps the original elevation-dependent slope cue and multiplies it by a Gaussian spectral notch.
+- The notch center shifts smoothly across frequency with elevation, so lower elevations suppress lower-frequency channels and higher elevations suppress higher-frequency channels.
+- This cue is injected upstream of the cochlea, so it changes the spike distribution before the elevation branch sees the input.
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors moving notch cue](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/moving_notch_cue.png)
+
+Notch-detector explanation:
+- The elevation branch computes the spike-domain spectral notch profile and applies a fixed bank of Gaussian detectors across channel position.
+- Each detector reports how much notch energy is present near one channel region, turning notch location into an explicit feature vector.
+- That detector-response vector is projected into a learned residual added only to the elevation latent.
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors notch detector responses](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/notch_detector_response.png)
+![Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors notch detector centers](round_3_experiments/round3_experiment_2b_moving_notch_plus_detectors/notch_detector_centers.png)
 
 ### Round 3 Experiment 3: Sine/Cosine Angle Regression
 
 - Change: Predict azimuth and elevation as sine/cosine pairs, constrain the outputs toward the unit circle, and decode them back to angles only for evaluation and Cartesian regularization.
 - Rationale: This tests whether removing angular wraparound from the raw regression target improves optimization.
 - Decision vs control: `ACCEPTED`
+- Data variant: `base`
 
 Implementation details:
 - Keep the round-2 combined architecture unchanged up to the final readout.
@@ -186,6 +289,7 @@ Timing:
 - Change: Train the distance output against labels normalized to the 0-1 interval, then decode them back to physical metres for evaluation.
 - Rationale: This tests whether a simpler bounded distance target improves conditioning when the range support is wider than the original short task.
 - Decision vs control: `REJECTED`
+- Data variant: `base`
 
 Implementation details:
 - Keep the round-2 combined architecture unchanged up to the final readout.
@@ -223,6 +327,6 @@ Timing:
 
 ## Summary
 
-- Accepted experiments: Round 3 Experiment 1: Trainable LIF Coincidence Detectors, Round 3 Experiment 3: Sine/Cosine Angle Regression
+- Accepted experiments: Round 3 Experiment 1: Trainable LIF Coincidence Detectors, Round 3 Experiment 2A: Moving-Notch Elevation Cue, Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors, Round 3 Experiment 3: Sine/Cosine Angle Regression
 - Round 3 uses the fresh 5 m, 140 dB, unnormalized control as the only reference.
 - Any accepted variant should be rerun on a longer schedule before it replaces the current short-run baseline.

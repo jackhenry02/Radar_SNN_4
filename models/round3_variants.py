@@ -199,3 +199,63 @@ class CombFilterElevationEncoder(nn.Module):
             spike_proxy=base.spike_proxy,
             diagnostics=diagnostics,
         )
+
+
+class NotchDetectorElevationEncoder(nn.Module):
+    def __init__(
+        self,
+        *,
+        base_encoder: AllRound2Encoder,
+        branch_hidden_dim: int,
+        num_frequency_channels: int,
+        num_detectors: int = 12,
+        detector_width_channels: float = 2.5,
+    ) -> None:
+        super().__init__()
+        self.branch_hidden_dim = branch_hidden_dim
+        self.base_encoder = base_encoder
+        self.fusion_resonance_projection = base_encoder.fusion_resonance_projection
+        self.num_frequency_channels = num_frequency_channels
+
+        channel_axis = torch.arange(num_frequency_channels, dtype=torch.float32)
+        detector_centers = torch.linspace(0.0, float(num_frequency_channels - 1), steps=num_detectors)
+        templates = torch.exp(
+            -0.5 * ((channel_axis.unsqueeze(0) - detector_centers.unsqueeze(1)) / detector_width_channels).square()
+        )
+        templates = templates / templates.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        self.register_buffer("detector_centers", detector_centers)
+        self.register_buffer("detector_templates", templates)
+
+        self.detector_projection = nn.Linear(num_detectors, branch_hidden_dim)
+        self.detector_gain = nn.Parameter(torch.tensor(-1.0))
+
+    def forward(self, batch: ExperimentBatch) -> BranchEncoding:
+        if batch.receive_spikes is None:
+            raise ValueError("NotchDetectorElevationEncoder requires receive spikes.")
+        base = self.base_encoder(batch)
+
+        left_counts = batch.receive_spikes[:, 0].float().sum(dim=-1)
+        right_counts = batch.receive_spikes[:, 1].float().sum(dim=-1)
+        spectral_counts = left_counts + right_counts
+        spectral_norm = spectral_counts / spectral_counts.sum(dim=-1, keepdim=True).clamp_min(1.0)
+        local_mean = F.avg_pool1d(spectral_norm.unsqueeze(1), kernel_size=3, stride=1, padding=1).squeeze(1)
+        spectral_notches = F.relu(local_mean - spectral_norm)
+
+        detector_response = spectral_notches @ self.detector_templates.transpose(0, 1)
+        detector_residual = self.detector_projection(F.layer_norm(detector_response, (detector_response.shape[-1],)))
+        detector_scale = 0.30 * torch.sigmoid(self.detector_gain)
+
+        diagnostics = {
+            **base.diagnostics,
+            "notch_detector_response": detector_response.detach(),
+            "notch_detector_centers": self.detector_centers.detach(),
+            "notch_detector_scale": detector_scale.detach(),
+        }
+        return BranchEncoding(
+            distance_latent=base.distance_latent,
+            azimuth_latent=base.azimuth_latent,
+            elevation_latent=F.relu(base.elevation_latent + detector_scale * detector_residual),
+            spectral_source=base.spectral_source,
+            spike_proxy=base.spike_proxy,
+            diagnostics=diagnostics,
+        )

@@ -13,9 +13,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from models.acoustics import elevation_spectral_gain_profile
 from models.experimental_variants import ExperimentBatch
 from models.round2_variants import AllRound2CombinedModel, AllRound2Encoder
-from models.round3_variants import CombFilterElevationEncoder, LIFCoincidenceRound3Encoder
+from models.round3_variants import CombFilterElevationEncoder, LIFCoincidenceRound3Encoder, NotchDetectorElevationEncoder
 from stages.base import StageContext
 from stages.cochlea_explained import _matched_human_band_config
 from stages.combined_experiment import _save_coordinate_error_profiles, _save_prediction_cache
@@ -49,6 +50,7 @@ class Round3ExperimentSpec:
     implemented_steps: list[str]
     analysis_focus: list[str]
     training_overrides: dict[str, Any]
+    data_variant: str = "base"
 
 
 @dataclass
@@ -102,6 +104,21 @@ def _round3_base_config(base: GlobalConfig) -> GlobalConfig:
         "transmit_gain": 1_000.0,
     }
     return GlobalConfig(**payload)
+
+
+def _round3_variant_config(base: GlobalConfig, data_variant: str) -> GlobalConfig:
+    if data_variant == "base":
+        return base
+    if data_variant == "moving_notch":
+        return GlobalConfig(
+            **{
+                **base.__dict__,
+                "elevation_cue_mode": "slope_notch",
+                "elevation_notch_strength": 1.8,
+                "elevation_notch_width": 0.065,
+            }
+        )
+    raise ValueError(f"Unsupported round-3 data variant '{data_variant}'.")
 
 
 def _round3_specs() -> list[Round3ExperimentSpec]:
@@ -182,6 +199,57 @@ def _round3_specs() -> list[Round3ExperimentSpec]:
                 "Whether the richer spectral filter improves elevation without damaging distance and azimuth.",
             ],
             training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.5},
+        ),
+        Round3ExperimentSpec(
+            name="round3_experiment_2a_moving_notch_cue",
+            title="Round 3 Experiment 2A: Moving-Notch Elevation Cue",
+            description=(
+                "Keep the round-2 combined model unchanged, but replace the simulator-side slope-only elevation cue "
+                "with a slope-plus-moving-notch spectral cue whose notch position shifts with elevation."
+            ),
+            rationale=(
+                "This isolates whether richer elevation information in the acoustic front end improves performance even "
+                "before adding any dedicated notch decoder."
+            ),
+            variant="control_baseline",
+            output_mode="baseline",
+            implemented_steps=[
+                "Keep the round-2 combined encoder and readout unchanged.",
+                "Change the simulator elevation cue from `slope` to `slope + moving notch`.",
+                "Map elevation smoothly to notch center position across the cochlear frequency span.",
+                "Reuse the same matched-human 140 dB unnormalized front end and 5 m support.",
+            ],
+            analysis_focus=[
+                "Whether richer elevation structure in the data alone improves elevation MAE.",
+                "Whether the unchanged decoder can exploit the moving-notch cue without an explicit notch bank.",
+            ],
+            training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.5},
+            data_variant="moving_notch",
+        ),
+        Round3ExperimentSpec(
+            name="round3_experiment_2b_moving_notch_plus_detectors",
+            title="Round 3 Experiment 2B: Moving-Notch Cue Plus Notch Detectors",
+            description=(
+                "Use the same slope-plus-moving-notch simulator cue as 2A and add an explicit notch-detector bank in "
+                "the elevation branch to decode notch position from the spike-domain spectrum."
+            ),
+            rationale=(
+                "This tests the full two-stage hypothesis: a richer cue may need an aligned decoder before it helps."
+            ),
+            variant="notch_detector_elevation",
+            output_mode="baseline",
+            implemented_steps=[
+                "Use the same simulator-side slope-plus-moving-notch cue as Experiment 2A.",
+                "Compute post-cochlea spectral notch features from the binaural spike counts.",
+                "Apply a fixed bank of Gaussian notch detectors across channel position.",
+                "Project detector responses into a learned residual added only to the elevation latent.",
+            ],
+            analysis_focus=[
+                "Whether explicit notch-location decoding improves elevation beyond both the control and 2A.",
+                "Whether the detector responses cover the channel range or collapse to a narrow subset.",
+            ],
+            training_overrides={"batch_size": 8, "learning_rate_scale": 0.9, "cartesian_mix_weight": 0.5},
+            data_variant="moving_notch",
         ),
         Round3ExperimentSpec(
             name="round3_experiment_3_sincos_angle_regression",
@@ -282,6 +350,12 @@ def _instantiate_round3_model(
         )
     elif spec.variant == "comb_elevation":
         encoder = CombFilterElevationEncoder(
+            base_encoder=base_encoder,
+            branch_hidden_dim=int(params["branch_hidden_dim"]),
+            num_frequency_channels=int(params["num_frequency_channels"]),
+        )
+    elif spec.variant == "notch_detector_elevation":
+        encoder = NotchDetectorElevationEncoder(
             base_encoder=base_encoder,
             branch_hidden_dim=int(params["branch_hidden_dim"]),
             num_frequency_channels=int(params["num_frequency_channels"]),
@@ -562,6 +636,41 @@ def _save_comb_filter_operator_plot(path: Path, lags: tuple[int, ...] = (2, 4, 6
     return str(path)
 
 
+def _save_moving_notch_cue_plot(config: GlobalConfig, path: Path) -> str:
+    sampled_elevations = torch.linspace(-30.0, 30.0, 121, dtype=torch.float32)
+    frequencies_hz = torch.fft.rfftfreq(config.signal_samples, d=1.0 / config.sample_rate_hz)
+    gain, _ = elevation_spectral_gain_profile(
+        config,
+        sampled_elevations,
+        frequencies_hz.shape[0],
+        device=sampled_elevations.device,
+        dtype=torch.float32,
+    )
+    gain_db = 20.0 * torch.log10(gain.clamp_min(1e-6))
+    freq_np = frequencies_hz.detach().cpu().numpy() / 1_000.0
+    elev_np = sampled_elevations.detach().cpu().numpy()
+    gain_db_np = gain_db.detach().cpu().numpy()
+
+    fig, ax = plt.subplots(figsize=(9.5, 5.0))
+    visible_max_khz = min(float(config.sample_rate_hz) / 2_000.0, max(config.cochlea_high_hz, config.chirp_start_hz) / 1_000.0 * 1.05)
+    visible_mask = freq_np <= visible_max_khz
+    contour = ax.contourf(
+        freq_np[visible_mask],
+        elev_np,
+        gain_db_np[:, visible_mask],
+        levels=25,
+        cmap="coolwarm",
+    )
+    ax.set_title("Moving-Notch Elevation Cue")
+    ax.set_xlabel("Frequency (kHz)")
+    ax.set_ylabel("Elevation (deg)")
+    fig.colorbar(contour, ax=ax, label="Gain (dB)")
+    fig.tight_layout()
+    fig.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return str(path)
+
+
 def _save_round3_outputs(
     stage_root: Path,
     spec: Round3ExperimentSpec,
@@ -570,6 +679,7 @@ def _save_round3_outputs(
     evaluation: ExperimentEvaluation,
     baseline_metrics: dict[str, Any],
     diagnostics: dict[str, torch.Tensor],
+    local_config: GlobalConfig,
 ) -> dict[str, str]:
     stage_dir = stage_root / spec.name
     stage_dir.mkdir(parents=True, exist_ok=True)
@@ -652,6 +762,9 @@ def _save_round3_outputs(
         "summary": str(stage_dir / "summary.png"),
     }
 
+    if spec.data_variant == "moving_notch":
+        artifacts["moving_notch_cue"] = _save_moving_notch_cue_plot(local_config, stage_dir / "moving_notch_cue.png")
+
     if "lif_distance_left_spikes" in diagnostics:
         save_heatmap(
             diagnostics["lif_distance_left_spikes"][0].detach().cpu(),
@@ -689,6 +802,22 @@ def _save_round3_outputs(
         )
         artifacts["comb_response"] = str(stage_dir / "comb_response.png")
         artifacts["comb_filter_operator"] = _save_comb_filter_operator_plot(stage_dir / "comb_filter_operator.png")
+
+    if "notch_detector_response" in diagnostics:
+        save_heatmap(
+            diagnostics["notch_detector_response"][:24].detach().cpu(),
+            stage_dir / "notch_detector_response.png",
+            f"{spec.title} Notch Detector Responses",
+            xlabel="Detector",
+            ylabel="Sample",
+        )
+        artifacts["notch_detector_response"] = str(stage_dir / "notch_detector_response.png")
+        artifacts["notch_detector_centers"] = _save_line_plot(
+            {"Detector Center": diagnostics["notch_detector_centers"].detach().cpu().numpy()},
+            stage_dir / "notch_detector_centers.png",
+            "Notch Detector Centers",
+            "Channel",
+        )
 
     if "output_az_raw_norm" in diagnostics:
         artifacts["angle_norms"] = _save_line_plot(
@@ -771,6 +900,7 @@ def _round3_report(
                 f"- Change: {item['description']}",
                 f"- Rationale: {item['rationale']}",
                 f"- Decision vs control: `{'ACCEPTED' if item['accepted'] else 'REJECTED'}`",
+                f"- Data variant: `{item.get('data_variant', 'base')}`",
                 "",
                 "Implementation details:",
             ]
@@ -826,6 +956,30 @@ def _round3_report(
             lines.append(f"![{item['title']} comb response](round_3_experiments/{item['name']}/comb_response.png)")
         if item["artifacts"].get("comb_filter_operator"):
             lines.append(f"![{item['title']} comb operator](round_3_experiments/{item['name']}/comb_filter_operator.png)")
+        if item["artifacts"].get("moving_notch_cue"):
+            lines.extend(
+                [
+                    "",
+                    "Moving-notch cue explanation:",
+                    "- The simulator keeps the original elevation-dependent slope cue and multiplies it by a Gaussian spectral notch.",
+                    "- The notch center shifts smoothly across frequency with elevation, so lower elevations suppress lower-frequency channels and higher elevations suppress higher-frequency channels.",
+                    "- This cue is injected upstream of the cochlea, so it changes the spike distribution before the elevation branch sees the input.",
+                ]
+            )
+            lines.append(f"![{item['title']} moving notch cue](round_3_experiments/{item['name']}/moving_notch_cue.png)")
+        if item["artifacts"].get("notch_detector_response"):
+            lines.extend(
+                [
+                    "",
+                    "Notch-detector explanation:",
+                    "- The elevation branch computes the spike-domain spectral notch profile and applies a fixed bank of Gaussian detectors across channel position.",
+                    "- Each detector reports how much notch energy is present near one channel region, turning notch location into an explicit feature vector.",
+                    "- That detector-response vector is projected into a learned residual added only to the elevation latent.",
+                ]
+            )
+            lines.append(f"![{item['title']} notch detector responses](round_3_experiments/{item['name']}/notch_detector_response.png)")
+        if item["artifacts"].get("notch_detector_centers"):
+            lines.append(f"![{item['title']} notch detector centers](round_3_experiments/{item['name']}/notch_detector_centers.png)")
         if item["artifacts"].get("angle_norms"):
             lines.append(f"![{item['title']} angle norms](round_3_experiments/{item['name']}/angle_norms.png)")
         lines.append("")
@@ -861,12 +1015,26 @@ def run_round_3_experiments(config: GlobalConfig, outputs: Any) -> dict[str, Any
     stage_root = outputs.root / "round_3_experiments"
     stage_root.mkdir(parents=True, exist_ok=True)
 
-    prep_start = time.perf_counter()
-    data = _prepare_expanded_data(context, base_params, support_spec, chunk_size=16)
-    baseline_bundle = _prepare_target_bundle(data)
-    sincos_bundle = _prepare_sincos_target_bundle(data)
-    distance01_bundle = _prepare_distance01_target_bundle(data, data.local_config)
-    data_prep_seconds = time.perf_counter() - prep_start
+    data_cache: dict[str, dict[str, Any]] = {}
+
+    def get_variant_payload(data_variant: str) -> dict[str, Any]:
+        if data_variant in data_cache:
+            return data_cache[data_variant]
+        variant_config = _round3_variant_config(effective_config, data_variant)
+        variant_context = StageContext(config=variant_config, device=context.device, outputs=outputs, shared=context.shared)
+        prep_start = time.perf_counter()
+        variant_data = _prepare_expanded_data(variant_context, base_params, support_spec, chunk_size=16)
+        payload = {
+            "data": variant_data,
+            "baseline_bundle": _prepare_target_bundle(variant_data),
+            "sincos_bundle": _prepare_sincos_target_bundle(variant_data),
+            "distance01_bundle": _prepare_distance01_target_bundle(variant_data, variant_data.local_config),
+            "data_prep_seconds": time.perf_counter() - prep_start,
+        }
+        data_cache[data_variant] = payload
+        return payload
+
+    get_variant_payload("base")
 
     results: list[dict[str, Any]] = []
     control_result: dict[str, Any] | None = None
@@ -880,6 +1048,13 @@ def run_round_3_experiments(config: GlobalConfig, outputs: Any) -> dict[str, Any
             else:
                 results.append(existing_result)
             continue
+
+        variant_payload = get_variant_payload(spec.data_variant)
+        data: PreparedExperimentData = variant_payload["data"]
+        baseline_bundle: TargetBundle = variant_payload["baseline_bundle"]
+        sincos_bundle: SinCosTargetBundle = variant_payload["sincos_bundle"]
+        distance01_bundle: Distance01TargetBundle = variant_payload["distance01_bundle"]
+        data_prep_seconds = float(variant_payload["data_prep_seconds"])
 
         seed_everything(effective_config.seed + index)
         print(f"[round_3] running {spec.name} on cpu", flush=True)
@@ -1022,7 +1197,16 @@ def run_round_3_experiments(config: GlobalConfig, outputs: Any) -> dict[str, Any
             "euclidean_error_delta": float(test_eval.metrics["euclidean_error_m"] - control_metrics["euclidean_error_m"]),
         }
         accepted = False if control_result is None else _is_accepted(test_eval.metrics, control_metrics)
-        artifacts = _save_round3_outputs(stage_root, spec, train_loss_history, val_loss_history, test_eval, control_metrics, test_diagnostics)
+        artifacts = _save_round3_outputs(
+            stage_root,
+            spec,
+            train_loss_history,
+            val_loss_history,
+            test_eval,
+            control_metrics,
+            test_diagnostics,
+            data.local_config,
+        )
         stage_dir = stage_root / spec.name
         prediction_cache = _save_prediction_cache(stage_dir, test_eval.predictions, data.test_targets_raw)
         coordinate_profile = _save_coordinate_error_profiles(
@@ -1039,6 +1223,7 @@ def run_round_3_experiments(config: GlobalConfig, outputs: Any) -> dict[str, Any
             "implemented_steps": spec.implemented_steps,
             "analysis_focus": spec.analysis_focus,
             "output_mode": spec.output_mode,
+            "data_variant": spec.data_variant,
             "accepted": accepted,
             "decision": "CONTROL" if control_result is None else ("ACCEPTED" if accepted else "REJECTED"),
             "baseline_label": baseline_label,

@@ -74,6 +74,7 @@
     "comparison": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comparison.png",
     "summary": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/summary.png",
     "comb_response": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comb_response.png",
+    "comb_filter_operator": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/comb_filter_operator.png",
     "prediction_cache": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/test_predictions.npz",
     "coordinate_error_profile": "outputs/round_3_experiments/round3_experiment_2_comb_filter_elevation/coordinate_error_profile.png"
   }

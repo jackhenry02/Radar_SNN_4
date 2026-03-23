@@ -59,19 +59,53 @@ def fractional_delay(signal: torch.Tensor, delay_samples: torch.Tensor) -> torch
     return shifted.reshape(*delay_samples.shape, total_samples)
 
 
+def elevation_spectral_gain_profile(
+    config: GlobalConfig,
+    elevation_deg: torch.Tensor,
+    num_frequency_bins: int,
+    *,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    normalized_bins = torch.linspace(0.0, 1.0, num_frequency_bins, device=device, dtype=dtype)
+    elevation_scale = torch.tanh(torch.deg2rad(elevation_deg.to(dtype)) / (math.pi / 6.0))
+    gain = torch.ones(elevation_deg.shape[0], num_frequency_bins, device=device, dtype=dtype)
+
+    if config.elevation_cue_mode in {"slope", "slope_notch"} and config.elevation_spectral_strength > 0.0:
+        gain = gain * torch.exp(
+            config.elevation_spectral_strength
+            * elevation_scale[:, None]
+            * (normalized_bins[None, :] - 0.5)
+        )
+
+    if config.elevation_cue_mode in {"notch", "slope_notch"} and config.elevation_notch_strength > 0.0:
+        notch_center = 0.18 + 0.64 * (0.5 * (elevation_scale + 1.0))
+        notch_width = max(float(config.elevation_notch_width), 1e-3)
+        notch_profile = torch.exp(
+            -0.5 * ((normalized_bins[None, :] - notch_center[:, None]) / notch_width).square()
+        )
+        gain = gain * torch.exp(-float(config.elevation_notch_strength) * notch_profile)
+
+    return gain, normalized_bins
+
+
 def _apply_elevation_spectral_cue(
     signal: torch.Tensor,
     elevation_deg: torch.Tensor,
-    strength: float,
+    config: GlobalConfig,
 ) -> torch.Tensor:
-    if strength <= 0.0:
+    if config.elevation_spectral_strength <= 0.0 and config.elevation_cue_mode == "slope":
         return signal
     total_samples = signal.shape[-1]
     spectrum = torch.fft.rfft(signal, dim=-1)
-    frequency_bins = torch.linspace(0.0, 1.0, spectrum.shape[-1], device=signal.device)
-    elevation_scale = torch.tanh(torch.deg2rad(elevation_deg) / (math.pi / 6.0))
-    spectral_tilt = torch.exp(strength * elevation_scale[:, None, None] * (frequency_bins[None, None, :] - 0.5))
-    shaped = torch.fft.irfft(spectrum * spectral_tilt, n=total_samples, dim=-1)
+    gain, _ = elevation_spectral_gain_profile(
+        config,
+        elevation_deg,
+        spectrum.shape[-1],
+        device=signal.device,
+        dtype=spectrum.real.dtype,
+    )
+    shaped = torch.fft.irfft(spectrum * gain[:, None, :], n=total_samples, dim=-1)
     return shaped
 
 
@@ -128,7 +162,7 @@ def simulate_echo_batch(
     echoes = base_echo * amplitudes[:, :, None] * head_shadow[:, :, None]
 
     if include_elevation_cues:
-        echoes = _apply_elevation_spectral_cue(echoes, elevation_deg, config.elevation_spectral_strength)
+        echoes = _apply_elevation_spectral_cue(echoes, elevation_deg, config)
 
     receive = echoes
     if add_noise:
