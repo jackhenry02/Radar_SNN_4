@@ -47,17 +47,19 @@ def _style_axes(ax: plt.Axes) -> None:
     ax.spines["right"].set_visible(False)
 
 
-def _lif_sim(input_current: np.ndarray, beta: float, threshold: float) -> tuple[np.ndarray, np.ndarray]:
+def _lif_sim(input_current: np.ndarray, beta: float, threshold: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     membrane = np.zeros_like(input_current, dtype=float)
+    pre_reset = np.zeros_like(input_current, dtype=float)
     spikes = np.zeros_like(input_current, dtype=float)
     state = 0.0
     for index, current in enumerate(input_current):
         state = beta * state + current
+        pre_reset[index] = state
         if state >= threshold:
             spikes[index] = 1.0
             state = max(0.0, state - threshold)
         membrane[index] = state
-    return membrane, spikes
+    return membrane, spikes, pre_reset
 
 
 def _resonator_sim(
@@ -65,33 +67,39 @@ def _resonator_sim(
     omega: float,
     decay: float,
     threshold: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     state = 0.0
     velocity = 0.0
     state_trace = np.zeros_like(input_current, dtype=float)
+    pre_reset = np.zeros_like(input_current, dtype=float)
     velocity_trace = np.zeros_like(input_current, dtype=float)
     spikes = np.zeros_like(input_current, dtype=float)
     for index, current in enumerate(input_current):
         velocity = decay * velocity + current - omega * state
         state = state + omega * velocity
+        pre_reset[index] = state
         if state >= threshold:
             spikes[index] = 1.0
             state -= threshold
         state_trace[index] = state
         velocity_trace[index] = velocity
-    return state_trace, velocity_trace, spikes
+    return state_trace, velocity_trace, spikes, pre_reset
 
 
 def _save_lif_animation() -> Path:
     path = OUTPUT_DIR / "lif_neuron.gif"
     steps = 70
     t = np.arange(steps)
-    current = np.zeros(steps)
-    current[8:17] = 0.22
-    current[30:38] = 0.16
-    current[38:45] = 0.28
-    current[54:60] = 0.22
-    membrane, spikes = _lif_sim(current, beta=0.90, threshold=1.0)
+    input_spikes = np.zeros(steps)
+    input_spikes[8] = 1.0
+    input_spikes[24] = 1.0
+    input_spikes[25] = 1.0
+    input_spikes[26] = 1.0
+    input_spikes[44] = 1.0
+    input_spikes[45] = 1.0
+    input_spikes[46] = 1.0
+    current = 0.38 * input_spikes
+    membrane, spikes, pre_reset = _lif_sim(current, beta=0.92, threshold=1.0)
 
     frames: list[Image.Image] = []
     for frame in range(steps):
@@ -99,15 +107,15 @@ def _save_lif_animation() -> Path:
         fig.patch.set_facecolor("white")
         fig.suptitle("Leaky Integrate-and-Fire Neuron", fontsize=16, fontweight="bold")
 
-        axes[0].plot(t[: frame + 1], current[: frame + 1], color="#0b7285", lw=2.5)
+        axes[0].stem(t[: frame + 1], input_spikes[: frame + 1], linefmt="#0b7285", markerfmt=" ", basefmt=" ")
         axes[0].axvline(frame, color="#999999", ls="--", lw=1)
-        axes[0].set_ylabel("Input")
+        axes[0].set_ylabel("Spike")
         axes[0].set_xlim(0, steps - 1)
-        axes[0].set_ylim(0, 0.34)
-        axes[0].set_title("Input current")
+        axes[0].set_ylim(0, 1.2)
+        axes[0].set_title("Input spikes: one alone is too weak, a burst can trigger output")
         _style_axes(axes[0])
 
-        axes[1].plot(t[: frame + 1], membrane[: frame + 1], color="#1d4ed8", lw=2.5)
+        axes[1].plot(t[: frame + 1], pre_reset[: frame + 1], color="#1d4ed8", lw=2.5)
         axes[1].axhline(1.0, color="#dc2626", ls="--", lw=1.5, label="threshold")
         spike_times = np.where(spikes[: frame + 1] > 0)[0]
         if spike_times.size:
@@ -115,8 +123,8 @@ def _save_lif_animation() -> Path:
         axes[1].axvline(frame, color="#999999", ls="--", lw=1)
         axes[1].set_ylabel("Membrane")
         axes[1].set_xlim(0, steps - 1)
-        axes[1].set_ylim(0, 1.15)
-        axes[1].set_title("Membrane integration and reset")
+        axes[1].set_ylim(0, 1.2)
+        axes[1].set_title("Membrane state before reset")
         _style_axes(axes[1])
 
         axes[2].stem(t[: frame + 1], spikes[: frame + 1], linefmt="#dc2626", markerfmt=" ", basefmt=" ")
@@ -127,18 +135,10 @@ def _save_lif_animation() -> Path:
         axes[2].set_ylim(0, 1.2)
         axes[2].set_title("Output spikes")
         _style_axes(axes[2])
-
-        fig.text(
-            0.53,
-            0.03,
-            r"$m[t+1] = \beta m[t] + I[t] - \theta s[t],\quad s[t] = H(m[t]-\theta)$",
-            ha="center",
-            fontsize=12,
-        )
         frames.append(_render_frame(fig))
         plt.close(fig)
 
-    _save_gif(frames, path)
+    _save_gif(frames, path, duration_ms=150)
     return path
 
 
@@ -149,7 +149,7 @@ def _save_resonant_animation() -> Path:
     current = np.zeros(steps)
     current[10] = 1.2
     current[46] = 1.0
-    state, velocity, spikes = _resonator_sim(current, omega=0.42, decay=0.96, threshold=1.0)
+    state, velocity, spikes, pre_reset = _resonator_sim(current, omega=0.42, decay=0.96, threshold=1.0)
 
     frames: list[Image.Image] = []
     for frame in range(steps):
@@ -165,7 +165,7 @@ def _save_resonant_animation() -> Path:
         axes[0].set_title("Impulse input")
         _style_axes(axes[0])
 
-        axes[1].plot(t[: frame + 1], state[: frame + 1], color="#7c3aed", lw=2.5, label="state")
+        axes[1].plot(t[: frame + 1], pre_reset[: frame + 1], color="#7c3aed", lw=2.5, label="state")
         axes[1].plot(t[: frame + 1], velocity[: frame + 1], color="#f59e0b", lw=1.8, alpha=0.85, label="velocity")
         axes[1].axhline(1.0, color="#dc2626", ls="--", lw=1.5)
         spike_times = np.where(spikes[: frame + 1] > 0)[0]
@@ -186,14 +186,6 @@ def _save_resonant_animation() -> Path:
         axes[2].set_ylabel("Spike")
         axes[2].set_title("Output spikes")
         _style_axes(axes[2])
-
-        fig.text(
-            0.53,
-            0.03,
-            r"$v[t+1] = \alpha v[t] + u[t] - \omega z[t],\quad z[t+1] = z[t] + \omega v[t]$",
-            ha="center",
-            fontsize=12,
-        )
         frames.append(_render_frame(fig))
         plt.close(fig)
 
@@ -212,13 +204,15 @@ def _save_coincidence_animation() -> Path:
     taus = [12, 20, 28]
     colors = ["#64748b", "#16a34a", "#64748b"]
     mems = []
+    pre_mems = []
     outs = []
     for arrival in arrival_times:
         current = np.zeros(steps)
         current[arrival] += 0.95
         current[echo_time] += 0.95
-        membrane, spikes = _lif_sim(current, beta=0.68, threshold=1.55)
+        membrane, spikes, pre_reset = _lif_sim(current, beta=0.68, threshold=1.55)
         mems.append(membrane)
+        pre_mems.append(pre_reset)
         outs.append(spikes)
 
     frames: list[Image.Image] = []
@@ -259,32 +253,17 @@ def _save_coincidence_animation() -> Path:
                 ax_l.scatter([9.7], [1.25], marker="*", s=180, color="#dc2626", zorder=5)
                 ax_l.text(9.25, 1.62, "spike", color="#dc2626", fontsize=10)
 
-            ax_r.plot(t[: frame + 1], mems[idx][: frame + 1], color=colors[idx], lw=2.5)
+            ax_r.plot(t[: frame + 1], pre_mems[idx][: frame + 1], color=colors[idx], lw=2.5)
             ax_r.axhline(1.55, color="#dc2626", ls="--", lw=1.2)
             spike_times = np.where(outs[idx][: frame + 1] > 0)[0]
             if spike_times.size:
                 ax_r.scatter(spike_times, np.full_like(spike_times, 1.62), color="#dc2626", s=30, zorder=4)
             ax_r.axvline(frame, color="#999999", ls="--", lw=1)
             ax_r.set_xlim(0, steps - 1)
-            ax_r.set_ylim(0, 1.75)
+            ax_r.set_ylim(0, 2.05)
             ax_r.set_ylabel("Membrane")
-            ax_r.set_title("Detector membrane")
+            ax_r.set_title("Detector membrane before reset")
             _style_axes(ax_r)
-
-        fig.text(
-            0.53,
-            0.03,
-            r"$m_i[t+1] = \beta_i m_i[t] + w_{\mathrm{tx}}x[t-\tau_i] + w_{\mathrm{echo}}y[t] - \theta s_i[t]$",
-            ha="center",
-            fontsize=12,
-        )
-        fig.text(
-            0.53,
-            0.005,
-            r"Cross-correlation analogy: $c[\tau] = \sum_t x[t-\tau]\,y[t]$",
-            ha="center",
-            fontsize=11,
-        )
         frames.append(_render_frame(fig))
         plt.close(fig)
 
@@ -297,19 +276,21 @@ def _save_resonance_bank_animation() -> Path:
     steps = 90
     t = np.arange(steps)
     tx_time = 8
-    echo_time = 46
+    echo_time = 29
     current = np.zeros(steps)
     current[tx_time] = 1.0
     current[echo_time] = 1.0
-    freqs = [0.25, 0.39, 0.58]
+    freqs = [0.18, 0.28, 0.38]
     labels = ["Low freq", "Matched", "High freq"]
     colors = ["#64748b", "#16a34a", "#64748b"]
-    thresholds = [1.35, 1.05, 1.35]
+    threshold = 0.9
     traces = []
+    pre_traces = []
     spikes = []
-    for omega, threshold in zip(freqs, thresholds):
-        state, _velocity, spike = _resonator_sim(current, omega=omega, decay=0.97, threshold=threshold)
+    for omega in freqs:
+        state, _velocity, spike, pre_reset = _resonator_sim(current, omega=omega, decay=0.92, threshold=threshold)
         traces.append(state)
+        pre_traces.append(pre_reset)
         spikes.append(spike)
 
     frames: list[Image.Image] = []
@@ -328,32 +309,17 @@ def _save_resonance_bank_animation() -> Path:
 
         for idx in range(3):
             ax = axes[idx + 1]
-            ax.plot(t[: frame + 1], traces[idx][: frame + 1], color=colors[idx], lw=2.5)
-            ax.axhline(thresholds[idx], color="#dc2626", ls="--", lw=1.2)
+            ax.plot(t[: frame + 1], pre_traces[idx][: frame + 1], color=colors[idx], lw=2.5)
+            ax.axhline(threshold, color="#dc2626", ls="--", lw=1.2)
             spike_times = np.where(spikes[idx][: frame + 1] > 0)[0]
             if spike_times.size:
-                ax.scatter(spike_times, np.full_like(spike_times, thresholds[idx] + 0.04, dtype=float), color="#dc2626", s=30)
+                ax.scatter(spike_times, np.full_like(spike_times, threshold + 0.04, dtype=float), color="#dc2626", s=30)
             ax.axvline(frame, color="#999999", ls="--", lw=1)
             ax.set_xlim(0, steps - 1)
             ax.set_ylim(-1.2, 1.55)
             ax.set_ylabel("State")
-            ax.set_title(labels[idx])
+            ax.set_title(f"{labels[idx]} resonator")
             _style_axes(ax)
-
-        fig.text(
-            0.52,
-            0.03,
-            r"$v_i[t+1]=\alpha_i v_i[t] + u[t] - \omega_i z_i[t],\quad z_i[t+1]=z_i[t]+\omega_i v_i[t]$",
-            ha="center",
-            fontsize=12,
-        )
-        fig.text(
-            0.52,
-            0.005,
-            r"DFT analogy: $X[k]=\sum_t x[t]e^{-j2\pi kt/N}$  (frequency-selective temporal decomposition)",
-            ha="center",
-            fontsize=11,
-        )
         frames.append(_render_frame(fig))
         plt.close(fig)
 
@@ -361,12 +327,19 @@ def _save_resonance_bank_animation() -> Path:
     return path
 
 
-def _draw_box(ax: plt.Axes, xy: tuple[float, float], wh: tuple[float, float], text: str, fc: str = "#f8fafc") -> None:
+def _draw_box(
+    ax: plt.Axes,
+    xy: tuple[float, float],
+    wh: tuple[float, float],
+    text: str,
+    fc: str = "#f8fafc",
+    fontsize: int = 10,
+) -> None:
     x, y = xy
     w, h = wh
     rect = Rectangle((x, y), w, h, facecolor=fc, edgecolor="#1f2937", lw=1.6, zorder=2)
     ax.add_patch(rect)
-    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=11)
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fontsize)
 
 
 def _draw_arrow(ax: plt.Axes, p0: tuple[float, float], p1: tuple[float, float], color: str = "#334155") -> None:
@@ -414,20 +387,20 @@ def _save_jeffress_diagram() -> Path:
 
 def _save_lso_mntb_diagram() -> Path:
     path = OUTPUT_DIR / "lso_mntb_diagram.png"
-    fig, ax = plt.subplots(figsize=(9.5, 4.0))
+    fig, ax = plt.subplots(figsize=(10.8, 4.8))
     fig.patch.set_facecolor("white")
     ax.set_xlim(0, 12)
-    ax.set_ylim(0, 6)
+    ax.set_ylim(-0.6, 6)
     ax.axis("off")
     ax.set_title("Biological ILD Sketch: LSO and MNTB", fontsize=15, fontweight="bold")
 
-    _draw_box(ax, (0.7, 4.0), (1.8, 1.0), "Left ear spikes", "#ecfeff")
-    _draw_box(ax, (0.7, 1.0), (1.8, 1.0), "Right ear spikes", "#fef2f2")
-    _draw_box(ax, (4.0, 4.0), (1.7, 1.0), "Left LSO", "#ecfccb")
-    _draw_box(ax, (4.0, 1.0), (1.7, 1.0), "Right LSO", "#ecfccb")
-    _draw_box(ax, (4.0, 2.4), (1.7, 1.0), "Left MNTB", "#fee2e2")
-    _draw_box(ax, (4.0, 0.0), (1.7, 1.0), "Right MNTB", "#fee2e2")
-    _draw_box(ax, (8.0, 2.0), (2.1, 1.4), "Opponent compare\n(IC / azimuth readout)", "#ede9fe")
+    _draw_box(ax, (0.7, 4.2), (2.1, 1.1), "Left ear\nspike counts", "#ecfeff", fontsize=10)
+    _draw_box(ax, (0.7, 1.0), (2.1, 1.1), "Right ear\nspike counts", "#fef2f2", fontsize=10)
+    _draw_box(ax, (4.1, 4.2), (1.9, 1.1), "Left LSO", "#ecfccb", fontsize=10)
+    _draw_box(ax, (4.1, 1.0), (1.9, 1.1), "Right LSO", "#ecfccb", fontsize=10)
+    _draw_box(ax, (4.1, 2.6), (1.9, 1.1), "Left MNTB", "#fee2e2", fontsize=10)
+    _draw_box(ax, (4.1, -0.2), (1.9, 1.1), "Right MNTB", "#fee2e2", fontsize=10)
+    _draw_box(ax, (8.3, 2.0), (2.5, 1.6), "Opponent compare\n(IC / azimuth readout)", "#ede9fe", fontsize=10)
 
     _draw_arrow(ax, (2.5, 4.5), (4.0, 4.5), color="#16a34a")
     _draw_arrow(ax, (2.5, 1.5), (4.0, 1.5), color="#16a34a")
@@ -440,7 +413,7 @@ def _save_lso_mntb_diagram() -> Path:
     ax.text(3.1, 4.82, "ipsi excit.", color="#16a34a", fontsize=10)
     ax.text(2.9, 2.9, "contra via\nMNTB", color="#dc2626", fontsize=10)
     ax.text(6.15, 2.8, "inhib.", color="#dc2626", fontsize=10)
-    ax.text(10.5, 2.55, r"$\mathrm{ILD}\ \approx \mathrm{LSO}_R - \mathrm{LSO}_L$", fontsize=11)
+    ax.text(10.95, 2.75, r"$\mathrm{ILD}\approx \mathrm{LSO}_R-\mathrm{LSO}_L$", fontsize=11)
 
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
@@ -449,21 +422,21 @@ def _save_lso_mntb_diagram() -> Path:
 
 def _save_elevation_diagram() -> Path:
     path = OUTPUT_DIR / "elevation_notch_pathway_diagram.png"
-    fig, ax = plt.subplots(figsize=(10, 3.8))
+    fig, ax = plt.subplots(figsize=(11.2, 4.4))
     fig.patch.set_facecolor("white")
-    ax.set_xlim(0, 13)
+    ax.set_xlim(0, 13.8)
     ax.set_ylim(0, 4.2)
     ax.axis("off")
     ax.set_title("Elevation Pathway: Spectral Notches", fontsize=15, fontweight="bold")
 
-    _draw_box(ax, (0.7, 1.5), (1.8, 1.0), "Echo spectrum", "#eff6ff")
-    _draw_box(ax, (3.0, 1.5), (2.0, 1.0), "Slope + moving notch\n(simulator cue)", "#ecfccb")
-    _draw_box(ax, (5.7, 1.5), (1.8, 1.0), "Cochlea + spikes", "#f5f3ff")
-    _draw_box(ax, (8.1, 1.5), (2.1, 1.0), "Notch detector bank", "#fef3c7")
-    _draw_box(ax, (10.8, 1.5), (1.8, 1.0), "Elevation latent", "#fee2e2")
+    _draw_box(ax, (0.7, 1.6), (1.9, 1.2), "Echo\nspectrum", "#eff6ff", fontsize=10)
+    _draw_box(ax, (3.1, 1.6), (2.3, 1.2), "Slope + moving notch\n(simulator cue)", "#ecfccb", fontsize=10)
+    _draw_box(ax, (6.0, 1.6), (1.9, 1.2), "Cochlea\n+ spikes", "#f5f3ff", fontsize=10)
+    _draw_box(ax, (8.5, 1.6), (2.3, 1.2), "Notch detector\nbank", "#fef3c7", fontsize=10)
+    _draw_box(ax, (11.4, 1.6), (1.8, 1.2), "Elevation\nlatent", "#fee2e2", fontsize=10)
     for x0, x1 in [(2.5, 3.0), (5.0, 5.7), (7.5, 8.1), (10.2, 10.8)]:
         _draw_arrow(ax, (x0, 2.0), (x1, 2.0))
-    ax.text(8.55, 0.8, "Responses strongest when notch\nposition matches detector centre", fontsize=10, ha="center")
+    ax.text(9.65, 0.7, "Strongest responses when notch position\nmatches detector centre", fontsize=10, ha="center")
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
     return path
@@ -471,33 +444,33 @@ def _save_elevation_diagram() -> Path:
 
 def _save_full_pipeline_diagram() -> Path:
     path = OUTPUT_DIR / "bat_brain_pipeline_diagram.png"
-    fig, ax = plt.subplots(figsize=(12, 4.8))
+    fig, ax = plt.subplots(figsize=(13.5, 5.5))
     fig.patch.set_facecolor("white")
     ax.set_xlim(0, 16)
     ax.set_ylim(0, 7)
     ax.axis("off")
     ax.set_title("Full Bat-Inspired Localization Pipeline", fontsize=16, fontweight="bold")
 
-    _draw_box(ax, (0.5, 3.0), (1.7, 1.0), "Transmit chirp", "#ecfeff")
-    _draw_box(ax, (2.8, 3.0), (2.1, 1.0), "Echo physics\n(delay, attenuation,\nITD/ILD, elevation cue)", "#fef3c7")
-    _draw_box(ax, (5.6, 3.0), (1.9, 1.0), "Cochlea", "#ede9fe")
-    _draw_box(ax, (8.2, 3.0), (1.9, 1.0), "Spike encoding", "#fce7f3")
-    _draw_box(ax, (10.9, 5.0), (2.0, 0.9), "Distance pathway", "#dbeafe")
-    _draw_box(ax, (10.9, 3.0), (2.0, 0.9), "Azimuth pathway", "#dcfce7")
-    _draw_box(ax, (10.9, 1.0), (2.0, 0.9), "Elevation pathway", "#fee2e2")
-    _draw_box(ax, (13.8, 3.0), (1.8, 1.0), "Fusion SNN", "#f3e8ff")
-    _draw_box(ax, (13.8, 1.2), (1.8, 1.0), "Readout", "#fef2f2")
+    _draw_box(ax, (0.4, 3.2), (1.9, 1.1), "Transmit chirp", "#ecfeff", fontsize=10)
+    _draw_box(ax, (2.9, 3.05), (2.6, 1.4), "Echo physics\n(delay, attenuation,\nITD / ILD, elevation cue)", "#fef3c7", fontsize=10)
+    _draw_box(ax, (6.2, 3.2), (2.0, 1.1), "Cochlea", "#ede9fe", fontsize=10)
+    _draw_box(ax, (8.9, 3.2), (2.0, 1.1), "Spike encoding", "#fce7f3", fontsize=10)
+    _draw_box(ax, (11.7, 5.3), (2.2, 1.0), "Distance pathway", "#dbeafe", fontsize=10)
+    _draw_box(ax, (11.7, 3.2), (2.2, 1.0), "Azimuth pathway", "#dcfce7", fontsize=10)
+    _draw_box(ax, (11.7, 1.1), (2.2, 1.0), "Elevation pathway", "#fee2e2", fontsize=10)
+    _draw_box(ax, (14.8, 3.2), (1.9, 1.1), "Fusion SNN", "#f3e8ff", fontsize=10)
+    _draw_box(ax, (14.8, 1.3), (1.9, 1.1), "Readout", "#fef2f2", fontsize=10)
 
-    _draw_arrow(ax, (2.2, 3.5), (2.8, 3.5))
-    _draw_arrow(ax, (4.9, 3.5), (5.6, 3.5))
-    _draw_arrow(ax, (7.5, 3.5), (8.2, 3.5))
-    _draw_arrow(ax, (10.1, 3.5), (10.9, 5.45))
-    _draw_arrow(ax, (10.1, 3.5), (10.9, 3.45))
-    _draw_arrow(ax, (10.1, 3.5), (10.9, 1.45))
-    _draw_arrow(ax, (12.9, 5.45), (13.8, 3.75))
-    _draw_arrow(ax, (12.9, 3.45), (13.8, 3.55))
-    _draw_arrow(ax, (12.9, 1.45), (13.8, 3.35))
-    _draw_arrow(ax, (14.7, 3.0), (14.7, 2.2))
+    _draw_arrow(ax, (2.3, 3.75), (2.9, 3.75))
+    _draw_arrow(ax, (5.5, 3.75), (6.2, 3.75))
+    _draw_arrow(ax, (8.2, 3.75), (8.9, 3.75))
+    _draw_arrow(ax, (10.9, 3.75), (11.7, 5.8))
+    _draw_arrow(ax, (10.9, 3.75), (11.7, 3.7))
+    _draw_arrow(ax, (10.9, 3.75), (11.7, 1.6))
+    _draw_arrow(ax, (13.9, 5.8), (14.8, 4.0))
+    _draw_arrow(ax, (13.9, 3.7), (14.8, 3.8))
+    _draw_arrow(ax, (13.9, 1.6), (14.8, 3.55))
+    _draw_arrow(ax, (15.75, 3.2), (15.75, 2.4))
 
     ax.text(8.55, 5.7, "distance: coincidence", fontsize=10)
     ax.text(8.45, 5.15, "azimuth: ITD + ILD", fontsize=10)
@@ -821,4 +794,3 @@ def main() -> None:
         "milestones": _save_milestones_plot(),
     }
     _write_markdown(assets)
-
