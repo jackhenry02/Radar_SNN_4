@@ -1,0 +1,75 @@
+{
+  "name": "round4_control_baseline_2b_plus_3",
+  "title": "Round 4 Experiment 0: 2B + 3 Baseline",
+  "description": "Re-run the accepted round-3 best model, 2B + 3, as the fixed baseline for round 4.",
+  "rationale": "This keeps all round-4 comparisons anchored to the current best working model under the same short matched-human 140 dB unnormalized setup.",
+  "implemented_steps": [
+    "Use the moving-notch elevation cue from 2B.",
+    "Use the elevation notch-detector residual from 2B.",
+    "Use sine/cosine angle regression from 3."
+  ],
+  "analysis_focus": [
+    "Establish the round-4 control under the exact same training loop as the new variants."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": false,
+  "decision": "CONTROL",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.07845504581928253,
+    "azimuth_mae_deg": 3.8763387203216553,
+    "elevation_mae_deg": 3.6178719997406006,
+    "combined_error": 0.05419706925749779,
+    "mean_spike_rate": 0.0323660708963871,
+    "predicted_distance_std": 1.2490794658660889,
+    "predicted_azimuth_std": 25.43775177001953,
+    "predicted_elevation_std": 16.490720748901367,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.11499692499637604,
+    "y_mae_m": 0.15634024143218994,
+    "z_mae_m": 0.15496155619621277,
+    "euclidean_error_m": 0.2838717997074127
+  },
+  "comparison": {
+    "combined_error_delta": 0.0,
+    "distance_mae_delta": 0.0,
+    "azimuth_mae_delta": 0.0,
+    "elevation_mae_delta": 0.0,
+    "spike_rate_delta": 0.0
+  },
+  "training": {
+    "best_epoch": 7,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 932.7133754169918,
+    "evaluation_seconds": 2.884772624995094,
+    "total_seconds": 935.6006647500035
+  },
+  "loss_summary": {
+    "distance_loss": 0.0027842784766107798,
+    "azimuth_loss": 0.0019133428577333689,
+    "elevation_loss": 0.001467426074668765,
+    "x_loss": 0.022999385371804237,
+    "y_loss": 0.03126804530620575,
+    "z_loss": 0.03099231794476509,
+    "unit_penalty": 0.005285579711198807,
+    "spike_penalty": 0.0323660708963871
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/notch_detector_centers.png"
+  },
+  "test_loss": 0.01805214211344719
+}

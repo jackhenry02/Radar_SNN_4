@@ -1,0 +1,75 @@
+{
+  "name": "round4_experiment_3_bio_ild_lso_mntb",
+  "title": "Round 4 Experiment 3: LSO/MNTB ILD System",
+  "description": "Replace the simple ILD calculation with a more biologically inspired LSO/MNTB style opponent system.",
+  "rationale": "This tests whether explicitly modeling excitatory ipsilateral drive and contralateral inhibitory drive improves azimuth, especially near the midline.",
+  "implemented_steps": [
+    "Keep the 2B + 3 elevation and ITD systems unchanged.",
+    "Compute per-ear spike-count drives, convert contralateral drive into inhibition through an MNTB-like stage, and form left and right LSO responses.",
+    "Compare the LSO outputs to form a replacement ILD representation for the azimuth pathway."
+  ],
+  "analysis_focus": [
+    "Whether the LSO/MNTB style ILD improves azimuth without disturbing elevation."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.07238343358039856,
+    "azimuth_mae_deg": 3.120663642883301,
+    "elevation_mae_deg": 2.473679542541504,
+    "combined_error": 0.04074482619762421,
+    "mean_spike_rate": 0.03474206104874611,
+    "predicted_distance_std": 1.2627593278884888,
+    "predicted_azimuth_std": 24.515398025512695,
+    "predicted_elevation_std": 16.969585418701172,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.08855054527521133,
+    "y_mae_m": 0.1385241448879242,
+    "z_mae_m": 0.10593262314796448,
+    "euclidean_error_m": 0.22107769548892975
+  },
+  "comparison": {
+    "combined_error_delta": -0.013452243059873581,
+    "distance_mae_delta": -0.006071612238883972,
+    "azimuth_mae_delta": -0.7556750774383545,
+    "elevation_mae_delta": -1.1441924571990967,
+    "spike_rate_delta": 0.002375990152359009
+  },
+  "training": {
+    "best_epoch": 9,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 698.2439123750082,
+    "evaluation_seconds": 2.1243640829925425,
+    "total_seconds": 700.369773583021
+  },
+  "loss_summary": {
+    "distance_loss": 0.002219590824097395,
+    "azimuth_loss": 0.0012475806288421154,
+    "elevation_loss": 0.0007374835549853742,
+    "x_loss": 0.017710110172629356,
+    "y_loss": 0.02770482935011387,
+    "z_loss": 0.021186525002121925,
+    "unit_penalty": 0.002137735253199935,
+    "spike_penalty": 0.03474206104874611
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/notch_detector_centers.png"
+  },
+  "test_loss": 0.013144807890057564
+}

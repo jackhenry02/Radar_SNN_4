@@ -1,0 +1,79 @@
+{
+  "name": "round4_experiment_1_full_lif_timing_replacement",
+  "title": "Round 4 Experiment 1: Full LIF Timing Replacement",
+  "description": "Replace the distance pathway and the ITD part of azimuth with explicit LIF coincidence banks, rather than adding them as residuals.",
+  "rationale": "This tests whether a full spike-domain timing pathway is stronger than the current fixed overlap features once 2B + 3 is already in place.",
+  "implemented_steps": [
+    "Keep the 2B + 3 elevation system unchanged.",
+    "Discard the baseline distance latent and replace it with a trainable LIF distance coincidence latent.",
+    "Discard the baseline ITD-derived azimuth component and replace it with a trainable LIF ITD latent, while retaining a fixed ILD contribution."
+  ],
+  "analysis_focus": [
+    "Whether full replacement of the fixed timing code improves distance and azimuth.",
+    "Whether removing the old timing latent hurts the fused model stability."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.07864698767662048,
+    "azimuth_mae_deg": 4.135037422180176,
+    "elevation_mae_deg": 2.49790358543396,
+    "combined_error": 0.045762039721012115,
+    "mean_spike_rate": 0.0249151811003685,
+    "predicted_distance_std": 1.2812483310699463,
+    "predicted_azimuth_std": 21.798295974731445,
+    "predicted_elevation_std": 16.42932891845703,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.09849318116903305,
+    "y_mae_m": 0.1605553776025772,
+    "z_mae_m": 0.1046304851770401,
+    "euclidean_error_m": 0.24618637561798096
+  },
+  "comparison": {
+    "combined_error_delta": -0.008435029536485672,
+    "distance_mae_delta": 0.00019194185733795166,
+    "azimuth_mae_delta": 0.2586987018585205,
+    "elevation_mae_delta": -1.1199684143066406,
+    "spike_rate_delta": -0.0074508897960186005
+  },
+  "training": {
+    "best_epoch": 9,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 909.8610361669853,
+    "evaluation_seconds": 2.5211583750206046,
+    "total_seconds": 912.3835907089815
+  },
+  "loss_summary": {
+    "distance_loss": 0.002982485806569457,
+    "azimuth_loss": 0.0021097916178405285,
+    "elevation_loss": 0.0008569374913349748,
+    "x_loss": 0.01969863474369049,
+    "y_loss": 0.03211107477545738,
+    "z_loss": 0.02092609740793705,
+    "unit_penalty": 0.004365922883152962,
+    "spike_penalty": 0.0249151811003685
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/moving_notch_cue.png",
+    "lif_distance_left_spikes": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/lif_distance_left_spikes.png",
+    "lif_itd_spikes": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/lif_itd_spikes.png",
+    "lif_betas": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/lif_betas.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/notch_detector_centers.png"
+  },
+  "test_loss": 0.016029709950089455
+}

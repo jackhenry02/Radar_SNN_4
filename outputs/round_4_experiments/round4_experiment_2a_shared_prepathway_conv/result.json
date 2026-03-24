@@ -1,0 +1,75 @@
+{
+  "name": "round4_experiment_2a_shared_prepathway_conv",
+  "title": "Round 4 Experiment 2A: Shared Pre-Pathway Conv Backbone",
+  "description": "Add a shared 2D convolutional preprocessing backbone before the three pathways.",
+  "rationale": "This tests whether a light shared spectral-temporal backbone can improve the pathway inputs before they are split into distance, azimuth, and elevation.",
+  "implemented_steps": [
+    "Apply a learned shared backbone to the transmit and receive spike tensors before pathway feature extraction.",
+    "Rebuild the three pathway feature sets from the transformed spikes.",
+    "Feed the transformed pathway batch into the existing 2B + 3 architecture."
+  ],
+  "analysis_focus": [
+    "Whether a shared front-end backbone improves all pathways jointly."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": false,
+  "decision": "REJECTED",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.12561975419521332,
+    "azimuth_mae_deg": 9.436507225036621,
+    "elevation_mae_deg": 14.839104652404785,
+    "combined_error": 0.1846524327993393,
+    "mean_spike_rate": 0.02956150658428669,
+    "predicted_distance_std": 1.2506866455078125,
+    "predicted_azimuth_std": 19.786195755004883,
+    "predicted_elevation_std": 2.919708013534546,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.24810881912708282,
+    "y_mae_m": 0.39479511976242065,
+    "z_mae_m": 0.6523066163063049,
+    "euclidean_error_m": 0.8899514675140381
+  },
+  "comparison": {
+    "combined_error_delta": 0.1304553635418415,
+    "distance_mae_delta": 0.047164708375930786,
+    "azimuth_mae_delta": 5.560168504714966,
+    "elevation_mae_delta": 11.221232652664185,
+    "spike_rate_delta": -0.0028045643121004105
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 758.7039176670369,
+    "evaluation_seconds": 2.685271750029642,
+    "total_seconds": 761.3903091670363
+  },
+  "loss_summary": {
+    "distance_loss": 0.0065517365001142025,
+    "azimuth_loss": 0.010797315277159214,
+    "elevation_loss": 0.0228569358587265,
+    "x_loss": 0.049621764570474625,
+    "y_loss": 0.07895903289318085,
+    "z_loss": 0.13046132028102875,
+    "unit_penalty": 0.005492850206792355,
+    "spike_penalty": 0.02956150658428669
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_2a_shared_prepathway_conv/notch_detector_centers.png"
+  },
+  "test_loss": 0.08333924412727356
+}

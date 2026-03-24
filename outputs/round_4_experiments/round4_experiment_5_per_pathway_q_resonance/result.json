@@ -1,0 +1,75 @@
+{
+  "name": "round4_experiment_5_per_pathway_q_resonance",
+  "title": "Round 4 Experiment 5: Per-Pathway Q-Tunable Resonance Banks",
+  "description": "Add separate resonance banks to distance, azimuth, and elevation, each with its own trainable Q factor and task-specific initialization.",
+  "rationale": "This tests whether task-specific resonance is more useful than the current shared resonance branch.",
+  "implemented_steps": [
+    "Add separate resonance banks for distance, azimuth, and elevation.",
+    "Initialize azimuth with lower Q, distance with moderate Q, and elevation with higher Q.",
+    "Project each bank back only into its own pathway latent."
+  ],
+  "analysis_focus": [
+    "Whether pathway-specific resonance improves timing and spectral discrimination."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.08179598301649094,
+    "azimuth_mae_deg": 3.179184675216675,
+    "elevation_mae_deg": 3.3205251693725586,
+    "combined_error": 0.04879952594637871,
+    "mean_spike_rate": 0.03312351182103157,
+    "predicted_distance_std": 1.2193559408187866,
+    "predicted_azimuth_std": 24.569015502929688,
+    "predicted_elevation_std": 16.373136520385742,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.09714102745056152,
+    "y_mae_m": 0.1297350525856018,
+    "z_mae_m": 0.14103586971759796,
+    "euclidean_error_m": 0.24287982285022736
+  },
+  "comparison": {
+    "combined_error_delta": -0.00539754331111908,
+    "distance_mae_delta": 0.0033409371972084045,
+    "azimuth_mae_delta": -0.6971540451049805,
+    "elevation_mae_delta": -0.297346830368042,
+    "spike_rate_delta": 0.0007574409246444702
+  },
+  "training": {
+    "best_epoch": 9,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 731.4548226249753,
+    "evaluation_seconds": 2.1647473750053905,
+    "total_seconds": 733.6211167089641
+  },
+  "loss_summary": {
+    "distance_loss": 0.0030781649984419346,
+    "azimuth_loss": 0.0011319085024297237,
+    "elevation_loss": 0.0012920702574774623,
+    "x_loss": 0.019428204745054245,
+    "y_loss": 0.02594701200723648,
+    "z_loss": 0.02820717543363571,
+    "unit_penalty": 0.004890814423561096,
+    "spike_penalty": 0.03312351182103157
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/notch_detector_centers.png"
+  },
+  "test_loss": 0.015704577788710594
+}

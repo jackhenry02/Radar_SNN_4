@@ -1,0 +1,75 @@
+{
+  "name": "round4_experiment_4_distance_spike_sum",
+  "title": "Round 4 Experiment 4: Distance Spike-Sum Cue",
+  "description": "Add a simple receive-spike summing cue to the distance pathway so that overall echo strength can contribute to range estimation.",
+  "rationale": "This tests whether the unnormalized 140 dB setup still contains useful loudness information that the current distance pathway is not using directly.",
+  "implemented_steps": [
+    "Compute simple left, right, total, and contrast spike-count summaries from the receive spikes.",
+    "Project them into a distance-only residual latent.",
+    "Add that residual to the 2B + 3 distance pathway only."
+  ],
+  "analysis_focus": [
+    "Whether explicit spike-sum distance information improves range estimation."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.07631175965070724,
+    "azimuth_mae_deg": 2.914304256439209,
+    "elevation_mae_deg": 2.760042428970337,
+    "combined_error": 0.04212621599435806,
+    "mean_spike_rate": 0.03273065388202667,
+    "predicted_distance_std": 1.2628991603851318,
+    "predicted_azimuth_std": 24.24750328063965,
+    "predicted_elevation_std": 15.231186866760254,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.08779813349246979,
+    "y_mae_m": 0.12168004363775253,
+    "z_mae_m": 0.11370422691106796,
+    "euclidean_error_m": 0.21324647963047028
+  },
+  "comparison": {
+    "combined_error_delta": -0.012070853263139725,
+    "distance_mae_delta": -0.002143286168575287,
+    "azimuth_mae_delta": -0.9620344638824463,
+    "elevation_mae_delta": -0.8578295707702637,
+    "spike_rate_delta": 0.00036458298563957214
+  },
+  "training": {
+    "best_epoch": 10,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 693.8032183749601,
+    "evaluation_seconds": 2.1691880829748698,
+    "total_seconds": 695.973667666025
+  },
+  "loss_summary": {
+    "distance_loss": 0.0026560926344245672,
+    "azimuth_loss": 0.00100292160641402,
+    "elevation_loss": 0.0009727141004987061,
+    "x_loss": 0.017559627071022987,
+    "y_loss": 0.024336008355021477,
+    "z_loss": 0.022740846499800682,
+    "unit_penalty": 0.00504210963845253,
+    "spike_penalty": 0.03273065388202667
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/notch_detector_centers.png"
+  },
+  "test_loss": 0.013639220036566257
+}

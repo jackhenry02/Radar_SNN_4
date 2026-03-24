@@ -1,0 +1,541 @@
+{
+  "baseline": {
+    "name": "round4_control_baseline_2b_plus_3",
+    "title": "Round 4 Experiment 0: 2B + 3 Baseline",
+    "description": "Re-run the accepted round-3 best model, 2B + 3, as the fixed baseline for round 4.",
+    "rationale": "This keeps all round-4 comparisons anchored to the current best working model under the same short matched-human 140 dB unnormalized setup.",
+    "implemented_steps": [
+      "Use the moving-notch elevation cue from 2B.",
+      "Use the elevation notch-detector residual from 2B.",
+      "Use sine/cosine angle regression from 3."
+    ],
+    "analysis_focus": [
+      "Establish the round-4 control under the exact same training loop as the new variants."
+    ],
+    "output_mode": "sincos",
+    "data_variant": "moving_notch",
+    "accepted": false,
+    "decision": "CONTROL",
+    "baseline_label": "Round 4 baseline is 2B + 3",
+    "test_metrics": {
+      "distance_mae_m": 0.07845504581928253,
+      "azimuth_mae_deg": 3.8763387203216553,
+      "elevation_mae_deg": 3.6178719997406006,
+      "combined_error": 0.05419706925749779,
+      "mean_spike_rate": 0.0323660708963871,
+      "predicted_distance_std": 1.2490794658660889,
+      "predicted_azimuth_std": 25.43775177001953,
+      "predicted_elevation_std": 16.490720748901367,
+      "target_distance_std": 1.2673075199127197,
+      "target_azimuth_std": 24.289430618286133,
+      "target_elevation_std": 16.58349609375,
+      "x_mae_m": 0.11499692499637604,
+      "y_mae_m": 0.15634024143218994,
+      "z_mae_m": 0.15496155619621277,
+      "euclidean_error_m": 0.2838717997074127
+    },
+    "comparison": {
+      "combined_error_delta": 0.0,
+      "distance_mae_delta": 0.0,
+      "azimuth_mae_delta": 0.0,
+      "elevation_mae_delta": 0.0,
+      "spike_rate_delta": 0.0
+    },
+    "training": {
+      "best_epoch": 7,
+      "executed_epochs": 10
+    },
+    "timings": {
+      "data_prep_seconds": 30.746242332999827,
+      "training_seconds": 932.7133754169918,
+      "evaluation_seconds": 2.884772624995094,
+      "total_seconds": 935.6006647500035
+    },
+    "loss_summary": {
+      "distance_loss": 0.0027842784766107798,
+      "azimuth_loss": 0.0019133428577333689,
+      "elevation_loss": 0.001467426074668765,
+      "x_loss": 0.022999385371804237,
+      "y_loss": 0.03126804530620575,
+      "z_loss": 0.03099231794476509,
+      "unit_penalty": 0.005285579711198807,
+      "spike_penalty": 0.0323660708963871
+    },
+    "artifacts": {
+      "loss": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/loss.png",
+      "test_distance_prediction": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/test_distance_prediction.png",
+      "test_azimuth_prediction": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/test_azimuth_prediction.png",
+      "test_elevation_prediction": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/test_elevation_prediction.png",
+      "comparison": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/comparison.png",
+      "summary": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/summary.png",
+      "moving_notch_cue": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/moving_notch_cue.png",
+      "notch_detector_response": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/notch_detector_response.png",
+      "notch_detector_centers": "outputs/round_4_experiments/round4_control_baseline_2b_plus_3/notch_detector_centers.png"
+    },
+    "test_loss": 0.01805214211344719
+  },
+  "components": {
+    "round4_experiment_1_full_lif_timing_replacement": {
+      "name": "round4_experiment_1_full_lif_timing_replacement",
+      "title": "Round 4 Experiment 1: Full LIF Timing Replacement",
+      "description": "Replace the distance pathway and the ITD part of azimuth with explicit LIF coincidence banks, rather than adding them as residuals.",
+      "rationale": "This tests whether a full spike-domain timing pathway is stronger than the current fixed overlap features once 2B + 3 is already in place.",
+      "implemented_steps": [
+        "Keep the 2B + 3 elevation system unchanged.",
+        "Discard the baseline distance latent and replace it with a trainable LIF distance coincidence latent.",
+        "Discard the baseline ITD-derived azimuth component and replace it with a trainable LIF ITD latent, while retaining a fixed ILD contribution."
+      ],
+      "analysis_focus": [
+        "Whether full replacement of the fixed timing code improves distance and azimuth.",
+        "Whether removing the old timing latent hurts the fused model stability."
+      ],
+      "output_mode": "sincos",
+      "data_variant": "moving_notch",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "Round 4 baseline is 2B + 3",
+      "test_metrics": {
+        "distance_mae_m": 0.07864698767662048,
+        "azimuth_mae_deg": 4.135037422180176,
+        "elevation_mae_deg": 2.49790358543396,
+        "combined_error": 0.045762039721012115,
+        "mean_spike_rate": 0.0249151811003685,
+        "predicted_distance_std": 1.2812483310699463,
+        "predicted_azimuth_std": 21.798295974731445,
+        "predicted_elevation_std": 16.42932891845703,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.09849318116903305,
+        "y_mae_m": 0.1605553776025772,
+        "z_mae_m": 0.1046304851770401,
+        "euclidean_error_m": 0.24618637561798096
+      },
+      "comparison": {
+        "combined_error_delta": -0.008435029536485672,
+        "distance_mae_delta": 0.00019194185733795166,
+        "azimuth_mae_delta": 0.2586987018585205,
+        "elevation_mae_delta": -1.1199684143066406,
+        "spike_rate_delta": -0.0074508897960186005
+      },
+      "training": {
+        "best_epoch": 9,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 30.746242332999827,
+        "training_seconds": 909.8610361669853,
+        "evaluation_seconds": 2.5211583750206046,
+        "total_seconds": 912.3835907089815
+      },
+      "loss_summary": {
+        "distance_loss": 0.002982485806569457,
+        "azimuth_loss": 0.0021097916178405285,
+        "elevation_loss": 0.0008569374913349748,
+        "x_loss": 0.01969863474369049,
+        "y_loss": 0.03211107477545738,
+        "z_loss": 0.02092609740793705,
+        "unit_penalty": 0.004365922883152962,
+        "spike_penalty": 0.0249151811003685
+      },
+      "artifacts": {
+        "loss": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/loss.png",
+        "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/test_elevation_prediction.png",
+        "comparison": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/comparison.png",
+        "summary": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/summary.png",
+        "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/moving_notch_cue.png",
+        "lif_distance_left_spikes": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/lif_distance_left_spikes.png",
+        "lif_itd_spikes": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/lif_itd_spikes.png",
+        "lif_betas": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/lif_betas.png",
+        "notch_detector_response": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/notch_detector_response.png",
+        "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_1_full_lif_timing_replacement/notch_detector_centers.png"
+      },
+      "test_loss": 0.016029709950089455
+    },
+    "round4_experiment_2b_postpathway_ic_conv": {
+      "name": "round4_experiment_2b_postpathway_ic_conv",
+      "title": "Round 4 Experiment 2B: Post-Pathway IC Conv",
+      "description": "Add a 2D convolutional integration stage after the pathway latents, inspired by an inferior-colliculus-like shared integration area.",
+      "rationale": "This tests whether a shared pathway interaction map can refine the three branch latents after pathway-specific processing is already complete.",
+      "implemented_steps": [
+        "Take the post-pathway spike traces from the three pathway latents.",
+        "Stack them into a branch-time-latent map.",
+        "Apply a small 2D convolutional integration block and project the result back into all three latents."
+      ],
+      "analysis_focus": [
+        "Whether cross-pathway latent interaction improves final decoding."
+      ],
+      "output_mode": "sincos",
+      "data_variant": "moving_notch",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "Round 4 baseline is 2B + 3",
+      "test_metrics": {
+        "distance_mae_m": 0.07149636000394821,
+        "azimuth_mae_deg": 3.6499056816101074,
+        "elevation_mae_deg": 3.5883398056030273,
+        "combined_error": 0.05225731059908867,
+        "mean_spike_rate": 0.03784226253628731,
+        "predicted_distance_std": 1.247791051864624,
+        "predicted_azimuth_std": 25.46919059753418,
+        "predicted_elevation_std": 16.189088821411133,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.10861832648515701,
+        "y_mae_m": 0.16071678698062897,
+        "z_mae_m": 0.15283861756324768,
+        "euclidean_error_m": 0.28241202235221863
+      },
+      "comparison": {
+        "combined_error_delta": -0.0019397586584091187,
+        "distance_mae_delta": -0.00695868581533432,
+        "azimuth_mae_delta": -0.22643303871154785,
+        "elevation_mae_delta": -0.029532194137573242,
+        "spike_rate_delta": 0.0054761916399002075
+      },
+      "training": {
+        "best_epoch": 9,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 30.746242332999827,
+        "training_seconds": 620.02943795803,
+        "evaluation_seconds": 1.931643666990567,
+        "total_seconds": 621.9621974159963
+      },
+      "loss_summary": {
+        "distance_loss": 0.0023299918975681067,
+        "azimuth_loss": 0.0016818398144096136,
+        "elevation_loss": 0.0014884739648550749,
+        "x_loss": 0.021723665297031403,
+        "y_loss": 0.03214335814118385,
+        "z_loss": 0.030567726120352745,
+        "unit_penalty": 0.0047918218187987804,
+        "spike_penalty": 0.03784226253628731
+      },
+      "artifacts": {
+        "loss": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/loss.png",
+        "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/test_elevation_prediction.png",
+        "comparison": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/comparison.png",
+        "summary": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/summary.png",
+        "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/moving_notch_cue.png",
+        "notch_detector_response": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/notch_detector_response.png",
+        "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/notch_detector_centers.png"
+      },
+      "test_loss": 0.01723415032029152
+    },
+    "round4_experiment_3_bio_ild_lso_mntb": {
+      "name": "round4_experiment_3_bio_ild_lso_mntb",
+      "title": "Round 4 Experiment 3: LSO/MNTB ILD System",
+      "description": "Replace the simple ILD calculation with a more biologically inspired LSO/MNTB style opponent system.",
+      "rationale": "This tests whether explicitly modeling excitatory ipsilateral drive and contralateral inhibitory drive improves azimuth, especially near the midline.",
+      "implemented_steps": [
+        "Keep the 2B + 3 elevation and ITD systems unchanged.",
+        "Compute per-ear spike-count drives, convert contralateral drive into inhibition through an MNTB-like stage, and form left and right LSO responses.",
+        "Compare the LSO outputs to form a replacement ILD representation for the azimuth pathway."
+      ],
+      "analysis_focus": [
+        "Whether the LSO/MNTB style ILD improves azimuth without disturbing elevation."
+      ],
+      "output_mode": "sincos",
+      "data_variant": "moving_notch",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "Round 4 baseline is 2B + 3",
+      "test_metrics": {
+        "distance_mae_m": 0.07238343358039856,
+        "azimuth_mae_deg": 3.120663642883301,
+        "elevation_mae_deg": 2.473679542541504,
+        "combined_error": 0.04074482619762421,
+        "mean_spike_rate": 0.03474206104874611,
+        "predicted_distance_std": 1.2627593278884888,
+        "predicted_azimuth_std": 24.515398025512695,
+        "predicted_elevation_std": 16.969585418701172,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.08855054527521133,
+        "y_mae_m": 0.1385241448879242,
+        "z_mae_m": 0.10593262314796448,
+        "euclidean_error_m": 0.22107769548892975
+      },
+      "comparison": {
+        "combined_error_delta": -0.013452243059873581,
+        "distance_mae_delta": -0.006071612238883972,
+        "azimuth_mae_delta": -0.7556750774383545,
+        "elevation_mae_delta": -1.1441924571990967,
+        "spike_rate_delta": 0.002375990152359009
+      },
+      "training": {
+        "best_epoch": 9,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 30.746242332999827,
+        "training_seconds": 698.2439123750082,
+        "evaluation_seconds": 2.1243640829925425,
+        "total_seconds": 700.369773583021
+      },
+      "loss_summary": {
+        "distance_loss": 0.002219590824097395,
+        "azimuth_loss": 0.0012475806288421154,
+        "elevation_loss": 0.0007374835549853742,
+        "x_loss": 0.017710110172629356,
+        "y_loss": 0.02770482935011387,
+        "z_loss": 0.021186525002121925,
+        "unit_penalty": 0.002137735253199935,
+        "spike_penalty": 0.03474206104874611
+      },
+      "artifacts": {
+        "loss": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/loss.png",
+        "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/test_elevation_prediction.png",
+        "comparison": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/comparison.png",
+        "summary": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/summary.png",
+        "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/moving_notch_cue.png",
+        "notch_detector_response": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/notch_detector_response.png",
+        "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_3_bio_ild_lso_mntb/notch_detector_centers.png"
+      },
+      "test_loss": 0.013144807890057564
+    },
+    "round4_experiment_4_distance_spike_sum": {
+      "name": "round4_experiment_4_distance_spike_sum",
+      "title": "Round 4 Experiment 4: Distance Spike-Sum Cue",
+      "description": "Add a simple receive-spike summing cue to the distance pathway so that overall echo strength can contribute to range estimation.",
+      "rationale": "This tests whether the unnormalized 140 dB setup still contains useful loudness information that the current distance pathway is not using directly.",
+      "implemented_steps": [
+        "Compute simple left, right, total, and contrast spike-count summaries from the receive spikes.",
+        "Project them into a distance-only residual latent.",
+        "Add that residual to the 2B + 3 distance pathway only."
+      ],
+      "analysis_focus": [
+        "Whether explicit spike-sum distance information improves range estimation."
+      ],
+      "output_mode": "sincos",
+      "data_variant": "moving_notch",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "Round 4 baseline is 2B + 3",
+      "test_metrics": {
+        "distance_mae_m": 0.07631175965070724,
+        "azimuth_mae_deg": 2.914304256439209,
+        "elevation_mae_deg": 2.760042428970337,
+        "combined_error": 0.04212621599435806,
+        "mean_spike_rate": 0.03273065388202667,
+        "predicted_distance_std": 1.2628991603851318,
+        "predicted_azimuth_std": 24.24750328063965,
+        "predicted_elevation_std": 15.231186866760254,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.08779813349246979,
+        "y_mae_m": 0.12168004363775253,
+        "z_mae_m": 0.11370422691106796,
+        "euclidean_error_m": 0.21324647963047028
+      },
+      "comparison": {
+        "combined_error_delta": -0.012070853263139725,
+        "distance_mae_delta": -0.002143286168575287,
+        "azimuth_mae_delta": -0.9620344638824463,
+        "elevation_mae_delta": -0.8578295707702637,
+        "spike_rate_delta": 0.00036458298563957214
+      },
+      "training": {
+        "best_epoch": 10,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 30.746242332999827,
+        "training_seconds": 693.8032183749601,
+        "evaluation_seconds": 2.1691880829748698,
+        "total_seconds": 695.973667666025
+      },
+      "loss_summary": {
+        "distance_loss": 0.0026560926344245672,
+        "azimuth_loss": 0.00100292160641402,
+        "elevation_loss": 0.0009727141004987061,
+        "x_loss": 0.017559627071022987,
+        "y_loss": 0.024336008355021477,
+        "z_loss": 0.022740846499800682,
+        "unit_penalty": 0.00504210963845253,
+        "spike_penalty": 0.03273065388202667
+      },
+      "artifacts": {
+        "loss": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/loss.png",
+        "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/test_elevation_prediction.png",
+        "comparison": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/comparison.png",
+        "summary": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/summary.png",
+        "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/moving_notch_cue.png",
+        "notch_detector_response": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/notch_detector_response.png",
+        "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_4_distance_spike_sum/notch_detector_centers.png"
+      },
+      "test_loss": 0.013639220036566257
+    },
+    "round4_experiment_5_per_pathway_q_resonance": {
+      "name": "round4_experiment_5_per_pathway_q_resonance",
+      "title": "Round 4 Experiment 5: Per-Pathway Q-Tunable Resonance Banks",
+      "description": "Add separate resonance banks to distance, azimuth, and elevation, each with its own trainable Q factor and task-specific initialization.",
+      "rationale": "This tests whether task-specific resonance is more useful than the current shared resonance branch.",
+      "implemented_steps": [
+        "Add separate resonance banks for distance, azimuth, and elevation.",
+        "Initialize azimuth with lower Q, distance with moderate Q, and elevation with higher Q.",
+        "Project each bank back only into its own pathway latent."
+      ],
+      "analysis_focus": [
+        "Whether pathway-specific resonance improves timing and spectral discrimination."
+      ],
+      "output_mode": "sincos",
+      "data_variant": "moving_notch",
+      "accepted": true,
+      "decision": "ACCEPTED",
+      "baseline_label": "Round 4 baseline is 2B + 3",
+      "test_metrics": {
+        "distance_mae_m": 0.08179598301649094,
+        "azimuth_mae_deg": 3.179184675216675,
+        "elevation_mae_deg": 3.3205251693725586,
+        "combined_error": 0.04879952594637871,
+        "mean_spike_rate": 0.03312351182103157,
+        "predicted_distance_std": 1.2193559408187866,
+        "predicted_azimuth_std": 24.569015502929688,
+        "predicted_elevation_std": 16.373136520385742,
+        "target_distance_std": 1.2673075199127197,
+        "target_azimuth_std": 24.289430618286133,
+        "target_elevation_std": 16.58349609375,
+        "x_mae_m": 0.09714102745056152,
+        "y_mae_m": 0.1297350525856018,
+        "z_mae_m": 0.14103586971759796,
+        "euclidean_error_m": 0.24287982285022736
+      },
+      "comparison": {
+        "combined_error_delta": -0.00539754331111908,
+        "distance_mae_delta": 0.0033409371972084045,
+        "azimuth_mae_delta": -0.6971540451049805,
+        "elevation_mae_delta": -0.297346830368042,
+        "spike_rate_delta": 0.0007574409246444702
+      },
+      "training": {
+        "best_epoch": 9,
+        "executed_epochs": 10
+      },
+      "timings": {
+        "data_prep_seconds": 30.746242332999827,
+        "training_seconds": 731.4548226249753,
+        "evaluation_seconds": 2.1647473750053905,
+        "total_seconds": 733.6211167089641
+      },
+      "loss_summary": {
+        "distance_loss": 0.0030781649984419346,
+        "azimuth_loss": 0.0011319085024297237,
+        "elevation_loss": 0.0012920702574774623,
+        "x_loss": 0.019428204745054245,
+        "y_loss": 0.02594701200723648,
+        "z_loss": 0.02820717543363571,
+        "unit_penalty": 0.004890814423561096,
+        "spike_penalty": 0.03312351182103157
+      },
+      "artifacts": {
+        "loss": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/loss.png",
+        "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/test_distance_prediction.png",
+        "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/test_azimuth_prediction.png",
+        "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/test_elevation_prediction.png",
+        "comparison": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/comparison.png",
+        "summary": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/summary.png",
+        "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/moving_notch_cue.png",
+        "notch_detector_response": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/notch_detector_response.png",
+        "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_5_per_pathway_q_resonance/notch_detector_centers.png"
+      },
+      "test_loss": 0.015704577788710594
+    }
+  },
+  "combined": {
+    "name": "round4_combined_experiment_all_but_2a",
+    "title": "Round 4 Combined: 1 + 2B + 3 + 4 + 5",
+    "description": "Combine all accepted round-4 architectural additions except 2A on top of the 2B + 3 baseline.",
+    "rationale": "This tests whether the accepted round-4 improvements are complementary when combined, or whether they interfere once stacked into one model.",
+    "implemented_steps": [
+      "Start from the 2B + 3 baseline.",
+      "Use full LIF timing replacement from Experiment 1.",
+      "Use post-pathway IC convolution from Experiment 2B.",
+      "Use the LSO/MNTB ILD replacement from Experiment 3.",
+      "Use the distance spike-sum cue from Experiment 4.",
+      "Use the per-pathway Q-tunable resonance banks from Experiment 5."
+    ],
+    "analysis_focus": [
+      "Whether the accepted round-4 improvements are complementary or mutually interfering.",
+      "Whether the combined model beats the best individual round-4 experiment."
+    ],
+    "output_mode": "sincos",
+    "data_variant": "moving_notch",
+    "accepted": true,
+    "decision": "ACCEPTED",
+    "baseline_label": "Round 4 baseline is 2B + 3",
+    "test_metrics": {
+      "distance_mae_m": 0.07864680886268616,
+      "azimuth_mae_deg": 2.8319928646087646,
+      "elevation_mae_deg": 2.7802393436431885,
+      "combined_error": 0.04347166419029236,
+      "mean_spike_rate": 0.02940327301621437,
+      "predicted_distance_std": 1.2893580198287964,
+      "predicted_azimuth_std": 25.13545036315918,
+      "predicted_elevation_std": 16.357282638549805,
+      "target_distance_std": 1.2673075199127197,
+      "target_azimuth_std": 24.289430618286133,
+      "target_elevation_std": 16.58349609375,
+      "x_mae_m": 0.10111787170171738,
+      "y_mae_m": 0.12503133714199066,
+      "z_mae_m": 0.11397752165794373,
+      "euclidean_error_m": 0.22639401257038116
+    },
+    "comparison": {
+      "combined_error_delta": -0.010725405067205429,
+      "distance_mae_delta": 0.0001917630434036255,
+      "azimuth_mae_delta": -1.0443458557128906,
+      "elevation_mae_delta": -0.8376326560974121,
+      "spike_rate_delta": -0.0029627978801727295
+    },
+    "training": {
+      "best_epoch": 10,
+      "executed_epochs": 10
+    },
+    "timings": {
+      "data_prep_seconds": 25.72239783400437,
+      "training_seconds": 764.1396247500088,
+      "evaluation_seconds": 2.2573177499580197,
+      "total_seconds": 766.3984304160113
+    },
+    "loss_summary": {
+      "distance_loss": 0.0028057764284312725,
+      "azimuth_loss": 0.0009893731912598014,
+      "elevation_loss": 0.001018284005112946,
+      "x_loss": 0.020223572850227356,
+      "y_loss": 0.025006268173456192,
+      "z_loss": 0.022795505821704865,
+      "unit_penalty": 0.003069438738748431,
+      "spike_penalty": 0.02940327301621437
+    },
+    "artifacts": {
+      "loss": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/loss.png",
+      "test_distance_prediction": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/test_distance_prediction.png",
+      "test_azimuth_prediction": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/test_azimuth_prediction.png",
+      "test_elevation_prediction": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/test_elevation_prediction.png",
+      "comparison": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/comparison.png",
+      "summary": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/summary.png",
+      "moving_notch_cue": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/moving_notch_cue.png",
+      "lif_distance_left_spikes": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/lif_distance_left_spikes.png",
+      "lif_itd_spikes": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/lif_itd_spikes.png",
+      "lif_betas": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/lif_betas.png",
+      "notch_detector_response": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/notch_detector_response.png",
+      "notch_detector_centers": "outputs/round_4_combined_experiment/round4_combined_experiment_all_but_2a/notch_detector_centers.png"
+    },
+    "test_loss": 0.014003325253725052
+  },
+  "report_path": "outputs/round_4_combined_experiment_report.md"
+}

@@ -1,0 +1,75 @@
+{
+  "name": "round4_experiment_2b_postpathway_ic_conv",
+  "title": "Round 4 Experiment 2B: Post-Pathway IC Conv",
+  "description": "Add a 2D convolutional integration stage after the pathway latents, inspired by an inferior-colliculus-like shared integration area.",
+  "rationale": "This tests whether a shared pathway interaction map can refine the three branch latents after pathway-specific processing is already complete.",
+  "implemented_steps": [
+    "Take the post-pathway spike traces from the three pathway latents.",
+    "Stack them into a branch-time-latent map.",
+    "Apply a small 2D convolutional integration block and project the result back into all three latents."
+  ],
+  "analysis_focus": [
+    "Whether cross-pathway latent interaction improves final decoding."
+  ],
+  "output_mode": "sincos",
+  "data_variant": "moving_notch",
+  "accepted": true,
+  "decision": "ACCEPTED",
+  "baseline_label": "Round 4 baseline is 2B + 3",
+  "test_metrics": {
+    "distance_mae_m": 0.07149636000394821,
+    "azimuth_mae_deg": 3.6499056816101074,
+    "elevation_mae_deg": 3.5883398056030273,
+    "combined_error": 0.05225731059908867,
+    "mean_spike_rate": 0.03784226253628731,
+    "predicted_distance_std": 1.247791051864624,
+    "predicted_azimuth_std": 25.46919059753418,
+    "predicted_elevation_std": 16.189088821411133,
+    "target_distance_std": 1.2673075199127197,
+    "target_azimuth_std": 24.289430618286133,
+    "target_elevation_std": 16.58349609375,
+    "x_mae_m": 0.10861832648515701,
+    "y_mae_m": 0.16071678698062897,
+    "z_mae_m": 0.15283861756324768,
+    "euclidean_error_m": 0.28241202235221863
+  },
+  "comparison": {
+    "combined_error_delta": -0.0019397586584091187,
+    "distance_mae_delta": -0.00695868581533432,
+    "azimuth_mae_delta": -0.22643303871154785,
+    "elevation_mae_delta": -0.029532194137573242,
+    "spike_rate_delta": 0.0054761916399002075
+  },
+  "training": {
+    "best_epoch": 9,
+    "executed_epochs": 10
+  },
+  "timings": {
+    "data_prep_seconds": 0.0,
+    "training_seconds": 620.02943795803,
+    "evaluation_seconds": 1.931643666990567,
+    "total_seconds": 621.9621974159963
+  },
+  "loss_summary": {
+    "distance_loss": 0.0023299918975681067,
+    "azimuth_loss": 0.0016818398144096136,
+    "elevation_loss": 0.0014884739648550749,
+    "x_loss": 0.021723665297031403,
+    "y_loss": 0.03214335814118385,
+    "z_loss": 0.030567726120352745,
+    "unit_penalty": 0.0047918218187987804,
+    "spike_penalty": 0.03784226253628731
+  },
+  "artifacts": {
+    "loss": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/loss.png",
+    "test_distance_prediction": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/test_distance_prediction.png",
+    "test_azimuth_prediction": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/test_azimuth_prediction.png",
+    "test_elevation_prediction": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/test_elevation_prediction.png",
+    "comparison": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/comparison.png",
+    "summary": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/summary.png",
+    "moving_notch_cue": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/moving_notch_cue.png",
+    "notch_detector_response": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/notch_detector_response.png",
+    "notch_detector_centers": "outputs/round_4_experiments/round4_experiment_2b_postpathway_ic_conv/notch_detector_centers.png"
+  },
+  "test_loss": 0.01723415032029152
+}
