@@ -93,13 +93,13 @@ def _save_lif_animation() -> Path:
     input_spikes = np.zeros(steps)
     input_spikes[8] = 1.0
     input_spikes[24] = 1.0
-    input_spikes[25] = 1.0
-    input_spikes[26] = 1.0
+    input_spikes[27] = 1.0
+    input_spikes[30] = 1.0
     input_spikes[44] = 1.0
-    input_spikes[45] = 1.0
-    input_spikes[46] = 1.0
-    current = 0.38 * input_spikes
-    membrane, spikes, pre_reset = _lif_sim(current, beta=0.92, threshold=1.0)
+    input_spikes[47] = 1.0
+    input_spikes[50] = 1.0
+    current = 0.55 * input_spikes
+    membrane, spikes, pre_reset = _lif_sim(current, beta=0.82, threshold=1.0)
 
     frames: list[Image.Image] = []
     for frame in range(steps):
