@@ -44,6 +44,8 @@ EXAMPLE_AZIMUTH_DEG = 35.0
 EXAMPLE_ELEVATION_DEG = 20.0
 NOTCH_SWEEP_LOW_HZ = 4_000.0
 NOTCH_SWEEP_HIGH_HZ = 16_000.0
+COMB_FIRST_NOTCH_LOW_HZ = 6_000.0
+COMB_FIRST_NOTCH_HIGH_HZ = 16_000.0
 
 
 def _to_numpy(values: torch.Tensor) -> np.ndarray:
@@ -168,8 +170,8 @@ def _comb_interference_gain(
     elevation_deg: torch.Tensor,
     frequency_hz: torch.Tensor,
     *,
-    lowest_notch_hz: float = 4_000.0,
-    highest_notch_hz: float = 16_000.0,
+    lowest_notch_hz: float = COMB_FIRST_NOTCH_LOW_HZ,
+    highest_notch_hz: float = COMB_FIRST_NOTCH_HIGH_HZ,
     delayed_copy_gain: float = 0.85,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Create a comb-filter gain from interference with a delayed copy.
@@ -644,6 +646,7 @@ def _write_report(artifacts: dict[str, str], results: dict[str, object], elapsed
         f"| azimuth limit for mini sweeps | `+/-{results['limits']['azimuth_deg']} deg` |",
         f"| elevation limit for mini sweeps | `+/-{results['limits']['elevation_deg']} deg` |",
         f"| notch centre sweep | `{results['limits']['notch_sweep_low_hz']} -> {results['limits']['notch_sweep_high_hz']} Hz` |",
+        f"| comb first-notch sweep | `{results['limits']['comb_first_notch_low_hz']} -> {results['limits']['comb_first_notch_high_hz']} Hz` |",
         f"| example distance | `{results['scene']['distance_m']} m` |",
         f"| example azimuth | `{results['scene']['azimuth_deg']} deg` |",
         f"| example elevation | `{results['scene']['elevation_deg']} deg` |",
@@ -732,9 +735,12 @@ def _write_report(artifacts: dict[str, str], results: dict[str, object], elapsed
         "This proposed cue also removes the broad slope. The signal is mixed with a slightly delayed copy of itself. Frequency components whose phase is opposite between the direct and delayed copy cancel, producing a comb of notches.",
         "",
         "```text",
+        "chirp(t) = sin(2*pi*(f_start*t + 0.5*k*t^2)) * Hann(t)",
         "y(t) = x(t) + alpha * x(t - tau)",
         "H(f) = 1 + alpha * exp(-j * 2*pi*f*tau)",
         "|H(f)| = sqrt(1 + alpha^2 + 2*alpha*cos(2*pi*f*tau))",
+        "Y(f) = X_chirp(f) * H(f)",
+        "|Y(f)| = |X_chirp(f)| * |H(f)|",
         "first_notch = 1 / (2 * tau)",
         "tau(elevation) = 1 / (2 * first_notch_frequency(elevation))",
         "```",
@@ -828,6 +834,8 @@ def main() -> dict[str, object]:
             "elevation_deg": ANGLE_LIMIT_DEG,
             "notch_sweep_low_hz": NOTCH_SWEEP_LOW_HZ,
             "notch_sweep_high_hz": NOTCH_SWEEP_HIGH_HZ,
+            "comb_first_notch_low_hz": COMB_FIRST_NOTCH_LOW_HZ,
+            "comb_first_notch_high_hz": COMB_FIRST_NOTCH_HIGH_HZ,
         },
         "noise_jitter_diagnostic": noise_jitter_diagnostic,
         "artifacts": artifacts,

@@ -13,6 +13,7 @@ This mini model visualizes the acoustic signal before neural processing. It is i
 | azimuth limit for mini sweeps | `+/-45.0 deg` |
 | elevation limit for mini sweeps | `+/-45.0 deg` |
 | notch centre sweep | `4000.0 -> 16000.0 Hz` |
+| comb first-notch sweep | `6000.0 -> 16000.0 Hz` |
 | example distance | `3.0 m` |
 | example azimuth | `35.0 deg` |
 | example elevation | `20.0 deg` |
@@ -101,9 +102,12 @@ Compared with the Gaussian notch, increasing the Butterworth order makes the not
 This proposed cue also removes the broad slope. The signal is mixed with a slightly delayed copy of itself. Frequency components whose phase is opposite between the direct and delayed copy cancel, producing a comb of notches.
 
 ```text
+chirp(t) = sin(2*pi*(f_start*t + 0.5*k*t^2)) * Hann(t)
 y(t) = x(t) + alpha * x(t - tau)
 H(f) = 1 + alpha * exp(-j * 2*pi*f*tau)
 |H(f)| = sqrt(1 + alpha^2 + 2*alpha*cos(2*pi*f*tau))
+Y(f) = X_chirp(f) * H(f)
+|Y(f)| = |X_chirp(f)| * |H(f)|
 first_notch = 1 / (2 * tau)
 tau(elevation) = 1 / (2 * first_notch_frequency(elevation))
 ```
@@ -134,4 +138,4 @@ Changing elevation changes the lag, which moves the comb notches across frequenc
 - `comb_interference_notch_model`: `mini_models/outputs/signal_analysis/figures/comb_interference_notch_model.png`
 - `results`: `mini_models/outputs/signal_analysis/results.json`
 
-Runtime: `1.07 s`.
+Runtime: `0.99 s`.
