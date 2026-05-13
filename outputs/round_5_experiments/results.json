@@ -1,0 +1,235 @@
+{
+  "round": 5,
+  "data_prep_seconds": 15.931325459037907,
+  "experiment_1": {
+    "name": "round5_experiment_1_fixed_decoders",
+    "title": "Round 5 Experiment 1: Fixed / Nearly Fixed Decoders",
+    "baseline": "Round 4 combined model",
+    "reference": "Round 3 Combined A: 2B + 3",
+    "round4_baseline_metrics": {
+      "distance_mae_m": 0.07864680886268616,
+      "azimuth_mae_deg": 2.8319928646087646,
+      "elevation_mae_deg": 2.7802393436431885,
+      "combined_error": 0.04347166419029236,
+      "mean_spike_rate": 0.02940327301621437,
+      "predicted_distance_std": 1.2893580198287964,
+      "predicted_azimuth_std": 25.13545036315918,
+      "predicted_elevation_std": 16.357282638549805,
+      "target_distance_std": 1.2673075199127197,
+      "target_azimuth_std": 24.289430618286133,
+      "target_elevation_std": 16.58349609375,
+      "x_mae_m": 0.10111787170171738,
+      "y_mae_m": 0.12503133714199066,
+      "z_mae_m": 0.11397752165794373,
+      "euclidean_error_m": 0.22639401257038116
+    },
+    "round3_reference_metrics": {
+      "distance_mae_m": 0.06462736427783966,
+      "azimuth_mae_deg": 2.8594982624053955,
+      "elevation_mae_deg": 2.5257928371429443,
+      "combined_error": 0.03943054378032684,
+      "mean_spike_rate": 0.03205059468746185,
+      "predicted_distance_std": 1.2754510641098022,
+      "predicted_azimuth_std": 23.876909255981445,
+      "predicted_elevation_std": 15.70189380645752,
+      "target_distance_std": 1.2673075199127197,
+      "target_azimuth_std": 24.289430618286133,
+      "target_elevation_std": 16.58349609375,
+      "x_mae_m": 0.09415245801210403,
+      "y_mae_m": 0.11303268373012543,
+      "z_mae_m": 0.10031414031982422,
+      "euclidean_error_m": 0.2043345719575882
+    },
+    "space": {
+      "distance_m": [
+        0.5,
+        5.0
+      ],
+      "azimuth_deg": [
+        -45.0,
+        45.0
+      ],
+      "elevation_deg": [
+        -30.0,
+        30.0
+      ]
+    },
+    "data": {
+      "train": 700,
+      "validation": 150,
+      "test": 150
+    },
+    "variants": [
+      {
+        "name": "round5_experiment_1a_naive_fixed_population_decoder",
+        "title": "Round 5 Experiment 1A: Naive Fixed Population Decoder",
+        "description": "No training. Decode distance, azimuth, and elevation directly from fixed population-code features.",
+        "training_mode": "none",
+        "trainable_parameters": 0,
+        "fixed_tuned_parameters": 0,
+        "test_metrics": {
+          "distance_mae_m": 0.16464191675186157,
+          "azimuth_mae_deg": 31.817655563354492,
+          "elevation_mae_deg": 14.327938079833984,
+          "combined_error": 0.2687509059906006,
+          "mean_spike_rate": 0.06463395804166794,
+          "predicted_distance_std": 1.2350735664367676,
+          "predicted_azimuth_std": 17.5546817779541,
+          "predicted_elevation_std": 4.338222026824951,
+          "target_distance_std": 1.2673075199127197,
+          "target_azimuth_std": 24.289430618286133,
+          "target_elevation_std": 16.58349609375,
+          "x_mae_m": 0.35315707325935364,
+          "y_mae_m": 1.2610992193222046,
+          "z_mae_m": 0.6481332182884216,
+          "euclidean_error_m": 1.6059987545013428
+        },
+        "timings": {
+          "training_seconds": 0.0,
+          "evaluation_seconds": 0.5515197919448838,
+          "total_seconds": 0.5515197919448838,
+          "data_prep_seconds": 15.931325459037907
+        },
+        "comparison_vs_round4": {
+          "combined_error_delta": 0.22527924180030823,
+          "distance_mae_delta": 0.08599510788917542,
+          "azimuth_mae_delta": 28.985662698745728,
+          "elevation_mae_delta": 11.547698736190796,
+          "spike_rate_delta": 0.03523068502545357
+        },
+        "comparison_vs_round3_2b_plus_3": {
+          "combined_error_delta": 0.22932036221027374,
+          "distance_mae_delta": 0.10001455247402191,
+          "azimuth_mae_delta": 28.958157300949097,
+          "elevation_mae_delta": 11.80214524269104,
+          "spike_rate_delta": 0.032583363354206085
+        }
+      },
+      {
+        "name": "round5_experiment_1b_minimal_scale_bias_calibration",
+        "title": "Round 5 Experiment 1B: Minimal Scale/Bias Calibration",
+        "description": "Fit one scale and one bias per coordinate on the training set, then freeze them.",
+        "training_mode": "closed_form_scale_bias",
+        "trainable_parameters": 0,
+        "fixed_tuned_parameters": 6,
+        "tuned_parameters": {
+          "scale": [
+            1.0339524745941162,
+            -1.0325425863265991,
+            1.0373327732086182
+          ],
+          "bias": [
+            -0.041610635817050934,
+            0.0020743722561746836,
+            -0.2934343218803406
+          ]
+        },
+        "test_metrics": {
+          "distance_mae_m": 0.1385185569524765,
+          "azimuth_mae_deg": 14.468188285827637,
+          "elevation_mae_deg": 12.387731552124023,
+          "combined_error": 0.17661921679973602,
+          "mean_spike_rate": 0.06463395804166794,
+          "predicted_distance_std": 1.2722795009613037,
+          "predicted_azimuth_std": 18.125957489013672,
+          "predicted_elevation_std": 4.500179767608643,
+          "target_distance_std": 1.2673075199127197,
+          "target_azimuth_std": 24.289430618286133,
+          "target_elevation_std": 16.58349609375,
+          "x_mae_m": 0.32015061378479004,
+          "y_mae_m": 0.624022901058197,
+          "z_mae_m": 0.5467746257781982,
+          "euclidean_error_m": 0.9844920635223389
+        },
+        "timings": {
+          "training_seconds": 0.006602291949093342,
+          "evaluation_seconds": 0.0,
+          "total_seconds": 0.006602291949093342,
+          "data_prep_seconds": 15.931325459037907
+        },
+        "comparison_vs_round4": {
+          "combined_error_delta": 0.13314755260944366,
+          "distance_mae_delta": 0.059871748089790344,
+          "azimuth_mae_delta": 11.636195421218872,
+          "elevation_mae_delta": 9.607492208480835,
+          "spike_rate_delta": 0.03523068502545357
+        },
+        "comparison_vs_round3_2b_plus_3": {
+          "combined_error_delta": 0.13718867301940918,
+          "distance_mae_delta": 0.07389119267463684,
+          "azimuth_mae_delta": 11.608690023422241,
+          "elevation_mae_delta": 9.861938714981079,
+          "spike_rate_delta": 0.032583363354206085
+        }
+      },
+      {
+        "name": "round5_experiment_1c_trained_once_fixed_ridge_decoder",
+        "title": "Round 5 Experiment 1C: Trained-Once Fixed Ridge Decoder",
+        "description": "Use the training set once to tune a small linear population-code decoder, then freeze the decoder.",
+        "training_mode": "closed_form_ridge",
+        "trainable_parameters": 0,
+        "fixed_tuned_parameters": 792,
+        "selected_ridge": 0.01,
+        "validation_metrics": {
+          "distance_mae_m": 0.036833830177783966,
+          "azimuth_mae_deg": 3.0407304763793945,
+          "elevation_mae_deg": 2.5299036502838135,
+          "combined_error": 0.03752030059695244,
+          "mean_spike_rate": 0.0,
+          "predicted_distance_std": 1.2586549520492554,
+          "predicted_azimuth_std": 23.842227935791016,
+          "predicted_elevation_std": 17.043914794921875,
+          "target_distance_std": 1.2665218114852905,
+          "target_azimuth_std": 23.568416595458984,
+          "target_elevation_std": 17.378883361816406,
+          "x_mae_m": 0.07342024147510529,
+          "y_mae_m": 0.11262580752372742,
+          "z_mae_m": 0.1014486774802208,
+          "euclidean_error_m": 0.19132448732852936
+        },
+        "test_metrics": {
+          "distance_mae_m": 0.043779488652944565,
+          "azimuth_mae_deg": 3.107654094696045,
+          "elevation_mae_deg": 2.587635040283203,
+          "combined_error": 0.0386526845395565,
+          "mean_spike_rate": 0.06463395804166794,
+          "predicted_distance_std": 1.2681549787521362,
+          "predicted_azimuth_std": 24.699176788330078,
+          "predicted_elevation_std": 16.45097541809082,
+          "target_distance_std": 1.2673075199127197,
+          "target_azimuth_std": 24.289430618286133,
+          "target_elevation_std": 16.58349609375,
+          "x_mae_m": 0.06950753927230835,
+          "y_mae_m": 0.13061796128749847,
+          "z_mae_m": 0.10660457611083984,
+          "euclidean_error_m": 0.20694465935230255
+        },
+        "timings": {
+          "training_seconds": 1.1011235830374062,
+          "evaluation_seconds": 0.0,
+          "total_seconds": 1.1011235830374062,
+          "data_prep_seconds": 15.931325459037907
+        },
+        "comparison_vs_round4": {
+          "combined_error_delta": -0.004818979650735855,
+          "distance_mae_delta": -0.03486732020974159,
+          "azimuth_mae_delta": 0.2756612300872803,
+          "elevation_mae_delta": -0.19260430335998535,
+          "spike_rate_delta": 0.03523068502545357
+        },
+        "comparison_vs_round3_2b_plus_3": {
+          "combined_error_delta": -0.00077785924077034,
+          "distance_mae_delta": -0.020847875624895096,
+          "azimuth_mae_delta": 0.24815583229064941,
+          "elevation_mae_delta": 0.06184220314025879,
+          "spike_rate_delta": 0.032583363354206085
+        }
+      }
+    ],
+    "artifacts": {
+      "comparison": "outputs/round_5_experiments/experiment_1_fixed_decoders/round5_experiment_1_comparison.png",
+      "fixed_tuned_decoder": "outputs/round_5_experiments/experiment_1_fixed_decoders/fixed_tuned_ridge_decoder.json"
+    }
+  },
+  "report_path": "outputs/round_5_experiments_report.md"
+}
