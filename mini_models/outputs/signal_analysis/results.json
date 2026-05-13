@@ -1,0 +1,53 @@
+{
+  "experiment": "signal_analysis",
+  "elapsed_seconds": 1.0698274171445519,
+  "config": {
+    "sample_rate_hz": 64000,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "chirp_duration_s": 0.003,
+    "signal_duration_s": 0.022,
+    "noise_std": 0.008,
+    "jitter_std_s": 2.5e-05,
+    "head_shadow_strength": 0.32,
+    "elevation_notch_strength": 1.8,
+    "elevation_notch_width": 0.065
+  },
+  "scene": {
+    "distance_m": 3.0,
+    "azimuth_deg": 35.0,
+    "elevation_deg": 20.0,
+    "delays_ms": [
+      17.516359329223633,
+      17.469219207763672
+    ],
+    "amplitudes": [
+      0.019391976296901703,
+      0.019496774300932884
+    ],
+    "itd_ms": -0.04713982343673706,
+    "ild_db": 0.046814195811748505
+  },
+  "limits": {
+    "azimuth_deg": 45.0,
+    "elevation_deg": 45.0,
+    "notch_sweep_low_hz": 4000.0,
+    "notch_sweep_high_hz": 16000.0
+  },
+  "noise_jitter_diagnostic": {
+    "target_snr_db": 10.0,
+    "diagnostic_noise_std": 2.241505886019335,
+    "diagnostic_jitter_s": 0.00025,
+    "signal_rms_active_window": 7.088263988494873
+  },
+  "artifacts": {
+    "emitted_call_spectrogram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/emitted_call_spectrogram.png",
+    "emitted_received_amplitude": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/emitted_received_amplitude.png",
+    "binaural_head_shadow": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/binaural_head_shadow.png",
+    "noise_and_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/noise_and_jitter.png",
+    "elevation_notch_psd": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/elevation_notch_psd.png",
+    "elevation_gain_contour": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/elevation_gain_contour.png",
+    "butterworth_notch_model": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/butterworth_notch_model.png",
+    "comb_interference_notch_model": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/signal_analysis/figures/comb_interference_notch_model.png"
+  }
+}

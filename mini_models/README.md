@@ -15,4 +15,4 @@ The old round-based model code and outputs should remain untouched. Mini-model w
 ## Current Experiments
 
 - `experiments/neuron_analysis.py`: micro and macro behaviour of LIF, resonate-and-fire, and level-crossing neurons.
-
+- `experiments/signal_analysis.py`: emitted call, received echoes, binaural attenuation/head shadow, noise/jitter, and elevation spectral notch.
