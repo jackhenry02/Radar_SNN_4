@@ -1,6 +1,6 @@
 # Mini Model 3: Cochlea Analysis
 
-This mini model compares four candidate cochlea front ends. The aim is not yet to optimise them, but to check whether the mechanisms produce sensible channel activity and spikes, and to estimate their relative computational cost.
+This mini model compares the original four candidate cochlea front ends and then adds three improvement candidates. The aim is not yet to fully optimise them, but to check whether the mechanisms produce sensible channel activity and spikes, and to estimate their relative computational cost.
 
 ## Shared Setup
 
@@ -21,10 +21,13 @@ The input is one clean left-ear echo from the matched-human signal setup. Keepin
 
 | Model | FLOPs estimate | SOPs / output events | Time | Time per channel | Spike density |
 |---|---:|---:|---:|---:|---:|
-| Original FFT/IFFT + envelope + LIF | `9,031,990` | `910` | `3.785 ms` | `0.0789 ms` | `0.0539` |
-| Time-domain Conv1D filterbank + LIF | `17,842,176` | `7,028` | `12.554 ms` | `0.2615 ms` | `0.1040` |
-| Time-domain filterbank + level crossing | `17,842,176` | `4,316` | `32.187 ms` | `0.6706 ms` | `0.0639` |
-| Direct resonate-and-fire bank | `675,840` | `428` | `15.027 ms` | `0.3131 ms` | `0.0063` |
+| Original FFT/IFFT + envelope + LIF | `9,031,990` | `910` | `4.064 ms` | `0.0847 ms` | `0.0539` |
+| Time-domain Conv1D filterbank + LIF | `17,842,176` | `7,028` | `13.019 ms` | `0.2712 ms` | `0.1040` |
+| Time-domain filterbank + level crossing | `17,842,176` | `4,316` | `32.920 ms` | `0.6858 ms` | `0.0639` |
+| Direct resonate-and-fire bank | `675,840` | `428` | `16.110 ms` | `0.3356 ms` | `0.0063` |
+| IIR resonator filterbank + LIF | `811,008` | `5,759` | `17.690 ms` | `0.3685 ms` | `0.0852` |
+| IIR resonator filterbank + level crossing | `811,008` | `4,243` | `39.001 ms` | `0.8125 ms` | `0.0628` |
+| Damped wide-band RF bank | `675,840` | `2,417` | `16.015 ms` | `0.3336 ms` | `0.0358` |
 
 FLOPs are approximate dense-operation counts for one waveform. SOPs are counted here as emitted output spike/events, because downstream event-driven processing cost would scale with those events. This is a first-order proxy, not a hardware-validated energy model.
 
@@ -124,12 +127,82 @@ New reduced cochlea: raw waveform drives a bank of RF neurons tuned across frequ
 
 ![RF raster](../outputs/cochlea_analysis/figures/rf_bank_raster.png)
 
+## 5. Improvement Candidate: IIR Resonator Filterbank + LIF
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[gammatone-like IIR resonator bank]
+    B --> C[half-wave rectification]
+    C --> D[full-rate LIF spike encoder]
+    D --> E[spike raster]
+```
+
+```text
+r_c = exp(-pi * bandwidth_c / sample_rate)
+theta_c = 2*pi*f_c/sample_rate
+y_c[t] = b_c*x[t] + 2*r_c*cos(theta_c)*y_c[t-1] - r_c^2*y_c[t-2]
+e_c[t] = max(y_c[t], 0)
+v_c[t] = beta_sample*v_c[t-1] + e_c[t]
+```
+
+Improvement candidate: recursive gammatone-like resonator bank, rectification, full-rate LIF.
+
+![IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lif_cochleagram.png)
+
+![IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lif_raster.png)
+
+## 6. Improvement Candidate: IIR Resonator Filterbank + Level Crossing
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[gammatone-like IIR resonator bank]
+    B --> C[level-crossing delta modulator]
+    C --> D[event raster]
+```
+
+```text
+y_c[t] = b_c*x[t] + 2*r_c*cos(theta_c)*y_c[t-1] - r_c^2*y_c[t-2]
+if y_c[t] - ref_c[t] >= delta: emit up event
+if ref_c[t] - y_c[t] >= delta: emit down event
+```
+
+Improvement candidate: recursive gammatone-like resonator bank followed by delta-modulation events.
+
+![IIR level-crossing cochleagram](../outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png)
+
+![IIR level-crossing raster](../outputs/cochlea_analysis/figures/iir_level_crossing_raster.png)
+
+## 7. Improvement Candidate: Damped Wide-Band RF Bank
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[explicitly damped RF neuron bank]
+    B --> C[oscillator energy / state]
+    B --> D[spike raster]
+```
+
+```text
+decay_c = damping * exp(-theta_c / (2*Q))
+velocity_c[t] = decay_c*velocity_c[t-1] + gain*x[t] - theta_c*state_c[t-1]
+state_c[t] = state_c[t-1] + theta_c*velocity_c[t]
+spike_c[t] = 1 if state_c[t] >= lower_threshold else 0
+```
+
+This variant uses `Q=3.0`, `damping=0.88`, `gain=0.35`, and `threshold=0.5`.
+
+Improvement candidate: RF bank with explicit damping, lower Q for wider response, and lower threshold.
+
+![Damped RF cochleagram](../outputs/cochlea_analysis/figures/damped_rf_bank_cochleagram.png)
+
+![Damped RF raster](../outputs/cochlea_analysis/figures/damped_rf_bank_raster.png)
+
 ## Initial Interpretation
 
 - The original model is the faithful baseline and has the most envelope-shaped representation, but it pays for FFT/IFFT reconstruction plus smoothing.
 - The Conv1D model stays in the time domain and removes explicit low-pass/downsample blocks, but naive FIR convolution is not automatically cheaper unless the kernels are short or optimized.
+- The IIR models test the same time-domain idea with recursive filters rather than long FIR kernels. This should be much cheaper in principle, although this first Python-loop implementation is not fully optimized.
 - The level-crossing model is the cleanest route toward event-based processing after the filterbank, but the filterbank itself is still dense in this first implementation.
-- The RF model is the most reduced conceptually because the resonators are both filters and spiking units, but its parameters need careful tuning before using it as a full cochlea replacement.
+- The RF models are the most reduced conceptually because the resonators are both filters and spiking units, but their parameters need careful tuning before using them as full cochlea replacements.
 - Binarisation and event-based processing should be evaluated after we decide which of these mechanisms gives useful spike timing and channel selectivity.
 
 ## Generated Files
@@ -142,6 +215,12 @@ New reduced cochlea: raw waveform drives a bank of RF neurons tuned across frequ
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/level_crossing_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/rf_bank_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/rf_bank_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lif_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lif_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_raster.png`
 - `results`: `mini_models/outputs/cochlea_analysis/results.json`
 
-Runtime: `1.55 s`.
+Runtime: `3.02 s`.

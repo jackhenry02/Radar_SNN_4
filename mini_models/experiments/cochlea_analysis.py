@@ -11,6 +11,9 @@ rasters:
 3. a time-domain Conv1D filterbank + level-crossing encoder;
 4. a direct resonate-and-fire neuron bank.
 
+The later sections add improvement candidates without deleting the first four
+baseline results.
+
 The code favours clarity over maximum performance because this is a design
 experiment. Later mini models can replace individual pieces with optimized
 implementations once the mechanisms are accepted.
@@ -51,6 +54,12 @@ BENCHMARK_REPEATS = 8
 RF_Q_FACTOR = 7.0
 RF_INPUT_GAIN = 0.25
 RF_THRESHOLD = 1.0
+IIR_Q_FACTOR = 5.0
+IIR_INPUT_GAIN = 1.0
+RF_DAMPED_Q_FACTOR = 3.0
+RF_DAMPED_INPUT_GAIN = 0.35
+RF_DAMPED_THRESHOLD = 0.5
+RF_DAMPING_FACTOR = 0.88
 
 
 @dataclass
@@ -176,6 +185,74 @@ def _make_gabor_filterbank(
     return kernels.unsqueeze(1), centers
 
 
+def _run_iir_resonator_filterbank(
+    signal: torch.Tensor,
+    config: GlobalConfig,
+    *,
+    q_factor: float = IIR_Q_FACTOR,
+    input_gain: float = IIR_INPUT_GAIN,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Run a gammatone-like IIR resonator bank.
+
+    The update is a lightweight second-order resonator. It is not a full
+    four-pole gammatone cascade, but it has the key computational property we
+    want to test: each output sample is produced recursively from the current
+    input and previous channel states rather than by a long FIR convolution.
+
+    Args:
+        signal: One-dimensional waveform.
+        config: Acoustic configuration.
+        q_factor: Filter quality factor. Lower values produce wider filters.
+        input_gain: Scaling applied to the waveform before recursion.
+
+    Returns:
+        Tuple `(filtered, centers)` where filtered has shape
+        `[channels, time]`.
+    """
+    centers = _log_spaced_centers(config)
+    theta = 2.0 * math.pi * centers / config.sample_rate_hz
+    bandwidth_hz = centers / max(q_factor, 1e-6)
+    pole_radius = torch.exp(-math.pi * bandwidth_hz / config.sample_rate_hz)
+    feedback_one = 2.0 * pole_radius * torch.cos(theta)
+    feedback_two = -(pole_radius.square())
+    feedforward = (1.0 - pole_radius).clamp_min(1e-6) * input_gain
+    previous_one = torch.zeros_like(centers)
+    previous_two = torch.zeros_like(centers)
+    outputs = []
+    for sample in signal:
+        output = feedforward * sample + feedback_one * previous_one + feedback_two * previous_two
+        previous_two = previous_one
+        previous_one = output
+        outputs.append(output)
+    return torch.stack(outputs, dim=-1), centers
+
+
+def _level_crossing_encode(filtered: torch.Tensor, *, delta: float) -> torch.Tensor:
+    """Encode a filtered signal bank using level-crossing events.
+
+    Args:
+        filtered: Signed channel activity, shape `[channels, time]`.
+        delta: Required signal change before an event is emitted.
+
+    Returns:
+        Binary event raster with shape `[channels, time]`.
+    """
+    reference = filtered[:, :1].clone()
+    events = torch.zeros_like(filtered)
+    for time_index in range(filtered.shape[-1]):
+        value = filtered[:, time_index : time_index + 1]
+        up = value - reference >= delta
+        down = reference - value >= delta
+        event = (up | down).to(filtered.dtype)
+        # Move the internal level by all crossed delta steps. This keeps the
+        # encoder stable when the waveform jumps by more than one threshold.
+        upward_steps = torch.floor((value - reference).clamp_min(0.0) / delta)
+        downward_steps = torch.floor((reference - value).clamp_min(0.0) / delta)
+        reference = reference + upward_steps * delta - downward_steps * delta
+        events[:, time_index] = event.squeeze(1)
+    return events
+
+
 def _lif_encode_full_rate(envelope: torch.Tensor, config: GlobalConfig) -> tuple[torch.Tensor, torch.Tensor]:
     """Run an unnormalized LIF encoder at the raw sample rate.
 
@@ -262,21 +339,40 @@ def _run_level_crossing_cochlea(signal: torch.Tensor, config: GlobalConfig) -> t
     """
     kernels, centers = _make_gabor_filterbank(config)
     filtered = F.conv1d(signal.view(1, 1, -1), kernels, padding=CONV_KERNEL_SIZE // 2)[0]
-    delta = float(config.spike_threshold)
-    reference = filtered[:, :1].clone()
-    events = torch.zeros_like(filtered)
-    for time_index in range(filtered.shape[-1]):
-        value = filtered[:, time_index : time_index + 1]
-        up = value - reference >= delta
-        down = reference - value >= delta
-        event = (up | down).to(filtered.dtype)
-        # Move the internal level by all crossed delta steps. This keeps the
-        # encoder stable when the waveform jumps by more than one threshold.
-        upward_steps = torch.floor((value - reference).clamp_min(0.0) / delta)
-        downward_steps = torch.floor((reference - value).clamp_min(0.0) / delta)
-        reference = reference + upward_steps * delta - downward_steps * delta
-        events[:, time_index] = event.squeeze(1)
-    return filtered, events, centers
+    return filtered, _level_crossing_encode(filtered, delta=float(config.spike_threshold)), centers
+
+
+def _run_iir_lif_cochlea(signal: torch.Tensor, config: GlobalConfig) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Run the proposed IIR resonator filterbank + LIF cochlea.
+
+    Args:
+        signal: One-dimensional waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Tuple `(cochleagram, spikes, centers)`.
+    """
+    filtered, centers = _run_iir_resonator_filterbank(signal, config)
+    cochleagram = F.relu(filtered)
+    spikes, _ = _lif_encode_full_rate(cochleagram, config)
+    return cochleagram, spikes, centers
+
+
+def _run_iir_level_crossing_cochlea(
+    signal: torch.Tensor,
+    config: GlobalConfig,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Run the proposed IIR resonator filterbank + level-crossing cochlea.
+
+    Args:
+        signal: One-dimensional waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Tuple `(cochleagram, spikes, centers)`.
+    """
+    filtered, centers = _run_iir_resonator_filterbank(signal, config)
+    return filtered, _level_crossing_encode(filtered, delta=float(config.spike_threshold)), centers
 
 
 def _run_rf_cochlea(signal: torch.Tensor, config: GlobalConfig) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -303,6 +399,42 @@ def _run_rf_cochlea(signal: torch.Tensor, config: GlobalConfig) -> tuple[torch.T
         state = state + theta * velocity
         spike = (state >= RF_THRESHOLD).to(signal.dtype)
         state = (state - spike * RF_THRESHOLD).clamp_min(0.0)
+        states.append(state)
+        velocities.append(velocity)
+        spikes.append(spike)
+    state_trace = torch.stack(states, dim=-1)
+    velocity_trace = torch.stack(velocities, dim=-1)
+    energy = torch.sqrt(state_trace.square() + velocity_trace.square())
+    return energy, torch.stack(spikes, dim=-1), centers
+
+
+def _run_damped_rf_cochlea(signal: torch.Tensor, config: GlobalConfig) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Run a more responsive damped RF neuron bank.
+
+    This variant explicitly separates damping from the Q-derived decay, uses a
+    wider resonance band, and lowers the spike threshold. It is intended as a
+    better first-pass RF cochlea candidate, not as a final tuned model.
+
+    Args:
+        signal: One-dimensional waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Tuple `(cochleagram, spikes, centers)`.
+    """
+    centers = _log_spaced_centers(config)
+    theta = 2.0 * math.pi * centers / config.sample_rate_hz
+    decay = RF_DAMPING_FACTOR * torch.exp(-theta / (2.0 * RF_DAMPED_Q_FACTOR))
+    state = torch.zeros_like(centers)
+    velocity = torch.zeros_like(centers)
+    states = []
+    velocities = []
+    spikes = []
+    for sample in signal:
+        velocity = decay * velocity + RF_DAMPED_INPUT_GAIN * sample - theta * state
+        state = state + theta * velocity
+        spike = (state >= RF_DAMPED_THRESHOLD).to(signal.dtype)
+        state = (state - spike * RF_DAMPED_THRESHOLD).clamp_min(0.0)
         states.append(state)
         velocities.append(velocity)
         spikes.append(spike)
@@ -374,6 +506,23 @@ def _estimate_level_crossing_flops(config: GlobalConfig, signal_samples: int) ->
     return convolution + comparisons_and_updates
 
 
+def _estimate_iir_lif_flops(config: GlobalConfig, signal_samples: int) -> float:
+    """Estimate dense FLOPs/comparisons for IIR filterbank + LIF."""
+    channels = config.num_cochlea_channels
+    iir = channels * signal_samples * 6.0
+    rectification = channels * signal_samples
+    lif = channels * signal_samples * 5.0
+    return iir + rectification + lif
+
+
+def _estimate_iir_level_crossing_flops(config: GlobalConfig, signal_samples: int) -> float:
+    """Estimate dense FLOPs/comparisons for IIR filterbank + level crossing."""
+    channels = config.num_cochlea_channels
+    iir = channels * signal_samples * 6.0
+    comparisons_and_updates = channels * signal_samples * 6.0
+    return iir + comparisons_and_updates
+
+
 def _estimate_rf_flops(config: GlobalConfig, signal_samples: int) -> float:
     """Estimate dense FLOPs/comparisons for the RF neuron bank."""
     channels = config.num_cochlea_channels
@@ -391,7 +540,7 @@ def _plot_cochleagram(result: CochleaResult, path: Path) -> str:
         String path to the saved figure.
     """
     values = _to_numpy(result.cochleagram)
-    display = np.log1p(np.maximum(values, 0.0) if result.name != "level_crossing" else np.abs(values))
+    display = np.log1p(np.abs(values) if "level_crossing" in result.name else np.maximum(values, 0.0))
     time_ms = np.arange(values.shape[-1], dtype=np.float64) / result.time_rate_hz * 1_000.0
     centers_khz = _to_numpy(result.center_frequencies_hz) / 1_000.0
 
@@ -477,6 +626,27 @@ def _run_all_models(signal: torch.Tensor, config: GlobalConfig) -> list[CochleaR
             _estimate_rf_flops(config, signal_samples),
             "New reduced cochlea: raw waveform drives a bank of RF neurons tuned across frequency.",
         ),
+        (
+            "iir_lif",
+            "IIR resonator filterbank + LIF",
+            lambda: _run_iir_lif_cochlea(signal, config),
+            _estimate_iir_lif_flops(config, signal_samples),
+            "Improvement candidate: recursive gammatone-like resonator bank, rectification, full-rate LIF.",
+        ),
+        (
+            "iir_level_crossing",
+            "IIR resonator filterbank + level crossing",
+            lambda: _run_iir_level_crossing_cochlea(signal, config),
+            _estimate_iir_level_crossing_flops(config, signal_samples),
+            "Improvement candidate: recursive gammatone-like resonator bank followed by delta-modulation events.",
+        ),
+        (
+            "damped_rf_bank",
+            "Damped wide-band RF bank",
+            lambda: _run_damped_rf_cochlea(signal, config),
+            _estimate_rf_flops(config, signal_samples),
+            "Improvement candidate: RF bank with explicit damping, lower Q for wider response, and lower threshold.",
+        ),
     ]
     results = []
     for name, title, function, flops, notes in specs:
@@ -513,7 +683,7 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
     lines = [
         "# Mini Model 3: Cochlea Analysis",
         "",
-        "This mini model compares four candidate cochlea front ends. The aim is not yet to optimise them, but to check whether the mechanisms produce sensible channel activity and spikes, and to estimate their relative computational cost.",
+        "This mini model compares the original four candidate cochlea front ends and then adds three improvement candidates. The aim is not yet to fully optimise them, but to check whether the mechanisms produce sensible channel activity and spikes, and to estimate their relative computational cost.",
         "",
         "## Shared Setup",
         "",
@@ -642,12 +812,82 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
             "",
             "![RF raster](../outputs/cochlea_analysis/figures/rf_bank_raster.png)",
             "",
+            "## 5. Improvement Candidate: IIR Resonator Filterbank + LIF",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[waveform] --> B[gammatone-like IIR resonator bank]",
+            "    B --> C[half-wave rectification]",
+            "    C --> D[full-rate LIF spike encoder]",
+            "    D --> E[spike raster]",
+            "```",
+            "",
+            "```text",
+            "r_c = exp(-pi * bandwidth_c / sample_rate)",
+            "theta_c = 2*pi*f_c/sample_rate",
+            "y_c[t] = b_c*x[t] + 2*r_c*cos(theta_c)*y_c[t-1] - r_c^2*y_c[t-2]",
+            "e_c[t] = max(y_c[t], 0)",
+            "v_c[t] = beta_sample*v_c[t-1] + e_c[t]",
+            "```",
+            "",
+            by_name["iir_lif"].notes,
+            "",
+            "![IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lif_cochleagram.png)",
+            "",
+            "![IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lif_raster.png)",
+            "",
+            "## 6. Improvement Candidate: IIR Resonator Filterbank + Level Crossing",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[waveform] --> B[gammatone-like IIR resonator bank]",
+            "    B --> C[level-crossing delta modulator]",
+            "    C --> D[event raster]",
+            "```",
+            "",
+            "```text",
+            "y_c[t] = b_c*x[t] + 2*r_c*cos(theta_c)*y_c[t-1] - r_c^2*y_c[t-2]",
+            "if y_c[t] - ref_c[t] >= delta: emit up event",
+            "if ref_c[t] - y_c[t] >= delta: emit down event",
+            "```",
+            "",
+            by_name["iir_level_crossing"].notes,
+            "",
+            "![IIR level-crossing cochleagram](../outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png)",
+            "",
+            "![IIR level-crossing raster](../outputs/cochlea_analysis/figures/iir_level_crossing_raster.png)",
+            "",
+            "## 7. Improvement Candidate: Damped Wide-Band RF Bank",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[waveform] --> B[explicitly damped RF neuron bank]",
+            "    B --> C[oscillator energy / state]",
+            "    B --> D[spike raster]",
+            "```",
+            "",
+            "```text",
+            "decay_c = damping * exp(-theta_c / (2*Q))",
+            "velocity_c[t] = decay_c*velocity_c[t-1] + gain*x[t] - theta_c*state_c[t-1]",
+            "state_c[t] = state_c[t-1] + theta_c*velocity_c[t]",
+            "spike_c[t] = 1 if state_c[t] >= lower_threshold else 0",
+            "```",
+            "",
+            f"This variant uses `Q={RF_DAMPED_Q_FACTOR}`, `damping={RF_DAMPING_FACTOR}`, `gain={RF_DAMPED_INPUT_GAIN}`, and `threshold={RF_DAMPED_THRESHOLD}`.",
+            "",
+            by_name["damped_rf_bank"].notes,
+            "",
+            "![Damped RF cochleagram](../outputs/cochlea_analysis/figures/damped_rf_bank_cochleagram.png)",
+            "",
+            "![Damped RF raster](../outputs/cochlea_analysis/figures/damped_rf_bank_raster.png)",
+            "",
             "## Initial Interpretation",
             "",
             "- The original model is the faithful baseline and has the most envelope-shaped representation, but it pays for FFT/IFFT reconstruction plus smoothing.",
             "- The Conv1D model stays in the time domain and removes explicit low-pass/downsample blocks, but naive FIR convolution is not automatically cheaper unless the kernels are short or optimized.",
+            "- The IIR models test the same time-domain idea with recursive filters rather than long FIR kernels. This should be much cheaper in principle, although this first Python-loop implementation is not fully optimized.",
             "- The level-crossing model is the cleanest route toward event-based processing after the filterbank, but the filterbank itself is still dense in this first implementation.",
-            "- The RF model is the most reduced conceptually because the resonators are both filters and spiking units, but its parameters need careful tuning before using it as a full cochlea replacement.",
+            "- The RF models are the most reduced conceptually because the resonators are both filters and spiking units, but their parameters need careful tuning before using them as full cochlea replacements.",
             "- Binarisation and event-based processing should be evaluated after we decide which of these mechanisms gives useful spike timing and channel selectivity.",
             "",
             "## Generated Files",
@@ -704,9 +944,15 @@ def main() -> dict[str, object]:
             "normalize_spike_envelope": config.normalize_spike_envelope,
             "transmit_gain": config.transmit_gain,
             "conv_kernel_size": CONV_KERNEL_SIZE,
+            "iir_q_factor": IIR_Q_FACTOR,
+            "iir_input_gain": IIR_INPUT_GAIN,
             "rf_q_factor": RF_Q_FACTOR,
             "rf_input_gain": RF_INPUT_GAIN,
             "rf_threshold": RF_THRESHOLD,
+            "rf_damped_q_factor": RF_DAMPED_Q_FACTOR,
+            "rf_damped_input_gain": RF_DAMPED_INPUT_GAIN,
+            "rf_damped_threshold": RF_DAMPED_THRESHOLD,
+            "rf_damping_factor": RF_DAMPING_FACTOR,
         },
         "models": [
             {

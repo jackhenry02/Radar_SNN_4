@@ -1,6 +1,6 @@
 {
   "experiment": "cochlea_analysis",
-  "elapsed_seconds": 1.5457139580976218,
+  "elapsed_seconds": 3.016672416822985,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,
@@ -18,17 +18,23 @@
     "normalize_spike_envelope": false,
     "transmit_gain": 1000.0,
     "conv_kernel_size": 129,
+    "iir_q_factor": 5.0,
+    "iir_input_gain": 1.0,
     "rf_q_factor": 7.0,
     "rf_input_gain": 0.25,
-    "rf_threshold": 1.0
+    "rf_threshold": 1.0,
+    "rf_damped_q_factor": 3.0,
+    "rf_damped_input_gain": 0.35,
+    "rf_damped_threshold": 0.5,
+    "rf_damping_factor": 0.88
   },
   "models": [
     {
       "name": "original_fft_lif",
       "title": "Original FFT/IFFT + envelope + LIF",
-      "elapsed_seconds": 0.003785229055210948,
-      "elapsed_ms": 3.785229055210948,
-      "elapsed_ms_per_channel": 0.07885893865022808,
+      "elapsed_seconds": 0.004064396023750305,
+      "elapsed_ms": 4.064396023750305,
+      "elapsed_ms_per_channel": 0.08467491716146469,
       "flops_estimate": 9031989.531165123,
       "sops_estimate": 910.0,
       "spike_density": 0.05385890151515151,
@@ -46,9 +52,9 @@
     {
       "name": "conv1d_lif",
       "title": "Time-domain Conv1D filterbank + LIF",
-      "elapsed_seconds": 0.012553937500342727,
-      "elapsed_ms": 12.553937500342727,
-      "elapsed_ms_per_channel": 0.2615403645904735,
+      "elapsed_seconds": 0.013019417063333094,
+      "elapsed_ms": 13.019417063333094,
+      "elapsed_ms_per_channel": 0.2712378554861061,
       "flops_estimate": 17842176.0,
       "sops_estimate": 7028.0,
       "spike_density": 0.10398910984848485,
@@ -66,9 +72,9 @@
     {
       "name": "level_crossing",
       "title": "Time-domain filterbank + level crossing",
-      "elapsed_seconds": 0.03218664554879069,
-      "elapsed_ms": 32.18664554879069,
-      "elapsed_ms_per_channel": 0.6705551155998061,
+      "elapsed_seconds": 0.032919708522967994,
+      "elapsed_ms": 32.919708522967994,
+      "elapsed_ms_per_channel": 0.6858272608951665,
       "flops_estimate": 17842176.0,
       "sops_estimate": 4316.0,
       "spike_density": 0.06386126893939394,
@@ -86,9 +92,9 @@
     {
       "name": "rf_bank",
       "title": "Direct resonate-and-fire bank",
-      "elapsed_seconds": 0.015026792068965733,
-      "elapsed_ms": 15.026792068965733,
-      "elapsed_ms_per_channel": 0.31305816810345277,
+      "elapsed_seconds": 0.016109770978800952,
+      "elapsed_ms": 16.109770978800952,
+      "elapsed_ms_per_channel": 0.33562022872501984,
       "flops_estimate": 675840.0,
       "sops_estimate": 428.0,
       "spike_density": 0.006332859848484848,
@@ -102,6 +108,66 @@
         1408
       ],
       "notes": "New reduced cochlea: raw waveform drives a bank of RF neurons tuned across frequency."
+    },
+    {
+      "name": "iir_lif",
+      "title": "IIR resonator filterbank + LIF",
+      "elapsed_seconds": 0.017689833883196115,
+      "elapsed_ms": 17.689833883196115,
+      "elapsed_ms_per_channel": 0.3685382058999191,
+      "flops_estimate": 811008.0,
+      "sops_estimate": 5759.0,
+      "spike_density": 0.08521247632575757,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "Improvement candidate: recursive gammatone-like resonator bank, rectification, full-rate LIF."
+    },
+    {
+      "name": "iir_level_crossing",
+      "title": "IIR resonator filterbank + level crossing",
+      "elapsed_seconds": 0.03900052106473595,
+      "elapsed_ms": 39.00052106473595,
+      "elapsed_ms_per_channel": 0.8125108555153323,
+      "flops_estimate": 811008.0,
+      "sops_estimate": 4243.0,
+      "spike_density": 0.06278113162878787,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "Improvement candidate: recursive gammatone-like resonator bank followed by delta-modulation events."
+    },
+    {
+      "name": "damped_rf_bank",
+      "title": "Damped wide-band RF bank",
+      "elapsed_seconds": 0.01601485349237919,
+      "elapsed_ms": 16.01485349237919,
+      "elapsed_ms_per_channel": 0.3336427810912331,
+      "flops_estimate": 675840.0,
+      "sops_estimate": 2417.0,
+      "spike_density": 0.035762902462121215,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "Improvement candidate: RF bank with explicit damping, lower Q for wider response, and lower threshold."
     }
   ],
   "artifacts": {
@@ -120,6 +186,18 @@
     "rf_bank": {
       "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/rf_bank_cochleagram.png",
       "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/rf_bank_raster.png"
+    },
+    "iir_lif": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lif_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lif_raster.png"
+    },
+    "iir_level_crossing": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_raster.png"
+    },
+    "damped_rf_bank": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_raster.png"
     }
   }
 }
