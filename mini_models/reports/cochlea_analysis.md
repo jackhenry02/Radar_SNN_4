@@ -21,15 +21,17 @@ The input is one clean left-ear echo from the matched-human signal setup. Keepin
 
 | Model | FLOPs estimate | SOPs / output events | Time | Time per channel | Spike density |
 |---|---:|---:|---:|---:|---:|
-| Original FFT/IFFT + envelope + LIF | `9,031,990` | `910` | `3.961 ms` | `0.0825 ms` | `0.0539` |
-| Time-domain Conv1D filterbank + LIF | `17,842,176` | `7,028` | `13.573 ms` | `0.2828 ms` | `0.1040` |
-| Time-domain filterbank + level crossing | `17,842,176` | `4,316` | `33.725 ms` | `0.7026 ms` | `0.0639` |
-| Direct resonate-and-fire bank | `675,840` | `428` | `17.023 ms` | `0.3546 ms` | `0.0063` |
-| IIR resonator filterbank + LIF | `811,008` | `5,759` | `18.122 ms` | `0.3775 ms` | `0.0852` |
-| lfilter IIR + optimized LIF | `811,008` | `5,759` | `16.352 ms` | `0.3407 ms` | `0.0852` |
-| lfilter IIR + optimized LIF + active-window gating | `170,496` | `5,732` | `3.567 ms` | `0.0743 ms` | `0.0848` |
-| IIR resonator filterbank + level crossing | `811,008` | `4,243` | `38.125 ms` | `0.7943 ms` | `0.0628` |
-| Damped wide-band RF bank | `675,840` | `2,417` | `16.590 ms` | `0.3456 ms` | `0.0358` |
+| Original FFT/IFFT + envelope + LIF | `9,031,990` | `910` | `4.751 ms` | `0.0990 ms` | `0.0539` |
+| Time-domain Conv1D filterbank + LIF | `17,842,176` | `7,028` | `13.855 ms` | `0.2886 ms` | `0.1040` |
+| Time-domain filterbank + level crossing | `17,842,176` | `4,316` | `30.686 ms` | `0.6393 ms` | `0.0639` |
+| Direct resonate-and-fire bank | `675,840` | `428` | `16.580 ms` | `0.3454 ms` | `0.0063` |
+| IIR resonator filterbank + LIF | `811,008` | `5,759` | `18.281 ms` | `0.3809 ms` | `0.0852` |
+| lfilter IIR + optimized LIF | `811,008` | `5,759` | `16.811 ms` | `0.3502 ms` | `0.0852` |
+| lfilter IIR + TorchScript LIF | `811,008` | `5,759` | `11.448 ms` | `0.2385 ms` | `0.0852` |
+| lfilter IIR + optimized LIF + active-window gating | `170,496` | `5,732` | `3.668 ms` | `0.0764 ms` | `0.0848` |
+| lfilter IIR + TorchScript LIF + active-window gating | `170,496` | `5,732` | `2.478 ms` | `0.0516 ms` | `0.0848` |
+| IIR resonator filterbank + level crossing | `811,008` | `4,243` | `37.725 ms` | `0.7859 ms` | `0.0628` |
+| Damped wide-band RF bank | `675,840` | `2,417` | `17.361 ms` | `0.3617 ms` | `0.0358` |
 
 FLOPs are approximate dense-operation counts for one waveform. SOPs are counted here as emitted output spike/events, because downstream event-driven processing cost would scale with those events. This is a first-order proxy, not a hardware-validated energy model.
 
@@ -37,8 +39,10 @@ FLOPs are approximate dense-operation counts for one waveform. SOPs are counted 
 
 | Comparison | Time change vs current IIR + LIF | Samples processed |
 |---|---:|---:|
-| lfilter IIR + optimized LIF | `+9.8%` | `1408` / `1408` |
-| lfilter IIR + optimized LIF + active-window gating | `+80.3%` | `296` / `1408` |
+| lfilter IIR + optimized LIF | `+8.0%` | `1408` / `1408` |
+| lfilter IIR + TorchScript LIF | `+37.4%` | `1408` / `1408` |
+| lfilter IIR + optimized LIF + active-window gating | `+79.9%` | `296` / `1408` |
+| lfilter IIR + TorchScript LIF + active-window gating | `+86.4%` | `296` / `1408` |
 
 A positive value means faster than the current Python-loop IIR + LIF model. The gated model is window-gated dense processing: it skips the silent parts of the waveform, but still runs dense IIR/LIF updates inside the detected active window.
 
@@ -186,7 +190,31 @@ Optimization candidate: same IIR idea, but the recursive filter is delegated to 
 
 ![lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_lif_raster.png)
 
-## 7. Optimization Candidate: lfilter IIR + Optimized LIF + Active-Window Gating
+## 7. Optimization Candidate: lfilter IIR + TorchScript LIF
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[torchaudio lfilter IIR bank]
+    B --> C[half-wave rectification]
+    C --> D[TorchScript compiled LIF loop]
+    D --> E[spike raster]
+```
+
+```text
+@torch.jit.script
+for t in range(samples):
+    v = beta_sample*v + e[:, t]
+    spike = v >= threshold
+    v = max(v - threshold*spike, 0)
+```
+
+Optimization candidate: same lfilter IIR front end, but the sequential LIF loop is compiled with TorchScript.
+
+![TorchScript lfilter IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_cochleagram.png)
+
+![TorchScript lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_raster.png)
+
+## 8. Optimization Candidate: lfilter IIR + Optimized LIF + Active-Window Gating
 
 ```mermaid
 flowchart LR
@@ -211,7 +239,33 @@ Optimization candidate: same lfilter IIR + optimized LIF, but only over the dete
 
 ![gated lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_raster.png)
 
-## 8. Improvement Candidate: IIR Resonator Filterbank + Level Crossing
+## 9. Combined Candidate: lfilter IIR + TorchScript LIF + Active-Window Gating
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[detect active echo window]
+    B --> C[crop with padding]
+    C --> D[torchaudio lfilter IIR bank]
+    D --> E[TorchScript compiled LIF loop]
+    E --> F[scatter full-length cochleagram/raster]
+```
+
+```text
+active = abs(x[t]) >= threshold_fraction * max(abs(x))
+filtered_window = lfilter(x[active_window], a, b)
+spikes_window = scripted_LIF(relu(filtered_window))
+spikes_full[:, active_window] = spikes_window
+```
+
+Current active-window settings: threshold fraction `0.02`, padding `1.0 ms`, processed fraction `0.210`.
+
+Current combined optimization candidate: lfilter IIR, TorchScript LIF, and active-window gating.
+
+![combined gated TorchScript IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_cochleagram.png)
+
+![combined gated TorchScript IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_raster.png)
+
+## 10. Improvement Candidate: IIR Resonator Filterbank + Level Crossing
 
 ```mermaid
 flowchart LR
@@ -232,7 +286,7 @@ Improvement candidate: recursive gammatone-like resonator bank followed by delta
 
 ![IIR level-crossing raster](../outputs/cochlea_analysis/figures/iir_level_crossing_raster.png)
 
-## 9. Improvement Candidate: Damped Wide-Band RF Bank
+## 11. Improvement Candidate: Damped Wide-Band RF Bank
 
 ```mermaid
 flowchart LR
@@ -262,7 +316,9 @@ Improvement candidate: RF bank with explicit damping, lower Q for wider response
 - The Conv1D model stays in the time domain and removes explicit low-pass/downsample blocks, but naive FIR convolution is not automatically cheaper unless the kernels are short or optimized.
 - The IIR models test the same time-domain idea with recursive filters rather than long FIR kernels. This should be much cheaper in principle, although this first Python-loop implementation is not fully optimized.
 - The lfilter IIR variants test whether the theoretical IIR advantage appears when the recursive filter is moved out of Python.
+- The TorchScript LIF variant tests whether the remaining sequential threshold/reset loop can be accelerated without changing LIF dynamics.
 - Active-window gating tests a pragmatic event-inspired optimisation: silence is skipped, but the active segment is still processed densely.
+- The combined gated TorchScript variant is the current best candidate if we want to preserve reset-based LIF dynamics while reducing unnecessary silent-window compute.
 - The level-crossing model is the cleanest route toward event-based processing after the filterbank, but the filterbank itself is still dense in this first implementation.
 - The RF models are the most reduced conceptually because the resonators are both filters and spiking units, but their parameters need careful tuning before using them as full cochlea replacements.
 - Binarisation and event-based processing should be evaluated after we decide which of these mechanisms gives useful spike timing and channel selectivity.
@@ -281,12 +337,16 @@ Improvement candidate: RF bank with explicit damping, lower Q for wider response
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lif_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_raster.png`
 - `results`: `mini_models/outputs/cochlea_analysis/results.json`
 
-Runtime: `3.87 s`.
+Runtime: `4.85 s`.

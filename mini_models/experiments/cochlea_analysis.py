@@ -377,6 +377,41 @@ def _lif_encode_full_rate_optimized(envelope: torch.Tensor, config: GlobalConfig
     return spikes, membranes
 
 
+@torch.jit.script
+def _lif_encode_full_rate_jit(
+    envelope: torch.Tensor,
+    beta_old: float,
+    threshold: float,
+    downsample: int,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """TorchScript full-rate LIF encoder.
+
+    Args:
+        envelope: Non-negative channel activity, shape `[channels, time]`.
+        beta_old: LIF beta used by the old downsampled encoder.
+        threshold: Spike threshold.
+        downsample: Old envelope downsample factor used to convert beta to a
+            per-sample value.
+
+    Returns:
+        Pair `(spikes, membrane)`, both with shape `[channels, time]`.
+    """
+    effective_downsample = downsample
+    if effective_downsample < 1:
+        effective_downsample = 1
+    beta_per_sample = beta_old ** (1.0 / float(effective_downsample))
+    membrane = torch.zeros(envelope.size(0), dtype=envelope.dtype, device=envelope.device)
+    membranes = torch.zeros_like(envelope)
+    spikes = torch.zeros_like(envelope)
+    for time_index in range(envelope.size(1)):
+        membrane.mul_(beta_per_sample).add_(envelope[:, time_index])
+        spike = (membrane >= threshold).to(envelope.dtype)
+        spikes[:, time_index] = spike
+        membrane.sub_(spike * threshold).clamp_(min=0.0)
+        membranes[:, time_index] = membrane
+    return spikes, membranes
+
+
 def _run_original_fft_cochlea(signal: torch.Tensor, config: GlobalConfig) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Run the old FFT/IFFT + envelope + LIF cochlea.
 
@@ -472,6 +507,30 @@ def _run_iir_lfilter_lif_cochlea(signal: torch.Tensor, config: GlobalConfig) -> 
     return cochleagram, spikes, centers
 
 
+def _run_iir_lfilter_jit_lif_cochlea(
+    signal: torch.Tensor,
+    config: GlobalConfig,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Run lfilter IIR with a TorchScript LIF encoder.
+
+    Args:
+        signal: One-dimensional waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Tuple `(cochleagram, spikes, centers)`.
+    """
+    filtered, centers = _run_iir_lfilter_filterbank(signal, config)
+    cochleagram = F.relu(filtered)
+    spikes, _ = _lif_encode_full_rate_jit(
+        cochleagram,
+        float(config.spike_beta),
+        float(config.spike_threshold),
+        int(config.envelope_downsample),
+    )
+    return cochleagram, spikes, centers
+
+
 def _active_window_bounds(signal: torch.Tensor, config: GlobalConfig) -> tuple[int, int]:
     """Find a padded active waveform window for gated processing.
 
@@ -519,6 +578,50 @@ def _run_iir_lfilter_lif_gated_cochlea(
     full_cochleagram[:, start:stop] = cochleagram_crop
     full_spikes[:, start:stop] = spikes_crop
     _run_iir_lfilter_lif_gated_cochlea.last_window = {
+        "start_sample": start,
+        "stop_sample": stop,
+        "samples_processed": stop - start,
+        "total_samples": signal.numel(),
+        "processed_fraction": (stop - start) / max(signal.numel(), 1),
+        "padding_s": ACTIVE_WINDOW_PADDING_S,
+        "threshold_fraction": ACTIVE_WINDOW_THRESHOLD_FRACTION,
+    }
+    return full_cochleagram, full_spikes, centers
+
+
+def _run_iir_lfilter_jit_lif_gated_cochlea(
+    signal: torch.Tensor,
+    config: GlobalConfig,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Run lfilter IIR + TorchScript LIF only over the active echo window.
+
+    This is the current best optimized faithful LIF candidate: torchaudio
+    handles the IIR recursion, TorchScript handles the sequential reset-based
+    LIF loop, and active-window gating avoids processing long silent regions.
+
+    Args:
+        signal: One-dimensional waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Tuple `(cochleagram, spikes, centers)` scattered back to full signal
+        length.
+    """
+    start, stop = _active_window_bounds(signal, config)
+    cropped = signal[start:stop]
+    filtered_crop, centers = _run_iir_lfilter_filterbank(cropped, config)
+    cochleagram_crop = F.relu(filtered_crop)
+    spikes_crop, _ = _lif_encode_full_rate_jit(
+        cochleagram_crop,
+        float(config.spike_beta),
+        float(config.spike_threshold),
+        int(config.envelope_downsample),
+    )
+    full_cochleagram = torch.zeros(config.num_cochlea_channels, signal.numel(), dtype=signal.dtype)
+    full_spikes = torch.zeros_like(full_cochleagram)
+    full_cochleagram[:, start:stop] = cochleagram_crop
+    full_spikes[:, start:stop] = spikes_crop
+    _run_iir_lfilter_jit_lif_gated_cochlea.last_window = {
         "start_sample": start,
         "stop_sample": stop,
         "samples_processed": stop - start,
@@ -815,11 +918,25 @@ def _run_all_models(signal: torch.Tensor, config: GlobalConfig) -> list[CochleaR
             "Optimization candidate: same IIR idea, but the recursive filter is delegated to torchaudio.lfilter and the LIF loop preallocates outputs.",
         ),
         (
+            "iir_lfilter_jit_lif",
+            "lfilter IIR + TorchScript LIF",
+            lambda: _run_iir_lfilter_jit_lif_cochlea(signal, config),
+            _estimate_iir_lif_flops(config, signal_samples),
+            "Optimization candidate: same lfilter IIR front end, but the sequential LIF loop is compiled with TorchScript.",
+        ),
+        (
             "iir_lfilter_lif_gated",
             "lfilter IIR + optimized LIF + active-window gating",
             lambda: _run_iir_lfilter_lif_gated_cochlea(signal, config),
             _estimate_iir_lif_flops(config, active_samples),
             "Optimization candidate: same lfilter IIR + optimized LIF, but only over the detected echo window plus padding.",
+        ),
+        (
+            "iir_lfilter_jit_lif_gated",
+            "lfilter IIR + TorchScript LIF + active-window gating",
+            lambda: _run_iir_lfilter_jit_lif_gated_cochlea(signal, config),
+            _estimate_iir_lif_flops(config, active_samples),
+            "Current combined optimization candidate: lfilter IIR, TorchScript LIF, and active-window gating.",
         ),
         (
             "iir_level_crossing",
@@ -870,10 +987,15 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
     by_name = {result.name: result for result in results}
     iir_baseline = by_name["iir_lif"]
     lfilter_iir = by_name["iir_lfilter_lif"]
+    jit_iir = by_name["iir_lfilter_jit_lif"]
     gated_iir = by_name["iir_lfilter_lif_gated"]
+    gated_jit_iir = by_name["iir_lfilter_jit_lif_gated"]
     lfilter_saving = 100.0 * (iir_baseline.elapsed_s - lfilter_iir.elapsed_s) / max(iir_baseline.elapsed_s, 1e-12)
+    jit_saving = 100.0 * (iir_baseline.elapsed_s - jit_iir.elapsed_s) / max(iir_baseline.elapsed_s, 1e-12)
     gated_saving = 100.0 * (iir_baseline.elapsed_s - gated_iir.elapsed_s) / max(iir_baseline.elapsed_s, 1e-12)
+    gated_jit_saving = 100.0 * (iir_baseline.elapsed_s - gated_jit_iir.elapsed_s) / max(iir_baseline.elapsed_s, 1e-12)
     gated_window = getattr(_run_iir_lfilter_lif_gated_cochlea, "last_window", {})
+    gated_jit_window = getattr(_run_iir_lfilter_jit_lif_gated_cochlea, "last_window", {})
     lines = [
         "# Mini Model 3: Cochlea Analysis",
         "",
@@ -915,7 +1037,9 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
             "| Comparison | Time change vs current IIR + LIF | Samples processed |",
             "|---|---:|---:|",
             f"| lfilter IIR + optimized LIF | `{lfilter_saving:+.1f}%` | `{config.signal_samples}` / `{config.signal_samples}` |",
+            f"| lfilter IIR + TorchScript LIF | `{jit_saving:+.1f}%` | `{config.signal_samples}` / `{config.signal_samples}` |",
             f"| lfilter IIR + optimized LIF + active-window gating | `{gated_saving:+.1f}%` | `{gated_window.get('samples_processed', 'n/a')}` / `{gated_window.get('total_samples', config.signal_samples)}` |",
+            f"| lfilter IIR + TorchScript LIF + active-window gating | `{gated_jit_saving:+.1f}%` | `{gated_jit_window.get('samples_processed', 'n/a')}` / `{gated_jit_window.get('total_samples', config.signal_samples)}` |",
             "",
             "A positive value means faster than the current Python-loop IIR + LIF model. The gated model is window-gated dense processing: it skips the silent parts of the waveform, but still runs dense IIR/LIF updates inside the detected active window.",
             "",
@@ -1063,7 +1187,31 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
             "",
             "![lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_lif_raster.png)",
             "",
-            "## 7. Optimization Candidate: lfilter IIR + Optimized LIF + Active-Window Gating",
+            "## 7. Optimization Candidate: lfilter IIR + TorchScript LIF",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[waveform] --> B[torchaudio lfilter IIR bank]",
+            "    B --> C[half-wave rectification]",
+            "    C --> D[TorchScript compiled LIF loop]",
+            "    D --> E[spike raster]",
+            "```",
+            "",
+            "```text",
+            "@torch.jit.script",
+            "for t in range(samples):",
+            "    v = beta_sample*v + e[:, t]",
+            "    spike = v >= threshold",
+            "    v = max(v - threshold*spike, 0)",
+            "```",
+            "",
+            by_name["iir_lfilter_jit_lif"].notes,
+            "",
+            "![TorchScript lfilter IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_cochleagram.png)",
+            "",
+            "![TorchScript lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_raster.png)",
+            "",
+            "## 8. Optimization Candidate: lfilter IIR + Optimized LIF + Active-Window Gating",
             "",
             "```mermaid",
             "flowchart LR",
@@ -1088,7 +1236,33 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
             "",
             "![gated lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_raster.png)",
             "",
-            "## 8. Improvement Candidate: IIR Resonator Filterbank + Level Crossing",
+            "## 9. Combined Candidate: lfilter IIR + TorchScript LIF + Active-Window Gating",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[waveform] --> B[detect active echo window]",
+            "    B --> C[crop with padding]",
+            "    C --> D[torchaudio lfilter IIR bank]",
+            "    D --> E[TorchScript compiled LIF loop]",
+            "    E --> F[scatter full-length cochleagram/raster]",
+            "```",
+            "",
+            "```text",
+            "active = abs(x[t]) >= threshold_fraction * max(abs(x))",
+            "filtered_window = lfilter(x[active_window], a, b)",
+            "spikes_window = scripted_LIF(relu(filtered_window))",
+            "spikes_full[:, active_window] = spikes_window",
+            "```",
+            "",
+            f"Current active-window settings: threshold fraction `{ACTIVE_WINDOW_THRESHOLD_FRACTION}`, padding `{ACTIVE_WINDOW_PADDING_S * 1_000.0:.1f} ms`, processed fraction `{gated_jit_window.get('processed_fraction', 0.0):.3f}`.",
+            "",
+            by_name["iir_lfilter_jit_lif_gated"].notes,
+            "",
+            "![combined gated TorchScript IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_cochleagram.png)",
+            "",
+            "![combined gated TorchScript IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_raster.png)",
+            "",
+            "## 10. Improvement Candidate: IIR Resonator Filterbank + Level Crossing",
             "",
             "```mermaid",
             "flowchart LR",
@@ -1109,7 +1283,7 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
             "",
             "![IIR level-crossing raster](../outputs/cochlea_analysis/figures/iir_level_crossing_raster.png)",
             "",
-            "## 9. Improvement Candidate: Damped Wide-Band RF Bank",
+            "## 11. Improvement Candidate: Damped Wide-Band RF Bank",
             "",
             "```mermaid",
             "flowchart LR",
@@ -1139,7 +1313,9 @@ def _write_report(results: list[CochleaResult], artifacts: dict[str, dict[str, s
             "- The Conv1D model stays in the time domain and removes explicit low-pass/downsample blocks, but naive FIR convolution is not automatically cheaper unless the kernels are short or optimized.",
             "- The IIR models test the same time-domain idea with recursive filters rather than long FIR kernels. This should be much cheaper in principle, although this first Python-loop implementation is not fully optimized.",
             "- The lfilter IIR variants test whether the theoretical IIR advantage appears when the recursive filter is moved out of Python.",
+            "- The TorchScript LIF variant tests whether the remaining sequential threshold/reset loop can be accelerated without changing LIF dynamics.",
             "- Active-window gating tests a pragmatic event-inspired optimisation: silence is skipped, but the active segment is still processed densely.",
+            "- The combined gated TorchScript variant is the current best candidate if we want to preserve reset-based LIF dynamics while reducing unnecessary silent-window compute.",
             "- The level-crossing model is the cleanest route toward event-based processing after the filterbank, but the filterbank itself is still dense in this first implementation.",
             "- The RF models are the most reduced conceptually because the resonators are both filters and spiking units, but their parameters need careful tuning before using them as full cochlea replacements.",
             "- Binarisation and event-based processing should be evaluated after we decide which of these mechanisms gives useful spike timing and channel selectivity.",
@@ -1227,6 +1403,7 @@ def main() -> dict[str, object]:
         ],
         "artifacts": artifacts,
         "active_window_gating": getattr(_run_iir_lfilter_lif_gated_cochlea, "last_window", {}),
+        "active_window_gating_jit": getattr(_run_iir_lfilter_jit_lif_gated_cochlea, "last_window", {}),
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     _write_report(results, artifacts, config, elapsed_s)
