@@ -1,0 +1,125 @@
+{
+  "experiment": "cochlea_analysis",
+  "elapsed_seconds": 1.5457139580976218,
+  "config": {
+    "sample_rate_hz": 64000,
+    "chirp_start_hz": 18000.0,
+    "chirp_end_hz": 2000.0,
+    "chirp_duration_s": 0.003,
+    "signal_duration_s": 0.022,
+    "num_cochlea_channels": 48,
+    "cochlea_low_hz": 2000.0,
+    "cochlea_high_hz": 20000.0,
+    "filter_bandwidth_sigma": 0.16,
+    "envelope_lowpass_hz": 1800.0,
+    "envelope_downsample": 4,
+    "spike_threshold": 0.42,
+    "spike_beta": 0.88,
+    "normalize_spike_envelope": false,
+    "transmit_gain": 1000.0,
+    "conv_kernel_size": 129,
+    "rf_q_factor": 7.0,
+    "rf_input_gain": 0.25,
+    "rf_threshold": 1.0
+  },
+  "models": [
+    {
+      "name": "original_fft_lif",
+      "title": "Original FFT/IFFT + envelope + LIF",
+      "elapsed_seconds": 0.003785229055210948,
+      "elapsed_ms": 3.785229055210948,
+      "elapsed_ms_per_channel": 0.07885893865022808,
+      "flops_estimate": 9031989.531165123,
+      "sops_estimate": 910.0,
+      "spike_density": 0.05385890151515151,
+      "time_rate_hz": 16000,
+      "cochleagram_shape": [
+        48,
+        352
+      ],
+      "spike_shape": [
+        48,
+        352
+      ],
+      "notes": "Old fixed cochlea: FFT, Gaussian frequency filters, IFFT per channel, rectification, low-pass envelope, downsample, LIF."
+    },
+    {
+      "name": "conv1d_lif",
+      "title": "Time-domain Conv1D filterbank + LIF",
+      "elapsed_seconds": 0.012553937500342727,
+      "elapsed_ms": 12.553937500342727,
+      "elapsed_ms_per_channel": 0.2615403645904735,
+      "flops_estimate": 17842176.0,
+      "sops_estimate": 7028.0,
+      "spike_density": 0.10398910984848485,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "New dense time-domain cochlea: FIR filterbank directly in time, rectification, full-rate LIF; no explicit envelope low-pass/downsample."
+    },
+    {
+      "name": "level_crossing",
+      "title": "Time-domain filterbank + level crossing",
+      "elapsed_seconds": 0.03218664554879069,
+      "elapsed_ms": 32.18664554879069,
+      "elapsed_ms_per_channel": 0.6705551155998061,
+      "flops_estimate": 17842176.0,
+      "sops_estimate": 4316.0,
+      "spike_density": 0.06386126893939394,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "New event encoder: FIR filterbank followed by delta-modulation events on each filtered channel."
+    },
+    {
+      "name": "rf_bank",
+      "title": "Direct resonate-and-fire bank",
+      "elapsed_seconds": 0.015026792068965733,
+      "elapsed_ms": 15.026792068965733,
+      "elapsed_ms_per_channel": 0.31305816810345277,
+      "flops_estimate": 675840.0,
+      "sops_estimate": 428.0,
+      "spike_density": 0.006332859848484848,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "New reduced cochlea: raw waveform drives a bank of RF neurons tuned across frequency."
+    }
+  ],
+  "artifacts": {
+    "original_fft_lif": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/original_fft_lif_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/original_fft_lif_raster.png"
+    },
+    "conv1d_lif": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/conv1d_lif_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/conv1d_lif_raster.png"
+    },
+    "level_crossing": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/level_crossing_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/level_crossing_raster.png"
+    },
+    "rf_bank": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/rf_bank_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/rf_bank_raster.png"
+    }
+  }
+}
