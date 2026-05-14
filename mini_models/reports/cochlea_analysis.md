@@ -21,15 +21,26 @@ The input is one clean left-ear echo from the matched-human signal setup. Keepin
 
 | Model | FLOPs estimate | SOPs / output events | Time | Time per channel | Spike density |
 |---|---:|---:|---:|---:|---:|
-| Original FFT/IFFT + envelope + LIF | `9,031,990` | `910` | `4.064 ms` | `0.0847 ms` | `0.0539` |
-| Time-domain Conv1D filterbank + LIF | `17,842,176` | `7,028` | `13.019 ms` | `0.2712 ms` | `0.1040` |
-| Time-domain filterbank + level crossing | `17,842,176` | `4,316` | `32.920 ms` | `0.6858 ms` | `0.0639` |
-| Direct resonate-and-fire bank | `675,840` | `428` | `16.110 ms` | `0.3356 ms` | `0.0063` |
-| IIR resonator filterbank + LIF | `811,008` | `5,759` | `17.690 ms` | `0.3685 ms` | `0.0852` |
-| IIR resonator filterbank + level crossing | `811,008` | `4,243` | `39.001 ms` | `0.8125 ms` | `0.0628` |
-| Damped wide-band RF bank | `675,840` | `2,417` | `16.015 ms` | `0.3336 ms` | `0.0358` |
+| Original FFT/IFFT + envelope + LIF | `9,031,990` | `910` | `3.961 ms` | `0.0825 ms` | `0.0539` |
+| Time-domain Conv1D filterbank + LIF | `17,842,176` | `7,028` | `13.573 ms` | `0.2828 ms` | `0.1040` |
+| Time-domain filterbank + level crossing | `17,842,176` | `4,316` | `33.725 ms` | `0.7026 ms` | `0.0639` |
+| Direct resonate-and-fire bank | `675,840` | `428` | `17.023 ms` | `0.3546 ms` | `0.0063` |
+| IIR resonator filterbank + LIF | `811,008` | `5,759` | `18.122 ms` | `0.3775 ms` | `0.0852` |
+| lfilter IIR + optimized LIF | `811,008` | `5,759` | `16.352 ms` | `0.3407 ms` | `0.0852` |
+| lfilter IIR + optimized LIF + active-window gating | `170,496` | `5,732` | `3.567 ms` | `0.0743 ms` | `0.0848` |
+| IIR resonator filterbank + level crossing | `811,008` | `4,243` | `38.125 ms` | `0.7943 ms` | `0.0628` |
+| Damped wide-band RF bank | `675,840` | `2,417` | `16.590 ms` | `0.3456 ms` | `0.0358` |
 
 FLOPs are approximate dense-operation counts for one waveform. SOPs are counted here as emitted output spike/events, because downstream event-driven processing cost would scale with those events. This is a first-order proxy, not a hardware-validated energy model.
+
+## IIR Optimization Savings
+
+| Comparison | Time change vs current IIR + LIF | Samples processed |
+|---|---:|---:|
+| lfilter IIR + optimized LIF | `+9.8%` | `1408` / `1408` |
+| lfilter IIR + optimized LIF + active-window gating | `+80.3%` | `296` / `1408` |
+
+A positive value means faster than the current Python-loop IIR + LIF model. The gated model is window-gated dense processing: it skips the silent parts of the waveform, but still runs dense IIR/LIF updates inside the detected active window.
 
 ## 1. Original FFT/IFFT + Envelope + LIF
 
@@ -151,7 +162,56 @@ Improvement candidate: recursive gammatone-like resonator bank, rectification, f
 
 ![IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lif_raster.png)
 
-## 6. Improvement Candidate: IIR Resonator Filterbank + Level Crossing
+## 6. Optimization Candidate: lfilter IIR + Optimized LIF
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[torchaudio lfilter IIR bank]
+    B --> C[half-wave rectification]
+    C --> D[preallocated in-place LIF loop]
+    D --> E[spike raster]
+```
+
+```text
+y_c[t] = b_c*x[t] + 2*r_c*cos(theta_c)*y_c[t-1] - r_c^2*y_c[t-2]
+spikes = zeros(channels, samples)
+v.mul_(beta_sample).add_(e[:, t])
+spikes[:, t] = v >= threshold
+v.sub_(threshold * spikes[:, t]).clamp_(min=0)
+```
+
+Optimization candidate: same IIR idea, but the recursive filter is delegated to torchaudio.lfilter and the LIF loop preallocates outputs.
+
+![lfilter IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lfilter_lif_cochleagram.png)
+
+![lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_lif_raster.png)
+
+## 7. Optimization Candidate: lfilter IIR + Optimized LIF + Active-Window Gating
+
+```mermaid
+flowchart LR
+    A[waveform] --> B[detect active echo window]
+    B --> C[crop with padding]
+    C --> D[torchaudio lfilter IIR bank]
+    D --> E[optimized LIF]
+    E --> F[scatter spikes back to full time axis]
+```
+
+```text
+active = abs(x[t]) >= threshold_fraction * max(abs(x))
+window = [first_active - padding, last_active + padding]
+run cochlea only over x[window]
+```
+
+Current active-window settings: threshold fraction `0.02`, padding `1.0 ms`, processed fraction `0.210`.
+
+Optimization candidate: same lfilter IIR + optimized LIF, but only over the detected echo window plus padding.
+
+![gated lfilter IIR LIF cochleagram](../outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_cochleagram.png)
+
+![gated lfilter IIR LIF raster](../outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_raster.png)
+
+## 8. Improvement Candidate: IIR Resonator Filterbank + Level Crossing
 
 ```mermaid
 flowchart LR
@@ -172,7 +232,7 @@ Improvement candidate: recursive gammatone-like resonator bank followed by delta
 
 ![IIR level-crossing raster](../outputs/cochlea_analysis/figures/iir_level_crossing_raster.png)
 
-## 7. Improvement Candidate: Damped Wide-Band RF Bank
+## 9. Improvement Candidate: Damped Wide-Band RF Bank
 
 ```mermaid
 flowchart LR
@@ -201,6 +261,8 @@ Improvement candidate: RF bank with explicit damping, lower Q for wider response
 - The original model is the faithful baseline and has the most envelope-shaped representation, but it pays for FFT/IFFT reconstruction plus smoothing.
 - The Conv1D model stays in the time domain and removes explicit low-pass/downsample blocks, but naive FIR convolution is not automatically cheaper unless the kernels are short or optimized.
 - The IIR models test the same time-domain idea with recursive filters rather than long FIR kernels. This should be much cheaper in principle, although this first Python-loop implementation is not fully optimized.
+- The lfilter IIR variants test whether the theoretical IIR advantage appears when the recursive filter is moved out of Python.
+- Active-window gating tests a pragmatic event-inspired optimisation: silence is skipped, but the active segment is still processed densely.
 - The level-crossing model is the cleanest route toward event-based processing after the filterbank, but the filterbank itself is still dense in this first implementation.
 - The RF models are the most reduced conceptually because the resonators are both filters and spiking units, but their parameters need careful tuning before using them as full cochlea replacements.
 - Binarisation and event-based processing should be evaluated after we decide which of these mechanisms gives useful spike timing and channel selectivity.
@@ -217,10 +279,14 @@ Improvement candidate: RF bank with explicit damping, lower Q for wider response
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/rf_bank_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lif_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lif_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_raster.png`
+- `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_cochleagram.png`
+- `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_raster.png`
 - `cochleagram`: `mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_cochleagram.png`
 - `raster`: `mini_models/outputs/cochlea_analysis/figures/damped_rf_bank_raster.png`
 - `results`: `mini_models/outputs/cochlea_analysis/results.json`
 
-Runtime: `3.02 s`.
+Runtime: `3.87 s`.
