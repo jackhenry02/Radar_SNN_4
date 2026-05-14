@@ -17,3 +17,4 @@ The old round-based model code and outputs should remain untouched. Mini-model w
 - `experiments/neuron_analysis.py`: micro and macro behaviour of LIF, resonate-and-fire, and level-crossing neurons.
 - `experiments/signal_analysis.py`: emitted call, received echoes, binaural attenuation/head shadow, noise/jitter, and elevation spectral notch.
 - `experiments/cochlea_analysis.py`: compares original FFT/IFFT cochlea, Conv1D + LIF, Conv1D + level crossing, and RF-bank cochlea candidates.
+- `experiments/final_cochlea_model_analysis.py`: final optimized IIR + TorchScript LIF + active-window cochlea analysis, stability maths, and channel-scaling benchmarks.

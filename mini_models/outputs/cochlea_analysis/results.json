@@ -1,6 +1,6 @@
 {
   "experiment": "cochlea_analysis",
-  "elapsed_seconds": 3.8721126669552177,
+  "elapsed_seconds": 4.847255084197968,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,
@@ -32,9 +32,9 @@
     {
       "name": "original_fft_lif",
       "title": "Original FFT/IFFT + envelope + LIF",
-      "elapsed_seconds": 0.00396064599044621,
-      "elapsed_ms": 3.96064599044621,
-      "elapsed_ms_per_channel": 0.08251345813429604,
+      "elapsed_seconds": 0.004750521038658917,
+      "elapsed_ms": 4.750521038658917,
+      "elapsed_ms_per_channel": 0.0989691883053941,
       "flops_estimate": 9031989.531165123,
       "sops_estimate": 910.0,
       "spike_density": 0.05385890151515151,
@@ -52,9 +52,9 @@
     {
       "name": "conv1d_lif",
       "title": "Time-domain Conv1D filterbank + LIF",
-      "elapsed_seconds": 0.013573187054134905,
-      "elapsed_ms": 13.573187054134905,
-      "elapsed_ms_per_channel": 0.2827747302944772,
+      "elapsed_seconds": 0.013854937395080924,
+      "elapsed_ms": 13.854937395080924,
+      "elapsed_ms_per_channel": 0.2886445290641859,
       "flops_estimate": 17842176.0,
       "sops_estimate": 7028.0,
       "spike_density": 0.10398910984848485,
@@ -72,9 +72,9 @@
     {
       "name": "level_crossing",
       "title": "Time-domain filterbank + level crossing",
-      "elapsed_seconds": 0.0337253330508247,
-      "elapsed_ms": 33.7253330508247,
-      "elapsed_ms_per_channel": 0.7026111052255146,
+      "elapsed_seconds": 0.030686354031786323,
+      "elapsed_ms": 30.686354031786323,
+      "elapsed_ms_per_channel": 0.6392990423288817,
       "flops_estimate": 17842176.0,
       "sops_estimate": 4316.0,
       "spike_density": 0.06386126893939394,
@@ -92,9 +92,9 @@
     {
       "name": "rf_bank",
       "title": "Direct resonate-and-fire bank",
-      "elapsed_seconds": 0.01702258363366127,
-      "elapsed_ms": 17.02258363366127,
-      "elapsed_ms_per_channel": 0.3546371590346098,
+      "elapsed_seconds": 0.01658041647169739,
+      "elapsed_ms": 16.58041647169739,
+      "elapsed_ms_per_channel": 0.3454253431603623,
       "flops_estimate": 675840.0,
       "sops_estimate": 428.0,
       "spike_density": 0.006332859848484848,
@@ -112,9 +112,9 @@
     {
       "name": "iir_lif",
       "title": "IIR resonator filterbank + LIF",
-      "elapsed_seconds": 0.01812233286909759,
-      "elapsed_ms": 18.12233286909759,
-      "elapsed_ms_per_channel": 0.3775486014395331,
+      "elapsed_seconds": 0.018281146069057286,
+      "elapsed_ms": 18.281146069057286,
+      "elapsed_ms_per_channel": 0.3808572097720268,
       "flops_estimate": 811008.0,
       "sops_estimate": 5759.0,
       "spike_density": 0.08521247632575757,
@@ -132,9 +132,9 @@
     {
       "name": "iir_lfilter_lif",
       "title": "lfilter IIR + optimized LIF",
-      "elapsed_seconds": 0.016352312522940338,
-      "elapsed_ms": 16.352312522940338,
-      "elapsed_ms_per_channel": 0.34067317756125703,
+      "elapsed_seconds": 0.016811187495477498,
+      "elapsed_ms": 16.811187495477498,
+      "elapsed_ms_per_channel": 0.35023307282244787,
       "flops_estimate": 811008.0,
       "sops_estimate": 5759.0,
       "spike_density": 0.08521247632575757,
@@ -150,11 +150,31 @@
       "notes": "Optimization candidate: same IIR idea, but the recursive filter is delegated to torchaudio.lfilter and the LIF loop preallocates outputs."
     },
     {
+      "name": "iir_lfilter_jit_lif",
+      "title": "lfilter IIR + TorchScript LIF",
+      "elapsed_seconds": 0.011448416858911514,
+      "elapsed_ms": 11.448416858911514,
+      "elapsed_ms_per_channel": 0.23850868456065655,
+      "flops_estimate": 811008.0,
+      "sops_estimate": 5759.0,
+      "spike_density": 0.08521247632575757,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "Optimization candidate: same lfilter IIR front end, but the sequential LIF loop is compiled with TorchScript."
+    },
+    {
       "name": "iir_lfilter_lif_gated",
       "title": "lfilter IIR + optimized LIF + active-window gating",
-      "elapsed_seconds": 0.003567166510038078,
-      "elapsed_ms": 3.567166510038078,
-      "elapsed_ms_per_channel": 0.07431596895912662,
+      "elapsed_seconds": 0.003668207908049226,
+      "elapsed_ms": 3.668207908049226,
+      "elapsed_ms_per_channel": 0.07642099808435887,
       "flops_estimate": 170496.0,
       "sops_estimate": 5732.0,
       "spike_density": 0.08481297348484848,
@@ -170,11 +190,31 @@
       "notes": "Optimization candidate: same lfilter IIR + optimized LIF, but only over the detected echo window plus padding."
     },
     {
+      "name": "iir_lfilter_jit_lif_gated",
+      "title": "lfilter IIR + TorchScript LIF + active-window gating",
+      "elapsed_seconds": 0.0024782499531283975,
+      "elapsed_ms": 2.4782499531283975,
+      "elapsed_ms_per_channel": 0.051630207356841616,
+      "flops_estimate": 170496.0,
+      "sops_estimate": 5732.0,
+      "spike_density": 0.08481297348484848,
+      "time_rate_hz": 64000.0,
+      "cochleagram_shape": [
+        48,
+        1408
+      ],
+      "spike_shape": [
+        48,
+        1408
+      ],
+      "notes": "Current combined optimization candidate: lfilter IIR, TorchScript LIF, and active-window gating."
+    },
+    {
       "name": "iir_level_crossing",
       "title": "IIR resonator filterbank + level crossing",
-      "elapsed_seconds": 0.038124874932691455,
-      "elapsed_ms": 38.124874932691455,
-      "elapsed_ms_per_channel": 0.7942682277644053,
+      "elapsed_seconds": 0.03772460401523858,
+      "elapsed_ms": 37.72460401523858,
+      "elapsed_ms_per_channel": 0.7859292503174705,
       "flops_estimate": 811008.0,
       "sops_estimate": 4243.0,
       "spike_density": 0.06278113162878787,
@@ -192,9 +232,9 @@
     {
       "name": "damped_rf_bank",
       "title": "Damped wide-band RF bank",
-      "elapsed_seconds": 0.01659035449847579,
-      "elapsed_ms": 16.59035449847579,
-      "elapsed_ms_per_channel": 0.3456323853849123,
+      "elapsed_seconds": 0.017360729514621198,
+      "elapsed_ms": 17.360729514621198,
+      "elapsed_ms_per_channel": 0.36168186488794163,
       "flops_estimate": 675840.0,
       "sops_estimate": 2417.0,
       "spike_density": 0.035762902462121215,
@@ -235,9 +275,17 @@
       "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_cochleagram.png",
       "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_raster.png"
     },
+    "iir_lfilter_jit_lif": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_raster.png"
+    },
     "iir_lfilter_lif_gated": {
       "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_cochleagram.png",
       "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_lif_gated_raster.png"
+    },
+    "iir_lfilter_jit_lif_gated": {
+      "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_cochleagram.png",
+      "raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_lfilter_jit_lif_gated_raster.png"
     },
     "iir_level_crossing": {
       "cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/cochlea_analysis/figures/iir_level_crossing_cochleagram.png",
@@ -249,6 +297,15 @@
     }
   },
   "active_window_gating": {
+    "start_sample": 1067,
+    "stop_sample": 1363,
+    "samples_processed": 296,
+    "total_samples": 1408,
+    "processed_fraction": 0.21022727272727273,
+    "padding_s": 0.001,
+    "threshold_fraction": 0.02
+  },
+  "active_window_gating_jit": {
     "start_sample": 1067,
     "stop_sample": 1363,
     "samples_processed": 296,
