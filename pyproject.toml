@@ -15,4 +15,5 @@ dependencies = [
     "scipy>=1.17.1",
     "snntorch>=0.9.4",
     "torch==2.6.0",
+    "torchaudio>=2.11.0",
 ]
