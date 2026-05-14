@@ -71,6 +71,29 @@ class FinalCochleaOutput:
     flops_estimate: float
 
 
+@dataclass
+class NeuralIIRComparison:
+    """Performance comparison for alternative neural IIR interpretations.
+
+    Attributes:
+        active_samples: Number of samples in the active crop.
+        analog_iir_runtime_ms: Runtime of the direct `lfilter` IIR block.
+        rf_runtime_ms: Runtime of the linear RF state-space block.
+        ei_runtime_ms: Runtime of the linear E/I state-space block.
+        analog_iir_flops: Estimated filter-only FLOPs for the direct IIR.
+        rf_flops: Estimated filter-only FLOPs for the RF state update.
+        ei_flops: Estimated filter-only FLOPs for the E/I state update.
+    """
+
+    active_samples: int
+    analog_iir_runtime_ms: float
+    rf_runtime_ms: float
+    ei_runtime_ms: float
+    analog_iir_flops: float
+    rf_flops: float
+    ei_flops: float
+
+
 def _to_numpy(values: torch.Tensor) -> np.ndarray:
     """Convert a tensor to a CPU numpy array."""
     return values.detach().cpu().numpy()
@@ -272,6 +295,114 @@ def _estimate_fft_flops(config: GlobalConfig, signal_samples: int) -> float:
     return fft_cost + ifft_cost + complex_filter_mult + rectification + smoothing + downsample + lif
 
 
+def _estimate_state_space_flops(config: GlobalConfig, processed_samples: int) -> float:
+    """Estimate FLOPs for one two-state resonator bank update.
+
+    Args:
+        config: Acoustic configuration.
+        processed_samples: Number of samples processed after gating.
+
+    Returns:
+        Estimated operation count for the filter block only.
+    """
+    return config.num_cochlea_channels * processed_samples * 8.0
+
+
+def _resonator_state_coefficients(
+    config: GlobalConfig,
+    *,
+    q_factor: float = FINAL_Q_FACTOR,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Build state-space coefficients for RF/E-I resonator banks.
+
+    The state update is a damped rotation:
+
+    `state[n] = r*cos(theta)*state[n-1] - r*sin(theta)*quad[n-1] + gain*x[n]`
+    `quad[n] = r*sin(theta)*state[n-1] + r*cos(theta)*quad[n-1]`
+
+    Args:
+        config: Acoustic configuration.
+        q_factor: Filter quality factor.
+
+    Returns:
+        Tuple `(r_cos, r_sin, gain, centers_hz)`.
+    """
+    _, _, centers, radius = _iir_coefficients(config, q_factor=q_factor)
+    theta = 2.0 * math.pi * centers / config.sample_rate_hz
+    r_cos = radius * torch.cos(theta)
+    r_sin = radius * torch.sin(theta)
+    gain = (1.0 - radius).clamp_min(1e-6)
+    return r_cos, r_sin, gain, centers
+
+
+@torch.jit.script
+def _state_space_resonator_bank_jit(
+    signal: torch.Tensor,
+    r_cos: torch.Tensor,
+    r_sin: torch.Tensor,
+    gain: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Run a linear two-state resonator bank.
+
+    Args:
+        signal: One-dimensional input waveform.
+        r_cos: Per-channel damped cosine coefficient.
+        r_sin: Per-channel damped sine coefficient.
+        gain: Per-channel input gain.
+
+    Returns:
+        Pair `(state_trace, quadrature_trace)` with shape `[channels, time]`.
+    """
+    channels = r_cos.size(0)
+    state = torch.zeros(channels, dtype=signal.dtype, device=signal.device)
+    quadrature = torch.zeros(channels, dtype=signal.dtype, device=signal.device)
+    states = torch.zeros((channels, signal.size(0)), dtype=signal.dtype, device=signal.device)
+    quadratures = torch.zeros((channels, signal.size(0)), dtype=signal.dtype, device=signal.device)
+    for time_index in range(signal.size(0)):
+        previous_state = state
+        previous_quadrature = quadrature
+        state = r_cos * previous_state - r_sin * previous_quadrature + gain * signal[time_index]
+        quadrature = r_sin * previous_state + r_cos * previous_quadrature
+        states[:, time_index] = state
+        quadratures[:, time_index] = quadrature
+    return states, quadratures
+
+
+def _run_iir_filter_only(signal: torch.Tensor, config: GlobalConfig, q_factor: float) -> torch.Tensor:
+    """Run only the direct-form IIR resonator bank.
+
+    Args:
+        signal: One-dimensional active waveform crop.
+        config: Acoustic configuration.
+        q_factor: IIR Q factor.
+
+    Returns:
+        Filtered channel activity `[channels, time]`.
+    """
+    a_coeffs, b_coeffs, _, _ = _iir_coefficients(config, q_factor=q_factor)
+    repeated = signal.to(torch.float32).unsqueeze(0).repeat(config.num_cochlea_channels, 1)
+    return AF.lfilter(repeated, a_coeffs, b_coeffs, clamp=False, batching=True).to(signal.dtype)
+
+
+def _run_state_space_filter_only(
+    signal: torch.Tensor,
+    config: GlobalConfig,
+    q_factor: float,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Run only the RF/E-I state-space resonator bank.
+
+    Args:
+        signal: One-dimensional active waveform crop.
+        config: Acoustic configuration.
+        q_factor: IIR Q factor.
+
+    Returns:
+        Pair `(state_trace, quadrature_trace)`.
+    """
+    r_cos, r_sin, gain, _ = _resonator_state_coefficients(config, q_factor=q_factor)
+    return _state_space_resonator_bank_jit(signal.to(torch.float32), r_cos, r_sin, gain)
+
+
 def _run_final_cochlea_once(signal: torch.Tensor, config: GlobalConfig, q_factor: float) -> FinalCochleaOutput:
     """Run the final optimized cochlea once.
 
@@ -410,6 +541,37 @@ def _frequency_response(
     b0 = np.maximum(1.0 - r, 1e-12)
     denominator = 1.0 - 2.0 * r * np.cos(theta) * np.exp(-1j * omega) + (r**2) * np.exp(-2j * omega)
     response = np.abs(b0 / denominator)
+    response = response / np.maximum(response.max(axis=1, keepdims=True), 1e-12)
+    return centers_np, radius_np, response
+
+
+def _state_space_frequency_response(
+    config: GlobalConfig,
+    q_factor: float,
+    frequency_hz: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute theoretical response for RF/E-I state-space resonators.
+
+    Args:
+        config: Acoustic configuration.
+        q_factor: Resonator quality factor.
+        frequency_hz: Frequency axis in Hz.
+
+    Returns:
+        Tuple `(centers_hz, pole_radius, response)` where response has shape
+        `[channels, frequencies]`.
+    """
+    _, _, centers, radius = _iir_coefficients(config, q_factor=q_factor)
+    centers_np = _to_numpy(centers)
+    radius_np = _to_numpy(radius)
+    omega = 2.0 * np.pi * frequency_hz[None, :] / config.sample_rate_hz
+    theta = 2.0 * np.pi * centers_np[:, None] / config.sample_rate_hz
+    r = radius_np[:, None]
+    gain = np.maximum(1.0 - r, 1e-12)
+    z_inv = np.exp(-1j * omega)
+    denominator = 1.0 - 2.0 * r * np.cos(theta) * z_inv + (r**2) * (z_inv**2)
+    numerator = gain * (1.0 - r * np.cos(theta) * z_inv)
+    response = np.abs(numerator / denominator)
     response = response / np.maximum(response.max(axis=1, keepdims=True), 1e-12)
     return centers_np, radius_np, response
 
@@ -655,11 +817,199 @@ def _plot_scaling(scaling: list[dict[str, float]], runtime_path: Path, flops_pat
     return runtime_figure, flops_figure
 
 
+def _benchmark_neural_iir_blocks(signal: torch.Tensor, config: GlobalConfig) -> NeuralIIRComparison:
+    """Benchmark direct IIR, RF, and E/I filter-block variants.
+
+    Args:
+        signal: Full waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Filter-block comparison metrics.
+    """
+    start_sample, stop_sample = _active_window_bounds(signal, config)
+    cropped = signal[start_sample:stop_sample]
+    active_samples = cropped.numel()
+    analog_runtime = _median_runtime_s(
+        lambda: _run_iir_filter_only(cropped, config, FINAL_Q_FACTOR),
+        repeats=10,
+    )
+    rf_runtime = _median_runtime_s(
+        lambda: _run_state_space_filter_only(cropped, config, FINAL_Q_FACTOR),
+        repeats=10,
+    )
+    ei_runtime = _median_runtime_s(
+        lambda: _run_state_space_filter_only(cropped, config, FINAL_Q_FACTOR),
+        repeats=10,
+    )
+    return NeuralIIRComparison(
+        active_samples=active_samples,
+        analog_iir_runtime_ms=analog_runtime * 1_000.0,
+        rf_runtime_ms=rf_runtime * 1_000.0,
+        ei_runtime_ms=ei_runtime * 1_000.0,
+        analog_iir_flops=config.num_cochlea_channels * active_samples * 6.0,
+        rf_flops=_estimate_state_space_flops(config, active_samples),
+        ei_flops=_estimate_state_space_flops(config, active_samples),
+    )
+
+
+def _plot_neural_iir_frequency_response(config: GlobalConfig, path: Path) -> str:
+    """Plot black-box frequency responses of neural IIR interpretations.
+
+    Args:
+        config: Acoustic configuration.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    frequency_hz = np.linspace(config.cochlea_low_hz, config.cochlea_high_hz, 2600)
+    centers, _, analog_response = _frequency_response(config, FINAL_Q_FACTOR, frequency_hz)
+    _, _, state_response = _state_space_frequency_response(config, FINAL_Q_FACTOR, frequency_hz)
+    target_frequency = 10_000.0
+    channel = int(np.argmin(np.abs(centers - target_frequency)))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.2))
+    axes[0].plot(
+        frequency_hz / 1_000.0,
+        analog_response[channel],
+        linewidth=2.0,
+        label="direct analog IIR",
+    )
+    axes[0].plot(
+        frequency_hz / 1_000.0,
+        state_response[channel],
+        linewidth=2.0,
+        linestyle="--",
+        label="RF / E-I state-space IIR",
+    )
+    axes[0].set_title(f"Black-box response near {centers[channel] / 1_000.0:.1f} kHz")
+    axes[0].set_xlabel("frequency (kHz)")
+    axes[0].set_ylabel("normalized magnitude")
+    axes[0].legend(loc="upper right")
+    axes[0].grid(True, alpha=0.25)
+
+    bandwidths = [
+        _bandwidth_at_half_power(frequency_hz, analog_response[channel]),
+        _bandwidth_at_half_power(frequency_hz, state_response[channel]),
+        _bandwidth_at_half_power(frequency_hz, state_response[channel]),
+    ]
+    axes[1].bar(
+        ["analog IIR", "RF IIR", "E/I IIR"],
+        np.array(bandwidths) / 1_000.0,
+        color=["#2563eb", "#f97316", "#16a34a"],
+    )
+    axes[1].set_title("-3 dB bandwidth of equivalent channel")
+    axes[1].set_ylabel("bandwidth (kHz)")
+    axes[1].grid(True, axis="y", alpha=0.25)
+    return save_figure(fig, path)
+
+
+def _plot_neural_iir_dynamics(config: GlobalConfig, path: Path) -> str:
+    """Plot impulse dynamics for direct IIR, RF, and E/I forms.
+
+    Args:
+        config: Acoustic configuration.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    duration_s = 0.004
+    samples = int(round(duration_s * config.sample_rate_hz))
+    impulse = torch.zeros(samples)
+    impulse[0] = 1.0
+    centers = _log_spaced_centers(config)
+    channel = int(torch.argmin((centers - 10_000.0).abs()).item())
+    single_config = _make_config(1)
+    single_config = GlobalConfig(
+        **{
+            **single_config.__dict__,
+            "cochlea_low_hz": float(centers[channel].item()),
+            "cochlea_high_hz": float(centers[channel].item()),
+            "num_cochlea_channels": 1,
+        }
+    )
+    analog = _run_iir_filter_only(impulse, single_config, FINAL_Q_FACTOR)[0]
+    rf_state, rf_quad = _run_state_space_filter_only(impulse, single_config, FINAL_Q_FACTOR)
+    time_ms = np.arange(samples) / config.sample_rate_hz * 1_000.0
+    analog_np = _to_numpy(analog)
+    rf_np = _to_numpy(rf_state[0])
+    quad_np = _to_numpy(rf_quad[0])
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8))
+    axes[0, 0].plot(time_ms, analog_np, linewidth=1.8, label="direct analog IIR")
+    axes[0, 0].plot(time_ms, rf_np, linewidth=1.8, linestyle="--", label="RF / E output")
+    axes[0, 0].set_title("Impulse response: damped ringing")
+    axes[0, 0].set_xlabel("time (ms)")
+    axes[0, 0].set_ylabel("state")
+    axes[0, 0].legend(loc="upper right")
+    axes[0, 0].grid(True, alpha=0.25)
+
+    axes[0, 1].plot(time_ms, rf_np, linewidth=1.8, label="E / voltage state")
+    axes[0, 1].plot(time_ms, quad_np, linewidth=1.8, label="I / quadrature state")
+    axes[0, 1].set_title("Two-state RF or E/I dynamics")
+    axes[0, 1].set_xlabel("time (ms)")
+    axes[0, 1].set_ylabel("state")
+    axes[0, 1].legend(loc="upper right")
+    axes[0, 1].grid(True, alpha=0.25)
+
+    axes[1, 0].plot(rf_np, quad_np, color="#0f172a", linewidth=1.5)
+    axes[1, 0].scatter([rf_np[0]], [quad_np[0]], color="#16a34a", label="start", zorder=3)
+    axes[1, 0].set_title("Phase-plane spiral")
+    axes[1, 0].set_xlabel("E / voltage state")
+    axes[1, 0].set_ylabel("I / velocity state")
+    axes[1, 0].legend(loc="upper right")
+    axes[1, 0].grid(True, alpha=0.25)
+
+    energy = rf_np**2 + quad_np**2
+    axes[1, 1].plot(time_ms, energy, color="#7c2d12", linewidth=1.8)
+    axes[1, 1].set_title("Energy decay shows damping / stability")
+    axes[1, 1].set_xlabel("time (ms)")
+    axes[1, 1].set_ylabel("state energy")
+    axes[1, 1].grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
+def _plot_neural_iir_performance(comparison: NeuralIIRComparison, path: Path) -> str:
+    """Plot runtime and FLOP estimates for neural IIR variants.
+
+    Args:
+        comparison: Neural IIR comparison metrics.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    names = ["analog IIR\nlfilter", "RF IIR\nstate-space", "E/I IIR\nstate-space"]
+    runtimes = [
+        comparison.analog_iir_runtime_ms,
+        comparison.rf_runtime_ms,
+        comparison.ei_runtime_ms,
+    ]
+    flops = [
+        comparison.analog_iir_flops,
+        comparison.rf_flops,
+        comparison.ei_flops,
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
+    axes[0].bar(names, runtimes, color=["#2563eb", "#f97316", "#16a34a"])
+    axes[0].set_title("Prototype filter-block runtime")
+    axes[0].set_ylabel("runtime (ms)")
+    axes[0].grid(True, axis="y", alpha=0.25)
+    axes[1].bar(names, flops, color=["#2563eb", "#f97316", "#16a34a"])
+    axes[1].set_title("Estimated filter-block FLOPs")
+    axes[1].set_ylabel("FLOPs")
+    axes[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    axes[1].grid(True, axis="y", alpha=0.25)
+    return save_figure(fig, path)
+
+
 def _write_report(
     config: GlobalConfig,
     final_output: FinalCochleaOutput,
     artifacts: dict[str, str],
     scaling: list[dict[str, float]],
+    neural_iir: NeuralIIRComparison,
     elapsed_s: float,
 ) -> None:
     """Write the final cochlea model report.
@@ -669,6 +1019,7 @@ def _write_report(
         final_output: Final cochlea output.
         artifacts: Figure artifacts.
         scaling: Channel-scaling benchmark results.
+        neural_iir: Neural IIR comparison metrics.
         elapsed_s: Total script runtime.
     """
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -772,12 +1123,107 @@ def _write_report(
     lines.extend(
         [
             "",
+            "## Neural IIR Filter Extensions",
+            "",
+            "The final implemented cochlea uses a direct analog IIR filterbank. A useful next step is to express the same resonant operation as a neural circuit. The three versions below are different implementations of the same broad idea: a stable second-order resonator with a centre frequency, damping, and output activity.",
+            "",
+            "### 1. Direct Analog IIR",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[x[n]] --> B[second-order IIR recurrence]",
+            "    B --> C[y[n]]",
+            "    C --> D[rectification]",
+            "    D --> E[LIF spike encoder]",
+            "```",
+            "",
+            "The direct analog form is the current implementation:",
+            "",
+            "```text",
+            "y[n] = b0*x[n] + 2*r*cos(theta)*y[n-1] - r^2*y[n-2]",
+            "```",
+            "",
+            "As a black-box linear system, this is compact and efficient. It does not explain the recurrence as neurons; it just directly computes the filter output.",
+            "",
+            "### 2. RF Neuron As An IIR",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[x[n]] --> B[resonant voltage state]",
+            "    B <--> C[velocity / quadrature state]",
+            "    B --> D[optional spike threshold]",
+            "```",
+            "",
+            "A linearized resonate-and-fire unit can be written as a damped rotation:",
+            "",
+            "```text",
+            "v[n] = r*cos(theta)*v[n-1] - r*sin(theta)*u[n-1] + g*x[n]",
+            "u[n] = r*sin(theta)*v[n-1] + r*cos(theta)*u[n-1]",
+            "```",
+            "",
+            "`v` is the voltage-like state and `u` is the velocity or quadrature state. If a threshold/reset is added to `v`, this becomes a spiking RF neuron. Without the threshold, it is a linear resonator and can be compared fairly against the analog IIR.",
+            "",
+            "### 3. E/I Circuitry As An IIR",
+            "",
+            "```mermaid",
+            "flowchart LR",
+            "    A[x[n]] --> E[excitatory population E]",
+            "    E --> I[inhibitory population I]",
+            "    I -- delayed negative feedback --> E",
+            "    E --> O[filtered output or spikes]",
+            "```",
+            "",
+            "The same two-state recurrence can be interpreted as excitatory/inhibitory circuitry:",
+            "",
+            "```text",
+            "E[n] = r*cos(theta)*E[n-1] - r*sin(theta)*I[n-1] + g*x[n]",
+            "I[n] = r*sin(theta)*E[n-1] + r*cos(theta)*I[n-1]",
+            "```",
+            "",
+            "Here `E` is the driven excitatory state and `I` is the delayed inhibitory or quadrature state. The delayed negative feedback creates resonance. The eigenvalues are still `r*exp(+/-j*theta)`, so the stability condition is the same: `r < 1`.",
+            "",
+            "### Black-Box Similarity",
+            "",
+            "As black-box linear systems, all three are resonant band-pass style filters. The analog IIR is a direct-form recurrence, while the RF and E/I versions are state-space recurrences with two explicit internal states. If tuned to the same pole radius and angle, they peak at the same frequency and have similar damping.",
+            "",
+            "The key transfer functions are:",
+            "",
+            "```text",
+            "H_direct(z) = b0 / (1 - 2*r*cos(theta)*z^-1 + r^2*z^-2)",
+            "H_state(z)  = g*(1 - r*cos(theta)*z^-1) / (1 - 2*r*cos(theta)*z^-1 + r^2*z^-2)",
+            "```",
+            "",
+            "Both forms have the same denominator and therefore the same poles. The difference is the numerator: the direct IIR hides the state in previous output samples, while the state-space RF/E-I versions expose the two internal states.",
+            "",
+            "![Neural IIR frequency response](../outputs/final_cochlea_model/figures/neural_iir_frequency_response.png)",
+            "",
+            "### Dynamical Difference",
+            "",
+            "The direct IIR hides its state in previous outputs. The RF form exposes voltage and velocity. The E/I form exposes excitatory and inhibitory state. This makes the neural versions easier to interpret biologically and easier to plot as circuit dynamics.",
+            "",
+            "![Neural IIR dynamics](../outputs/final_cochlea_model/figures/neural_iir_dynamics.png)",
+            "",
+            "### Prototype Performance",
+            "",
+            "The table below compares filter-block performance only, using the same active waveform window and `48` channels. It does not include rectification or LIF spike encoding.",
+            "",
+            "![Neural IIR performance](../outputs/final_cochlea_model/figures/neural_iir_performance.png)",
+            "",
+            "| Variant | Runtime (ms) | Estimated filter FLOPs | Notes |",
+            "|---|---:|---:|---|",
+            f"| Direct analog IIR with `lfilter` | {neural_iir.analog_iir_runtime_ms:.3f} | {neural_iir.analog_iir_flops:,.0f} | Current efficient implementation. |",
+            f"| RF state-space IIR | {neural_iir.rf_runtime_ms:.3f} | {neural_iir.rf_flops:,.0f} | More neural, exposes voltage/velocity states. |",
+            f"| E/I state-space IIR | {neural_iir.ei_runtime_ms:.3f} | {neural_iir.ei_flops:,.0f} | Same dynamics as RF, but interpreted as delayed inhibition. |",
+            "",
+            "The current direct IIR remains the best engineering choice for speed because `torchaudio.functional.lfilter` runs the recurrence efficiently. The RF and E/I versions are better explanatory models and may become useful if the cochlea is later made explicitly neural or spiking.",
+            "",
             "## Interpretation",
             "",
             "- Increasing Q from `5` to `12` narrows each IIR channel and improves theoretical frequency selectivity.",
             "- Stability is guaranteed by construction as long as `Q > 0` and `f_c > 0`, because `r = exp(-pi*f_c/(Q*f_s))` lies inside the unit circle.",
             "- The final model is still not truly sparse inside the active window. It is a gated dense computation: silence is skipped, but the echo window is processed by all channels.",
             "- The scaling curves are the key test for whether this front end remains practical as channel count increases.",
+            "- A neural IIR is mathematically plausible because RF and E/I circuits can implement the same kind of stable second-order resonator as the direct IIR.",
             "",
             "## Generated Files",
             "",
@@ -819,6 +1265,19 @@ def main() -> dict[str, object]:
     )
     artifacts["channel_scaling_runtime"] = runtime_plot
     artifacts["channel_scaling_flops"] = flops_plot
+    neural_iir = _benchmark_neural_iir_blocks(signal, config)
+    artifacts["neural_iir_frequency_response"] = _plot_neural_iir_frequency_response(
+        config,
+        FIGURE_DIR / "neural_iir_frequency_response.png",
+    )
+    artifacts["neural_iir_dynamics"] = _plot_neural_iir_dynamics(
+        config,
+        FIGURE_DIR / "neural_iir_dynamics.png",
+    )
+    artifacts["neural_iir_performance"] = _plot_neural_iir_performance(
+        neural_iir,
+        FIGURE_DIR / "neural_iir_performance.png",
+    )
 
     elapsed_s = time.perf_counter() - start
     _, _, _, radius = _iir_coefficients(config, q_factor=FINAL_Q_FACTOR)
@@ -845,10 +1304,19 @@ def main() -> dict[str, object]:
             "pole_radius_max": float(radius.max().item()),
         },
         "scaling": scaling,
+        "neural_iir_comparison": {
+            "active_samples": neural_iir.active_samples,
+            "analog_iir_runtime_ms": neural_iir.analog_iir_runtime_ms,
+            "rf_runtime_ms": neural_iir.rf_runtime_ms,
+            "ei_runtime_ms": neural_iir.ei_runtime_ms,
+            "analog_iir_flops": neural_iir.analog_iir_flops,
+            "rf_flops": neural_iir.rf_flops,
+            "ei_flops": neural_iir.ei_flops,
+        },
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    _write_report(config, final_output, artifacts, scaling, elapsed_s)
+    _write_report(config, final_output, artifacts, scaling, neural_iir, elapsed_s)
     return payload
 
 

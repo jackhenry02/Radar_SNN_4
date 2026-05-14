@@ -1,6 +1,6 @@
 {
   "experiment": "final_cochlea_model_analysis",
-  "elapsed_seconds": 1.6340060411021113,
+  "elapsed_seconds": 2.5361417080275714,
   "final_q_factor": 12.0,
   "config": {
     "sample_rate_hz": 64000,
@@ -12,7 +12,7 @@
     "normalize_spike_envelope": false
   },
   "final_output": {
-    "runtime_ms": 2.532187500037253,
+    "runtime_ms": 3.329083905555308,
     "flops_estimate": 170496.0,
     "spike_count": 4212,
     "spike_density": 0.06232244148850441,
@@ -31,8 +31,8 @@
   "scaling": [
     {
       "channels": 10.0,
-      "final_iir_time_ms": 2.645040862262249,
-      "fft_time_ms": 3.9592499379068613,
+      "final_iir_time_ms": 2.70258286036551,
+      "fft_time_ms": 5.283791106194258,
       "final_iir_flops": 35520.0,
       "fft_flops": 1939958.3845472722,
       "processed_samples": 296.0,
@@ -40,8 +40,8 @@
     },
     {
       "channels": 24.0,
-      "final_iir_time_ms": 2.682875143364072,
-      "fft_time_ms": 4.136249888688326,
+      "final_iir_time_ms": 2.729916013777256,
+      "fft_time_ms": 4.339624894782901,
       "final_iir_flops": 85248.0,
       "fft_flops": 4552811.964880165,
       "processed_samples": 296.0,
@@ -49,8 +49,8 @@
     },
     {
       "channels": 48.0,
-      "final_iir_time_ms": 2.678625052794814,
-      "fft_time_ms": 4.345417022705078,
+      "final_iir_time_ms": 2.8950830455869436,
+      "fft_time_ms": 5.1026251167058945,
       "final_iir_flops": 170496.0,
       "fft_flops": 9031989.531165123,
       "processed_samples": 296.0,
@@ -58,8 +58,8 @@
     },
     {
       "channels": 100.0,
-      "final_iir_time_ms": 3.1008331570774317,
-      "fft_time_ms": 7.033375091850758,
+      "final_iir_time_ms": 3.0970419757068157,
+      "fft_time_ms": 7.575375027954578,
       "final_iir_flops": 355200.0,
       "fft_flops": 18736874.258115865,
       "processed_samples": 296.0,
@@ -67,8 +67,8 @@
     },
     {
       "channels": 200.0,
-      "final_iir_time_ms": 3.4981670323759317,
-      "fft_time_ms": 10.268209036439657,
+      "final_iir_time_ms": 3.458083840087056,
+      "fft_time_ms": 10.93470910564065,
       "final_iir_flops": 710400.0,
       "fft_flops": 37400114.11763652,
       "processed_samples": 296.0,
@@ -76,8 +76,8 @@
     },
     {
       "channels": 500.0,
-      "final_iir_time_ms": 4.754374967887998,
-      "fft_time_ms": 21.504125092178583,
+      "final_iir_time_ms": 5.6091248989105225,
+      "fft_time_ms": 26.93470800295472,
       "final_iir_flops": 1776000.0,
       "fft_flops": 93389833.6961985,
       "processed_samples": 296.0,
@@ -85,20 +85,32 @@
     },
     {
       "channels": 1000.0,
-      "final_iir_time_ms": 7.833666866645217,
-      "fft_time_ms": 40.51245888695121,
+      "final_iir_time_ms": 10.650250129401684,
+      "fft_time_ms": 53.17850015126169,
       "final_iir_flops": 3552000.0,
       "fft_flops": 186706032.99380177,
       "processed_samples": 296.0,
       "processed_fraction": 0.21022727272727273
     }
   ],
+  "neural_iir_comparison": {
+    "active_samples": 296,
+    "analog_iir_runtime_ms": 0.2974788658320904,
+    "rf_runtime_ms": 2.2761455038562417,
+    "ei_runtime_ms": 2.1140004973858595,
+    "analog_iir_flops": 85248.0,
+    "rf_flops": 113664.0,
+    "ei_flops": 113664.0
+  },
   "artifacts": {
     "final_cochlea_output": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/final_cochlea_output.png",
     "q_selectivity": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/q_selectivity.png",
     "final_frequency_response": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/final_frequency_response.png",
     "iir_stability": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/iir_stability.png",
     "channel_scaling_runtime": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/channel_scaling_runtime.png",
-    "channel_scaling_flops": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/channel_scaling_flops.png"
+    "channel_scaling_flops": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/channel_scaling_flops.png",
+    "neural_iir_frequency_response": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/neural_iir_frequency_response.png",
+    "neural_iir_dynamics": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/neural_iir_dynamics.png",
+    "neural_iir_performance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/mini_models/outputs/final_cochlea_model/figures/neural_iir_performance.png"
   }
 }
