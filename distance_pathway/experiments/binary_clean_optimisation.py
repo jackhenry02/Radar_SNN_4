@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-"""Clean FM-sweep binary distance-pathway optimisation experiment.
+"""Fair clean FM-sweep binary distance-pathway optimisation experiment.
 
-This experiment compares three clean-sweep distance estimators:
+This experiment compares distance detectors using only the model inputs:
 
-1. The original LIF-style score used in the accuracy report.
-2. The original binary score used in the accuracy report.
-3. A pure bitwise `torch.unfold` implementation that delays candidate
-   selection until after the full delay-space coincidence map is collapsed.
+* corollary-discharge spike raster;
+* echo spike raster;
+* candidate delay bank.
 
-The aim is to compare the optimised binary path against the same scoring
-logic used in the previous accuracy tests, rather than against a special
-grid-aligned benchmark.
+The true distance and true delay are used only after prediction to calculate
+error metrics. This avoids the unfair analytic shortcut used in earlier
+diagnostic versions of the experiment.
 """
 
 import json
+import math
 import sys
 import time
 from dataclasses import dataclass
@@ -41,12 +41,11 @@ TX_INDEX = 64
 MIN_DISTANCE_M = 0.25
 MAX_DISTANCE_M = 5.0
 NUM_DELAY_LINES = 160
-NUM_TEST_SAMPLES = 32
+NUM_TEST_SAMPLES = 1_000
 SWEEP_CHANNELS = 32
 SWEEP_DURATION_S = 0.003
 RNG_SEED = 31
 LIF_BETA = 0.982
-ECHO_AMPLITUDE = 0.62
 
 OUTPUT_DIR = ROOT / "distance_pathway" / "outputs" / "binary_clean_optimisation"
 FIGURE_DIR = OUTPUT_DIR / "figures"
@@ -60,14 +59,15 @@ class CleanSweepDataset:
 
     Attributes:
         true_distance_m: True continuous distances in metres.
-        true_delay_samples: Rounded echo delay for each sample.
+        true_delay_samples: Rounded echo delay for each sample. This is used
+            only to generate the echo raster and score the final prediction.
         nearest_candidate_index: Delay-line index closest to the true distance.
         candidate_distance_m: Distance represented by each delay line.
         candidate_delay_samples: Delay represented by each delay line.
         channel_offsets_samples: Corollary-discharge sweep offsets.
-        cd_raster: Corollary discharge raster with shape `[samples, channels, time]`.
-        echo_raster: Echo raster with shape `[samples, channels, time]`.
-        binary_tolerance_samples: Half-bin tolerance used by the original binary score.
+        cd_raster: Corollary discharge raster `[samples, channels, time]`.
+        echo_raster: Echo raster `[samples, channels, time]`.
+        binary_tolerance_samples: Half-bin tolerance for binary matching.
     """
 
     true_distance_m: np.ndarray
@@ -83,12 +83,13 @@ class CleanSweepDataset:
 
 @dataclass
 class MethodResult:
-    """Result summary for one clean sweep method."""
+    """Result summary for one detector method."""
 
     name: str
     predicted_distance_m: np.ndarray
     predicted_candidate_index: np.ndarray
     mae_m: float
+    rmse_m: float
     nearest_bin_accuracy_percent: float
     runtime_ms: float
     flops: float
@@ -100,7 +101,7 @@ def _median_runtime_s(function: Callable[[], object], repeats: int = 5) -> float
 
     Args:
         function: Zero-argument callable to benchmark.
-        repeats: Number of timed repeats after one warm-up call.
+        repeats: Number of timed repeats after one warm-up.
 
     Returns:
         Median runtime in seconds.
@@ -115,14 +116,10 @@ def _median_runtime_s(function: Callable[[], object], repeats: int = 5) -> float
 
 
 def _make_clean_sweep_dataset() -> CleanSweepDataset:
-    """Build a clean FM-sweep dataset matching the accuracy-test setup.
-
-    Distances are sampled continuously, then represented by the closest
-    available delay line. This mirrors the previous clean sweep accuracy test
-    and avoids the artificially perfect grid-aligned case.
+    """Build a clean FM-sweep spike-raster dataset.
 
     Returns:
-        Clean sweep dataset for benchmarking.
+        Clean sweep dataset for the fair detector benchmark.
     """
     rng = np.random.default_rng(RNG_SEED)
     candidate_distance_m = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_DELAY_LINES)
@@ -165,11 +162,73 @@ def _make_clean_sweep_dataset() -> CleanSweepDataset:
     )
 
 
-def _predict_original_lif_score(dataset: CleanSweepDataset) -> np.ndarray:
-    """Predict using the original clean-sweep LIF-style score.
+def _first_event_times(raster: torch.Tensor) -> np.ndarray:
+    """Extract first spike time from each sample/channel raster.
 
-    The original sweep score compares the true echo delay against every
-    candidate delay and gives higher score to smaller timing errors.
+    Args:
+        raster: Boolean raster with shape `[samples, channels, time]`.
+
+    Returns:
+        First event times with shape `[samples, channels]`. Missing events are
+        returned as `-1`.
+    """
+    has_event = raster.any(dim=-1).cpu().numpy()
+    first_time = torch.argmax(raster.to(torch.int16), dim=-1).cpu().numpy().astype(np.int64)
+    first_time[~has_event] = -1
+    return first_time
+
+
+def _observed_delay_matrix(dataset: CleanSweepDataset) -> np.ndarray:
+    """Estimate echo delays from the input rasters only.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Observed echo-minus-CD delays `[samples, channels]`.
+    """
+    cd_times = _first_event_times(dataset.cd_raster)
+    echo_times = _first_event_times(dataset.echo_raster)
+    valid = (cd_times >= 0) & (echo_times >= 0)
+    delays = echo_times - cd_times
+    delays[~valid] = -1
+    return delays
+
+
+def _paired_event_delays_from_nonzero(dataset: CleanSweepDataset) -> tuple[np.ndarray, np.ndarray]:
+    """Extract paired echo-minus-CD delays from sparse event lists.
+
+    This prototype starts from dense rasters, so `nonzero` still scans the
+    raster once. The downstream computation, however, is event-list based and
+    does not scan the empty time axis.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Tuple of `(sample_ids, observed_delays)`.
+    """
+    cd_events = dataset.cd_raster.nonzero(as_tuple=False).cpu().numpy()
+    echo_events = dataset.echo_raster.nonzero(as_tuple=False).cpu().numpy()
+
+    cd_order = np.lexsort((cd_events[:, 1], cd_events[:, 0]))
+    echo_order = np.lexsort((echo_events[:, 1], echo_events[:, 0]))
+    cd_events = cd_events[cd_order]
+    echo_events = echo_events[echo_order]
+
+    if cd_events.shape != echo_events.shape or not np.array_equal(cd_events[:, :2], echo_events[:, :2]):
+        raise ValueError("Clean event-list benchmark expects one CD and one echo event per sample/channel.")
+
+    sample_ids = echo_events[:, 0].astype(np.int64)
+    observed_delays = (echo_events[:, 2] - cd_events[:, 2]).astype(np.int64)
+    return sample_ids, observed_delays
+
+
+def _predict_fair_lif_raster(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance with a fair raster-derived LIF soft score.
+
+    The predictor derives observed echo delays from the CD and echo rasters.
+    It does not access `true_delay_samples`.
 
     Args:
         dataset: Clean sweep dataset.
@@ -177,41 +236,64 @@ def _predict_original_lif_score(dataset: CleanSweepDataset) -> np.ndarray:
     Returns:
         Predicted candidate indices.
     """
+    observed_delays = _observed_delay_matrix(dataset)
+    valid = observed_delays >= 0
     delay_error = np.abs(
-        dataset.true_delay_samples[:, None] - dataset.candidate_delay_samples[None, :]
+        observed_delays[:, :, None] - dataset.candidate_delay_samples[None, None, :]
     )
-    scores = ECHO_AMPLITUDE * (1.0 + np.power(LIF_BETA, delay_error))
+    scores = np.power(LIF_BETA, delay_error) * valid[:, :, None]
+    return np.argmax(scores.mean(axis=1), axis=1)
+
+
+def _predict_fair_binary_raster(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance with a fair raster-derived binary score.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    observed_delays = _observed_delay_matrix(dataset)
+    valid = observed_delays >= 0
+    delay_error = np.abs(
+        observed_delays[:, :, None] - dataset.candidate_delay_samples[None, None, :]
+    )
+    matches = (delay_error <= dataset.binary_tolerance_samples) & valid[:, :, None]
+    return np.argmax(matches.mean(axis=1), axis=1)
+
+
+def _predict_event_list_binary(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance using event-list delay voting.
+
+    This method converts rasters into event times, computes one delay per
+    channel, then votes for the nearest candidate delay.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    sample_ids, observed_delays = _paired_event_delays_from_nonzero(dataset)
+    distance_to_candidates = np.abs(
+        observed_delays[:, None] - dataset.candidate_delay_samples[None, :]
+    )
+    nearest_candidates = np.argmin(distance_to_candidates, axis=1)
+    scores = np.zeros((NUM_TEST_SAMPLES, NUM_DELAY_LINES), dtype=np.int32)
+    np.add.at(scores, (sample_ids, nearest_candidates), 1)
     return np.argmax(scores, axis=1)
 
 
-def _predict_original_binary_score(dataset: CleanSweepDataset) -> np.ndarray:
-    """Predict using the original clean-sweep binary score.
-
-    This is the analytic version used in the accuracy report: a delay line
-    fires if it lies within half a candidate-bin of the observed delay.
-
-    Args:
-        dataset: Clean sweep dataset.
-
-    Returns:
-        Predicted candidate indices.
-    """
-    delay_error = np.abs(
-        dataset.true_delay_samples[:, None] - dataset.candidate_delay_samples[None, :]
-    )
-    scores = delay_error <= dataset.binary_tolerance_samples
-    return np.argmax(scores.astype(np.int32), axis=1)
-
-
 def _dilate_binary_template(template: torch.Tensor, radius: int) -> torch.Tensor:
-    """Dilate a binary template along time using small bitwise shifts.
+    """Dilate a binary template along time using bitwise shifts.
 
     Args:
         template: Boolean tensor with shape `[samples, channels, time]`.
         radius: Number of samples to dilate on each side.
 
     Returns:
-        Boolean tensor with each event widened by `radius` samples.
+        Dilated Boolean tensor.
     """
     if radius <= 0:
         return template
@@ -223,20 +305,29 @@ def _dilate_binary_template(template: torch.Tensor, radius: int) -> torch.Tensor
     return dilated
 
 
-def _predict_optimised_binary_unfold(dataset: CleanSweepDataset) -> np.ndarray:
-    """Predict using pure bitwise unfold before candidate selection.
+def _raster_to_python_ints(raster: torch.Tensor) -> np.ndarray:
+    """Pack each sample/channel Boolean trace into a Python integer bitset.
 
-    The critical ordering is:
+    Args:
+        raster: Boolean raster `[samples, channels, time]`.
 
-    1. Unfold the whole echo timeline into all possible delay windows.
-    2. Broadcast the corollary-discharge template over the delay axis.
-    3. Perform one bitwise `AND` over the full delay space.
-    4. Collapse time.
-    5. Select the candidate delays at the end.
+    Returns:
+        Object array `[samples, channels]` containing Python integer bitsets.
+    """
+    raster_np = np.ascontiguousarray(raster.cpu().numpy())
+    packed = np.packbits(raster_np, axis=-1, bitorder="little")
+    flat = packed.reshape(-1, packed.shape[-1])
+    bitsets = np.empty(flat.shape[0], dtype=object)
+    for index, row in enumerate(flat):
+        bitsets[index] = int.from_bytes(row.tobytes(), byteorder="little", signed=False)
+    return bitsets.reshape(raster_np.shape[:2])
 
-    The CD template is dilated by the same half-bin tolerance as the original
-    binary score, so this method is comparable to the accuracy-test binary
-    setup while still avoiding advanced indexing before the `AND`.
+
+def _predict_bit_packed_binary(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance using packed integer bitsets.
+
+    Each trace is converted into a bitset. Candidate delays are tested using a
+    word-level shift and `AND`, instead of dense time-sample comparison.
 
     Args:
         dataset: Clean sweep dataset.
@@ -244,19 +335,69 @@ def _predict_optimised_binary_unfold(dataset: CleanSweepDataset) -> np.ndarray:
     Returns:
         Predicted candidate indices.
     """
-    candidate_delays = torch.as_tensor(dataset.candidate_delay_samples, dtype=torch.long)
-    max_delay = int(candidate_delays.max().item())
-    window_length = dataset.cd_raster.shape[-1] - max_delay
+    dilated_cd = _dilate_binary_template(dataset.cd_raster, dataset.binary_tolerance_samples)
+    cd_bitsets = _raster_to_python_ints(dilated_cd)
+    echo_bitsets = _raster_to_python_ints(dataset.echo_raster)
+    scores = np.zeros((NUM_TEST_SAMPLES, NUM_DELAY_LINES), dtype=np.int32)
 
-    cd_template = dataset.cd_raster[:, :, :window_length]
-    cd_template = _dilate_binary_template(cd_template, dataset.binary_tolerance_samples)
-    cd_template = cd_template.unsqueeze(2)
+    for candidate_index, delay in enumerate(dataset.candidate_delay_samples):
+        shifted_echo = echo_bitsets >> int(delay)
+        matches = (shifted_echo & cd_bitsets) != 0
+        scores[:, candidate_index] = matches.sum(axis=1)
+    return np.argmax(scores, axis=1)
 
-    echo_windows = dataset.echo_raster.unfold(dimension=-1, size=window_length, step=1)
-    coincidence = echo_windows & cd_template
-    raw_scores = coincidence.any(dim=-1)
-    final_scores = raw_scores.index_select(dim=-1, index=candidate_delays).sum(dim=1)
-    return torch.argmax(final_scores, dim=1).cpu().numpy()
+
+def _build_delay_to_candidate_lookup(dataset: CleanSweepDataset) -> np.ndarray:
+    """Build a lookup from integer delay to candidate delay index.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Lookup array where invalid delays map to `-1`.
+    """
+    max_delay = int(dataset.candidate_delay_samples.max())
+    lookup = np.full(max_delay + dataset.binary_tolerance_samples + 1, -1, dtype=np.int64)
+    for delay in range(lookup.size):
+        candidate_index = int(np.argmin(np.abs(dataset.candidate_delay_samples - delay)))
+        error = abs(int(dataset.candidate_delay_samples[candidate_index]) - delay)
+        if error <= dataset.binary_tolerance_samples:
+            lookup[delay] = candidate_index
+    return lookup
+
+
+def _predict_sparse_stack_binary(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance using a sparse event-to-candidate accumulator.
+
+    This builds a sparse score stack indexed by `(sample, candidate_delay)`.
+    Duplicate entries from multiple frequency channels are coalesced into
+    channel votes.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    sample_ids, observed_delays = _paired_event_delays_from_nonzero(dataset)
+    lookup = _build_delay_to_candidate_lookup(dataset)
+    valid_delay = (observed_delays >= 0) & (observed_delays < lookup.size)
+    candidate_ids = np.full_like(observed_delays, -1)
+    candidate_ids[valid_delay] = lookup[observed_delays[valid_delay]]
+    valid = candidate_ids >= 0
+
+    sample_ids = sample_ids[valid]
+    candidate_ids = candidate_ids[valid]
+    indices = torch.as_tensor(np.vstack([sample_ids, candidate_ids]), dtype=torch.long)
+    values = torch.ones(indices.shape[1], dtype=torch.float32)
+    sparse_scores = torch.sparse_coo_tensor(
+        indices,
+        values,
+        size=(NUM_TEST_SAMPLES, NUM_DELAY_LINES),
+        check_invariants=False,
+    ).coalesce()
+    scores = sparse_scores.to_dense().cpu().numpy()
+    return np.argmax(scores, axis=1)
 
 
 def _score_method(
@@ -267,7 +408,7 @@ def _score_method(
     flops: float,
     sops: float,
 ) -> MethodResult:
-    """Benchmark and score one method.
+    """Benchmark and score one detector.
 
     Args:
         name: Method name.
@@ -289,6 +430,7 @@ def _score_method(
         predicted_distance_m=predicted,
         predicted_candidate_index=predicted_index,
         mae_m=float(np.abs(error).mean()),
+        rmse_m=float(np.sqrt(np.mean(error**2))),
         nearest_bin_accuracy_percent=float(nearest_correct.mean() * 100.0),
         runtime_ms=runtime * 1_000.0,
         flops=flops,
@@ -299,23 +441,25 @@ def _score_method(
 def _operation_estimates(dataset: CleanSweepDataset) -> dict[str, tuple[float, float]]:
     """Estimate FLOPs/SOPs for each method.
 
+    Args:
+        dataset: Clean sweep dataset.
+
     Returns:
         Mapping from method name to `(flops, sops)`.
     """
     samples = dataset.cd_raster.shape[0]
     channels = dataset.cd_raster.shape[1]
+    time_steps = dataset.cd_raster.shape[2]
     candidate_delays = dataset.candidate_delay_samples.size
-    max_delay = int(dataset.candidate_delay_samples.max())
-    delay_bins = max_delay + 1
-    window_length = dataset.cd_raster.shape[-1] - max_delay
-
-    original_score_ops = samples * channels * candidate_delays
-    unfold_bit_ops = samples * channels * delay_bins * window_length
-    candidate_sum_ops = samples * channels * candidate_delays
+    events = samples * channels
+    words = math.ceil(time_steps / 64)
+    dense_score_ops = samples * channels * candidate_delays
     return {
-        "Original LIF score": (original_score_ops * 8.0, original_score_ops * 2.0),
-        "Original binary score": (0.0, original_score_ops),
-        "Optimised binary unfold": (0.0, unfold_bit_ops + candidate_sum_ops),
+        "Fair raster LIF": (dense_score_ops * 8.0, dense_score_ops * 2.0),
+        "Fair raster binary": (0.0, dense_score_ops),
+        "Event-list binary": (0.0, events * math.ceil(math.log2(candidate_delays))),
+        "Bit-packed binary": (0.0, samples * channels * candidate_delays * words),
+        "Sparse-stack binary": (0.0, events),
     }
 
 
@@ -362,11 +506,14 @@ def _plot_accuracy(results: list[MethodResult], dataset: CleanSweepDataset, path
     Returns:
         Saved figure path.
     """
-    fig, axes = plt.subplots(1, len(results), figsize=(15, 4.8), sharex=True, sharey=True)
+    columns = len(results)
+    fig, axes = plt.subplots(1, columns, figsize=(4.0 * columns, 4.8), sharex=True, sharey=True)
+    if columns == 1:
+        axes = [axes]
     for ax, result in zip(axes, results):
-        ax.scatter(dataset.true_distance_m, result.predicted_distance_m, s=18, alpha=0.65)
+        ax.scatter(dataset.true_distance_m, result.predicted_distance_m, s=8, alpha=0.35)
         ax.plot([MIN_DISTANCE_M, MAX_DISTANCE_M], [MIN_DISTANCE_M, MAX_DISTANCE_M], color="#111827")
-        ax.set_title(f"{result.name}\nMAE={result.mae_m * 100.0:.3f} cm")
+        ax.set_title(f"{result.name}\nMAE={result.mae_m * 100.0:.3f} cm", fontsize=10)
         ax.set_xlabel("true distance (m)")
         ax.grid(True, alpha=0.25)
     axes[0].set_ylabel("predicted distance (m)")
@@ -388,16 +535,16 @@ def _plot_runtime_cost(results: list[MethodResult], path: Path) -> str:
     flops = [result.flops for result in results]
     sops = [result.sops for result in results]
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8))
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.2))
     axes[0].bar(names, runtime, color="#2563eb")
     axes[0].set_title("Runtime")
     axes[0].set_ylabel("ms")
     axes[1].bar(names, flops, color="#f97316")
     axes[1].set_title("Estimated FLOPs")
     axes[2].bar(names, sops, color="#16a34a")
-    axes[2].set_title("Estimated binary ops / SOPs")
+    axes[2].set_title("Estimated SOPs / integer ops")
     for ax in axes:
-        ax.tick_params(axis="x", rotation=18)
+        ax.tick_params(axis="x", rotation=25)
         ax.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax.grid(True, axis="y", alpha=0.25)
     return save_figure(fig, path)
@@ -409,7 +556,7 @@ def _write_report(
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
-    """Write the binary clean optimisation report.
+    """Write the fair binary clean optimisation report.
 
     Args:
         dataset: Clean sweep dataset.
@@ -419,77 +566,102 @@ def _write_report(
     """
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     max_delay = int(dataset.candidate_delay_samples.max())
-    delay_bins = max_delay + 1
-    window_length = dataset.cd_raster.shape[-1] - max_delay
+    time_steps = dataset.cd_raster.shape[-1]
+    words = math.ceil(time_steps / 64)
     lines = [
         "# Binary Clean Pathway Optimisation",
         "",
-        "This report now compares the optimised binary implementation against the same clean FM-sweep LIF and binary scoring setups used in the distance accuracy tests.",
+        "This report replaces the earlier unfair analytic delay comparison with a fair detector benchmark. Every method receives only the corollary-discharge raster, the echo raster, and the candidate delay bank. The true distance/delay is used only after prediction to calculate the error.",
         "",
-        "## Aim",
+        "## Experiment Design",
         "",
-        "The optimisation idea is to stop evaluating only pre-selected delay candidates inside the main coincidence operation. Instead, the echo raster is unfolded across the full delay space, the bitwise coincidence map is computed, time is collapsed, and candidate delays are selected only at the end.",
+        "The input is a clean synthetic FM-sweep spike raster. Each frequency channel has one corollary-discharge spike and one echo spike. The echo spike is shifted by the round-trip delay implied by the target distance, but the predictors are not given this delay directly.",
         "",
         "```mermaid",
         "flowchart LR",
-        "    A[Echo raster<br/>B x F x T] --> B[unfold over time<br/>B x F x delay_bins x window]",
-        "    C[CD raster<br/>B x F x window] --> D[unsqueeze delay axis<br/>B x F x 1 x window]",
-        "    B --> E[pure bitwise AND]",
-        "    D --> E",
-        "    E --> F[any over window]",
-        "    F --> G[select candidate delays]",
-        "    G --> H[sum over channels]",
-        "    H --> I[argmax distance]",
+        "    A[True distance<br/>used only to generate echo] --> B[Echo raster]",
+        "    C[Known CD template] --> D[CD raster]",
+        "    D --> E[Detector]",
+        "    B --> E",
+        "    F[Candidate delay bank] --> E",
+        "    E --> G[Predicted delay index]",
+        "    G --> H[Predicted distance]",
+        "    A --> I[Error calculation only]",
+        "    H --> I",
         "```",
         "",
-        "## Important Correction",
+        "This is fair because the detector must infer delay from spike timing in the input rasters. It cannot read `true_delay_samples`, `true_distance_m`, or any precomputed label during prediction.",
         "",
-        "The previous unfold version selected candidate delays before the bitwise `AND`. That used advanced indexing on the large unfolded tensor and destroyed much of the point of using `unfold`. The corrected ordering is:",
+        "## Inputs",
         "",
-        "```python",
-        "echo_windows = echo.unfold(dimension=-1, size=window_length, step=1)",
-        "cd_template = swept_cd.unsqueeze(2)",
-        "coincidence = echo_windows & cd_template",
-        "raw_scores = coincidence.any(dim=-1)",
-        "final_scores = raw_scores[..., candidate_delays].sum(dim=1)",
-        "```",
-        "",
-        "The only candidate-delay selection now happens after time has been collapsed.",
-        "",
-        "## Input Rasters",
-        "",
-        "The benchmark uses a clean FM-sweep spike raster: one corollary-discharge spike per frequency channel, and one echo spike per frequency channel shifted by the target delay.",
+        "| Input | Shape / meaning | Used by predictors? |",
+        "|---|---|---:|",
+        f"| CD raster | `{NUM_TEST_SAMPLES} x {SWEEP_CHANNELS} x {time_steps}` Boolean spikes | yes |",
+        f"| Echo raster | `{NUM_TEST_SAMPLES} x {SWEEP_CHANNELS} x {time_steps}` Boolean spikes | yes |",
+        f"| Candidate delay bank | `{NUM_DELAY_LINES}` candidate delays from `{MIN_DISTANCE_M}` to `{MAX_DISTANCE_M}` m | yes |",
+        "| True distance | continuous target distance | error calculation only |",
+        "| True delay | generated echo shift | generation/error only, not prediction |",
         "",
         "![Clean sweep rasters](../outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png)",
         "",
+        "## Metrics",
+        "",
+        "- `MAE`: mean absolute distance error in centimetres.",
+        "- `RMSE`: root-mean-square distance error in centimetres.",
+        "- `Nearest-bin accuracy`: whether the predicted delay line is the candidate delay line closest to the true continuous distance.",
+        "- `Runtime`: median wall-clock time over repeated predictor calls on CPU.",
+        "- `FLOPs`: rough floating-point operations estimate.",
+        "- `SOPs / integer ops`: rough spike/integer operation estimate. These are estimates, not hardware counters.",
+        "",
         "## Methods",
         "",
-        "### Original LIF Score",
+        "### Fair Raster LIF",
+        "",
+        "Extracts the first CD spike and first echo spike from each channel, computes the observed delay, then uses a soft LIF-like timing score:",
         "",
         "```text",
-        "score_k = mean_f(A * (1 + beta ^ abs(delay_true - delay_candidate[k])))",
+        "observed_delay_c = echo_time_c - cd_time_c",
+        "score_k = mean_c(beta ^ abs(observed_delay_c - candidate_delay_k))",
         "```",
         "",
-        "This is the soft timing score used in the clean sweep accuracy test.",
+        "### Fair Raster Binary",
         "",
-        "### Original Binary Score",
+        "Uses the same observed delays, but each delay line is either matched or not matched:",
         "",
         "```text",
-        "score_k = 1 if abs(delay_true - delay_candidate[k]) <= half_bin_tolerance else 0",
+        "score_k = mean_c(abs(observed_delay_c - candidate_delay_k) <= tolerance)",
         "```",
         "",
-        "This is the binary clean-sweep score from the accuracy test. The tolerance is half the median delay-line spacing.",
+        "### Event-List Binary",
         "",
-        "### Optimised Binary Unfold",
+        "Converts the rasters into a list of events, computes echo-minus-CD delays, and votes directly for the nearest candidate delay. This removes the dense time axis from the computation.",
         "",
         "```text",
-        "echo_windows = unfold(echo, window_length)",
-        "coincidence = echo_windows AND dilated_cd_template",
-        "raw_scores = any(coincidence over time)",
-        "final_scores = raw_scores at candidate delays, summed over channels",
+        "events = nonzero(spike_raster)",
+        "delay_events = echo_events.time - cd_events.time",
+        "score[nearest_candidate(delay_event)] += 1",
         "```",
         "",
-        "The CD template is dilated by the same half-bin tolerance as the original binary score. This makes the optimised method comparable to the accuracy-test binary path while preserving the corrected operation ordering.",
+        "### Bit-Packed Binary",
+        "",
+        "Packs every time trace into a Python integer bitset. Candidate delays are tested by shifting the echo bitset and applying a bitwise `AND` with the CD bitset:",
+        "",
+        "```text",
+        "match_k,c = ((echo_bits_c >> candidate_delay_k) AND cd_bits_c) != 0",
+        "score_k = sum_c(match_k,c)",
+        "```",
+        "",
+        f"The current trace length is `{time_steps}` samples, so each trace corresponds to about `{words}` 64-bit words conceptually. Python integers are used here for clarity, not maximum speed.",
+        "",
+        "### Sparse-Stack Binary",
+        "",
+        "Builds a sparse `(sample, candidate_delay)` score stack from event delays. Multiple channels voting for the same candidate coalesce into a larger score.",
+        "",
+        "```text",
+        "candidate = delay_to_candidate_lookup[observed_delay]",
+        "sparse_score[sample, candidate] += 1",
+        "prediction = argmax_candidate(sparse_score)",
+        "```",
         "",
         "## Benchmark Setup",
         "",
@@ -501,11 +673,8 @@ def _write_report(
         f"| sample rate | `{SAMPLE_RATE_HZ} Hz` |",
         f"| sweep duration | `{SWEEP_DURATION_S * 1_000.0:.1f} ms` |",
         f"| max delay | `{max_delay}` samples |",
-        f"| full delay bins tested by unfold | `{delay_bins}` |",
-        f"| unfolded window length | `{window_length}` samples |",
         f"| binary tolerance | `{dataset.binary_tolerance_samples}` samples |",
-        "",
-        "The sample count is intentionally modest because the pure full-delay unfold materialises a large boolean coincidence tensor on CPU. This benchmark tests implementation structure; larger sample counts should use batching, packing, or hardware acceleration.",
+        f"| time samples per trace | `{time_steps}` |",
         "",
         "## Results",
         "",
@@ -513,12 +682,12 @@ def _write_report(
         "",
         "![Runtime and cost](../outputs/binary_clean_optimisation/figures/runtime_cost.png)",
         "",
-        "| Method | MAE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | Binary ops / SOPs |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Method | MAE (cm) | RMSE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | SOPs / integer ops |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for result in results:
         lines.append(
-            f"| {result.name} | {result.mae_m * 100.0:.4f} | "
+            f"| {result.name} | {result.mae_m * 100.0:.4f} | {result.rmse_m * 100.0:.4f} | "
             f"{result.nearest_bin_accuracy_percent:.2f} | {result.runtime_ms:.3f} | "
             f"{result.flops:,.0f} | {result.sops:,.0f} |"
         )
@@ -527,10 +696,10 @@ def _write_report(
             "",
             "## Interpretation",
             "",
-            "- The original LIF score and original binary score are now the same scoring families as the previous clean sweep accuracy tests.",
-            "- The optimised binary implementation now follows the intended pure bitwise logic: no candidate advanced indexing occurs before the `AND`.",
-            "- The optimised unfold version performs many more raw binary comparisons because it evaluates every integer delay bin, not only the 160 candidate bins. This is structurally cleaner, but not automatically faster on CPU.",
-            "- The result is the right stepping stone for bit-packing: once the boolean tensors are packed into machine words, the same full-delay logic can become `AND` plus popcount rather than dense boolean tensor traffic.",
+            "- The fair raster LIF and fair raster binary methods now consume only input rasters, so they are valid detector baselines.",
+            "- The event-list and sparse-stack methods are the best conceptual fit for sparse spikes because they avoid scanning empty time samples.",
+            "- The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.",
+            "- Dense `unfold` is no longer treated as the main optimised method because it turns sparse spikes into a large dense memory-traffic problem.",
             "",
             "## Generated Files",
             "",
@@ -543,7 +712,7 @@ def _write_report(
 
 
 def main() -> dict[str, object]:
-    """Run the binary clean optimisation benchmark.
+    """Run the fair binary clean optimisation benchmark.
 
     Returns:
         JSON-serializable result payload.
@@ -556,28 +725,22 @@ def main() -> dict[str, object]:
 
     dataset = _make_clean_sweep_dataset()
     estimates = _operation_estimates(dataset)
+    methods: list[tuple[str, Callable[[CleanSweepDataset], np.ndarray]]] = [
+        ("Fair raster LIF", _predict_fair_lif_raster),
+        ("Fair raster binary", _predict_fair_binary_raster),
+        ("Event-list binary", _predict_event_list_binary),
+        ("Bit-packed binary", _predict_bit_packed_binary),
+        ("Sparse-stack binary", _predict_sparse_stack_binary),
+    ]
     results = [
         _score_method(
-            "Original LIF score",
+            name,
             dataset,
-            _predict_original_lif_score,
-            flops=estimates["Original LIF score"][0],
-            sops=estimates["Original LIF score"][1],
-        ),
-        _score_method(
-            "Original binary score",
-            dataset,
-            _predict_original_binary_score,
-            flops=estimates["Original binary score"][0],
-            sops=estimates["Original binary score"][1],
-        ),
-        _score_method(
-            "Optimised binary unfold",
-            dataset,
-            _predict_optimised_binary_unfold,
-            flops=estimates["Optimised binary unfold"][0],
-            sops=estimates["Optimised binary unfold"][1],
-        ),
+            predictor,
+            flops=estimates[name][0],
+            sops=estimates[name][1],
+        )
+        for name, predictor in methods
     ]
     artifacts = {
         "clean_sweep_rasters": _plot_rasters(dataset, FIGURE_DIR / "clean_sweep_rasters.png"),
@@ -595,13 +758,14 @@ def main() -> dict[str, object]:
             "sample_rate_hz": SAMPLE_RATE_HZ,
             "sweep_duration_s": SWEEP_DURATION_S,
             "binary_tolerance_samples": dataset.binary_tolerance_samples,
-            "continuous_distances": True,
-            "candidate_selection_after_and": True,
+            "fair_comparison": True,
+            "predictors_use_true_delay": False,
         },
         "results": [
             {
                 "name": result.name,
                 "mae_m": result.mae_m,
+                "rmse_m": result.rmse_m,
                 "nearest_bin_accuracy_percent": result.nearest_bin_accuracy_percent,
                 "runtime_ms": result.runtime_ms,
                 "flops": result.flops,

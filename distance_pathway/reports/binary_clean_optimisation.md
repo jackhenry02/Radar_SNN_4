@@ -1,87 +1,109 @@
 # Binary Clean Pathway Optimisation
 
-This report now compares the optimised binary implementation against the same clean FM-sweep LIF and binary scoring setups used in the distance accuracy tests.
+This report replaces the earlier unfair analytic delay comparison with a fair detector benchmark. Every method receives only the corollary-discharge raster, the echo raster, and the candidate delay bank. The true distance/delay is used only after prediction to calculate the error.
 
-## Aim
+## Experiment Design
 
-The optimisation idea is to stop evaluating only pre-selected delay candidates inside the main coincidence operation. Instead, the echo raster is unfolded across the full delay space, the bitwise coincidence map is computed, time is collapsed, and candidate delays are selected only at the end.
+The input is a clean synthetic FM-sweep spike raster. Each frequency channel has one corollary-discharge spike and one echo spike. The echo spike is shifted by the round-trip delay implied by the target distance, but the predictors are not given this delay directly.
 
 ```mermaid
 flowchart LR
-    A[Echo raster<br/>B x F x T] --> B[unfold over time<br/>B x F x delay_bins x window]
-    C[CD raster<br/>B x F x window] --> D[unsqueeze delay axis<br/>B x F x 1 x window]
-    B --> E[pure bitwise AND]
-    D --> E
-    E --> F[any over window]
-    F --> G[select candidate delays]
-    G --> H[sum over channels]
-    H --> I[argmax distance]
+    A[True distance<br/>used only to generate echo] --> B[Echo raster]
+    C[Known CD template] --> D[CD raster]
+    D --> E[Detector]
+    B --> E
+    F[Candidate delay bank] --> E
+    E --> G[Predicted delay index]
+    G --> H[Predicted distance]
+    A --> I[Error calculation only]
+    H --> I
 ```
 
-## Important Correction
+This is fair because the detector must infer delay from spike timing in the input rasters. It cannot read `true_delay_samples`, `true_distance_m`, or any precomputed label during prediction.
 
-The previous unfold version selected candidate delays before the bitwise `AND`. That used advanced indexing on the large unfolded tensor and destroyed much of the point of using `unfold`. The corrected ordering is:
+## Inputs
 
-```python
-echo_windows = echo.unfold(dimension=-1, size=window_length, step=1)
-cd_template = swept_cd.unsqueeze(2)
-coincidence = echo_windows & cd_template
-raw_scores = coincidence.any(dim=-1)
-final_scores = raw_scores[..., candidate_delays].sum(dim=1)
-```
-
-The only candidate-delay selection now happens after time has been collapsed.
-
-## Input Rasters
-
-The benchmark uses a clean FM-sweep spike raster: one corollary-discharge spike per frequency channel, and one echo spike per frequency channel shifted by the target delay.
+| Input | Shape / meaning | Used by predictors? |
+|---|---|---:|
+| CD raster | `1000 x 32 x 2218` Boolean spikes | yes |
+| Echo raster | `1000 x 32 x 2218` Boolean spikes | yes |
+| Candidate delay bank | `160` candidate delays from `0.25` to `5.0` m | yes |
+| True distance | continuous target distance | error calculation only |
+| True delay | generated echo shift | generation/error only, not prediction |
 
 ![Clean sweep rasters](../outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png)
 
+## Metrics
+
+- `MAE`: mean absolute distance error in centimetres.
+- `RMSE`: root-mean-square distance error in centimetres.
+- `Nearest-bin accuracy`: whether the predicted delay line is the candidate delay line closest to the true continuous distance.
+- `Runtime`: median wall-clock time over repeated predictor calls on CPU.
+- `FLOPs`: rough floating-point operations estimate.
+- `SOPs / integer ops`: rough spike/integer operation estimate. These are estimates, not hardware counters.
+
 ## Methods
 
-### Original LIF Score
+### Fair Raster LIF
+
+Extracts the first CD spike and first echo spike from each channel, computes the observed delay, then uses a soft LIF-like timing score:
 
 ```text
-score_k = mean_f(A * (1 + beta ^ abs(delay_true - delay_candidate[k])))
+observed_delay_c = echo_time_c - cd_time_c
+score_k = mean_c(beta ^ abs(observed_delay_c - candidate_delay_k))
 ```
 
-This is the soft timing score used in the clean sweep accuracy test.
+### Fair Raster Binary
 
-### Original Binary Score
+Uses the same observed delays, but each delay line is either matched or not matched:
 
 ```text
-score_k = 1 if abs(delay_true - delay_candidate[k]) <= half_bin_tolerance else 0
+score_k = mean_c(abs(observed_delay_c - candidate_delay_k) <= tolerance)
 ```
 
-This is the binary clean-sweep score from the accuracy test. The tolerance is half the median delay-line spacing.
+### Event-List Binary
 
-### Optimised Binary Unfold
+Converts the rasters into a list of events, computes echo-minus-CD delays, and votes directly for the nearest candidate delay. This removes the dense time axis from the computation.
 
 ```text
-echo_windows = unfold(echo, window_length)
-coincidence = echo_windows AND dilated_cd_template
-raw_scores = any(coincidence over time)
-final_scores = raw_scores at candidate delays, summed over channels
+events = nonzero(spike_raster)
+delay_events = echo_events.time - cd_events.time
+score[nearest_candidate(delay_event)] += 1
 ```
 
-The CD template is dilated by the same half-bin tolerance as the original binary score. This makes the optimised method comparable to the accuracy-test binary path while preserving the corrected operation ordering.
+### Bit-Packed Binary
+
+Packs every time trace into a Python integer bitset. Candidate delays are tested by shifting the echo bitset and applying a bitwise `AND` with the CD bitset:
+
+```text
+match_k,c = ((echo_bits_c >> candidate_delay_k) AND cd_bits_c) != 0
+score_k = sum_c(match_k,c)
+```
+
+The current trace length is `2218` samples, so each trace corresponds to about `35` 64-bit words conceptually. Python integers are used here for clarity, not maximum speed.
+
+### Sparse-Stack Binary
+
+Builds a sparse `(sample, candidate_delay)` score stack from event delays. Multiple channels voting for the same candidate coalesce into a larger score.
+
+```text
+candidate = delay_to_candidate_lookup[observed_delay]
+sparse_score[sample, candidate] += 1
+prediction = argmax_candidate(sparse_score)
+```
 
 ## Benchmark Setup
 
 | Parameter | Value |
 |---|---:|
-| samples | `32` |
+| samples | `1000` |
 | frequency channels | `32` |
 | delay lines | `160` |
 | sample rate | `64000 Hz` |
 | sweep duration | `3.0 ms` |
 | max delay | `1866` samples |
-| full delay bins tested by unfold | `1867` |
-| unfolded window length | `352` samples |
 | binary tolerance | `6` samples |
-
-The sample count is intentionally modest because the pure full-delay unfold materialises a large boolean coincidence tensor on CPU. This benchmark tests implementation structure; larger sample counts should use batching, packing, or hardware acceleration.
+| time samples per trace | `2218` |
 
 ## Results
 
@@ -89,18 +111,20 @@ The sample count is intentionally modest because the pure full-delay unfold mate
 
 ![Runtime and cost](../outputs/binary_clean_optimisation/figures/runtime_cost.png)
 
-| Method | MAE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | Binary ops / SOPs |
-|---|---:|---:|---:|---:|---:|
-| Original LIF score | 0.6685 | 96.88 | 0.034 | 1,310,720 | 327,680 |
-| Original binary score | 0.6950 | 93.75 | 0.008 | 0 | 163,840 |
-| Optimised binary unfold | 0.6950 | 93.75 | 77.321 | 0 | 673,120,256 |
+| Method | MAE (cm) | RMSE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | SOPs / integer ops |
+|---|---:|---:|---:|---:|---:|---:|
+| Fair raster LIF | 0.7562 | 0.8708 | 97.50 | 131.992 | 40,960,000 | 10,240,000 |
+| Fair raster binary | 0.7732 | 0.8995 | 92.90 | 100.698 | 0 | 5,120,000 |
+| Event-list binary | 0.7562 | 0.8708 | 97.50 | 51.663 | 0 | 256,000 |
+| Bit-packed binary | 0.7732 | 0.8995 | 92.90 | 336.070 | 0 | 179,200,000 |
+| Sparse-stack binary | 0.7562 | 0.8708 | 97.50 | 44.019 | 0 | 32,000 |
 
 ## Interpretation
 
-- The original LIF score and original binary score are now the same scoring families as the previous clean sweep accuracy tests.
-- The optimised binary implementation now follows the intended pure bitwise logic: no candidate advanced indexing occurs before the `AND`.
-- The optimised unfold version performs many more raw binary comparisons because it evaluates every integer delay bin, not only the 160 candidate bins. This is structurally cleaner, but not automatically faster on CPU.
-- The result is the right stepping stone for bit-packing: once the boolean tensors are packed into machine words, the same full-delay logic can become `AND` plus popcount rather than dense boolean tensor traffic.
+- The fair raster LIF and fair raster binary methods now consume only input rasters, so they are valid detector baselines.
+- The event-list and sparse-stack methods are the best conceptual fit for sparse spikes because they avoid scanning empty time samples.
+- The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.
+- Dense `unfold` is no longer treated as the main optimised method because it turns sparse spikes into a large dense memory-traffic problem.
 
 ## Generated Files
 
@@ -109,4 +133,4 @@ The sample count is intentionally modest because the pure full-delay unfold mate
 - `runtime_cost`: `distance_pathway/outputs/binary_clean_optimisation/figures/runtime_cost.png`
 - `results`: `distance_pathway/outputs/binary_clean_optimisation/results.json`
 
-Runtime: `1.02 s`.
+Runtime: `5.16 s`.
