@@ -1,29 +1,40 @@
 # Binary Clean Pathway Optimisation
 
-This report isolates the clean FM-sweep binary distance path and compares an iterative delay-line implementation with an optimized `torch.unfold` implementation.
+This report now compares the optimised binary implementation against the same clean FM-sweep LIF and binary scoring setups used in the distance accuracy tests.
 
 ## Aim
 
-The optimisation idea is to stop simulating the distance pathway one time step at a time. Instead, construct binary tensors for the corollary discharge and echo, unfold the echo over the delay dimension, and perform the coincidence test as one large boolean operation.
+The optimisation idea is to stop evaluating only pre-selected delay candidates inside the main coincidence operation. Instead, the echo raster is unfolded across the full delay space, the bitwise coincidence map is computed, time is collapsed, and candidate delays are selected only at the end.
 
 ```mermaid
 flowchart LR
-    A[CD raster B x F x T] --> C[expand with singleton delay axis]
-    B[Echo raster B x F x T] --> D[torch unfold over time]
-    D --> E[select candidate delays]
-    C --> F[AND over CD and delayed echo]
-    E --> F
-    F --> G[sum over frequency and time]
-    G --> H[argmax distance]
+    A[Echo raster<br/>B x F x T] --> B[unfold over time<br/>B x F x delay_bins x window]
+    C[CD raster<br/>B x F x window] --> D[unsqueeze delay axis<br/>B x F x 1 x window]
+    B --> E[pure bitwise AND]
+    D --> E
+    E --> F[any over window]
+    F --> G[select candidate delays]
+    G --> H[sum over channels]
+    H --> I[argmax distance]
 ```
 
-## Important Assumption
+## Important Correction
 
-This is a clean, grid-aligned benchmark. Target distances are sampled from the delay-line grid, so exact binary coincidence is valid without dilation. This isolates the compute strategy. In a continuous-distance or noisy setting, the binary path would need either a tolerance window, denser delay lines, or surrounding robustness from the sweep/population code.
+The previous unfold version selected candidate delays before the bitwise `AND`. That used advanced indexing on the large unfolded tensor and destroyed much of the point of using `unfold`. The corrected ordering is:
+
+```python
+echo_windows = echo.unfold(dimension=-1, size=window_length, step=1)
+cd_template = swept_cd.unsqueeze(2)
+coincidence = echo_windows & cd_template
+raw_scores = coincidence.any(dim=-1)
+final_scores = raw_scores[..., candidate_delays].sum(dim=1)
+```
+
+The only candidate-delay selection now happens after time has been collapsed.
 
 ## Input Rasters
 
-The benchmark uses a simple FM-sweep spike raster: one corollary-discharge spike per frequency channel, and one echo spike per frequency channel shifted by the target delay.
+The benchmark uses a clean FM-sweep spike raster: one corollary-discharge spike per frequency channel, and one echo spike per frequency channel shifted by the target delay.
 
 ![Clean sweep rasters](../outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png)
 
@@ -32,43 +43,45 @@ The benchmark uses a simple FM-sweep spike raster: one corollary-discharge spike
 ### Original LIF Score
 
 ```text
-score_k = mean_f(beta ^ abs(delay_true - delay_candidate[k]))
+score_k = mean_f(A * (1 + beta ^ abs(delay_true - delay_candidate[k])))
 ```
 
-This is a floating-point soft coincidence baseline.
+This is the soft timing score used in the clean sweep accuracy test.
 
-### Original Binary Loop
+### Original Binary Score
 
 ```text
-for delay in candidate_delays:
-    score[delay] = sum(CD[:, :, t] AND echo[:, :, t + delay])
+score_k = 1 if abs(delay_true - delay_candidate[k]) <= half_bin_tolerance else 0
 ```
 
-This is binary, but still iterates over delay lines.
+This is the binary clean-sweep score from the accuracy test. The tolerance is half the median delay-line spacing.
 
 ### Optimised Binary Unfold
 
 ```text
-echo_windows = echo.unfold(time, max_delay + 1, step=1)
-selected = echo_windows[..., candidate_delays]
-coincidence = CD[..., valid_time, None] AND selected
-score = sum(coincidence over frequency and time)
+echo_windows = unfold(echo, window_length)
+coincidence = echo_windows AND dilated_cd_template
+raw_scores = any(coincidence over time)
+final_scores = raw_scores at candidate delays, summed over channels
 ```
 
-This creates a time-delay view of the echo and evaluates all candidate delays together for each chunk of samples.
+The CD template is dilated by the same half-bin tolerance as the original binary score. This makes the optimised method comparable to the accuracy-test binary path while preserving the corrected operation ordering.
 
 ## Benchmark Setup
 
 | Parameter | Value |
 |---|---:|
-| samples | `256` |
+| samples | `32` |
 | frequency channels | `32` |
 | delay lines | `160` |
 | sample rate | `64000 Hz` |
 | sweep duration | `3.0 ms` |
 | max delay | `1866` samples |
-| valid unfolded time steps | `352` |
-| chunk size | `16` samples |
+| full delay bins tested by unfold | `1867` |
+| unfolded window length | `352` samples |
+| binary tolerance | `6` samples |
+
+The sample count is intentionally modest because the pure full-delay unfold materialises a large boolean coincidence tensor on CPU. This benchmark tests implementation structure; larger sample counts should use batching, packing, or hardware acceleration.
 
 ## Results
 
@@ -76,19 +89,18 @@ This creates a time-delay view of the echo and evaluates all candidate delays to
 
 ![Runtime and cost](../outputs/binary_clean_optimisation/figures/runtime_cost.png)
 
-| Method | MAE (cm) | Exact accuracy (%) | Runtime (ms) | FLOPs | Binary ops / SOPs |
+| Method | MAE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | Binary ops / SOPs |
 |---|---:|---:|---:|---:|---:|
-| LIF score | 0.0000 | 100.00 | 0.227 | 10,485,760 | 2,621,440 |
-| Binary loop | 0.0000 | 100.00 | 1083.050 | 0 | 461,373,440 |
-| Binary unfold | 0.0000 | 100.00 | 1369.472 | 0 | 461,373,440 |
+| Original LIF score | 0.6685 | 96.88 | 0.034 | 1,310,720 | 327,680 |
+| Original binary score | 0.6950 | 93.75 | 0.008 | 0 | 163,840 |
+| Optimised binary unfold | 0.6950 | 93.75 | 77.321 | 0 | 673,120,256 |
 
 ## Interpretation
 
-- The unfold method implements the proposed layer-style binary operation: construct a delay dimension, then apply one boolean coincidence operation per chunk.
-- Exact binary coincidence works here without dilation because the benchmark is grid-aligned.
-- The operation count is similar to the looped binary method, but the simulation structure changes from explicit delay iteration to tensorized delay evaluation.
-- On CPU, tensorization is not guaranteed to be faster because the unfolded delay view can create substantial memory traffic. This is still the right structure for later GPU/MPS or bit-packed experiments.
-- The next optimisation would be packed-bit `AND`/popcount, which should reduce the memory and operation cost substantially.
+- The original LIF score and original binary score are now the same scoring families as the previous clean sweep accuracy tests.
+- The optimised binary implementation now follows the intended pure bitwise logic: no candidate advanced indexing occurs before the `AND`.
+- The optimised unfold version performs many more raw binary comparisons because it evaluates every integer delay bin, not only the 160 candidate bins. This is structurally cleaner, but not automatically faster on CPU.
+- The result is the right stepping stone for bit-packing: once the boolean tensors are packed into machine words, the same full-delay logic can become `AND` plus popcount rather than dense boolean tensor traffic.
 
 ## Generated Files
 
@@ -97,4 +109,4 @@ This creates a time-delay view of the echo and evaluates all candidate delays to
 - `runtime_cost`: `distance_pathway/outputs/binary_clean_optimisation/figures/runtime_cost.png`
 - `results`: `distance_pathway/outputs/binary_clean_optimisation/results.json`
 
-Runtime: `12.92 s`.
+Runtime: `1.02 s`.

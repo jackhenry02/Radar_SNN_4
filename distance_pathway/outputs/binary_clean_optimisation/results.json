@@ -1,39 +1,40 @@
 {
   "experiment": "binary_clean_optimisation",
-  "elapsed_seconds": 12.91844275011681,
+  "elapsed_seconds": 1.0229560418520123,
   "config": {
-    "samples": 256,
+    "samples": 32,
     "frequency_channels": 32,
     "delay_lines": 160,
     "sample_rate_hz": 64000,
     "sweep_duration_s": 0.003,
-    "chunk_size": 16,
-    "grid_aligned": true
+    "binary_tolerance_samples": 6,
+    "continuous_distances": true,
+    "candidate_selection_after_and": true
   },
   "results": [
     {
-      "name": "LIF score",
-      "mae_m": 0.0,
-      "accuracy_percent": 100.0,
-      "runtime_ms": 0.22704200819134712,
-      "flops": 10485760.0,
-      "sops": 2621440.0
+      "name": "Original LIF score",
+      "mae_m": 0.00668498225214968,
+      "nearest_bin_accuracy_percent": 96.875,
+      "runtime_ms": 0.03350013867020607,
+      "flops": 1310720.0,
+      "sops": 327680.0
     },
     {
-      "name": "Binary loop",
-      "mae_m": 0.0,
-      "accuracy_percent": 100.0,
-      "runtime_ms": 1083.0497909337282,
+      "name": "Original binary score",
+      "mae_m": 0.006949563403754069,
+      "nearest_bin_accuracy_percent": 93.75,
+      "runtime_ms": 0.007541850209236145,
       "flops": 0.0,
-      "sops": 461373440
+      "sops": 163840
     },
     {
-      "name": "Binary unfold",
-      "mae_m": 0.0,
-      "accuracy_percent": 100.0,
-      "runtime_ms": 1369.4721250794828,
+      "name": "Optimised binary unfold",
+      "mae_m": 0.006949563403754069,
+      "nearest_bin_accuracy_percent": 93.75,
+      "runtime_ms": 77.32108398340642,
       "flops": 0.0,
-      "sops": 461373440
+      "sops": 673120256
     }
   ],
   "artifacts": {
