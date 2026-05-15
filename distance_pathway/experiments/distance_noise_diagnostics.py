@@ -12,7 +12,7 @@ This script visualises why the clean distance pathway fails under the harsh
 import json
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import matplotlib
@@ -50,6 +50,7 @@ REPORT_PATH = ROOT / "distance_pathway" / "reports" / "distance_noise_diagnostic
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 
 EXAMPLE_DISTANCE_M = 3.0
+THRESHOLD_MULTIPLIERS = [1.0, 2.0, 4.0, 8.0, 16.0]
 
 
 @dataclass
@@ -161,6 +162,73 @@ def _plot_spike_raster(cochlea, config, path: Path) -> str:
     return save_figure(fig, path)
 
 
+def _plot_threshold_spike_rasters(threshold_outputs: list[dict[str, object]], config, path: Path) -> str:
+    """Plot cochlear spike rasters for each threshold multiplier.
+
+    Args:
+        threshold_outputs: Threshold-sweep outputs from `_run_threshold_sweep`.
+        config: Acoustic configuration.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    fig, axes = plt.subplots(len(threshold_outputs), 1, figsize=(12, 2.5 * len(threshold_outputs)), sharex=True)
+    if len(threshold_outputs) == 1:
+        axes = [axes]
+    for ax, output in zip(axes, threshold_outputs):
+        raster = output["combined_spikes"]
+        for channel, frequency_khz in enumerate(centers_khz):
+            event_times = np.flatnonzero(raster[channel] > 0.0) / config.sample_rate_hz * 1_000.0
+            if event_times.size:
+                ax.vlines(event_times, frequency_khz * 0.985, frequency_khz * 1.015, color="#1d4ed8", linewidth=0.7)
+        ax.set_yscale("log")
+        ax.set_ylabel("kHz")
+        ax.set_title(
+            f"threshold x{output['threshold_multiplier']:.0f} "
+            f"(threshold={output['spike_threshold']:.3g}, spikes={output['spike_count']})"
+        )
+        ax.grid(True, axis="x", alpha=0.2)
+    axes[-1].set_xlabel("time (ms)")
+    axes[-1].set_xlim(0.0, threshold_outputs[0]["combined_spikes"].shape[1] / config.sample_rate_hz * 1_000.0)
+    return save_figure(fig, path)
+
+
+def _plot_threshold_summary(threshold_outputs: list[dict[str, object]], config, path: Path) -> str:
+    """Plot spike count and first-spike timing against threshold multiplier.
+
+    Args:
+        threshold_outputs: Threshold-sweep outputs from `_run_threshold_sweep`.
+        config: Acoustic configuration.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    multipliers = np.array([float(output["threshold_multiplier"]) for output in threshold_outputs])
+    spike_counts = np.array([int(output["spike_count"]) for output in threshold_outputs])
+    active_channels = np.array([int(output["active_channels"]) for output in threshold_outputs])
+    first_global = np.array([
+        np.nan if output["first_global_sample"] < 0 else output["first_global_sample"] / config.sample_rate_hz * 1_000.0
+        for output in threshold_outputs
+    ])
+
+    fig, axes = plt.subplots(3, 1, figsize=(9, 8), sharex=True)
+    axes[0].plot(multipliers, spike_counts, marker="o", linewidth=2.0)
+    axes[0].set_ylabel("total spikes")
+    axes[0].set_title("Effect of cochlear spike threshold under noisy input")
+    axes[1].plot(multipliers, active_channels, marker="o", color="#16a34a", linewidth=2.0)
+    axes[1].set_ylabel("active channels")
+    axes[2].plot(multipliers, first_global, marker="o", color="#dc2626", linewidth=2.0)
+    axes[2].set_ylabel("first spike (ms)")
+    axes[2].set_xlabel("cochlear spike threshold multiplier")
+    for ax in axes:
+        ax.set_xscale("log", base=2)
+        ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
 def _plot_vcn_outputs(outputs: list[DiagnosticModelOutput], config, path: Path) -> str:
     """Plot VCN outputs for both noisy variants."""
     centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
@@ -240,6 +308,38 @@ def _summarize_outputs(outputs: list[DiagnosticModelOutput], config, latency_sam
     return rows
 
 
+def _run_threshold_sweep(noisy_config, receive: torch.Tensor) -> list[dict[str, object]]:
+    """Rerun the noisy cochlea with raised spike thresholds.
+
+    Args:
+        noisy_config: Acoustic config for the noisy condition.
+        receive: Shared noisy received waveform `[ears, time]`.
+
+    Returns:
+        Per-threshold combined cochlear spike rasters and summary values.
+    """
+    rows = []
+    for multiplier in THRESHOLD_MULTIPLIERS:
+        threshold_config = replace(
+            noisy_config,
+            spike_threshold=float(noisy_config.spike_threshold) * float(multiplier),
+        )
+        cochlea = _run_cochlea_binaural(threshold_config, receive)
+        combined_spikes = torch.maximum(cochlea.left_spikes, cochlea.right_spikes).detach().cpu().numpy()
+        first_times = _first_times(combined_spikes)
+        rows.append(
+            {
+                "threshold_multiplier": float(multiplier),
+                "spike_threshold": float(threshold_config.spike_threshold),
+                "combined_spikes": combined_spikes,
+                "spike_count": int(combined_spikes.sum()),
+                "active_channels": int(np.sum(first_times >= 0)),
+                "first_global_sample": _combined_first_global(combined_spikes),
+            }
+        )
+    return rows
+
+
 def _write_report(results: dict[str, object]) -> None:
     """Write the noise diagnostic report."""
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -292,12 +392,33 @@ def _write_report(results: dict[str, object]) -> None:
     lines.extend(
         [
             "",
+            "## Cochlear Threshold Sweep",
+            "",
+            "The first attempted fix is to raise the cochlear spike threshold while keeping the same noisy waveform. This tests whether the noisy cochlear spike raster can be cleaned before changing the downstream VCN logic.",
+            "",
+            "![Threshold spike rasters](../outputs/distance_noise_diagnostics/figures/threshold_spike_rasters.png)",
+            "",
+            "![Threshold summary](../outputs/distance_noise_diagnostics/figures/threshold_summary.png)",
+            "",
+            "| Threshold multiplier | Spike threshold | Total cochlear spikes | Active channels | First global spike |",
+            "|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for row in results["threshold_summary_rows"]:
+        first_ms = "n/a" if row["first_global_sample"] < 0 else f"`{row['first_global_sample'] / results['sample_rate_hz'] * 1_000.0:.3f} ms`"
+        lines.append(
+            f"| `x{row['threshold_multiplier']:.0f}` | `{row['spike_threshold']:.3g}` | `{row['spike_count']}` | `{row['active_channels']}` | {first_ms} |"
+        )
+    lines.extend(
+        [
+            "",
             "## Interpretation",
             "",
             "- The cochleagram-driven VCN is very sensitive because it uses a low adaptive threshold on continuous cochleagram activity.",
             "- Under strong white noise, early noise energy can cross that low threshold before the real echo onset.",
             "- The spike-raster VCN is slightly more conservative because it waits for the cochlear spike encoder, but it still fails when noise creates false or shifted cochlear spikes.",
             "- The clean 0.32 cm result is therefore a clean-timing result, not yet a robust-noise result.",
+            "- Raising the cochlear spike threshold can reduce spike density, but the important question is whether it removes the early false events without deleting the real echo.",
             "- The next fix should be a more robust VCN onset rule, such as multi-channel agreement, matched sweep gating, higher/refractory adaptive thresholds, or a pre-onset denoising/gain-control stage.",
             "",
             "## Generated Files",
@@ -326,6 +447,7 @@ def main() -> dict[str, object]:
     latency_samples = _load_channel_latency(clean_config)
     receive = _simulate_scene(noisy_config, EXAMPLE_DISTANCE_M, add_noise=True)
     cochlea = _run_cochlea_binaural(noisy_config, receive)
+    threshold_outputs = _run_threshold_sweep(noisy_config, receive)
     outputs = [
         _run_model_variant(cochlea, noisy_config, "cochleagram", "Cochleagram VCN"),
         _run_model_variant(cochlea, noisy_config, "spikes", "Spike-raster VCN"),
@@ -335,6 +457,16 @@ def main() -> dict[str, object]:
         "noisy_spike_raster": _plot_spike_raster(cochlea, noisy_config, FIGURE_DIR / "noisy_spike_raster.png"),
         "noisy_vcn_outputs": _plot_vcn_outputs(outputs, noisy_config, FIGURE_DIR / "noisy_vcn_outputs.png"),
         "expected_vs_vcn": _plot_expected_vs_vcn(outputs, noisy_config, latency_samples, FIGURE_DIR / "expected_vs_vcn.png"),
+        "threshold_spike_rasters": _plot_threshold_spike_rasters(
+            threshold_outputs,
+            noisy_config,
+            FIGURE_DIR / "threshold_spike_rasters.png",
+        ),
+        "threshold_summary": _plot_threshold_summary(
+            threshold_outputs,
+            noisy_config,
+            FIGURE_DIR / "threshold_summary.png",
+        ),
     }
     elapsed_s = time.perf_counter() - start
     results = {
@@ -344,7 +476,18 @@ def main() -> dict[str, object]:
         "target_snr_db": NOISE_ROBUSTNESS_SNR_DB,
         "jitter_std_s": NOISE_ROBUSTNESS_JITTER_S,
         "noise_std": noisy_config.noise_std,
+        "sample_rate_hz": noisy_config.sample_rate_hz,
         "summary_rows": _summarize_outputs(outputs, noisy_config, latency_samples),
+        "threshold_summary_rows": [
+            {
+                "threshold_multiplier": row["threshold_multiplier"],
+                "spike_threshold": row["spike_threshold"],
+                "spike_count": row["spike_count"],
+                "active_channels": row["active_channels"],
+                "first_global_sample": row["first_global_sample"],
+            }
+            for row in threshold_outputs
+        ],
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")

@@ -1,10 +1,11 @@
 {
   "experiment": "distance_noise_diagnostics",
-  "elapsed_seconds": 2.2470201251562685,
+  "elapsed_seconds": 6.4436560408212245,
   "distance_m": 3.0,
   "target_snr_db": 10.0,
   "jitter_std_s": 0.00025,
   "noise_std": 2.9644242015988462,
+  "sample_rate_hz": 64000,
   "summary_rows": [
     {
       "name": "Cochleagram VCN",
@@ -29,10 +30,49 @@
       "max_timing_error_samples": -1114
     }
   ],
+  "threshold_summary_rows": [
+    {
+      "threshold_multiplier": 1.0,
+      "spike_threshold": 0.42,
+      "spike_count": 73585,
+      "active_channels": 48,
+      "first_global_sample": 4
+    },
+    {
+      "threshold_multiplier": 2.0,
+      "spike_threshold": 0.84,
+      "spike_count": 42909,
+      "active_channels": 48,
+      "first_global_sample": 8
+    },
+    {
+      "threshold_multiplier": 4.0,
+      "spike_threshold": 1.68,
+      "spike_count": 22050,
+      "active_channels": 48,
+      "first_global_sample": 12
+    },
+    {
+      "threshold_multiplier": 8.0,
+      "spike_threshold": 3.36,
+      "spike_count": 9728,
+      "active_channels": 48,
+      "first_global_sample": 24
+    },
+    {
+      "threshold_multiplier": 16.0,
+      "spike_threshold": 6.72,
+      "spike_count": 2950,
+      "active_channels": 48,
+      "first_global_sample": 41
+    }
+  ],
   "artifacts": {
     "noisy_cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_cochleagram.png",
     "noisy_spike_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_spike_raster.png",
     "noisy_vcn_outputs": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_vcn_outputs.png",
-    "expected_vs_vcn": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/expected_vs_vcn.png"
+    "expected_vs_vcn": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/expected_vs_vcn.png",
+    "threshold_spike_rasters": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_spike_rasters.png",
+    "threshold_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_summary.png"
   }
 }
