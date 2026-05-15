@@ -126,6 +126,40 @@ The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m
 | max abs error | `5.285 cm` |
 | bias | `0.170 cm` |
 
+## Comparison To Previous Full Models
+
+The table below compares the distance error here against the old trained multi-output models. This is useful context, but it is not a perfectly fair benchmark: the old models estimated distance, azimuth, and elevation together, while this new prototype is a clean distance-only pathway with no angle variation or noise.
+
+| Model / result | Task | Distance MAE |
+|---|---|---:|
+| Round 4 combined model | full distance + azimuth + elevation | `7.86 cm` |
+| Round 3 `2B + 3` | full distance + azimuth + elevation | `6.46 cm` |
+| Round 5 trained-once fixed ridge decoder | full distance + azimuth + elevation with fixed tuned decoder | `4.38 cm` |
+| Full distance pathway prototype | clean distance-only pathway, `0.25 -> 5.0 m` | `2.77 cm` |
+
+On nominal distance MAE, this new distance-only pathway is better than the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation and is tested under cleaner conditions. The useful conclusion is narrower: the new structured distance pathway works as a distance estimator and is competitive enough to justify developing it further.
+
+## Causality Caveat In VCN/VNLL And DNLL Plots
+
+In the stage raster plot, some VCN/VNLL and DNLL onset spikes appear before the raw cochlea output. That is a modelling issue in the current prototype.
+
+The cause is the latency-calibration step:
+
+```text
+t_vcn,c = first_spike_time_c - latency_calibration_c
+```
+
+This subtracts a fitted per-channel cochlear latency to align the channel onsets into a sharper constant-latency sweep. That is useful as an offline timestamp correction, but it is not a causal online neuron model: a real VCN/VNLL neuron cannot emit a spike before the cochlear spike arrives. The DNLL inherits the same shifted onset timing, so it can also appear early.
+
+The causal fix is to stop moving neural spikes earlier in time. Instead, one of the following should be used:
+
+- delay faster channels so all channels align to the slowest latency;
+- keep the physical output spike time, but attach a corrected timestamp used only inside the IC comparison;
+- shift the corollary-discharge template or delay bank later to compensate for cochlear latency;
+- implement an explicit causal VCN/VNLL circuit where constant latency emerges from delayed inhibition rather than timestamp subtraction.
+
+So this first prototype should be interpreted as a calibrated timing-map proof of concept, not yet as a fully causal VCN/VNLL/DNLL implementation.
+
 ## Interpretation
 
 - The model now has the intended high-level biological pathway structure rather than just a standalone coincidence detector.
@@ -133,6 +167,7 @@ The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m
 - The IC stage is still a simplified LIF coincidence model. It uses the closed-form two-spike LIF peak rather than time-stepping every IC neuron for every sample.
 - The AC and SC stages give a smooth population readout, which is useful for sub-bin distance estimates.
 - The next optimisation step is to replace dense cochlear rasters with coordinate events so the chosen coordinate accumulator can be used downstream.
+- Despite the causality caveat, this should be counted as a successful first full-distance-pathway prototype: the full chain from cochlea to SC readout produces a structured distance population and low clean distance error.
 
 ## Generated Files
 
@@ -141,4 +176,4 @@ The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m
 - `accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/accuracy.png`
 - `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
 
-Runtime: `1.18 s`.
+Runtime: `1.39 s`.

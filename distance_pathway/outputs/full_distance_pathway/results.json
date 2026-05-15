@@ -1,6 +1,6 @@
 {
   "experiment": "full_distance_pathway_model",
-  "elapsed_seconds": 1.1849956659134477,
+  "elapsed_seconds": 1.394922750070691,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,
