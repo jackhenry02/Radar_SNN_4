@@ -42,6 +42,7 @@ NUM_DELAY_LINES = 160
 NUM_TEST_SAMPLES = 1_000
 JITTER_STD_S = 35e-6
 WHITE_NOISE_SNR_DB = 10.0
+ECHO_PULSE_SIGMA_SAMPLES = 2.0
 RNG_SEED = 11
 
 BASE_OUTPUT_DIR = ROOT / "distance_pathway" / "outputs"
@@ -159,7 +160,15 @@ def _make_dataset(condition: str, *, has_noise: bool, has_jitter: bool, seed_off
     num_time_steps = TX_INDEX + max(max_candidate, max_observed) + 80
     waveform = np.zeros((true_distance_m.size, num_time_steps), dtype=np.float64)
     echo_indices = TX_INDEX + echo_delay
-    waveform[np.arange(true_distance_m.size), echo_indices] = 1.0
+    pulse_radius = int(np.ceil(4.0 * ECHO_PULSE_SIGMA_SAMPLES))
+    pulse_offsets = np.arange(-pulse_radius, pulse_radius + 1)
+    pulse_shape = np.exp(-0.5 * (pulse_offsets / ECHO_PULSE_SIGMA_SAMPLES) ** 2)
+    for sample_index, echo_index in enumerate(echo_indices):
+        start = max(0, echo_index - pulse_radius)
+        stop = min(num_time_steps, echo_index + pulse_radius + 1)
+        shape_start = start - (echo_index - pulse_radius)
+        shape_stop = shape_start + (stop - start)
+        waveform[sample_index, start:stop] += pulse_shape[shape_start:shape_stop]
     if has_noise:
         noise_std = 10.0 ** (-WHITE_NOISE_SNR_DB / 20.0)
         waveform += rng.normal(0.0, noise_std, size=waveform.shape)
@@ -187,55 +196,63 @@ def _all_datasets() -> list[Dataset]:
     ]
 
 
-def _delay_error_tensor(dataset: Dataset) -> np.ndarray:
-    """Compute observed-pulse delay error against every candidate delay.
+def _candidate_waveform_amplitudes(dataset: Dataset) -> np.ndarray:
+    """Sample the noisy echo waveform at each candidate delay line.
 
     Args:
         dataset: Benchmark dataset.
 
     Returns:
-        Absolute delay mismatch tensor `[samples, pulses, delay_lines]`.
+        Candidate waveform amplitudes, shape `[samples, delay_lines]`.
     """
-    return np.abs(
-        dataset.observed_pulse_delay_samples[:, :, None] - dataset.candidate_delay_samples[None, None, :]
-    )
+    candidate_indices = TX_INDEX + dataset.candidate_delay_samples
+    return dataset.waveform[:, candidate_indices]
+
+
+def _delay_error_matrix(dataset: Dataset) -> np.ndarray:
+    """Compute true echo delay error against every candidate delay.
+
+    Args:
+        dataset: Benchmark dataset.
+
+    Returns:
+        Absolute delay mismatch matrix `[samples, delay_lines]`.
+    """
+    return np.abs(dataset.echo_delay_samples[:, None] - dataset.candidate_delay_samples[None, :])
 
 
 def _predict_lif(dataset: Dataset) -> np.ndarray:
     """Predict distance with a LIF soft-coincidence detector bank."""
-    delay_error = _delay_error_tensor(dataset)
-    amplitudes = dataset.observed_pulse_amplitudes[:, :, None]
+    delay_error = _delay_error_matrix(dataset)
+    amplitudes = np.maximum(_candidate_waveform_amplitudes(dataset), 0.0)
     beta = 0.982
     input_weight = 0.62
-    pulse_scores = amplitudes * input_weight * (1.0 + np.power(beta, delay_error))
-    scores = pulse_scores.max(axis=1)
+    scores = amplitudes * input_weight * (1.0 + np.power(beta, delay_error))
     return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
 
 
 def _predict_rf(dataset: Dataset) -> np.ndarray:
     """Predict distance with an RF-style coincidence detector bank."""
-    delay_error = _delay_error_tensor(dataset)
-    amplitudes = dataset.observed_pulse_amplitudes[:, :, None]
+    delay_error = _delay_error_matrix(dataset)
+    amplitudes = np.maximum(_candidate_waveform_amplitudes(dataset), 0.0)
     input_weight = 0.62
     tau_samples = 18.0
     omega = 2.0 * np.pi / 18.0
     afterpotential = np.exp(-delay_error / tau_samples) * np.cos(omega * delay_error)
-    pulse_scores = amplitudes * input_weight * (1.0 + afterpotential)
-    scores = pulse_scores.max(axis=1)
+    scores = amplitudes * input_weight * (1.0 + afterpotential)
     return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
 
 
 def _predict_binary(dataset: Dataset) -> np.ndarray:
     """Predict distance with a binary delay-line coincidence detector."""
-    delay_error = _delay_error_tensor(dataset)
-    amplitudes = dataset.observed_pulse_amplitudes[:, :, None]
+    delay_error = _delay_error_matrix(dataset)
+    amplitudes = _candidate_waveform_amplitudes(dataset)
     tolerance_samples = 2
-    pulse_scores = np.where(delay_error <= tolerance_samples, amplitudes, -np.inf)
-    scores = pulse_scores.max(axis=1)
+    amplitude_threshold = 0.5
+    scores = np.where((delay_error <= tolerance_samples) & (amplitudes >= amplitude_threshold), amplitudes, -np.inf)
     no_match = ~np.isfinite(scores).any(axis=1)
     if np.any(no_match):
-        nearest_error = delay_error[no_match].min(axis=1)
-        scores[no_match] = -nearest_error
+        scores[no_match] = amplitudes[no_match]
     return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
 
 
@@ -245,11 +262,7 @@ def _score_detector(name: str, dataset: Dataset, predictor: Callable[[Dataset], 
     predicted = predictor(dataset)
     error = predicted - dataset.true_distance_m
     abs_error = np.abs(error)
-    operations = (
-        dataset.true_distance_m.size
-        * dataset.candidate_distance_m.size
-        * dataset.observed_pulse_delay_samples.shape[1]
-    )
+    operations = dataset.true_distance_m.size * dataset.candidate_distance_m.size
     if name.startswith("LIF"):
         flops = operations * 8.0
         sops = operations * 2.0
@@ -637,7 +650,7 @@ def _write_optimisation_report(
         "",
         "## Signal Conditions",
         "",
-        "| Condition | True echo jitter | Spurious onset noise |",
+            "| Condition | True echo jitter | Additive white noise |",
         "|---|---:|---:|",
     ]
     for dataset in datasets:
@@ -647,22 +660,23 @@ def _write_optimisation_report(
     lines.extend(
         [
             "",
-            "Noise here means extra spurious onset pulses in the echo window. Jitter means Gaussian timing jitter on the true echo pulse. This is still a simplified pulse model, not full waveform noise.",
+            f"Noise here means additive Gaussian white noise on the synthetic echo waveform, with an approximate SNR of `{WHITE_NOISE_SNR_DB:.1f} dB` relative to the unit echo pulse. The echo itself is a narrow Gaussian pulse with sigma `{ECHO_PULSE_SIGMA_SAMPLES:.1f}` samples, so nearby delay lines still see a graded amplitude. Jitter means Gaussian timing jitter on the true echo pulse.",
             "",
             "## Detector Equations",
             "",
-            "For all detectors, the mismatch between each observed pulse and candidate delay is:",
+            "For all detectors, the candidate delay lines sample the echo waveform at their expected echo-arrival time:",
             "",
             "```text",
-            "delta_p,k = abs(delay_observed[p] - delay_candidate[k])",
+            "a_k = max(0, waveform[call_time + delay_candidate[k]])",
+            "delta_k = abs(delay_echo - delay_candidate[k])",
             "```",
             "",
-            "The LIF and RF detectors score all observed pulses and use the strongest response. The binary detector checks whether any pulse lands inside a small timing window.",
+            "The LIF and RF detectors use the sampled amplitude as their input drive. The binary detector checks whether the candidate sample crosses a fixed amplitude threshold and is close enough in time.",
             "",
             "```text",
-            "LIF:    score_k = max_p amplitude_p * w * (1 + beta^delta_p,k)",
-            "RF:     score_k = max_p amplitude_p * w * (1 + exp(-delta_p,k/tau_rf) * cos(omega_rf * delta_p,k))",
-            "Binary: match_k = any_p(delta_p,k <= tolerance)",
+            "LIF:    score_k = a_k * w * (1 + beta^delta_k)",
+            "RF:     score_k = a_k * w * (1 + exp(-delta_k/tau_rf) * cos(omega_rf * delta_k))",
+            "Binary: match_k = 1 if waveform[call_time + delay_candidate[k]] >= threshold and delta_k <= tolerance",
             "```",
             "",
             "## Benchmark Setup",
@@ -675,8 +689,8 @@ def _write_optimisation_report(
             f"| test samples per condition | `{NUM_TEST_SAMPLES}` |",
             f"| delay lines | `{NUM_DELAY_LINES}` |",
             f"| jitter std | `{JITTER_STD_S * 1_000_000.0:.1f} us` |",
-            f"| noise pulses | `{NOISE_PULSES}` |",
-            f"| noise amplitude range | `{NOISE_MIN_AMPLITUDE} -> {NOISE_MAX_AMPLITUDE}` |",
+            f"| white noise SNR | `{WHITE_NOISE_SNR_DB:.1f} dB` |",
+            f"| echo pulse sigma | `{ECHO_PULSE_SIGMA_SAMPLES:.1f} samples` |",
             "",
             "## Accuracy Across Conditions",
             "",
@@ -713,7 +727,7 @@ def _write_optimisation_report(
             "",
             "- Clean perfect signals are essentially a delay quantisation problem, so LIF and binary should be close.",
             "- Jitter tests timing tolerance. LIF remains a useful soft detector because the membrane trace decays smoothly with timing mismatch.",
-            "- Noise tests false-onset robustness. Binary is cheap, but can be fooled if a strong false onset lands near another candidate delay.",
+            "- Noise tests robustness to additive waveform fluctuations. In this simplified setup, delay lines sample the noisy waveform at candidate arrival times.",
             "- RF remains biologically interesting, but its oscillatory side lobes are a weakness for this specific pure-delay task.",
             "- These results still assume onset pulses have already been extracted; the next hard problem is robust onset extraction from real cochlear spike rasters.",
             "",
@@ -784,9 +798,8 @@ def main() -> dict[str, object]:
             "num_delay_lines": NUM_DELAY_LINES,
             "num_test_samples": NUM_TEST_SAMPLES,
             "jitter_std_s": JITTER_STD_S,
-            "noise_pulses": NOISE_PULSES,
-            "noise_min_amplitude": NOISE_MIN_AMPLITUDE,
-            "noise_max_amplitude": NOISE_MAX_AMPLITUDE,
+            "white_noise_snr_db": WHITE_NOISE_SNR_DB,
+            "echo_pulse_sigma_samples": ECHO_PULSE_SIGMA_SAMPLES,
             "rng_seed": RNG_SEED,
         },
         "results_by_condition": {
