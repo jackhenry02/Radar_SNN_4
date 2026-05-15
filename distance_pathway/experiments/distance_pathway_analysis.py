@@ -46,6 +46,8 @@ ECHO_PULSE_SIGMA_SAMPLES = 2.0
 SPIKE_NOISE_EVENTS = 3
 SPIKE_NOISE_MIN_AMPLITUDE = 0.25
 SPIKE_NOISE_MAX_AMPLITUDE = 1.10
+SWEEP_CHANNELS = 32
+SWEEP_DURATION_S = 0.003
 RNG_SEED = 11
 
 BASE_OUTPUT_DIR = ROOT / "distance_pathway" / "outputs"
@@ -112,6 +114,39 @@ class SpikeDataset:
     true_distance_m: np.ndarray
     ideal_echo_delay_samples: np.ndarray
     observed_spike_delay_samples: np.ndarray
+    observed_spike_amplitudes: np.ndarray
+    candidate_distance_m: np.ndarray
+    candidate_delay_samples: np.ndarray
+    num_time_steps: int
+    has_noise: bool
+    has_jitter: bool
+
+
+@dataclass
+class SweepSpikeDataset:
+    """Synthetic FM-sweep spike-input dataset.
+
+    Attributes:
+        condition: Name of the signal condition.
+        true_distance_m: True target distances in metres.
+        ideal_echo_delay_samples: Perfect round-trip echo delay in samples.
+        channel_offsets_samples: Per-frequency-channel sweep offsets.
+        observed_spike_times: Absolute spike times for each sample, channel,
+            and spike event, shape `[samples, channels, spikes]`.
+        observed_spike_amplitudes: Per-spike amplitudes, shape
+            `[samples, channels, spikes]`.
+        candidate_distance_m: Distances represented by delay lines.
+        candidate_delay_samples: Delay-line delays in samples.
+        num_time_steps: Length of the synthetic timeline.
+        has_noise: Whether false spikes are present.
+        has_jitter: Whether true echo timing jitter is present.
+    """
+
+    condition: str
+    true_distance_m: np.ndarray
+    ideal_echo_delay_samples: np.ndarray
+    channel_offsets_samples: np.ndarray
+    observed_spike_times: np.ndarray
     observed_spike_amplitudes: np.ndarray
     candidate_distance_m: np.ndarray
     candidate_delay_samples: np.ndarray
@@ -298,6 +333,94 @@ def _all_spike_datasets() -> list[SpikeDataset]:
     ]
 
 
+def _make_sweep_spike_dataset(
+    condition: str,
+    *,
+    has_noise: bool,
+    has_jitter: bool,
+    seed_offset: int,
+) -> SweepSpikeDataset:
+    """Create one FM-sweep spiking-input benchmark condition.
+
+    The corollary discharge is a sweep: different frequency channels fire at
+    different times. The echo is the same sweep shifted by the target delay.
+    Each channel therefore provides an independent estimate of the same
+    distance.
+
+    Args:
+        condition: Human-readable condition name.
+        has_noise: Whether to add false spikes per frequency channel.
+        has_jitter: Whether to jitter the true echo delay.
+        seed_offset: Offset used for condition-specific randomness.
+
+    Returns:
+        Sweep spike dataset for the requested condition.
+    """
+    rng = np.random.default_rng(RNG_SEED + seed_offset)
+    true_distance_m = _base_distances()
+    ideal_delay_s = 2.0 * true_distance_m / SPEED_OF_SOUND_M_S
+    if has_jitter:
+        jitter_s = rng.normal(0.0, JITTER_STD_S, true_distance_m.size)
+    else:
+        jitter_s = np.zeros_like(true_distance_m)
+    echo_delay = np.rint((ideal_delay_s + jitter_s) * SAMPLE_RATE_HZ).astype(np.int64)
+    echo_delay = np.clip(echo_delay, 1, None)
+    ideal_echo_delay = np.rint(ideal_delay_s * SAMPLE_RATE_HZ).astype(np.int64)
+
+    candidate_distance_m = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_DELAY_LINES)
+    candidate_delay_samples = np.rint(
+        (2.0 * candidate_distance_m / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ
+    ).astype(np.int64)
+    max_candidate = int(candidate_delay_samples.max())
+    sweep_samples = int(round(SWEEP_DURATION_S * SAMPLE_RATE_HZ))
+    channel_offsets = np.rint(np.linspace(0, sweep_samples, SWEEP_CHANNELS)).astype(np.int64)
+
+    spike_count = 1 + (SPIKE_NOISE_EVENTS if has_noise else 0)
+    observed_times = np.zeros((true_distance_m.size, SWEEP_CHANNELS, spike_count), dtype=np.int64)
+    observed_amplitudes = np.zeros((true_distance_m.size, SWEEP_CHANNELS, spike_count), dtype=np.float64)
+    true_echo_times = TX_INDEX + channel_offsets[None, :] + echo_delay[:, None]
+    observed_times[:, :, 0] = true_echo_times
+    observed_amplitudes[:, :, 0] = 1.0
+    if has_noise:
+        false_relative_delays = rng.integers(
+            1,
+            max_candidate + 1,
+            size=(true_distance_m.size, SWEEP_CHANNELS, SPIKE_NOISE_EVENTS),
+        )
+        observed_times[:, :, 1:] = TX_INDEX + channel_offsets[None, :, None] + false_relative_delays
+        observed_amplitudes[:, :, 1:] = rng.uniform(
+            SPIKE_NOISE_MIN_AMPLITUDE,
+            SPIKE_NOISE_MAX_AMPLITUDE,
+            size=(true_distance_m.size, SWEEP_CHANNELS, SPIKE_NOISE_EVENTS),
+        )
+
+    max_observed = int(observed_times.max())
+    num_time_steps = max_observed + 80
+    return SweepSpikeDataset(
+        condition=condition,
+        true_distance_m=true_distance_m,
+        ideal_echo_delay_samples=ideal_echo_delay,
+        channel_offsets_samples=channel_offsets,
+        observed_spike_times=observed_times,
+        observed_spike_amplitudes=observed_amplitudes,
+        candidate_distance_m=candidate_distance_m,
+        candidate_delay_samples=candidate_delay_samples,
+        num_time_steps=num_time_steps,
+        has_noise=has_noise,
+        has_jitter=has_jitter,
+    )
+
+
+def _all_sweep_spike_datasets() -> list[SweepSpikeDataset]:
+    """Return the four requested sweep-spiking benchmark conditions."""
+    return [
+        _make_sweep_spike_dataset("Clean perfect", has_noise=False, has_jitter=False, seed_offset=800),
+        _make_sweep_spike_dataset("Added noise", has_noise=True, has_jitter=False, seed_offset=900),
+        _make_sweep_spike_dataset("Added jitter", has_noise=False, has_jitter=True, seed_offset=1000),
+        _make_sweep_spike_dataset("Noise + jitter", has_noise=True, has_jitter=True, seed_offset=1100),
+    ]
+
+
 def _candidate_waveform_amplitudes(dataset: Dataset) -> np.ndarray:
     """Sample the noisy echo waveform at each candidate delay line.
 
@@ -460,6 +583,105 @@ def _score_spike_detector(
         dataset.true_distance_m.size
         * dataset.candidate_distance_m.size
         * dataset.observed_spike_delay_samples.shape[1]
+    )
+    if name.startswith("LIF"):
+        flops = operations * 8.0
+        sops = operations * 2.0
+    elif name.startswith("RF"):
+        flops = operations * 14.0
+        sops = operations * 2.0
+    else:
+        flops = operations * 1.0
+        sops = operations
+    return DetectorResult(
+        condition=dataset.condition,
+        name=name,
+        predicted_distance_m=predicted,
+        mae_m=float(abs_error.mean()),
+        rmse_m=float(np.sqrt(np.mean(error**2))),
+        p95_abs_error_m=float(np.percentile(abs_error, 95.0)),
+        max_abs_error_m=float(abs_error.max()),
+        runtime_ms=runtime_s * 1_000.0,
+        flops=flops,
+        sops=sops,
+    )
+
+
+def _sweep_delay_error_tensor(dataset: SweepSpikeDataset) -> np.ndarray:
+    """Compute sweep spike delay error against candidate delays.
+
+    Args:
+        dataset: FM-sweep spiking dataset.
+
+    Returns:
+        Absolute mismatch tensor `[samples, channels, spikes, delay_lines]`.
+    """
+    relative_spike_delays = dataset.observed_spike_times - TX_INDEX - dataset.channel_offsets_samples[None, :, None]
+    return np.abs(relative_spike_delays[:, :, :, None] - dataset.candidate_delay_samples[None, None, None, :])
+
+
+def _predict_sweep_lif(dataset: SweepSpikeDataset) -> np.ndarray:
+    """Predict distance from FM-sweep spikes with averaged LIF channel scores."""
+    delay_error = _sweep_delay_error_tensor(dataset)
+    amplitudes = dataset.observed_spike_amplitudes[:, :, :, None]
+    beta = 0.982
+    input_weight = 0.62
+    per_channel_scores = (amplitudes * input_weight * (1.0 + np.power(beta, delay_error))).max(axis=2)
+    scores = per_channel_scores.mean(axis=1)
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _predict_sweep_rf(dataset: SweepSpikeDataset) -> np.ndarray:
+    """Predict distance from FM-sweep spikes with averaged RF channel scores."""
+    delay_error = _sweep_delay_error_tensor(dataset)
+    amplitudes = dataset.observed_spike_amplitudes[:, :, :, None]
+    input_weight = 0.62
+    tau_samples = 18.0
+    omega = 2.0 * np.pi / 18.0
+    afterpotential = np.exp(-delay_error / tau_samples) * np.cos(omega * delay_error)
+    per_channel_scores = (amplitudes * input_weight * (1.0 + afterpotential)).max(axis=2)
+    scores = per_channel_scores.mean(axis=1)
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _predict_sweep_binary(dataset: SweepSpikeDataset) -> np.ndarray:
+    """Predict distance from FM-sweep spikes with averaged binary matches."""
+    delay_error = _sweep_delay_error_tensor(dataset)
+    delay_spacing = np.median(np.diff(dataset.candidate_delay_samples))
+    tolerance_samples = int(np.ceil(delay_spacing / 2.0))
+    per_channel_scores = (delay_error <= tolerance_samples).max(axis=2).astype(np.float64)
+    scores = per_channel_scores.mean(axis=1)
+    no_match = scores.max(axis=1) <= 0.0
+    if np.any(no_match):
+        nearest_error = delay_error[no_match].min(axis=(1, 2))
+        scores[no_match] = -nearest_error
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _score_sweep_detector(
+    name: str,
+    dataset: SweepSpikeDataset,
+    predictor: Callable[[SweepSpikeDataset], np.ndarray],
+) -> DetectorResult:
+    """Benchmark and score one detector on one sweep-spiking condition.
+
+    Args:
+        name: Detector name.
+        dataset: FM-sweep spiking dataset.
+        predictor: Prediction function.
+
+    Returns:
+        Detector result summary.
+    """
+    runtime_s = _median_runtime_s(lambda: predictor(dataset), repeats=10)
+    predicted = predictor(dataset)
+    error = predicted - dataset.true_distance_m
+    abs_error = np.abs(error)
+    operations = (
+        dataset.true_distance_m.size
+        * dataset.channel_offsets_samples.size
+        * dataset.candidate_distance_m.size
+        * dataset.observed_spike_times.shape[2]
     )
     if name.startswith("LIF"):
         flops = operations * 8.0
@@ -703,6 +925,55 @@ def _plot_condition_mae(results_by_condition: dict[str, list[DetectorResult]], p
     return save_figure(fig, path)
 
 
+def _plot_sweep_raster(path: Path) -> str:
+    """Plot the synthetic FM-sweep spike input used for the sweep test.
+
+    Args:
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    example = _make_sweep_spike_dataset("Raster example", has_noise=True, has_jitter=True, seed_offset=1234)
+    sample_index = 0
+    true_distance = example.true_distance_m[sample_index]
+    time_ms = np.arange(example.num_time_steps) / SAMPLE_RATE_HZ * 1_000.0
+    corollary_times = TX_INDEX + example.channel_offsets_samples
+    true_echo_times = example.observed_spike_times[sample_index, :, 0]
+    false_times = example.observed_spike_times[sample_index, :, 1:]
+    frequencies_khz = np.linspace(18.0, 2.0, SWEEP_CHANNELS)
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 7.5), sharex=True)
+    for channel, frequency_khz in enumerate(frequencies_khz):
+        axes[0].vlines(corollary_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#2563eb")
+        axes[0].vlines(true_echo_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#dc2626")
+        axes[0].text(
+            time_ms[min(example.num_time_steps - 1, TX_INDEX + example.channel_offsets_samples[-1] + 25)],
+            channel + 0.25,
+            f"{frequency_khz:.1f} kHz" if channel % 6 == 0 else "",
+            fontsize=7,
+            color="#475569",
+        )
+    axes[0].set_title(f"Clean FM-sweep spike raster plus echo shift, target={true_distance:.2f} m")
+    axes[0].set_ylabel("frequency channel")
+    axes[0].set_ylim(0, SWEEP_CHANNELS)
+    axes[0].legend(["corollary discharge", "echo"], loc="upper right")
+
+    for channel in range(SWEEP_CHANNELS):
+        axes[1].vlines(corollary_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#2563eb")
+        axes[1].vlines(true_echo_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#dc2626")
+        for false_time in false_times[channel]:
+            axes[1].vlines(false_time / SAMPLE_RATE_HZ * 1_000.0, channel + 0.2, channel + 0.8, color="#f97316", alpha=0.65)
+    axes[1].set_title("Same raster with false spikes used for noisy spiking conditions")
+    axes[1].set_xlabel("time (ms)")
+    axes[1].set_ylabel("frequency channel")
+    axes[1].set_ylim(0, SWEEP_CHANNELS)
+    axes[1].set_xlim(0.0, min(time_ms[-1], 35.0))
+    for ax in axes:
+        ax.grid(True, axis="x", alpha=0.2)
+    return save_figure(fig, path)
+
+
 def _plot_accuracy(results: list[DetectorResult], dataset: Dataset, path: Path) -> str:
     """Plot true-vs-predicted distance for one condition."""
     fig, axes = plt.subplots(1, len(results), figsize=(15, 4.8), sharex=True, sharey=True)
@@ -839,6 +1110,8 @@ def _write_optimisation_report(
     results_by_condition: dict[str, list[DetectorResult]],
     spike_datasets: list[SpikeDataset],
     spike_results_by_condition: dict[str, list[DetectorResult]],
+    sweep_datasets: list[SweepSpikeDataset],
+    sweep_results_by_condition: dict[str, list[DetectorResult]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -1007,6 +1280,87 @@ def _write_optimisation_report(
             "- False spikes are where LIF can outperform binary because amplitude-weighted soft coincidence can partially reduce the effect of isolated false events.",
             "- The next realistic test should connect the final cochlea front end to this spiking-input pathway, so the spike statistics come from the actual cochlea rather than being synthetic.",
             "",
+            "# Part C: FM-Sweep Spiking Input",
+            "",
+            "The third benchmark tests the robustness idea that the FM sweep gives multiple measurements of the same distance. A swept corollary discharge is used as the reference, and the echo is the same spike sweep shifted by the target delay.",
+            "",
+            "Each frequency channel has a different corollary-discharge time. For a candidate distance, the detector compares each echo-channel spike against the corresponding delayed corollary channel. Candidate scores are averaged across channels before choosing the final distance.",
+            "",
+            "![FM sweep raster](../outputs/accuracy_optimisation/figures/sweep_spike_raster.png)",
+            "",
+            "## Sweep-Spiking Signal Conditions",
+            "",
+            "| Condition | True echo jitter | False spikes per channel |",
+            "|---|---:|---:|",
+        ]
+    )
+    for dataset in sweep_datasets:
+        noise_description = SPIKE_NOISE_EVENTS if dataset.has_noise else 0
+        lines.append(f"| {dataset.condition} | `{dataset.has_jitter}` | `{noise_description}` |")
+    lines.extend(
+        [
+            "",
+            "The sweep is simplified as one spike per frequency channel in the corollary discharge, and one shifted echo spike per channel. This is not a full cochlear raster yet, but it tests the key redundancy idea.",
+            "",
+            "| Sweep parameter | Value |",
+            "|---|---:|",
+            f"| sweep channels | `{SWEEP_CHANNELS}` |",
+            f"| sweep duration | `{SWEEP_DURATION_S * 1_000.0:.1f} ms` |",
+            f"| false spikes per noisy channel | `{SPIKE_NOISE_EVENTS}` |",
+            "",
+            "## Sweep-Spiking Detector Equations",
+            "",
+            "For channel `c`, observed spike `p`, and candidate delay `k`:",
+            "",
+            "```text",
+            "relative_delay_c,p = spike_time_c,p - call_time - channel_offset_c",
+            "delta_c,p,k = abs(relative_delay_c,p - delay_candidate[k])",
+            "```",
+            "",
+            "The per-channel scores are averaged across frequency channels:",
+            "",
+            "```text",
+            "score_k = mean_c(max_p detector_score(delta_c,p,k))",
+            "binary_score_k = mean_c(any_p(delta_c,p,k <= half_delay_bin_width))",
+            "distance = distance_candidate[argmax_k(score_k)]",
+            "```",
+            "",
+            "## Sweep-Spiking Accuracy Across Conditions",
+            "",
+            "![Sweep condition MAE](../outputs/accuracy_optimisation/figures/sweep_condition_mae.png)",
+            "",
+            "| Condition | Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for condition, results in sweep_results_by_condition.items():
+        for result in results:
+            lines.append(
+                f"| {condition} | {result.name} | {result.mae_m * 100.0:.2f} | "
+                f"{result.rmse_m * 100.0:.2f} | {result.p95_abs_error_m * 100.0:.2f} | "
+                f"{result.max_abs_error_m * 100.0:.2f} | {result.runtime_ms:.3f} | "
+                f"{result.flops:,.0f} | {result.sops:,.0f} |"
+            )
+    lines.extend(
+        [
+            "",
+            "## Sweep-Spiking Hardest-Condition Plots",
+            "",
+            "The scatter, histogram, and cost plots below use the sweep-spiking `Noise + jitter` condition.",
+            "",
+            "![Sweep accuracy scatter](../outputs/accuracy_optimisation/figures/sweep_accuracy_scatter_noise_jitter.png)",
+            "",
+            "![Sweep error histogram](../outputs/accuracy_optimisation/figures/sweep_error_histogram_noise_jitter.png)",
+            "",
+            "![Sweep cost comparison](../outputs/accuracy_optimisation/figures/sweep_cost_comparison.png)",
+            "",
+            "## Sweep Interpretation",
+            "",
+            "- Averaging across sweep channels directly tests the idea that the FM sweep supplies repeated distance measurements.",
+            "- Random false spikes are less damaging when they are independent across channels, because they do not consistently support the same candidate delay.",
+            "- This should especially help the binary detector, whose single-channel version is fast but brittle.",
+            "- The next step is to replace this hand-made sweep raster with spikes from the final cochlea front end.",
+            "",
             "## Generated Files",
             "",
         ]
@@ -1021,6 +1375,11 @@ def _write_optimisation_report(
             "spiking_accuracy_scatter_noise_jitter",
             "spiking_error_histogram_noise_jitter",
             "spiking_cost_comparison",
+            "sweep_spike_raster",
+            "sweep_condition_mae",
+            "sweep_accuracy_scatter_noise_jitter",
+            "sweep_error_histogram_noise_jitter",
+            "sweep_cost_comparison",
         }:
             lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.extend([f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`", "", f"Runtime: `{elapsed_s:.2f} s`.", ""])
@@ -1051,12 +1410,22 @@ def main() -> dict[str, object]:
             _score_spike_detector("RF detector", dataset, _predict_spike_rf),
             _score_spike_detector("Binary detector", dataset, _predict_spike_binary),
         ]
+    sweep_datasets = _all_sweep_spike_datasets()
+    sweep_results_by_condition: dict[str, list[DetectorResult]] = {}
+    for dataset in sweep_datasets:
+        sweep_results_by_condition[dataset.condition] = [
+            _score_sweep_detector("LIF detector", dataset, _predict_sweep_lif),
+            _score_sweep_detector("RF detector", dataset, _predict_sweep_rf),
+            _score_sweep_detector("Binary detector", dataset, _predict_sweep_binary),
+        ]
 
     simple_dataset = datasets[0]
     hard_dataset = datasets[-1]
     hard_results = results_by_condition[hard_dataset.condition]
     hard_spike_dataset = spike_datasets[-1]
     hard_spike_results = spike_results_by_condition[hard_spike_dataset.condition]
+    hard_sweep_dataset = sweep_datasets[-1]
+    hard_sweep_results = sweep_results_by_condition[hard_sweep_dataset.condition]
     artifacts = {
         "pulse_timeline": _plot_explanatory_timeline(simple_dataset, SIMPLE_FIGURE_DIR / "pulse_timeline.png"),
         "coincidence_animation": _save_coincidence_animation(SIMPLE_FIGURE_DIR / "coincidence_detection.gif"),
@@ -1092,6 +1461,25 @@ def main() -> dict[str, object]:
             spike_results_by_condition,
             OPT_FIGURE_DIR / "spiking_cost_comparison.png",
         ),
+        "sweep_spike_raster": _plot_sweep_raster(OPT_FIGURE_DIR / "sweep_spike_raster.png"),
+        "sweep_condition_mae": _plot_condition_mae(
+            sweep_results_by_condition,
+            OPT_FIGURE_DIR / "sweep_condition_mae.png",
+        ),
+        "sweep_accuracy_scatter_noise_jitter": _plot_accuracy(
+            hard_sweep_results,
+            hard_sweep_dataset,
+            OPT_FIGURE_DIR / "sweep_accuracy_scatter_noise_jitter.png",
+        ),
+        "sweep_error_histogram_noise_jitter": _plot_error_histogram(
+            hard_sweep_results,
+            hard_sweep_dataset,
+            OPT_FIGURE_DIR / "sweep_error_histogram_noise_jitter.png",
+        ),
+        "sweep_cost_comparison": _plot_costs(
+            sweep_results_by_condition,
+            OPT_FIGURE_DIR / "sweep_cost_comparison.png",
+        ),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -1111,6 +1499,8 @@ def main() -> dict[str, object]:
             "spike_noise_events": SPIKE_NOISE_EVENTS,
             "spike_noise_min_amplitude": SPIKE_NOISE_MIN_AMPLITUDE,
             "spike_noise_max_amplitude": SPIKE_NOISE_MAX_AMPLITUDE,
+            "sweep_channels": SWEEP_CHANNELS,
+            "sweep_duration_s": SWEEP_DURATION_S,
             "rng_seed": RNG_SEED,
         },
         "waveform_results_by_condition": {
@@ -1145,6 +1535,22 @@ def main() -> dict[str, object]:
             ]
             for condition, results in spike_results_by_condition.items()
         },
+        "sweep_spiking_results_by_condition": {
+            condition: [
+                {
+                    "name": result.name,
+                    "mae_m": result.mae_m,
+                    "rmse_m": result.rmse_m,
+                    "p95_abs_error_m": result.p95_abs_error_m,
+                    "max_abs_error_m": result.max_abs_error_m,
+                    "runtime_ms": result.runtime_ms,
+                    "flops": result.flops,
+                    "sops": result.sops,
+                }
+                for result in results
+            ]
+            for condition, results in sweep_results_by_condition.items()
+        },
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -1154,6 +1560,8 @@ def main() -> dict[str, object]:
         results_by_condition,
         spike_datasets,
         spike_results_by_condition,
+        sweep_datasets,
+        sweep_results_by_condition,
         artifacts,
         elapsed_s,
     )
