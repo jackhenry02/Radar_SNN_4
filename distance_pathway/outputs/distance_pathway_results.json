@@ -1,0 +1,55 @@
+{
+  "experiment": "distance_pathway_analysis",
+  "elapsed_seconds": 4.8656069580465555,
+  "config": {
+    "sample_rate_hz": 64000,
+    "speed_of_sound_m_s": 343.0,
+    "min_distance_m": 0.25,
+    "max_distance_m": 5.0,
+    "num_delay_lines": 160,
+    "num_test_samples": 1000,
+    "jitter_std_s": 3.5e-05,
+    "rng_seed": 11,
+    "num_time_steps": 2010
+  },
+  "results": [
+    {
+      "name": "LIF detector",
+      "mae_m": 0.00890032337682091,
+      "rmse_m": 0.010740021217907972,
+      "p95_abs_error_m": 0.01948292940689208,
+      "max_abs_error_m": 0.02913520679934145,
+      "runtime_ms": 0.9161250200122595,
+      "flops": 1280000.0,
+      "sops": 320000.0
+    },
+    {
+      "name": "RF detector",
+      "mae_m": 0.02250055392740409,
+      "rmse_m": 0.030534585836042877,
+      "p95_abs_error_m": 0.05500548636717801,
+      "max_abs_error_m": 0.06845646721124732,
+      "runtime_ms": 1.2193539878353477,
+      "flops": 2240000.0,
+      "sops": 320000.0
+    },
+    {
+      "name": "Binary detector",
+      "mae_m": 0.00890032337682091,
+      "rmse_m": 0.010740021217907972,
+      "p95_abs_error_m": 0.01948292940689208,
+      "max_abs_error_m": 0.02913520679934145,
+      "runtime_ms": 0.4123745020478964,
+      "flops": 160000.0,
+      "sops": 160000
+    }
+  ],
+  "artifacts": {
+    "pulse_timeline": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/simple_coincidence_model/figures/pulse_timeline.png",
+    "coincidence_animation": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/simple_coincidence_model/figures/coincidence_detection.gif",
+    "delay_bank_response": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/simple_coincidence_model/figures/delay_bank_response.png",
+    "accuracy_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/accuracy_scatter.png",
+    "error_histogram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/error_histogram.png",
+    "cost_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/cost_comparison.png"
+  }
+}
