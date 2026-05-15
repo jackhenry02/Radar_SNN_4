@@ -132,6 +132,18 @@ The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m
 | max abs error | `6.119 cm` |
 | bias | `-0.133 cm` |
 
+## Ablation Comparison
+
+The following variants were run on the same clean `80`-distance test set. The goal is to separate the benefit of the latency-adjusted CD/IC comparison from the benefit of reading the cochleagram rather than the later cochlear spike raster.
+
+| Variant | VCN input | CD latency vector | MAE | RMSE | Max abs error | Bias | Interpretation |
+|---|---|---|---:|---:|---:|---:|---|
+| Current: cochleagram LIF + latency-adjusted CD | `cochleagram` | matched | `0.317 cm` | `0.934 cm` | `6.119 cm` | `-0.133 cm` | Current causal prototype; VCN reads cochleagram and CD expectation is latency-adjusted. |
+| Ablation: cochleagram LIF, no latency vector | `cochleagram` | none | `26.918 cm` | `27.264 cm` | `29.422 cm` | `-26.918 cm` | Tests whether the CD/IC latency vector is responsible for the timing accuracy. |
+| Ablation: spike-raster LIF + matched latency-adjusted CD | `spikes` | matched | `2.774 cm` | `3.145 cm` | `5.678 cm` | `-0.200 cm` | Tests whether the VCN can read the cochlear spike raster instead of the cochleagram. |
+
+The no-latency ablation isolates the importance of the per-channel timing correction. The spike-raster ablation tests whether the VCN/VNLL onset stage can be driven by the already-spiking cochlea output rather than by the rectified cochleagram activity.
+
 ## Comparison To Previous Full Models
 
 The table below compares the distance error here against the old trained multi-output models. This is useful context, but it is not a perfectly fair benchmark: the old models estimated distance, azimuth, and elevation together, while this new prototype is a clean distance-only pathway with no angle variation or noise.
@@ -166,4 +178,4 @@ The previous prototype subtracted the latency vector from echo onsets, which cou
 - `accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/accuracy.png`
 - `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
 
-Runtime: `2.75 s`.
+Runtime: `7.24 s`.

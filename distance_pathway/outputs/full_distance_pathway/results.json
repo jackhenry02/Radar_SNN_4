@@ -1,6 +1,6 @@
 {
   "experiment": "full_distance_pathway_model",
-  "elapsed_seconds": 2.748304666019976,
+  "elapsed_seconds": 7.237074041040614,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,
@@ -73,6 +73,53 @@
     "max_abs_error_m": 0.06119240050429031,
     "bias_m": -0.001327280911080906
   },
+  "variant_summaries": [
+    {
+      "key": "cochleagram_lif_latency_adjusted",
+      "name": "Current: cochleagram LIF + latency-adjusted CD",
+      "vcn_input": "cochleagram",
+      "latency_description": "matched",
+      "latency_min_samples": -176,
+      "latency_max_samples": 8,
+      "note": "Current causal prototype; VCN reads cochleagram and CD expectation is latency-adjusted.",
+      "metrics": {
+        "mae_m": 0.0031673714829029025,
+        "rmse_m": 0.009342927059321441,
+        "max_abs_error_m": 0.06119240050429031,
+        "bias_m": -0.001327280911080906
+      }
+    },
+    {
+      "key": "cochleagram_lif_no_latency",
+      "name": "Ablation: cochleagram LIF, no latency vector",
+      "vcn_input": "cochleagram",
+      "latency_description": "none",
+      "latency_min_samples": 0,
+      "latency_max_samples": 0,
+      "note": "Tests whether the CD/IC latency vector is responsible for the timing accuracy.",
+      "metrics": {
+        "mae_m": 0.2691815752518031,
+        "rmse_m": 0.2726427762861696,
+        "max_abs_error_m": 0.29421791754538695,
+        "bias_m": -0.2691815752518031
+      }
+    },
+    {
+      "key": "spike_raster_lif_latency_adjusted",
+      "name": "Ablation: spike-raster LIF + matched latency-adjusted CD",
+      "vcn_input": "spikes",
+      "latency_description": "matched",
+      "latency_min_samples": -136,
+      "latency_max_samples": 17,
+      "note": "Tests whether the VCN can read the cochlear spike raster instead of the cochleagram.",
+      "metrics": {
+        "mae_m": 0.027735831880368655,
+        "rmse_m": 0.03145194773417421,
+        "max_abs_error_m": 0.056782664853439635,
+        "bias_m": -0.0019959975050371183
+      }
+    }
+  ],
   "example": {
     "true_distance_m": 2.939099369420883,
     "predicted_distance_m": 2.9393785317040244
