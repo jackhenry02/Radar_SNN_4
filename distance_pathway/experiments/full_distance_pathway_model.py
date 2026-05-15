@@ -40,6 +40,7 @@ OUTPUT_DIR = ROOT / "distance_pathway" / "outputs" / "full_distance_pathway"
 FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "distance_pathway" / "reports" / "full_distance_pathway_model.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
+LATENCY_VECTOR_PATH = ROOT / "distance_pathway" / "outputs" / "cochlea_latency" / "cochlea_latency_samples.npy"
 
 NUM_CHANNELS = 48
 NUM_DISTANCE_BINS = 180
@@ -50,6 +51,8 @@ REFERENCE_DISTANCE_M = 2.5
 RNG_SEED = 44
 
 VCN_REFRACTORY_S = 0.010
+VCN_LIF_BETA = 0.92
+VCN_LIF_THRESHOLD_FRACTION = 0.03
 DNLL_SUPPRESSION_PADDING_S = 0.00075
 IC_LIF_BETA = 0.992
 IC_LIF_THRESHOLD = 1.45
@@ -195,39 +198,38 @@ def _run_cochlea_binaural(config: GlobalConfig, receive: torch.Tensor) -> Cochle
     )
 
 
-def _vcn_vnll_onset_detector(
-    spikes: torch.Tensor,
-    latency_samples: np.ndarray,
-    config: GlobalConfig,
-) -> np.ndarray:
-    """Simplified VCN/VNLL onset detector with latency compensation.
+def _vcn_vnll_onset_detector(cochleagram: torch.Tensor, config: GlobalConfig) -> np.ndarray:
+    """Simplified causal VCN/VNLL onset detector.
 
-    The biological VCN/VNLL system is simplified into a first-spike detector
-    with a long refractory period. A fixed per-channel latency calibration is
-    subtracted to approximate constant-latency onset coding.
+    The biological VCN/VNLL system is simplified into a low-threshold LIF onset
+    detector with a long refractory period. This emits at or after the cochlear
+    activity arrives; latency compensation is applied to the corollary discharge
+    instead of moving echo spikes earlier in time.
 
     Args:
-        spikes: Cochlear spike raster `[channels, time]`.
-        latency_samples: Per-channel latency compensation in samples.
+        cochleagram: Rectified cochleagram `[channels, time]`.
         config: Acoustic configuration.
 
     Returns:
         Onset raster `[channels, time]`.
     """
-    spike_np = spikes.detach().cpu().numpy() > 0.0
-    output = np.zeros_like(spike_np, dtype=np.float32)
+    activity = cochleagram.detach().cpu().numpy()
+    output = np.zeros_like(activity, dtype=np.float32)
+    thresholds = VCN_LIF_THRESHOLD_FRACTION * np.maximum(activity.max(axis=1), 1e-12)
     refractory_samples = int(round(VCN_REFRACTORY_S * config.sample_rate_hz))
-    for channel in range(spike_np.shape[0]):
-        event_times = np.flatnonzero(spike_np[channel])
-        if event_times.size == 0:
-            continue
-        first_time = int(event_times[0] - latency_samples[channel])
-        if first_time < 0 or first_time >= spike_np.shape[1]:
-            continue
-        output[channel, first_time] = 1.0
-        # The long refractory period makes later spikes irrelevant for this
-        # simplified clean single-object model.
-        _ = refractory_samples
+    membrane = np.zeros(activity.shape[0], dtype=np.float64)
+    blocked_until = np.zeros(activity.shape[0], dtype=np.int64)
+    fired_once = np.zeros(activity.shape[0], dtype=bool)
+    for time_index in range(activity.shape[1]):
+        membrane *= VCN_LIF_BETA
+        active = time_index >= blocked_until
+        membrane[active] += activity[active, time_index]
+        fired = (~fired_once) & active & (membrane >= thresholds)
+        if np.any(fired):
+            output[fired, time_index] = 1.0
+            blocked_until[fired] = time_index + refractory_samples
+            membrane[fired] = 0.0
+            fired_once[fired] = True
     return output
 
 
@@ -253,17 +255,24 @@ def _dnll_suppression(vcn_left: np.ndarray, vcn_right: np.ndarray, config: Globa
     return suppressed
 
 
-def _make_cd_raster(config: GlobalConfig, total_time: int) -> np.ndarray:
-    """Create ideal corollary-discharge sweep raster.
+def _make_cd_raster(
+    config: GlobalConfig,
+    total_time: int,
+    latency_samples: np.ndarray | None = None,
+) -> np.ndarray:
+    """Create latency-adjusted corollary-discharge sweep raster.
 
     Args:
         config: Acoustic configuration.
         total_time: Number of time samples.
+        latency_samples: Optional per-channel cochlea/onset latency in samples.
 
     Returns:
         CD raster `[channels, time]`.
     """
     cd_times = _chirp_channel_times(config)
+    if latency_samples is not None:
+        cd_times = cd_times + latency_samples.astype(np.int64)
     cd = np.zeros((NUM_CHANNELS, total_time), dtype=np.float32)
     valid = (cd_times >= 0) & (cd_times < total_time)
     cd[np.arange(NUM_CHANNELS)[valid], cd_times[valid]] = 1.0
@@ -271,7 +280,7 @@ def _make_cd_raster(config: GlobalConfig, total_time: int) -> np.ndarray:
 
 
 def _calibrate_channel_latency(config: GlobalConfig) -> np.ndarray:
-    """Estimate fixed channel latency introduced by cochlea + onset detector.
+    """Estimate fixed channel latency introduced by cochlea + VCN onset detector.
 
     Args:
         config: Acoustic configuration.
@@ -281,13 +290,14 @@ def _calibrate_channel_latency(config: GlobalConfig) -> np.ndarray:
     """
     receive = _simulate_scene(config, REFERENCE_DISTANCE_M)
     cochlea = _run_cochlea_binaural(config, receive)
-    spike_np = torch.maximum(cochlea.left_spikes, cochlea.right_spikes).detach().cpu().numpy() > 0.0
+    combined_cochleagram = torch.maximum(cochlea.left_cochleagram, cochlea.right_cochleagram)
+    vcn_np = _vcn_vnll_onset_detector(combined_cochleagram, config) > 0.0
     cd_times = _chirp_channel_times(config)
     reference_delay = int(round((2.0 * REFERENCE_DISTANCE_M / config.speed_of_sound_m_s) * config.sample_rate_hz))
     latency = np.zeros(NUM_CHANNELS, dtype=np.int64)
     valid_latencies = []
     for channel in range(NUM_CHANNELS):
-        event_times = np.flatnonzero(spike_np[channel])
+        event_times = np.flatnonzero(vcn_np[channel])
         if event_times.size == 0:
             latency[channel] = 0
             continue
@@ -301,9 +311,26 @@ def _calibrate_channel_latency(config: GlobalConfig) -> np.ndarray:
     return latency
 
 
+def _load_channel_latency(config: GlobalConfig) -> np.ndarray:
+    """Load the saved refractory-LIF latency vector or fall back to calibration.
+
+    Args:
+        config: Acoustic configuration.
+
+    Returns:
+        Per-channel latency in samples. This is added to the CD expectation.
+    """
+    if LATENCY_VECTOR_PATH.exists():
+        latency = np.load(LATENCY_VECTOR_PATH).astype(np.int64)
+        if latency.shape == (NUM_CHANNELS,):
+            return latency
+    return _calibrate_channel_latency(config)
+
+
 def _ic_lif_coincidence(
     dnll_onsets: np.ndarray,
     config: GlobalConfig,
+    latency_samples: np.ndarray,
 ) -> np.ndarray:
     """Compute IC LIF coincidence activation over candidate distances.
 
@@ -319,7 +346,7 @@ def _ic_lif_coincidence(
     Returns:
         IC activation over candidate distance bins.
     """
-    cd_times = _chirp_channel_times(config)
+    cd_times = _chirp_channel_times(config) + latency_samples.astype(np.int64)
     candidate_delays = _candidate_delay_samples(config)
     activation = np.zeros(NUM_DISTANCE_BINS, dtype=np.float64)
     for channel in range(NUM_CHANNELS):
@@ -373,11 +400,11 @@ def _predict_one(config: GlobalConfig, distance_m: float, latency_samples: np.nd
     """Run the full distance pathway for one target distance."""
     receive = _simulate_scene(config, distance_m)
     cochlea = _run_cochlea_binaural(config, receive)
-    vcn_left = _vcn_vnll_onset_detector(cochlea.left_spikes, latency_samples, config)
-    vcn_right = _vcn_vnll_onset_detector(cochlea.right_spikes, latency_samples, config)
+    vcn_left = _vcn_vnll_onset_detector(cochlea.left_cochleagram, config)
+    vcn_right = _vcn_vnll_onset_detector(cochlea.right_cochleagram, config)
     dnll = _dnll_suppression(vcn_left, vcn_right, config)
-    cd = _make_cd_raster(config, receive.shape[-1])
-    ic = _ic_lif_coincidence(dnll, config)
+    cd = _make_cd_raster(config, receive.shape[-1], latency_samples)
+    ic = _ic_lif_coincidence(dnll, config, latency_samples)
     ac = _ac_topographic_map(ic)
     predicted = _sc_center_of_mass(ac)
     return PathwayPrediction(
@@ -396,6 +423,7 @@ def _predict_one(config: GlobalConfig, distance_m: float, latency_samples: np.nd
 def _simulate_ic_membranes_for_plot(
     prediction: PathwayPrediction,
     config: GlobalConfig,
+    latency_samples: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, list[str]]:
     """Simulate a few explicit LIF membrane traces for visual explanation.
 
@@ -421,7 +449,7 @@ def _simulate_ic_membranes_for_plot(
         echo_time = 0
     else:
         echo_time = int(echo_times[0])
-    cd_time = int(_chirp_channel_times(config)[channel])
+    cd_time = int(_chirp_channel_times(config)[channel] + latency_samples[channel])
     candidate_delays = _candidate_delay_samples(config)
     total_time = prediction.dnll_combined.shape[1]
     membranes = np.zeros((len(candidate_indices), total_time), dtype=np.float64)
@@ -448,12 +476,14 @@ def _plot_stage_rasters(prediction: PathwayPrediction, config: GlobalConfig, pat
     """Plot cochlea, VCN/VNLL, DNLL, and CD rasters for one example."""
     centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
     time_ms = np.arange(prediction.cochlea.left_spikes.shape[1]) / config.sample_rate_hz * 1_000.0
-    cochlea_spikes = torch.maximum(
-        prediction.cochlea.left_spikes,
-        prediction.cochlea.right_spikes,
+    cochleagram = torch.maximum(
+        prediction.cochlea.left_cochleagram,
+        prediction.cochlea.right_cochleagram,
     ).detach().cpu().numpy()
+    thresholds = VCN_LIF_THRESHOLD_FRACTION * np.maximum(cochleagram.max(axis=1), 1e-12)
+    cochlea_activity = (cochleagram >= thresholds[:, None]).astype(np.float32)
     stages = [
-        ("Cochlea output spikes", cochlea_spikes),
+        ("Cochleagram activity crossing VCN threshold", cochlea_activity),
         ("VCN/VNLL first-onset code", np.maximum(prediction.vcn_left, prediction.vcn_right)),
         ("DNLL-gated onset code", prediction.dnll_combined),
         ("Corollary-discharge sweep", prediction.cd_raster),
@@ -476,6 +506,7 @@ def _plot_stage_rasters(prediction: PathwayPrediction, config: GlobalConfig, pat
 def _plot_population_progression(
     prediction: PathwayPrediction,
     config: GlobalConfig,
+    latency_samples: np.ndarray,
     path: Path,
 ) -> str:
     """Plot IC, AC, and SC population activity."""
@@ -494,7 +525,7 @@ def _plot_population_progression(
     axes[1].set_ylabel("activation")
     axes[1].legend()
 
-    time_ms, membranes, labels = _simulate_ic_membranes_for_plot(prediction, config)
+    time_ms, membranes, labels = _simulate_ic_membranes_for_plot(prediction, config, latency_samples)
     for trace, label in zip(membranes, labels):
         axes[2].plot(time_ms, trace, linewidth=1.6, label=label)
     axes[2].axhline(IC_LIF_THRESHOLD, color="#dc2626", linestyle="--", label="threshold")
@@ -504,6 +535,49 @@ def _plot_population_progression(
     axes[2].legend()
     for ax in axes:
         ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
+def _plot_mexican_hat_matrix(path: Path) -> str:
+    """Plot the AC Mexican-hat lateral interaction matrix.
+
+    Args:
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    kernel = _mexican_hat_kernel()
+    radius = len(kernel) // 2
+    matrix = np.zeros((NUM_DISTANCE_BINS, NUM_DISTANCE_BINS), dtype=np.float64)
+    for row in range(NUM_DISTANCE_BINS):
+        for offset, weight in enumerate(kernel):
+            col = row + offset - radius
+            if 0 <= col < NUM_DISTANCE_BINS:
+                matrix[row, col] = weight
+
+    distances = _candidate_distances()
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
+    image = axes[0].imshow(
+        matrix,
+        origin="lower",
+        aspect="auto",
+        cmap="coolwarm",
+        extent=[distances.min(), distances.max(), distances.min(), distances.max()],
+    )
+    axes[0].set_xlabel("source distance bin (m)")
+    axes[0].set_ylabel("target distance bin (m)")
+    axes[0].set_title("AC Mexican-hat lateral interaction matrix")
+    fig.colorbar(image, ax=axes[0], label="interaction weight")
+
+    offsets = np.arange(-radius, radius + 1)
+    bin_width_m = distances[1] - distances[0]
+    axes[1].plot(offsets * bin_width_m, kernel, color="#111827", linewidth=2.0)
+    axes[1].axhline(0.0, color="#6b7280", linewidth=1.0)
+    axes[1].set_xlabel("distance offset (m)")
+    axes[1].set_ylabel("weight")
+    axes[1].set_title("Mexican-hat kernel profile")
+    axes[1].grid(True, alpha=0.25)
     return save_figure(fig, path)
 
 
@@ -589,13 +663,15 @@ def _write_report(
         f"| candidate delay range | `{int(candidate_delays.min())} -> {int(candidate_delays.max())} samples` |",
         f"| IC LIF beta | `{IC_LIF_BETA}` |",
         f"| IC LIF threshold | `{IC_LIF_THRESHOLD}` |",
+        f"| VCN LIF beta | `{VCN_LIF_BETA}` |",
+        f"| VCN threshold fraction | `{VCN_LIF_THRESHOLD_FRACTION}` |",
         f"| AC Mexican-hat inhibit gain | `{AC_INHIBIT_GAIN}` |",
         "",
         "## Stage Details",
         "",
         "### 1. Cochlea",
         "",
-        "The cochlea is the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and TorchScript LIF spike encoding.",
+        "The cochlea is the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and TorchScript LIF spike encoding. In this distance-pathway prototype, the VCN/VNLL onset detector reads the rectified cochleagram activity, because the latency experiment showed this gives a more stable onset than the later cochlear spike raster.",
         "",
         "```text",
         "y_c[n] = b0_c*x[n] + 2*r_c*cos(theta_c)*y_c[n-1] - r_c^2*y_c[n-2]",
@@ -605,13 +681,15 @@ def _write_report(
         "",
         "### 2. VCN/VNLL",
         "",
-        "The VCN/VNLL stage is simplified to a first-onset detector with a long refractory period. A fixed channel latency calibration is subtracted so that cochlear filter/LIF latency is approximately converted into a constant-latency onset code.",
+        "The VCN/VNLL stage is simplified to a low-threshold LIF onset detector with a long refractory period. This keeps the model causal: the VCN/VNLL onset is emitted at the observed cochleagram onset, not moved earlier in time.",
         "",
         "```text",
-        "t_vcn,c = first_spike_time_c - latency_calibration_c",
+        "v_c[t] = beta*v_c[t-1] + cochleagram_c[t]",
+        "threshold_c = threshold_fraction*max_t(cochleagram_c[t])",
+        "t_vcn,c = first t where v_c[t] >= threshold_c",
         "```",
         "",
-        f"The calibration uses a reference echo at `{REFERENCE_DISTANCE_M} m`. The estimated latency correction ranges from `{int(latency_samples.min())}` to `{int(latency_samples.max())}` samples.",
+        f"The saved cochlea-latency vector is not subtracted from the VCN spikes. It is applied to the corollary-discharge expectation instead. The latency vector ranges from `{int(latency_samples.min())}` to `{int(latency_samples.max())}` samples.",
         "",
         "### 3. DNLL",
         "",
@@ -625,11 +703,11 @@ def _write_report(
         "",
         "### 4. Corollary Discharge",
         "",
-        "The corollary discharge is an internal ideal sweep. Each channel receives one spike at the expected time that the emitted chirp crosses that channel frequency.",
+        "The corollary discharge is an internal ideal sweep. Each channel receives one spike at the expected time that the emitted chirp crosses that channel frequency, then the saved cochlea/onset latency vector is added to align the CD expectation with causal VCN/VNLL echo onsets.",
         "",
         "```text",
         "f(t) = f_start + (f_end - f_start)*t/T",
-        "t_cd,c = T * (f_c - f_start)/(f_end - f_start)",
+        "t_cd,c = T * (f_c - f_start)/(f_end - f_start) + latency_c",
         "```",
         "",
         "### 5. IC LIF Coincidence Bank",
@@ -652,6 +730,8 @@ def _write_report(
         "K = Gaussian(sigma_exc) - g_inh*Gaussian(sigma_inh)",
         "AC = relu(IC + conv(IC, K))",
         "```",
+        "",
+        "![Mexican hat matrix](../outputs/full_distance_pathway/figures/mexican_hat_matrix.png)",
         "",
         "### 7. SC Readout",
         "",
@@ -695,35 +775,18 @@ def _write_report(
         "",
         "On nominal distance MAE, this new distance-only pathway is better than the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation and is tested under cleaner conditions. The useful conclusion is narrower: the new structured distance pathway works as a distance estimator and is competitive enough to justify developing it further.",
         "",
-        "## Causality Caveat In VCN/VNLL And DNLL Plots",
+        "## Causality Update",
         "",
-        "In the stage raster plot, some VCN/VNLL and DNLL onset spikes appear before the raw cochlea output. That is a modelling issue in the current prototype.",
-        "",
-        "The cause is the latency-calibration step:",
-        "",
-        "```text",
-        "t_vcn,c = first_spike_time_c - latency_calibration_c",
-        "```",
-        "",
-        "This subtracts a fitted per-channel cochlear latency to align the channel onsets into a sharper constant-latency sweep. That is useful as an offline timestamp correction, but it is not a causal online neuron model: a real VCN/VNLL neuron cannot emit a spike before the cochlear spike arrives. The DNLL inherits the same shifted onset timing, so it can also appear early.",
-        "",
-        "The causal fix is to stop moving neural spikes earlier in time. Instead, one of the following should be used:",
-        "",
-        "- delay faster channels so all channels align to the slowest latency;",
-        "- keep the physical output spike time, but attach a corrected timestamp used only inside the IC comparison;",
-        "- shift the corollary-discharge template or delay bank later to compensate for cochlear latency;",
-        "- implement an explicit causal VCN/VNLL circuit where constant latency emerges from delayed inhibition rather than timestamp subtraction.",
-        "",
-        "So this first prototype should be interpreted as a calibrated timing-map proof of concept, not yet as a fully causal VCN/VNLL/DNLL implementation.",
+        "The previous prototype subtracted the latency vector from echo onsets, which could make VCN/VNLL and DNLL spikes appear before the cochlea output. This version fixes that: VCN/VNLL and DNLL stay causal, and the latency vector is added to the corollary-discharge expectation inside the CD/IC comparison.",
         "",
         "## Interpretation",
         "",
         "- The model now has the intended high-level biological pathway structure rather than just a standalone coincidence detector.",
-        "- The VCN/VNLL stage is deliberately simplified; robust biological onset coding is difficult to tune, and here it is represented by first-spike extraction plus latency calibration.",
+        "- The VCN/VNLL stage is deliberately simplified; robust biological onset coding is difficult to tune, and here it is represented by a causal low-threshold refractory-LIF onset detector.",
         "- The IC stage is still a simplified LIF coincidence model. It uses the closed-form two-spike LIF peak rather than time-stepping every IC neuron for every sample.",
         "- The AC and SC stages give a smooth population readout, which is useful for sub-bin distance estimates.",
         "- The next optimisation step is to replace dense cochlear rasters with coordinate events so the chosen coordinate accumulator can be used downstream.",
-        "- Despite the causality caveat, this should be counted as a successful first full-distance-pathway prototype: the full chain from cochlea to SC readout produces a structured distance population and low clean distance error.",
+        "- This should be counted as a successful first full-distance-pathway prototype: the full chain from cochlea to SC readout produces a structured distance population and low clean distance error while preserving causal onset timing.",
         "",
         "## Generated Files",
         "",
@@ -744,7 +807,7 @@ def main() -> dict[str, object]:
     np.random.seed(RNG_SEED)
 
     config = _make_config()
-    latency_samples = _calibrate_channel_latency(config)
+    latency_samples = _load_channel_latency(config)
     rng = np.random.default_rng(RNG_SEED)
     distances = rng.uniform(MIN_DISTANCE_M, MAX_DISTANCE_M, size=NUM_TEST_SAMPLES)
     predictions = [_predict_one(config, float(distance), latency_samples) for distance in distances]
@@ -753,7 +816,13 @@ def main() -> dict[str, object]:
 
     artifacts = {
         "stage_rasters": _plot_stage_rasters(example, config, FIGURE_DIR / "stage_rasters.png"),
-        "population_progression": _plot_population_progression(example, config, FIGURE_DIR / "population_progression.png"),
+        "population_progression": _plot_population_progression(
+            example,
+            config,
+            latency_samples,
+            FIGURE_DIR / "population_progression.png",
+        ),
+        "mexican_hat_matrix": _plot_mexican_hat_matrix(FIGURE_DIR / "mexican_hat_matrix.png"),
         "accuracy": _plot_accuracy(predictions, FIGURE_DIR / "accuracy.png"),
     }
     elapsed_s = time.perf_counter() - start
@@ -772,8 +841,11 @@ def main() -> dict[str, object]:
             "distance_bins": NUM_DISTANCE_BINS,
             "ic_lif_beta": IC_LIF_BETA,
             "ic_lif_threshold": IC_LIF_THRESHOLD,
+            "vcn_lif_beta": VCN_LIF_BETA,
+            "vcn_lif_threshold_fraction": VCN_LIF_THRESHOLD_FRACTION,
             "ac_inhibit_gain": AC_INHIBIT_GAIN,
         },
+        "latency_vector_path": str(LATENCY_VECTOR_PATH),
         "latency_samples": latency_samples.tolist(),
         "metrics": metric_values,
         "example": {

@@ -33,13 +33,15 @@ The lower cochlear and onset stages are explicitly bilateral. The IC/AC/SC map i
 | candidate delay range | `93 -> 1866 samples` |
 | IC LIF beta | `0.992` |
 | IC LIF threshold | `1.45` |
+| VCN LIF beta | `0.92` |
+| VCN threshold fraction | `0.03` |
 | AC Mexican-hat inhibit gain | `0.58` |
 
 ## Stage Details
 
 ### 1. Cochlea
 
-The cochlea is the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and TorchScript LIF spike encoding.
+The cochlea is the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and TorchScript LIF spike encoding. In this distance-pathway prototype, the VCN/VNLL onset detector reads the rectified cochleagram activity, because the latency experiment showed this gives a more stable onset than the later cochlear spike raster.
 
 ```text
 y_c[n] = b0_c*x[n] + 2*r_c*cos(theta_c)*y_c[n-1] - r_c^2*y_c[n-2]
@@ -49,13 +51,15 @@ spike_c[n] = 1 if v_c[n] >= threshold
 
 ### 2. VCN/VNLL
 
-The VCN/VNLL stage is simplified to a first-onset detector with a long refractory period. A fixed channel latency calibration is subtracted so that cochlear filter/LIF latency is approximately converted into a constant-latency onset code.
+The VCN/VNLL stage is simplified to a low-threshold LIF onset detector with a long refractory period. This keeps the model causal: the VCN/VNLL onset is emitted at the observed cochleagram onset, not moved earlier in time.
 
 ```text
-t_vcn,c = first_spike_time_c - latency_calibration_c
+v_c[t] = beta*v_c[t-1] + cochleagram_c[t]
+threshold_c = threshold_fraction*max_t(cochleagram_c[t])
+t_vcn,c = first t where v_c[t] >= threshold_c
 ```
 
-The calibration uses a reference echo at `2.5 m`. The estimated latency correction ranges from `-139` to `15` samples.
+The saved cochlea-latency vector is not subtracted from the VCN spikes. It is applied to the corollary-discharge expectation instead. The latency vector ranges from `-176` to `8` samples.
 
 ### 3. DNLL
 
@@ -69,11 +73,11 @@ This blocks late secondary echoes in the simplest case. It would need to be rela
 
 ### 4. Corollary Discharge
 
-The corollary discharge is an internal ideal sweep. Each channel receives one spike at the expected time that the emitted chirp crosses that channel frequency.
+The corollary discharge is an internal ideal sweep. Each channel receives one spike at the expected time that the emitted chirp crosses that channel frequency, then the saved cochlea/onset latency vector is added to align the CD expectation with causal VCN/VNLL echo onsets.
 
 ```text
 f(t) = f_start + (f_end - f_start)*t/T
-t_cd,c = T * (f_c - f_start)/(f_end - f_start)
+t_cd,c = T * (f_c - f_start)/(f_end - f_start) + latency_c
 ```
 
 ### 5. IC LIF Coincidence Bank
@@ -96,6 +100,8 @@ The AC organises the IC population into a sharper distance map using a static Me
 K = Gaussian(sigma_exc) - g_inh*Gaussian(sigma_inh)
 AC = relu(IC + conv(IC, K))
 ```
+
+![Mexican hat matrix](../outputs/full_distance_pathway/figures/mexican_hat_matrix.png)
 
 ### 7. SC Readout
 
@@ -121,10 +127,10 @@ The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m
 
 | Metric | Value |
 |---|---:|
-| MAE | `2.767 cm` |
-| RMSE | `3.150 cm` |
-| max abs error | `5.285 cm` |
-| bias | `0.170 cm` |
+| MAE | `0.317 cm` |
+| RMSE | `0.934 cm` |
+| max abs error | `6.119 cm` |
+| bias | `-0.133 cm` |
 
 ## Comparison To Previous Full Models
 
@@ -135,45 +141,29 @@ The table below compares the distance error here against the old trained multi-o
 | Round 4 combined model | full distance + azimuth + elevation | `7.86 cm` |
 | Round 3 `2B + 3` | full distance + azimuth + elevation | `6.46 cm` |
 | Round 5 trained-once fixed ridge decoder | full distance + azimuth + elevation with fixed tuned decoder | `4.38 cm` |
-| Full distance pathway prototype | clean distance-only pathway, `0.25 -> 5.0 m` | `2.77 cm` |
+| Full distance pathway prototype | clean distance-only pathway, `0.25 -> 5.0 m` | `0.32 cm` |
 
 On nominal distance MAE, this new distance-only pathway is better than the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation and is tested under cleaner conditions. The useful conclusion is narrower: the new structured distance pathway works as a distance estimator and is competitive enough to justify developing it further.
 
-## Causality Caveat In VCN/VNLL And DNLL Plots
+## Causality Update
 
-In the stage raster plot, some VCN/VNLL and DNLL onset spikes appear before the raw cochlea output. That is a modelling issue in the current prototype.
-
-The cause is the latency-calibration step:
-
-```text
-t_vcn,c = first_spike_time_c - latency_calibration_c
-```
-
-This subtracts a fitted per-channel cochlear latency to align the channel onsets into a sharper constant-latency sweep. That is useful as an offline timestamp correction, but it is not a causal online neuron model: a real VCN/VNLL neuron cannot emit a spike before the cochlear spike arrives. The DNLL inherits the same shifted onset timing, so it can also appear early.
-
-The causal fix is to stop moving neural spikes earlier in time. Instead, one of the following should be used:
-
-- delay faster channels so all channels align to the slowest latency;
-- keep the physical output spike time, but attach a corrected timestamp used only inside the IC comparison;
-- shift the corollary-discharge template or delay bank later to compensate for cochlear latency;
-- implement an explicit causal VCN/VNLL circuit where constant latency emerges from delayed inhibition rather than timestamp subtraction.
-
-So this first prototype should be interpreted as a calibrated timing-map proof of concept, not yet as a fully causal VCN/VNLL/DNLL implementation.
+The previous prototype subtracted the latency vector from echo onsets, which could make VCN/VNLL and DNLL spikes appear before the cochlea output. This version fixes that: VCN/VNLL and DNLL stay causal, and the latency vector is added to the corollary-discharge expectation inside the CD/IC comparison.
 
 ## Interpretation
 
 - The model now has the intended high-level biological pathway structure rather than just a standalone coincidence detector.
-- The VCN/VNLL stage is deliberately simplified; robust biological onset coding is difficult to tune, and here it is represented by first-spike extraction plus latency calibration.
+- The VCN/VNLL stage is deliberately simplified; robust biological onset coding is difficult to tune, and here it is represented by a causal low-threshold refractory-LIF onset detector.
 - The IC stage is still a simplified LIF coincidence model. It uses the closed-form two-spike LIF peak rather than time-stepping every IC neuron for every sample.
 - The AC and SC stages give a smooth population readout, which is useful for sub-bin distance estimates.
 - The next optimisation step is to replace dense cochlear rasters with coordinate events so the chosen coordinate accumulator can be used downstream.
-- Despite the causality caveat, this should be counted as a successful first full-distance-pathway prototype: the full chain from cochlea to SC readout produces a structured distance population and low clean distance error.
+- This should be counted as a successful first full-distance-pathway prototype: the full chain from cochlea to SC readout produces a structured distance population and low clean distance error while preserving causal onset timing.
 
 ## Generated Files
 
 - `stage_rasters`: `distance_pathway/outputs/full_distance_pathway/figures/stage_rasters.png`
 - `population_progression`: `distance_pathway/outputs/full_distance_pathway/figures/population_progression.png`
+- `mexican_hat_matrix`: `distance_pathway/outputs/full_distance_pathway/figures/mexican_hat_matrix.png`
 - `accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/accuracy.png`
 - `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
 
-Runtime: `1.39 s`.
+Runtime: `2.75 s`.
