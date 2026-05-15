@@ -71,4 +71,4 @@ The detector can be implemented as a LIF neuron: one input arrives from the dela
 - `detector_time_examples`: `distance_pathway/outputs/simple_coincidence_model/figures/detector_time_examples.png`
 - `delay_bank_response`: `distance_pathway/outputs/simple_coincidence_model/figures/delay_bank_response.png`
 
-Runtime for full script: `24.18 s`.
+Runtime for full script: `55.08 s`.

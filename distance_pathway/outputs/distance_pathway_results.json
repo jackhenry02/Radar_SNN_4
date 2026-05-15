@@ -1,6 +1,6 @@
 {
   "experiment": "distance_pathway_analysis",
-  "elapsed_seconds": 24.17754462501034,
+  "elapsed_seconds": 55.076298458036035,
   "config": {
     "sample_rate_hz": 64000,
     "speed_of_sound_m_s": 343.0,
@@ -16,6 +16,8 @@
     "spike_noise_max_amplitude": 1.1,
     "sweep_channels": 32,
     "sweep_duration_s": 0.003,
+    "sustained_channels": 12,
+    "sustained_repeats": 8,
     "rng_seed": 11
   },
   "waveform_results_by_condition": {
@@ -26,7 +28,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 1.7424371326342225,
+        "runtime_ms": 1.78177107591182,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -36,7 +38,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 1.9392709946259856,
+        "runtime_ms": 2.0009579602628946,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -46,7 +48,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 0.9417495457455516,
+        "runtime_ms": 0.9364585857838392,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -58,7 +60,7 @@
         "rmse_m": 1.0354958049735992,
         "p95_abs_error_m": 2.6711341843739698,
         "max_abs_error_m": 4.50407436586554,
-        "runtime_ms": 1.7632505623623729,
+        "runtime_ms": 1.7232290701940656,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -68,7 +70,7 @@
         "rmse_m": 1.4953628396656922,
         "p95_abs_error_m": 3.3009906976090866,
         "max_abs_error_m": 4.50407436586554,
-        "runtime_ms": 2.051020972430706,
+        "runtime_ms": 1.8658546032384038,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -78,7 +80,7 @@
         "rmse_m": 1.556493769883864,
         "p95_abs_error_m": 3.3914682293782077,
         "max_abs_error_m": 4.640192808062579,
-        "runtime_ms": 0.9308124426752329,
+        "runtime_ms": 0.9566040243953466,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -90,7 +92,7 @@
         "rmse_m": 0.010620649101733628,
         "p95_abs_error_m": 0.019333974727396692,
         "max_abs_error_m": 0.031022866132511595,
-        "runtime_ms": 1.7238749423995614,
+        "runtime_ms": 1.8086255295202136,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -100,7 +102,7 @@
         "rmse_m": 0.010620649101733628,
         "p95_abs_error_m": 0.019333974727396692,
         "max_abs_error_m": 0.031022866132511595,
-        "runtime_ms": 1.9353958778083324,
+        "runtime_ms": 2.0602289587259293,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -110,7 +112,7 @@
         "rmse_m": 0.010620649101733628,
         "p95_abs_error_m": 0.019333974727396692,
         "max_abs_error_m": 0.031022866132511595,
-        "runtime_ms": 0.8772710571065545,
+        "runtime_ms": 0.9781669359654188,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -122,7 +124,7 @@
         "rmse_m": 1.0538709574243073,
         "p95_abs_error_m": 2.7615818524201323,
         "max_abs_error_m": 4.596483481481408,
-        "runtime_ms": 1.759853446856141,
+        "runtime_ms": 1.8581455806270242,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -132,7 +134,7 @@
         "rmse_m": 1.4593241139023332,
         "p95_abs_error_m": 3.2743729177724226,
         "max_abs_error_m": 4.596483481481408,
-        "runtime_ms": 2.0107285818085074,
+        "runtime_ms": 2.0430005388334394,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -142,7 +144,7 @@
         "rmse_m": 1.5351340701801253,
         "p95_abs_error_m": 3.3626636782985924,
         "max_abs_error_m": 4.596483481481408,
-        "runtime_ms": 0.8666249923408031,
+        "runtime_ms": 0.9929999941959977,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -156,7 +158,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 1.1027705622836947,
+        "runtime_ms": 1.1109585175290704,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -166,7 +168,7 @@
         "rmse_m": 0.030580394273659425,
         "p95_abs_error_m": 0.04975595397165306,
         "max_abs_error_m": 0.05133344547605034,
-        "runtime_ms": 1.295958529226482,
+        "runtime_ms": 1.2637708568945527,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -176,7 +178,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 0.5188749637454748,
+        "runtime_ms": 0.49435405526310205,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -188,7 +190,7 @@
         "rmse_m": 1.1187554502188115,
         "p95_abs_error_m": 2.85502650365355,
         "max_abs_error_m": 4.680540842682302,
-        "runtime_ms": 5.24127040989697,
+        "runtime_ms": 5.406666663475335,
         "flops": 5120000.0,
         "sops": 1280000.0
       },
@@ -198,7 +200,7 @@
         "rmse_m": 1.227277847940528,
         "p95_abs_error_m": 3.0356437729011922,
         "max_abs_error_m": 4.680540842682302,
-        "runtime_ms": 8.298187516629696,
+        "runtime_ms": 8.171999943442643,
         "flops": 8960000.0,
         "sops": 1280000.0
       },
@@ -208,7 +210,7 @@
         "rmse_m": 1.4994559561213325,
         "p95_abs_error_m": 3.3588209933226945,
         "max_abs_error_m": 4.5209503794635495,
-        "runtime_ms": 2.1043960005044937,
+        "runtime_ms": 2.7774375630542636,
         "flops": 640000.0,
         "sops": 640000
       }
@@ -220,7 +222,7 @@
         "rmse_m": 0.010960759649096747,
         "p95_abs_error_m": 0.020024141739020628,
         "max_abs_error_m": 0.03061322087361451,
-        "runtime_ms": 1.0339375585317612,
+        "runtime_ms": 1.1138125555589795,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -230,7 +232,7 @@
         "rmse_m": 0.03026450601422723,
         "p95_abs_error_m": 0.05430645051792515,
         "max_abs_error_m": 0.06603918935524034,
-        "runtime_ms": 1.2897084234282374,
+        "runtime_ms": 1.276229158975184,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -240,7 +242,7 @@
         "rmse_m": 0.010960759649096747,
         "p95_abs_error_m": 0.020024141739020628,
         "max_abs_error_m": 0.03061322087361451,
-        "runtime_ms": 0.5865413695573807,
+        "runtime_ms": 0.606479006819427,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -252,7 +254,7 @@
         "rmse_m": 1.1015175408198574,
         "p95_abs_error_m": 2.9475514581789164,
         "max_abs_error_m": 4.665648550448276,
-        "runtime_ms": 5.439478904008865,
+        "runtime_ms": 5.439625005237758,
         "flops": 5120000.0,
         "sops": 1280000.0
       },
@@ -262,7 +264,7 @@
         "rmse_m": 1.1779511932520823,
         "p95_abs_error_m": 2.9979368088355334,
         "max_abs_error_m": 4.482249240744099,
-        "runtime_ms": 7.371999905444682,
+        "runtime_ms": 7.670062477700412,
         "flops": 8960000.0,
         "sops": 1280000.0
       },
@@ -272,7 +274,7 @@
         "rmse_m": 1.521077972725887,
         "p95_abs_error_m": 3.4622050700549813,
         "max_abs_error_m": 4.665648550448276,
-        "runtime_ms": 2.0052295876666903,
+        "runtime_ms": 2.201145514845848,
         "flops": 640000.0,
         "sops": 640000
       }
@@ -286,7 +288,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 45.87575001642108,
+        "runtime_ms": 45.92697892803699,
         "flops": 40960000.0,
         "sops": 10240000.0
       },
@@ -296,7 +298,7 @@
         "rmse_m": 0.030580394273659425,
         "p95_abs_error_m": 0.04975595397165306,
         "max_abs_error_m": 0.05133344547605034,
-        "runtime_ms": 65.69170858711004,
+        "runtime_ms": 66.35089556220919,
         "flops": 71680000.0,
         "sops": 10240000.0
       },
@@ -306,7 +308,7 @@
         "rmse_m": 0.009170133940107258,
         "p95_abs_error_m": 0.015987458729120496,
         "max_abs_error_m": 0.01809727294155028,
-        "runtime_ms": 16.07324997894466,
+        "runtime_ms": 16.165187465958297,
         "flops": 5120000.0,
         "sops": 5120000
       }
@@ -318,7 +320,7 @@
         "rmse_m": 0.008856368509420608,
         "p95_abs_error_m": 0.014429830524680942,
         "max_abs_error_m": 0.016041181896430445,
-        "runtime_ms": 198.0723749147728,
+        "runtime_ms": 200.9811250027269,
         "flops": 163840000.0,
         "sops": 40960000.0
       },
@@ -328,7 +330,7 @@
         "rmse_m": 0.030585671892590215,
         "p95_abs_error_m": 0.04975595397165306,
         "max_abs_error_m": 0.05133344547605034,
-        "runtime_ms": 295.944249490276,
+        "runtime_ms": 300.7660210132599,
         "flops": 286720000.0,
         "sops": 40960000.0
       },
@@ -338,7 +340,7 @@
         "rmse_m": 0.009170133940107258,
         "p95_abs_error_m": 0.015987458729120496,
         "max_abs_error_m": 0.01809727294155028,
-        "runtime_ms": 56.926312507130206,
+        "runtime_ms": 55.67302042618394,
         "flops": 20480000.0,
         "sops": 20480000
       }
@@ -350,7 +352,7 @@
         "rmse_m": 0.010876088076628357,
         "p95_abs_error_m": 0.019626935589924285,
         "max_abs_error_m": 0.03145338182108537,
-        "runtime_ms": 45.537291560322046,
+        "runtime_ms": 45.57091696187854,
         "flops": 40960000.0,
         "sops": 10240000.0
       },
@@ -360,7 +362,7 @@
         "rmse_m": 0.029202497851322336,
         "p95_abs_error_m": 0.05384357602415457,
         "max_abs_error_m": 0.06412560205415008,
-        "runtime_ms": 66.28295802511275,
+        "runtime_ms": 66.76193757448345,
         "flops": 71680000.0,
         "sops": 10240000.0
       },
@@ -370,7 +372,7 @@
         "rmse_m": 0.010985202848356324,
         "p95_abs_error_m": 0.019780913496950246,
         "max_abs_error_m": 0.03145338182108537,
-        "runtime_ms": 16.80260361172259,
+        "runtime_ms": 16.132728895172477,
         "flops": 5120000.0,
         "sops": 5120000
       }
@@ -382,7 +384,7 @@
         "rmse_m": 0.010797519221528776,
         "p95_abs_error_m": 0.01980560825605159,
         "max_abs_error_m": 0.02915927628152959,
-        "runtime_ms": 204.33293760288507,
+        "runtime_ms": 194.63408342562616,
         "flops": 163840000.0,
         "sops": 40960000.0
       },
@@ -392,7 +394,7 @@
         "rmse_m": 0.03091102619183232,
         "p95_abs_error_m": 0.054482242165557984,
         "max_abs_error_m": 0.06412560205415008,
-        "runtime_ms": 303.5125203896314,
+        "runtime_ms": 297.91245807427913,
         "flops": 286720000.0,
         "sops": 40960000.0
       },
@@ -402,12 +404,44 @@
         "rmse_m": 0.01089694631880767,
         "p95_abs_error_m": 0.019884085819096016,
         "max_abs_error_m": 0.02915927628152959,
-        "runtime_ms": 56.95774941705167,
+        "runtime_ms": 56.493167066946626,
         "flops": 20480000.0,
         "sops": 20480000
       }
     ]
   },
+  "sustained_pitch_results": [
+    {
+      "name": "LIF detector",
+      "mae_m": 0.0076618356120246416,
+      "rmse_m": 0.008851508766404071,
+      "p95_abs_error_m": 0.01442687451620842,
+      "max_abs_error_m": 0.01611451955865184,
+      "runtime_ms": 906.7092500627041,
+      "flops": 983040000.0,
+      "sops": 245760000.0
+    },
+    {
+      "name": "RF detector",
+      "mae_m": 0.05805397004482141,
+      "rmse_m": 0.07442691719399921,
+      "p95_abs_error_m": 0.13812485066060146,
+      "max_abs_error_m": 0.1410562465450509,
+      "runtime_ms": 1331.335020950064,
+      "flops": 1720320000.0,
+      "sops": 245760000.0
+    },
+    {
+      "name": "Binary detector",
+      "mae_m": 0.008078595485956318,
+      "rmse_m": 0.009528881415676585,
+      "p95_abs_error_m": 0.01671577056988913,
+      "max_abs_error_m": 0.018247688525915517,
+      "runtime_ms": 302.0390005549416,
+      "flops": 122880000.0,
+      "sops": 122880000
+    }
+  ],
   "artifacts": {
     "pulse_timeline": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/simple_coincidence_model/figures/pulse_timeline.png",
     "coincidence_animation": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/simple_coincidence_model/figures/coincidence_detection.gif",
@@ -425,6 +459,9 @@
     "sweep_condition_mae": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sweep_condition_mae.png",
     "sweep_accuracy_scatter_noise_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sweep_accuracy_scatter_noise_jitter.png",
     "sweep_error_histogram_noise_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sweep_error_histogram_noise_jitter.png",
-    "sweep_cost_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sweep_cost_comparison.png"
+    "sweep_cost_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sweep_cost_comparison.png",
+    "sustained_pitch_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sustained_pitch_raster.png",
+    "sustained_pitch_response": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sustained_pitch_response.png",
+    "sustained_pitch_accuracy_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/sustained_pitch_accuracy_scatter.png"
   }
 }

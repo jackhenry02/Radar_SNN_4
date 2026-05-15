@@ -48,6 +48,8 @@ SPIKE_NOISE_MIN_AMPLITUDE = 0.25
 SPIKE_NOISE_MAX_AMPLITUDE = 1.10
 SWEEP_CHANNELS = 32
 SWEEP_DURATION_S = 0.003
+SUSTAINED_CHANNELS = 12
+SUSTAINED_REPEATS = 8
 RNG_SEED = 11
 
 BASE_OUTPUT_DIR = ROOT / "distance_pathway" / "outputs"
@@ -153,6 +155,28 @@ class SweepSpikeDataset:
     num_time_steps: int
     has_noise: bool
     has_jitter: bool
+
+
+@dataclass
+class SustainedPitchDataset:
+    """Synthetic sustained-pitch spike-input dataset.
+
+    Attributes:
+        true_distance_m: True target distances in metres.
+        candidate_distance_m: Distances represented by delay lines.
+        candidate_delay_samples: Delay-line delays in samples.
+        periods_samples: Per-channel spike periods in samples.
+        offset_pairs_samples: Pairwise echo/corollary cycle offsets for each
+            channel, shape `[channels, repeat_pairs]`.
+        num_time_steps: Length of the synthetic timeline.
+    """
+
+    true_distance_m: np.ndarray
+    candidate_distance_m: np.ndarray
+    candidate_delay_samples: np.ndarray
+    periods_samples: np.ndarray
+    offset_pairs_samples: np.ndarray
+    num_time_steps: int
 
 
 @dataclass
@@ -419,6 +443,39 @@ def _all_sweep_spike_datasets() -> list[SweepSpikeDataset]:
         _make_sweep_spike_dataset("Added jitter", has_noise=False, has_jitter=True, seed_offset=1000),
         _make_sweep_spike_dataset("Noise + jitter", has_noise=True, has_jitter=True, seed_offset=1100),
     ]
+
+
+def _make_sustained_pitch_dataset() -> SustainedPitchDataset:
+    """Create a clean sustained-pitch spike-train dataset.
+
+    Returns:
+        Dataset containing repeated pitch spike trains for multiple channels.
+    """
+    true_distance_m = _base_distances()
+    candidate_distance_m = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_DELAY_LINES)
+    candidate_delay_samples = np.rint(
+        (2.0 * candidate_distance_m / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ
+    ).astype(np.int64)
+    # Shorter periods correspond to higher pitch/frequency channels.
+    periods_samples = np.rint(np.linspace(4, 28, SUSTAINED_CHANNELS)).astype(np.int64)
+    repeat_indices = np.arange(SUSTAINED_REPEATS)
+    offset_pairs = []
+    for period in periods_samples:
+        corollary_times = repeat_indices * period
+        echo_times = repeat_indices * period
+        offset_pairs.append((echo_times[:, None] - corollary_times[None, :]).reshape(-1))
+    offset_pairs_samples = np.stack(offset_pairs, axis=0)
+    max_delay = int(candidate_delay_samples.max())
+    max_period_span = int(periods_samples.max() * (SUSTAINED_REPEATS - 1))
+    num_time_steps = TX_INDEX + max_delay + max_period_span + 80
+    return SustainedPitchDataset(
+        true_distance_m=true_distance_m,
+        candidate_distance_m=candidate_distance_m,
+        candidate_delay_samples=candidate_delay_samples,
+        periods_samples=periods_samples,
+        offset_pairs_samples=offset_pairs_samples,
+        num_time_steps=num_time_steps,
+    )
 
 
 def _candidate_waveform_amplitudes(dataset: Dataset) -> np.ndarray:
@@ -706,6 +763,98 @@ def _score_sweep_detector(
     )
 
 
+def _true_delay_samples_from_distance(distance_m: np.ndarray) -> np.ndarray:
+    """Convert distance to round-trip delay samples."""
+    return np.rint((2.0 * distance_m / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ).astype(np.int64)
+
+
+def _predict_sustained_lif(dataset: SustainedPitchDataset) -> np.ndarray:
+    """Predict distance from sustained pitch trains using LIF-like scores."""
+    true_delay = _true_delay_samples_from_distance(dataset.true_distance_m)
+    scores = np.zeros((dataset.true_distance_m.size, dataset.candidate_distance_m.size), dtype=np.float64)
+    beta = 0.982
+    for channel_offsets in dataset.offset_pairs_samples:
+        relative_delays = true_delay[:, None] + channel_offsets[None, :]
+        error = np.abs(relative_delays[:, :, None] - dataset.candidate_delay_samples[None, None, :])
+        scores += np.power(beta, error).sum(axis=1) / SUSTAINED_REPEATS
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _predict_sustained_rf(dataset: SustainedPitchDataset) -> np.ndarray:
+    """Predict distance from sustained pitch trains using RF-like scores."""
+    true_delay = _true_delay_samples_from_distance(dataset.true_distance_m)
+    scores = np.zeros((dataset.true_distance_m.size, dataset.candidate_distance_m.size), dtype=np.float64)
+    tau_samples = 18.0
+    for period, channel_offsets in zip(dataset.periods_samples, dataset.offset_pairs_samples):
+        relative_delays = true_delay[:, None] + channel_offsets[None, :]
+        error = np.abs(relative_delays[:, :, None] - dataset.candidate_delay_samples[None, None, :])
+        omega = 2.0 * np.pi / period
+        afterpotential = np.exp(-error / tau_samples) * np.cos(omega * error)
+        scores += afterpotential.sum(axis=1) / SUSTAINED_REPEATS
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _predict_sustained_binary(dataset: SustainedPitchDataset) -> np.ndarray:
+    """Predict distance from sustained pitch trains using binary coincidences."""
+    true_delay = _true_delay_samples_from_distance(dataset.true_distance_m)
+    scores = np.zeros((dataset.true_distance_m.size, dataset.candidate_distance_m.size), dtype=np.float64)
+    tolerance_samples = int(np.ceil(np.median(np.diff(dataset.candidate_delay_samples)) / 2.0))
+    for channel_offsets in dataset.offset_pairs_samples:
+        relative_delays = true_delay[:, None] + channel_offsets[None, :]
+        error = np.abs(relative_delays[:, :, None] - dataset.candidate_delay_samples[None, None, :])
+        scores += (error <= tolerance_samples).sum(axis=1) / SUSTAINED_REPEATS
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _score_sustained_detector(
+    name: str,
+    dataset: SustainedPitchDataset,
+    predictor: Callable[[SustainedPitchDataset], np.ndarray],
+) -> DetectorResult:
+    """Benchmark and score one sustained-pitch detector.
+
+    Args:
+        name: Detector name.
+        dataset: Sustained-pitch dataset.
+        predictor: Prediction function.
+
+    Returns:
+        Detector result summary.
+    """
+    runtime_s = _median_runtime_s(lambda: predictor(dataset), repeats=10)
+    predicted = predictor(dataset)
+    error = predicted - dataset.true_distance_m
+    abs_error = np.abs(error)
+    operations = (
+        dataset.true_distance_m.size
+        * dataset.candidate_distance_m.size
+        * dataset.periods_samples.size
+        * SUSTAINED_REPEATS
+        * SUSTAINED_REPEATS
+    )
+    if name.startswith("LIF"):
+        flops = operations * 8.0
+        sops = operations * 2.0
+    elif name.startswith("RF"):
+        flops = operations * 14.0
+        sops = operations * 2.0
+    else:
+        flops = operations * 1.0
+        sops = operations
+    return DetectorResult(
+        condition="Clean sustained pitches",
+        name=name,
+        predicted_distance_m=predicted,
+        mae_m=float(abs_error.mean()),
+        rmse_m=float(np.sqrt(np.mean(error**2))),
+        p95_abs_error_m=float(np.percentile(abs_error, 95.0)),
+        max_abs_error_m=float(abs_error.max()),
+        runtime_ms=runtime_s * 1_000.0,
+        flops=flops,
+        sops=sops,
+    )
+
+
 def _render_frame(fig: plt.Figure) -> Image.Image:
     """Render a matplotlib figure into a PIL image."""
     fig.canvas.draw()
@@ -945,32 +1094,103 @@ def _plot_sweep_raster(path: Path) -> str:
 
     fig, axes = plt.subplots(2, 1, figsize=(12, 7.5), sharex=True)
     for channel, frequency_khz in enumerate(frequencies_khz):
-        axes[0].vlines(corollary_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#2563eb")
-        axes[0].vlines(true_echo_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#dc2626")
-        axes[0].text(
-            time_ms[min(example.num_time_steps - 1, TX_INDEX + example.channel_offsets_samples[-1] + 25)],
-            channel + 0.25,
-            f"{frequency_khz:.1f} kHz" if channel % 6 == 0 else "",
-            fontsize=7,
-            color="#475569",
-        )
+        axes[0].vlines(corollary_times[channel] / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.18, frequency_khz + 0.18, color="#2563eb")
+        axes[0].vlines(true_echo_times[channel] / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.18, frequency_khz + 0.18, color="#dc2626")
     axes[0].set_title(f"Clean FM-sweep spike raster plus echo shift, target={true_distance:.2f} m")
-    axes[0].set_ylabel("frequency channel")
-    axes[0].set_ylim(0, SWEEP_CHANNELS)
+    axes[0].set_ylabel("frequency (kHz)")
+    axes[0].set_ylim(1.0, 19.0)
     axes[0].legend(["corollary discharge", "echo"], loc="upper right")
 
     for channel in range(SWEEP_CHANNELS):
-        axes[1].vlines(corollary_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#2563eb")
-        axes[1].vlines(true_echo_times[channel] / SAMPLE_RATE_HZ * 1_000.0, channel + 0.1, channel + 0.9, color="#dc2626")
+        frequency_khz = frequencies_khz[channel]
+        axes[1].vlines(corollary_times[channel] / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.18, frequency_khz + 0.18, color="#2563eb")
+        axes[1].vlines(true_echo_times[channel] / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.18, frequency_khz + 0.18, color="#dc2626")
         for false_time in false_times[channel]:
-            axes[1].vlines(false_time / SAMPLE_RATE_HZ * 1_000.0, channel + 0.2, channel + 0.8, color="#f97316", alpha=0.65)
+            axes[1].vlines(false_time / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.16, frequency_khz + 0.16, color="#f97316", alpha=0.65)
     axes[1].set_title("Same raster with false spikes used for noisy spiking conditions")
     axes[1].set_xlabel("time (ms)")
-    axes[1].set_ylabel("frequency channel")
-    axes[1].set_ylim(0, SWEEP_CHANNELS)
+    axes[1].set_ylabel("frequency (kHz)")
+    axes[1].set_ylim(1.0, 19.0)
     axes[1].set_xlim(0.0, min(time_ms[-1], 35.0))
     for ax in axes:
         ax.grid(True, axis="x", alpha=0.2)
+    return save_figure(fig, path)
+
+
+def _plot_sustained_pitch_raster(dataset: SustainedPitchDataset, path: Path) -> str:
+    """Plot a sustained-pitch corollary/echo raster.
+
+    Args:
+        dataset: Sustained pitch dataset.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    sample_index = 0
+    true_distance = dataset.true_distance_m[sample_index]
+    true_delay = _true_delay_samples_from_distance(np.array([true_distance]))[0]
+    repeat_indices = np.arange(SUSTAINED_REPEATS)
+    frequencies_khz = SAMPLE_RATE_HZ / dataset.periods_samples / 1_000.0
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+    for channel, period in enumerate(dataset.periods_samples):
+        frequency_khz = frequencies_khz[channel]
+        corollary_times = TX_INDEX + repeat_indices * period
+        echo_times = corollary_times + true_delay
+        ax.vlines(corollary_times / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.18, frequency_khz + 0.18, color="#2563eb")
+        ax.vlines(echo_times / SAMPLE_RATE_HZ * 1_000.0, frequency_khz - 0.18, frequency_khz + 0.18, color="#dc2626")
+    ax.set_title(f"Sustained-pitch spike raster, target={true_distance:.2f} m")
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("frequency (kHz)")
+    ax.set_ylim(1.5, frequencies_khz.max() + 1.0)
+    ax.set_xlim(0.0, 24.0)
+    ax.grid(True, axis="x", alpha=0.25)
+    ax.legend(["corollary discharge", "echo"], loc="upper right")
+    return save_figure(fig, path)
+
+
+def _plot_sustained_response(dataset: SustainedPitchDataset, path: Path) -> str:
+    """Plot sustained-pitch detector responses for one example target.
+
+    Args:
+        dataset: Sustained pitch dataset.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    example_distance = np.array([2.7])
+    example = SustainedPitchDataset(
+        true_distance_m=example_distance,
+        candidate_distance_m=dataset.candidate_distance_m,
+        candidate_delay_samples=dataset.candidate_delay_samples,
+        periods_samples=dataset.periods_samples,
+        offset_pairs_samples=dataset.offset_pairs_samples,
+        num_time_steps=dataset.num_time_steps,
+    )
+    true_delay = _true_delay_samples_from_distance(example_distance)
+    lif_scores = np.zeros(dataset.candidate_distance_m.size)
+    rf_scores = np.zeros(dataset.candidate_distance_m.size)
+    binary_scores = np.zeros(dataset.candidate_distance_m.size)
+    tolerance = int(np.ceil(np.median(np.diff(dataset.candidate_delay_samples)) / 2.0))
+    for period, offsets in zip(dataset.periods_samples, dataset.offset_pairs_samples):
+        relative_delays = true_delay[:, None] + offsets[None, :]
+        error = np.abs(relative_delays[:, :, None] - dataset.candidate_delay_samples[None, None, :])
+        lif_scores += np.power(0.982, error[0]).sum(axis=0) / SUSTAINED_REPEATS
+        rf_scores += (
+            np.exp(-error[0] / 18.0) * np.cos((2.0 * np.pi / period) * error[0])
+        ).sum(axis=0) / SUSTAINED_REPEATS
+        binary_scores += (error[0] <= tolerance).sum(axis=0) / SUSTAINED_REPEATS
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    ax.plot(dataset.candidate_distance_m, lif_scores / np.max(lif_scores), label="LIF", linewidth=2.0)
+    ax.plot(dataset.candidate_distance_m, rf_scores / np.max(np.abs(rf_scores)), label="RF", linewidth=2.0)
+    ax.plot(dataset.candidate_distance_m, binary_scores / np.max(binary_scores), label="binary", linewidth=2.0)
+    ax.axvline(float(example_distance[0]), color="#111827", linestyle="--", label="true distance")
+    ax.set_title("Sustained-pitch delay-bank response")
+    ax.set_xlabel("candidate distance (m)")
+    ax.set_ylabel("normalized score")
+    ax.legend(loc="upper right")
+    ax.grid(True, alpha=0.25)
     return save_figure(fig, path)
 
 
@@ -979,6 +1199,36 @@ def _plot_accuracy(results: list[DetectorResult], dataset: Dataset, path: Path) 
     fig, axes = plt.subplots(1, len(results), figsize=(15, 4.8), sharex=True, sharey=True)
     for ax, result in zip(axes, results):
         ax.scatter(dataset.true_distance_m, result.predicted_distance_m, s=8, alpha=0.45)
+        ax.plot([MIN_DISTANCE_M, MAX_DISTANCE_M], [MIN_DISTANCE_M, MAX_DISTANCE_M], color="#111827")
+        ax.set_title(f"{result.name}\nMAE={result.mae_m * 100:.2f} cm")
+        ax.set_xlabel("true distance (m)")
+        ax.grid(True, alpha=0.25)
+    axes[0].set_ylabel("predicted distance (m)")
+    return save_figure(fig, path)
+
+
+def _plot_accuracy_from_distances(
+    results: list[DetectorResult],
+    true_distance_m: np.ndarray,
+    path: Path,
+    *,
+    title: str,
+) -> str:
+    """Plot true-vs-predicted distance for result objects.
+
+    Args:
+        results: Detector results.
+        true_distance_m: True distances in metres.
+        path: Output figure path.
+        title: Figure title.
+
+    Returns:
+        Saved figure path.
+    """
+    fig, axes = plt.subplots(1, len(results), figsize=(15, 4.8), sharex=True, sharey=True)
+    fig.suptitle(title)
+    for ax, result in zip(axes, results):
+        ax.scatter(true_distance_m, result.predicted_distance_m, s=8, alpha=0.45)
         ax.plot([MIN_DISTANCE_M, MAX_DISTANCE_M], [MIN_DISTANCE_M, MAX_DISTANCE_M], color="#111827")
         ax.set_title(f"{result.name}\nMAE={result.mae_m * 100:.2f} cm")
         ax.set_xlabel("true distance (m)")
@@ -1112,6 +1362,8 @@ def _write_optimisation_report(
     spike_results_by_condition: dict[str, list[DetectorResult]],
     sweep_datasets: list[SweepSpikeDataset],
     sweep_results_by_condition: dict[str, list[DetectorResult]],
+    sustained_dataset: SustainedPitchDataset,
+    sustained_results: list[DetectorResult],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -1361,6 +1613,48 @@ def _write_optimisation_report(
             "- This should especially help the binary detector, whose single-channel version is fast but brittle.",
             "- The next step is to replace this hand-made sweep raster with spikes from the final cochlea front end.",
             "",
+            "# Part D: Clean Sustained-Pitch Spiking Input",
+            "",
+            "This final section tests the hypothesis that RF detectors may be better suited to repeated signals. Instead of a single spike per channel, each pitch channel emits a repeated spike train. The echo is the same repeated train shifted by the target delay.",
+            "",
+            "This is deliberately a clean test: no added false spikes and no timing jitter. The question is whether repeated periodic input alone makes RF more competitive for distance decoding.",
+            "",
+            "![Sustained pitch raster](../outputs/accuracy_optimisation/figures/sustained_pitch_raster.png)",
+            "",
+            "The response plot below shows the detector-bank score for one example target. Repeated sustained pitches can create secondary peaks because pitch periods introduce delay aliases.",
+            "",
+            "![Sustained pitch response](../outputs/accuracy_optimisation/figures/sustained_pitch_response.png)",
+            "",
+            "The scatter plot below shows how those aliases affect the final predicted distance over the full test set.",
+            "",
+            "![Sustained pitch accuracy scatter](../outputs/accuracy_optimisation/figures/sustained_pitch_accuracy_scatter.png)",
+            "",
+            "| Sustained-pitch parameter | Value |",
+            "|---|---:|",
+            f"| pitch channels | `{SUSTAINED_CHANNELS}` |",
+            f"| repeats per channel | `{SUSTAINED_REPEATS}` |",
+            f"| period range | `{int(sustained_dataset.periods_samples.min())} -> {int(sustained_dataset.periods_samples.max())} samples` |",
+            "",
+            "| Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for result in sustained_results:
+        lines.append(
+            f"| {result.name} | {result.mae_m * 100.0:.2f} | {result.rmse_m * 100.0:.2f} | "
+            f"{result.p95_abs_error_m * 100.0:.2f} | {result.max_abs_error_m * 100.0:.2f} | "
+            f"{result.runtime_ms:.3f} | {result.flops:,.0f} | {result.sops:,.0f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Sustained-Pitch Interpretation",
+            "",
+            "- Repeated inputs do not automatically make RF better for distance estimation.",
+            "- A sustained pitch creates periodic ambiguity: delays separated by approximately one pitch period can also produce coincidences.",
+            "- Multiple pitch channels help reduce this ambiguity, but the task is still fundamentally a delay matching problem.",
+            "- RF may be more useful when the goal is periodicity or frequency selectivity, while binary/LIF remain more direct for pure echo-delay estimation.",
+            "",
             "## Generated Files",
             "",
         ]
@@ -1380,6 +1674,9 @@ def _write_optimisation_report(
             "sweep_accuracy_scatter_noise_jitter",
             "sweep_error_histogram_noise_jitter",
             "sweep_cost_comparison",
+            "sustained_pitch_raster",
+            "sustained_pitch_response",
+            "sustained_pitch_accuracy_scatter",
         }:
             lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.extend([f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`", "", f"Runtime: `{elapsed_s:.2f} s`.", ""])
@@ -1418,6 +1715,12 @@ def main() -> dict[str, object]:
             _score_sweep_detector("RF detector", dataset, _predict_sweep_rf),
             _score_sweep_detector("Binary detector", dataset, _predict_sweep_binary),
         ]
+    sustained_dataset = _make_sustained_pitch_dataset()
+    sustained_results = [
+        _score_sustained_detector("LIF detector", sustained_dataset, _predict_sustained_lif),
+        _score_sustained_detector("RF detector", sustained_dataset, _predict_sustained_rf),
+        _score_sustained_detector("Binary detector", sustained_dataset, _predict_sustained_binary),
+    ]
 
     simple_dataset = datasets[0]
     hard_dataset = datasets[-1]
@@ -1480,6 +1783,20 @@ def main() -> dict[str, object]:
             sweep_results_by_condition,
             OPT_FIGURE_DIR / "sweep_cost_comparison.png",
         ),
+        "sustained_pitch_raster": _plot_sustained_pitch_raster(
+            sustained_dataset,
+            OPT_FIGURE_DIR / "sustained_pitch_raster.png",
+        ),
+        "sustained_pitch_response": _plot_sustained_response(
+            sustained_dataset,
+            OPT_FIGURE_DIR / "sustained_pitch_response.png",
+        ),
+        "sustained_pitch_accuracy_scatter": _plot_accuracy_from_distances(
+            sustained_results,
+            sustained_dataset.true_distance_m,
+            OPT_FIGURE_DIR / "sustained_pitch_accuracy_scatter.png",
+            title="Sustained-pitch clean accuracy scatter",
+        ),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -1501,6 +1818,8 @@ def main() -> dict[str, object]:
             "spike_noise_max_amplitude": SPIKE_NOISE_MAX_AMPLITUDE,
             "sweep_channels": SWEEP_CHANNELS,
             "sweep_duration_s": SWEEP_DURATION_S,
+            "sustained_channels": SUSTAINED_CHANNELS,
+            "sustained_repeats": SUSTAINED_REPEATS,
             "rng_seed": RNG_SEED,
         },
         "waveform_results_by_condition": {
@@ -1551,6 +1870,19 @@ def main() -> dict[str, object]:
             ]
             for condition, results in sweep_results_by_condition.items()
         },
+        "sustained_pitch_results": [
+            {
+                "name": result.name,
+                "mae_m": result.mae_m,
+                "rmse_m": result.rmse_m,
+                "p95_abs_error_m": result.p95_abs_error_m,
+                "max_abs_error_m": result.max_abs_error_m,
+                "runtime_ms": result.runtime_ms,
+                "flops": result.flops,
+                "sops": result.sops,
+            }
+            for result in sustained_results
+        ],
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -1562,6 +1894,8 @@ def main() -> dict[str, object]:
         spike_results_by_condition,
         sweep_datasets,
         sweep_results_by_condition,
+        sustained_dataset,
+        sustained_results,
         artifacts,
         elapsed_s,
     )

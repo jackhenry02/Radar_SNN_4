@@ -58,18 +58,18 @@ The detailed numeric results are:
 
 | Condition | Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| Clean perfect | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 1.742 | 1,280,000 | 320,000 |
-| Clean perfect | RF detector | 0.77 | 0.89 | 1.44 | 1.60 | 1.939 | 2,240,000 | 320,000 |
-| Clean perfect | Binary detector | 0.77 | 0.89 | 1.44 | 1.60 | 0.942 | 160,000 | 160,000 |
-| Added noise | LIF detector | 50.35 | 103.55 | 267.11 | 450.41 | 1.763 | 1,280,000 | 320,000 |
-| Added noise | RF detector | 96.90 | 149.54 | 330.10 | 450.41 | 2.051 | 2,240,000 | 320,000 |
-| Added noise | Binary detector | 103.44 | 155.65 | 339.15 | 464.02 | 0.931 | 160,000 | 160,000 |
-| Added jitter | LIF detector | 0.88 | 1.06 | 1.93 | 3.10 | 1.724 | 1,280,000 | 320,000 |
-| Added jitter | RF detector | 0.88 | 1.06 | 1.93 | 3.10 | 1.935 | 2,240,000 | 320,000 |
-| Added jitter | Binary detector | 0.88 | 1.06 | 1.93 | 3.10 | 0.877 | 160,000 | 160,000 |
-| Noise + jitter | LIF detector | 50.98 | 105.39 | 276.16 | 459.65 | 1.760 | 1,280,000 | 320,000 |
-| Noise + jitter | RF detector | 91.64 | 145.93 | 327.44 | 459.65 | 2.011 | 2,240,000 | 320,000 |
-| Noise + jitter | Binary detector | 100.78 | 153.51 | 336.27 | 459.65 | 0.867 | 160,000 | 160,000 |
+| Clean perfect | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 1.782 | 1,280,000 | 320,000 |
+| Clean perfect | RF detector | 0.77 | 0.89 | 1.44 | 1.60 | 2.001 | 2,240,000 | 320,000 |
+| Clean perfect | Binary detector | 0.77 | 0.89 | 1.44 | 1.60 | 0.936 | 160,000 | 160,000 |
+| Added noise | LIF detector | 50.35 | 103.55 | 267.11 | 450.41 | 1.723 | 1,280,000 | 320,000 |
+| Added noise | RF detector | 96.90 | 149.54 | 330.10 | 450.41 | 1.866 | 2,240,000 | 320,000 |
+| Added noise | Binary detector | 103.44 | 155.65 | 339.15 | 464.02 | 0.957 | 160,000 | 160,000 |
+| Added jitter | LIF detector | 0.88 | 1.06 | 1.93 | 3.10 | 1.809 | 1,280,000 | 320,000 |
+| Added jitter | RF detector | 0.88 | 1.06 | 1.93 | 3.10 | 2.060 | 2,240,000 | 320,000 |
+| Added jitter | Binary detector | 0.88 | 1.06 | 1.93 | 3.10 | 0.978 | 160,000 | 160,000 |
+| Noise + jitter | LIF detector | 50.98 | 105.39 | 276.16 | 459.65 | 1.858 | 1,280,000 | 320,000 |
+| Noise + jitter | RF detector | 91.64 | 145.93 | 327.44 | 459.65 | 2.043 | 2,240,000 | 320,000 |
+| Noise + jitter | Binary detector | 100.78 | 153.51 | 336.27 | 459.65 | 0.993 | 160,000 | 160,000 |
 
 ## Hardest-Condition Plots
 
@@ -125,18 +125,18 @@ Binary: score_k = max_p amplitude_p if delta_p,k <= tolerance else no match
 
 | Condition | Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| Clean perfect | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 1.103 | 1,280,000 | 320,000 |
-| Clean perfect | RF detector | 2.20 | 3.06 | 4.98 | 5.13 | 1.296 | 2,240,000 | 320,000 |
-| Clean perfect | Binary detector | 0.77 | 0.89 | 1.44 | 1.60 | 0.519 | 160,000 | 160,000 |
-| Added noise | LIF detector | 52.47 | 111.88 | 285.50 | 468.05 | 5.241 | 5,120,000 | 1,280,000 |
-| Added noise | RF detector | 63.55 | 122.73 | 303.56 | 468.05 | 8.298 | 8,960,000 | 1,280,000 |
-| Added noise | Binary detector | 96.22 | 149.95 | 335.88 | 452.10 | 2.104 | 640,000 | 640,000 |
-| Added jitter | LIF detector | 0.91 | 1.10 | 2.00 | 3.06 | 1.034 | 1,280,000 | 320,000 |
-| Added jitter | RF detector | 2.23 | 3.03 | 5.43 | 6.60 | 1.290 | 2,240,000 | 320,000 |
-| Added jitter | Binary detector | 0.91 | 1.10 | 2.00 | 3.06 | 0.587 | 160,000 | 160,000 |
-| Noise + jitter | LIF detector | 49.40 | 110.15 | 294.76 | 466.56 | 5.439 | 5,120,000 | 1,280,000 |
-| Noise + jitter | RF detector | 58.55 | 117.80 | 299.79 | 448.22 | 7.372 | 8,960,000 | 1,280,000 |
-| Noise + jitter | Binary detector | 95.85 | 152.11 | 346.22 | 466.56 | 2.005 | 640,000 | 640,000 |
+| Clean perfect | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 1.111 | 1,280,000 | 320,000 |
+| Clean perfect | RF detector | 2.20 | 3.06 | 4.98 | 5.13 | 1.264 | 2,240,000 | 320,000 |
+| Clean perfect | Binary detector | 0.77 | 0.89 | 1.44 | 1.60 | 0.494 | 160,000 | 160,000 |
+| Added noise | LIF detector | 52.47 | 111.88 | 285.50 | 468.05 | 5.407 | 5,120,000 | 1,280,000 |
+| Added noise | RF detector | 63.55 | 122.73 | 303.56 | 468.05 | 8.172 | 8,960,000 | 1,280,000 |
+| Added noise | Binary detector | 96.22 | 149.95 | 335.88 | 452.10 | 2.777 | 640,000 | 640,000 |
+| Added jitter | LIF detector | 0.91 | 1.10 | 2.00 | 3.06 | 1.114 | 1,280,000 | 320,000 |
+| Added jitter | RF detector | 2.23 | 3.03 | 5.43 | 6.60 | 1.276 | 2,240,000 | 320,000 |
+| Added jitter | Binary detector | 0.91 | 1.10 | 2.00 | 3.06 | 0.606 | 160,000 | 160,000 |
+| Noise + jitter | LIF detector | 49.40 | 110.15 | 294.76 | 466.56 | 5.440 | 5,120,000 | 1,280,000 |
+| Noise + jitter | RF detector | 58.55 | 117.80 | 299.79 | 448.22 | 7.670 | 8,960,000 | 1,280,000 |
+| Noise + jitter | Binary detector | 95.85 | 152.11 | 346.22 | 466.56 | 2.201 | 640,000 | 640,000 |
 
 ## Spiking Hardest-Condition Plots
 
@@ -204,18 +204,18 @@ distance = distance_candidate[argmax_k(score_k)]
 
 | Condition | Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| Clean perfect | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 45.876 | 40,960,000 | 10,240,000 |
-| Clean perfect | RF detector | 2.20 | 3.06 | 4.98 | 5.13 | 65.692 | 71,680,000 | 10,240,000 |
-| Clean perfect | Binary detector | 0.79 | 0.92 | 1.60 | 1.81 | 16.073 | 5,120,000 | 5,120,000 |
-| Added noise | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 198.072 | 163,840,000 | 40,960,000 |
-| Added noise | RF detector | 2.20 | 3.06 | 4.98 | 5.13 | 295.944 | 286,720,000 | 40,960,000 |
-| Added noise | Binary detector | 0.79 | 0.92 | 1.60 | 1.81 | 56.926 | 20,480,000 | 20,480,000 |
-| Added jitter | LIF detector | 0.90 | 1.09 | 1.96 | 3.15 | 45.537 | 40,960,000 | 10,240,000 |
-| Added jitter | RF detector | 2.12 | 2.92 | 5.38 | 6.41 | 66.283 | 71,680,000 | 10,240,000 |
-| Added jitter | Binary detector | 0.91 | 1.10 | 1.98 | 3.15 | 16.803 | 5,120,000 | 5,120,000 |
-| Noise + jitter | LIF detector | 0.89 | 1.08 | 1.98 | 2.92 | 204.333 | 163,840,000 | 40,960,000 |
-| Noise + jitter | RF detector | 2.30 | 3.09 | 5.45 | 6.41 | 303.513 | 286,720,000 | 40,960,000 |
-| Noise + jitter | Binary detector | 0.90 | 1.09 | 1.99 | 2.92 | 56.958 | 20,480,000 | 20,480,000 |
+| Clean perfect | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 45.927 | 40,960,000 | 10,240,000 |
+| Clean perfect | RF detector | 2.20 | 3.06 | 4.98 | 5.13 | 66.351 | 71,680,000 | 10,240,000 |
+| Clean perfect | Binary detector | 0.79 | 0.92 | 1.60 | 1.81 | 16.165 | 5,120,000 | 5,120,000 |
+| Added noise | LIF detector | 0.77 | 0.89 | 1.44 | 1.60 | 200.981 | 163,840,000 | 40,960,000 |
+| Added noise | RF detector | 2.20 | 3.06 | 4.98 | 5.13 | 300.766 | 286,720,000 | 40,960,000 |
+| Added noise | Binary detector | 0.79 | 0.92 | 1.60 | 1.81 | 55.673 | 20,480,000 | 20,480,000 |
+| Added jitter | LIF detector | 0.90 | 1.09 | 1.96 | 3.15 | 45.571 | 40,960,000 | 10,240,000 |
+| Added jitter | RF detector | 2.12 | 2.92 | 5.38 | 6.41 | 66.762 | 71,680,000 | 10,240,000 |
+| Added jitter | Binary detector | 0.91 | 1.10 | 1.98 | 3.15 | 16.133 | 5,120,000 | 5,120,000 |
+| Noise + jitter | LIF detector | 0.89 | 1.08 | 1.98 | 2.92 | 194.634 | 163,840,000 | 40,960,000 |
+| Noise + jitter | RF detector | 2.30 | 3.09 | 5.45 | 6.41 | 297.912 | 286,720,000 | 40,960,000 |
+| Noise + jitter | Binary detector | 0.90 | 1.09 | 1.99 | 2.92 | 56.493 | 20,480,000 | 20,480,000 |
 
 ## Sweep-Spiking Hardest-Condition Plots
 
@@ -234,6 +234,41 @@ The scatter, histogram, and cost plots below use the sweep-spiking `Noise + jitt
 - This should especially help the binary detector, whose single-channel version is fast but brittle.
 - The next step is to replace this hand-made sweep raster with spikes from the final cochlea front end.
 
+# Part D: Clean Sustained-Pitch Spiking Input
+
+This final section tests the hypothesis that RF detectors may be better suited to repeated signals. Instead of a single spike per channel, each pitch channel emits a repeated spike train. The echo is the same repeated train shifted by the target delay.
+
+This is deliberately a clean test: no added false spikes and no timing jitter. The question is whether repeated periodic input alone makes RF more competitive for distance decoding.
+
+![Sustained pitch raster](../outputs/accuracy_optimisation/figures/sustained_pitch_raster.png)
+
+The response plot below shows the detector-bank score for one example target. Repeated sustained pitches can create secondary peaks because pitch periods introduce delay aliases.
+
+![Sustained pitch response](../outputs/accuracy_optimisation/figures/sustained_pitch_response.png)
+
+The scatter plot below shows how those aliases affect the final predicted distance over the full test set.
+
+![Sustained pitch accuracy scatter](../outputs/accuracy_optimisation/figures/sustained_pitch_accuracy_scatter.png)
+
+| Sustained-pitch parameter | Value |
+|---|---:|
+| pitch channels | `12` |
+| repeats per channel | `8` |
+| period range | `4 -> 28 samples` |
+
+| Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| LIF detector | 0.77 | 0.89 | 1.44 | 1.61 | 906.709 | 983,040,000 | 245,760,000 |
+| RF detector | 5.81 | 7.44 | 13.81 | 14.11 | 1331.335 | 1,720,320,000 | 245,760,000 |
+| Binary detector | 0.81 | 0.95 | 1.67 | 1.82 | 302.039 | 122,880,000 | 122,880,000 |
+
+## Sustained-Pitch Interpretation
+
+- Repeated inputs do not automatically make RF better for distance estimation.
+- A sustained pitch creates periodic ambiguity: delays separated by approximately one pitch period can also produce coincidences.
+- Multiple pitch channels help reduce this ambiguity, but the task is still fundamentally a delay matching problem.
+- RF may be more useful when the goal is periodicity or frequency selectivity, while binary/LIF remain more direct for pure echo-delay estimation.
+
 ## Generated Files
 
 - `condition_mae`: `distance_pathway/outputs/accuracy_optimisation/figures/condition_mae.png`
@@ -249,6 +284,9 @@ The scatter, histogram, and cost plots below use the sweep-spiking `Noise + jitt
 - `sweep_accuracy_scatter_noise_jitter`: `distance_pathway/outputs/accuracy_optimisation/figures/sweep_accuracy_scatter_noise_jitter.png`
 - `sweep_error_histogram_noise_jitter`: `distance_pathway/outputs/accuracy_optimisation/figures/sweep_error_histogram_noise_jitter.png`
 - `sweep_cost_comparison`: `distance_pathway/outputs/accuracy_optimisation/figures/sweep_cost_comparison.png`
+- `sustained_pitch_raster`: `distance_pathway/outputs/accuracy_optimisation/figures/sustained_pitch_raster.png`
+- `sustained_pitch_response`: `distance_pathway/outputs/accuracy_optimisation/figures/sustained_pitch_response.png`
+- `sustained_pitch_accuracy_scatter`: `distance_pathway/outputs/accuracy_optimisation/figures/sustained_pitch_accuracy_scatter.png`
 - `results`: `distance_pathway/outputs/distance_pathway_results.json`
 
-Runtime: `24.18 s`.
+Runtime: `55.08 s`.
