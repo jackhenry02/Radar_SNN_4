@@ -1,6 +1,6 @@
 {
   "experiment": "binary_clean_optimisation",
-  "elapsed_seconds": 5.373963790945709,
+  "elapsed_seconds": 5.6889963750727475,
   "config": {
     "samples": 1000,
     "frequency_channels": 32,
@@ -13,11 +13,11 @@
   },
   "results": [
     {
-      "name": "Fair raster LIF",
+      "name": "Fair raster LIF-inspired score",
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 132.3257922194898,
+      "runtime_ms": 130.01624983735383,
       "flops": 40960000.0,
       "sops": 10240000.0
     },
@@ -26,7 +26,7 @@
       "mae_m": 0.007732103613298797,
       "rmse_m": 0.00899463879657562,
       "nearest_bin_accuracy_percent": 92.9,
-      "runtime_ms": 100.62654106877744,
+      "runtime_ms": 100.03991588018835,
       "flops": 0.0,
       "sops": 5120000
     },
@@ -35,7 +35,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 47.74512513540685,
+      "runtime_ms": 51.3307498767972,
       "flops": 0.0,
       "sops": 256000
     },
@@ -44,7 +44,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 37.95570810325444,
+      "runtime_ms": 39.672458078712225,
       "flops": 0.0,
       "sops": 32000
     },
@@ -53,7 +53,7 @@
       "mae_m": 0.007732103613298797,
       "rmse_m": 0.00899463879657562,
       "nearest_bin_accuracy_percent": 92.9,
-      "runtime_ms": 332.750832894817,
+      "runtime_ms": 337.2047080192715,
       "flops": 0.0,
       "sops": 179200000
     },
@@ -62,7 +62,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 41.33683396503329,
+      "runtime_ms": 38.29695889726281,
       "flops": 0.0,
       "sops": 32000
     }

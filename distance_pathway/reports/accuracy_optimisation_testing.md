@@ -7,6 +7,22 @@ There are now two input cases:
 - **Waveform input:** each delay line samples a synthetic echo waveform, with optional additive white noise.
 - **Spiking input:** the upstream system has already extracted onset spikes, with optional false spikes.
 
+## Important Simplification: Detector Scores vs True Neurons
+
+The `LIF detector` and `RF detector` labels in this report refer to simplified scoring functions, not full dynamic neuron simulations. They do not simulate an output neuron crossing a threshold, resetting, entering refractory period, and passing on output spikes during the benchmark.
+
+For the LIF-style detector, the benchmark uses an exponential soft coincidence score:
+
+```text
+score_k ~ beta ^ abs(observed_delay - candidate_delay_k)
+```
+
+This is inspired by leaky membrane decay: near-coincident inputs receive high score and separated inputs receive lower score. It is useful for comparing timing tolerance and representation cost, but it should be described as a `LIF-inspired soft coincidence score`, not as a complete LIF neuron bank.
+
+For the RF-style detector, the benchmark similarly uses a damped oscillatory score rather than simulating a full resonate-and-fire spiking neuron. The binary detector uses timing and/or amplitude thresholds, but it is also a detector score rather than a full downstream spiking neuron model.
+
+This simplification was intentional for these early tests: it isolates the delay-estimation logic before adding the extra tuning parameters of a true neuron bank, such as synaptic weights, membrane threshold, reset rule, refractory period, and integration window.
+
 # Part A: Waveform Input
 
 ## Signal Conditions

@@ -64,6 +64,8 @@ This is a simplified Jeffress-style delay-line idea applied to echo delay rather
 
 The detector can be implemented as a LIF neuron: one input arrives from the delayed corollary discharge, one from the echo onset, and the neuron only crosses threshold when both arrive close together.
 
+This explanatory section is the true threshold-neuron interpretation. The later accuracy/optimisation benchmark uses simplified LIF-inspired and RF-inspired score functions for speed and controlled comparison; those benchmark scores should not be interpreted as full LIF/RF neurons passing spikes forward.
+
 ## Generated Files
 
 - `pulse_timeline`: `distance_pathway/outputs/simple_coincidence_model/figures/pulse_timeline.png`

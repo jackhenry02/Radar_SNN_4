@@ -46,7 +46,7 @@ For this clean sweep benchmark there is exactly one CD spike per sample/channel 
 
 ## Methods
 
-### Fair Raster LIF
+### Fair Raster LIF-Inspired Soft Score
 
 Extracts the first CD spike and first echo spike from each channel, computes the observed delay, then uses a soft LIF-like timing score:
 
@@ -54,6 +54,8 @@ Extracts the first CD spike and first echo spike from each channel, computes the
 observed_delay_c = echo_time_c - cd_time_c
 score_k = mean_c(beta ^ abs(observed_delay_c - candidate_delay_k))
 ```
+
+This is an important simplification. It is not a full LIF neuron simulation with membrane threshold, reset, refractory period, and emitted output spikes. It is a scoring surrogate: the exponential decay mimics how a leaky membrane would give high coincidence score to near-simultaneous inputs and lower score to separated inputs. The model detects distance by choosing the delay line with the largest score, not by counting threshold-crossing LIF output spikes.
 
 ### Fair Raster Binary
 
@@ -145,16 +147,16 @@ prediction = argmax_candidate(sparse_score)
 
 | Method | MAE (cm) | RMSE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | SOPs / integer ops |
 |---|---:|---:|---:|---:|---:|---:|
-| Fair raster LIF | 0.7562 | 0.8708 | 97.50 | 132.326 | 40,960,000 | 10,240,000 |
-| Fair raster binary | 0.7732 | 0.8995 | 92.90 | 100.627 | 0 | 5,120,000 |
-| Event-list binary | 0.7562 | 0.8708 | 97.50 | 47.745 | 0 | 256,000 |
-| Coordinate event accumulator | 0.7562 | 0.8708 | 97.50 | 37.956 | 0 | 32,000 |
-| Bit-packed binary | 0.7732 | 0.8995 | 92.90 | 332.751 | 0 | 179,200,000 |
-| Sparse-stack binary | 0.7562 | 0.8708 | 97.50 | 41.337 | 0 | 32,000 |
+| Fair raster LIF-inspired score | 0.7562 | 0.8708 | 97.50 | 130.016 | 40,960,000 | 10,240,000 |
+| Fair raster binary | 0.7732 | 0.8995 | 92.90 | 100.040 | 0 | 5,120,000 |
+| Event-list binary | 0.7562 | 0.8708 | 97.50 | 51.331 | 0 | 256,000 |
+| Coordinate event accumulator | 0.7562 | 0.8708 | 97.50 | 39.672 | 0 | 32,000 |
+| Bit-packed binary | 0.7732 | 0.8995 | 92.90 | 337.205 | 0 | 179,200,000 |
+| Sparse-stack binary | 0.7562 | 0.8708 | 97.50 | 38.297 | 0 | 32,000 |
 
 ## Interpretation
 
-- The fair raster LIF and fair raster binary methods now consume only input rasters, so they are valid detector baselines.
+- The fair raster LIF-inspired score and fair raster binary methods now consume only input rasters, so they are valid detector baselines.
 - The coordinate event accumulator is the most direct combination of the event-list and sparse-stack ideas: represent spikes as coordinates, compute delays by vector subtraction, then accumulate candidate votes.
 - The event-list and sparse-stack methods are kept as comparison points because they show the two halves of the combined coordinate accumulator.
 - The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.
@@ -167,4 +169,4 @@ prediction = argmax_candidate(sparse_score)
 - `runtime_cost`: `distance_pathway/outputs/binary_clean_optimisation/figures/runtime_cost.png`
 - `results`: `distance_pathway/outputs/binary_clean_optimisation/results.json`
 
-Runtime: `5.37 s`.
+Runtime: `5.69 s`.

@@ -527,7 +527,7 @@ def _operation_estimates(dataset: CleanSweepDataset) -> dict[str, tuple[float, f
     words = math.ceil(time_steps / 64)
     dense_score_ops = samples * channels * candidate_delays
     return {
-        "Fair raster LIF": (dense_score_ops * 8.0, dense_score_ops * 2.0),
+        "Fair raster LIF-inspired score": (dense_score_ops * 8.0, dense_score_ops * 2.0),
         "Fair raster binary": (0.0, dense_score_ops),
         "Event-list binary": (0.0, events * math.ceil(math.log2(candidate_delays))),
         "Coordinate event accumulator": (0.0, events),
@@ -690,7 +690,7 @@ def _write_report(
         "",
         "## Methods",
         "",
-        "### Fair Raster LIF",
+        "### Fair Raster LIF-Inspired Soft Score",
         "",
         "Extracts the first CD spike and first echo spike from each channel, computes the observed delay, then uses a soft LIF-like timing score:",
         "",
@@ -698,6 +698,8 @@ def _write_report(
         "observed_delay_c = echo_time_c - cd_time_c",
         "score_k = mean_c(beta ^ abs(observed_delay_c - candidate_delay_k))",
         "```",
+        "",
+        "This is an important simplification. It is not a full LIF neuron simulation with membrane threshold, reset, refractory period, and emitted output spikes. It is a scoring surrogate: the exponential decay mimics how a leaky membrane would give high coincidence score to near-simultaneous inputs and lower score to separated inputs. The model detects distance by choosing the delay line with the largest score, not by counting threshold-crossing LIF output spikes.",
         "",
         "### Fair Raster Binary",
         "",
@@ -801,7 +803,7 @@ def _write_report(
             "",
             "## Interpretation",
             "",
-            "- The fair raster LIF and fair raster binary methods now consume only input rasters, so they are valid detector baselines.",
+            "- The fair raster LIF-inspired score and fair raster binary methods now consume only input rasters, so they are valid detector baselines.",
             "- The coordinate event accumulator is the most direct combination of the event-list and sparse-stack ideas: represent spikes as coordinates, compute delays by vector subtraction, then accumulate candidate votes.",
             "- The event-list and sparse-stack methods are kept as comparison points because they show the two halves of the combined coordinate accumulator.",
             "- The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.",
@@ -832,7 +834,7 @@ def main() -> dict[str, object]:
     dataset = _make_clean_sweep_dataset()
     estimates = _operation_estimates(dataset)
     methods: list[tuple[str, Callable[[CleanSweepDataset], np.ndarray]]] = [
-        ("Fair raster LIF", _predict_fair_lif_raster),
+        ("Fair raster LIF-inspired score", _predict_fair_lif_raster),
         ("Fair raster binary", _predict_fair_binary_raster),
         ("Event-list binary", _predict_event_list_binary),
         ("Coordinate event accumulator", _predict_coordinate_event_accumulator),
