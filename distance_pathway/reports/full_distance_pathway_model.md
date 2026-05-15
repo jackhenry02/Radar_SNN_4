@@ -1,0 +1,144 @@
+# Full Distance Pathway Model
+
+This report introduces the first full distance-pathway prototype. It starts with the final cochlea front end and builds a biologically structured distance pathway around it: cochlea, VCN/VNLL, DNLL, corollary discharge, IC, AC, and SC.
+
+## High-Level Pipeline
+
+```mermaid
+flowchart LR
+    A[Received binaural echo] --> B[Cochlea<br/>IIR + LIF spikes]
+    B --> C[VCN/VNLL<br/>onset sharpening]
+    C --> D[DNLL<br/>late inhibition]
+    E[Corollary discharge<br/>ideal sweep copy] --> F[IC<br/>LIF coincidence bank]
+    D --> F
+    F --> G[AC<br/>topographic map + Mexican hat]
+    G --> H[SC<br/>centre of mass readout]
+    H --> I[distance estimate]
+```
+
+The lower cochlear and onset stages are explicitly bilateral. The IC/AC/SC map is simplified into a single combined distance map covering the whole tested distance range.
+
+## Parameters
+
+| Parameter | Value |
+|---|---:|
+| sample rate | `64000 Hz` |
+| chirp | `18000 -> 2000 Hz` |
+| chirp duration | `3.0 ms` |
+| signal duration | `36.0 ms` |
+| cochlea channels | `48` |
+| cochlea Q factor | `12.0` |
+| distance range | `0.25 -> 5.0 m` |
+| distance bins | `180` |
+| candidate delay range | `93 -> 1866 samples` |
+| IC LIF beta | `0.992` |
+| IC LIF threshold | `1.45` |
+| AC Mexican-hat inhibit gain | `0.58` |
+
+## Stage Details
+
+### 1. Cochlea
+
+The cochlea is the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and TorchScript LIF spike encoding.
+
+```text
+y_c[n] = b0_c*x[n] + 2*r_c*cos(theta_c)*y_c[n-1] - r_c^2*y_c[n-2]
+v_c[n] = beta*v_c[n-1] + relu(y_c[n])
+spike_c[n] = 1 if v_c[n] >= threshold
+```
+
+### 2. VCN/VNLL
+
+The VCN/VNLL stage is simplified to a first-onset detector with a long refractory period. A fixed channel latency calibration is subtracted so that cochlear filter/LIF latency is approximately converted into a constant-latency onset code.
+
+```text
+t_vcn,c = first_spike_time_c - latency_calibration_c
+```
+
+The calibration uses a reference echo at `2.5 m`. The estimated latency correction ranges from `-139` to `15` samples.
+
+### 3. DNLL
+
+The DNLL is simplified as delayed inhibition. After the first echo sweep begins, events after the primary sweep window are suppressed:
+
+```text
+suppress_after = first_onset + chirp_duration + padding
+```
+
+This blocks late secondary echoes in the simplest case. It would need to be relaxed or made object-aware for multi-object tracking.
+
+### 4. Corollary Discharge
+
+The corollary discharge is an internal ideal sweep. Each channel receives one spike at the expected time that the emitted chirp crosses that channel frequency.
+
+```text
+f(t) = f_start + (f_end - f_start)*t/T
+t_cd,c = T * (f_c - f_start)/(f_end - f_start)
+```
+
+### 5. IC LIF Coincidence Bank
+
+The IC compares the VCN/VNLL echo onset against delayed corollary-discharge spikes for every candidate distance. For clean two-spike coincidence, the LIF membrane peak can be calculated directly:
+
+```text
+delta_c,k = abs(t_echo,c - (t_cd,c + delay_k))
+m_c,k = 1 + beta^delta_c,k
+IC_k = sum_c relu(m_c,k - threshold)
+```
+
+This is equivalent to a thresholded LIF coincidence detector for two unit input spikes, but evaluated in closed form for speed.
+
+### 6. AC Topographic Map
+
+The AC organises the IC population into a sharper distance map using a static Mexican-hat lateral interaction:
+
+```text
+K = Gaussian(sigma_exc) - g_inh*Gaussian(sigma_inh)
+AC = relu(IC + conv(IC, K))
+```
+
+### 7. SC Readout
+
+The SC readout uses centre of mass over the AC population:
+
+```text
+d_hat = sum_k AC_k*d_k / sum_k AC_k
+```
+
+This uses the whole population, gives sub-bin distance estimates, and resembles reading the mean of a posterior-like activity distribution.
+
+## Example Stage Progression
+
+![Stage rasters](../outputs/full_distance_pathway/figures/stage_rasters.png)
+
+![Population progression](../outputs/full_distance_pathway/figures/population_progression.png)
+
+## Accuracy Test
+
+The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m`.
+
+![Accuracy](../outputs/full_distance_pathway/figures/accuracy.png)
+
+| Metric | Value |
+|---|---:|
+| MAE | `2.767 cm` |
+| RMSE | `3.150 cm` |
+| max abs error | `5.285 cm` |
+| bias | `0.170 cm` |
+
+## Interpretation
+
+- The model now has the intended high-level biological pathway structure rather than just a standalone coincidence detector.
+- The VCN/VNLL stage is deliberately simplified; robust biological onset coding is difficult to tune, and here it is represented by first-spike extraction plus latency calibration.
+- The IC stage is still a simplified LIF coincidence model. It uses the closed-form two-spike LIF peak rather than time-stepping every IC neuron for every sample.
+- The AC and SC stages give a smooth population readout, which is useful for sub-bin distance estimates.
+- The next optimisation step is to replace dense cochlear rasters with coordinate events so the chosen coordinate accumulator can be used downstream.
+
+## Generated Files
+
+- `stage_rasters`: `distance_pathway/outputs/full_distance_pathway/figures/stage_rasters.png`
+- `population_progression`: `distance_pathway/outputs/full_distance_pathway/figures/population_progression.png`
+- `accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/accuracy.png`
+- `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
+
+Runtime: `1.18 s`.
