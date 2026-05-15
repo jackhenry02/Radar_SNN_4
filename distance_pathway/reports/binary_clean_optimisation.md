@@ -31,6 +31,8 @@ This is fair because the detector must infer delay from spike timing in the inpu
 | True distance | continuous target distance | error calculation only |
 | True delay | generated echo shift | generation/error only, not prediction |
 
+For this clean sweep benchmark there is exactly one CD spike per sample/channel and one echo spike per sample/channel. That lets the coordinate methods pair events by `(sample, channel)` without an ambiguity-resolution rule.
+
 ![Clean sweep rasters](../outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png)
 
 ## Metrics
@@ -70,6 +72,36 @@ events = nonzero(spike_raster)
 delay_events = echo_events.time - cd_events.time
 score[nearest_candidate(delay_event)] += 1
 ```
+
+### Coordinate Event Accumulator
+
+This combines the event-list and sparse-stack ideas. The raster is converted into a compact coordinate matrix:
+
+```text
+CD coordinates   = [[batch, channel, time], ...]
+Echo coordinates = [[batch, channel, time], ...]
+```
+
+Since the CD has one spike per channel, CD and echo events can be sorted by `(batch, channel)` and paired directly. The detector then performs vector subtraction and candidate lookup:
+
+```text
+delay_i = echo_time_i - cd_time_i
+candidate_i = nearest_candidate_lookup[delay_i]
+score[batch_i, candidate_i] += 1
+prediction = argmax_candidate(score)
+```
+
+The accumulator uses `np.bincount` over flattened `(batch, candidate)` vote IDs rather than building a dense raster or a PyTorch sparse tensor. This is the current recommended implementation direction for sparse clean spikes.
+
+| Parameter | Value / behaviour |
+|---|---|
+| CD spikes | `32000` total, exactly one per sample/channel |
+| Echo spikes | `32000` total, exactly one per sample/channel |
+| Coordinate columns | `batch index`, `channel index`, `timestamp` |
+| Pairing key | sorted `(batch, channel)` |
+| Delay calculation | vectorised `echo_time - cd_time` |
+| Candidate quantisation | nearest-candidate lookup table |
+| Vote accumulation | vectorised `np.bincount` over flattened `(batch, candidate)` IDs |
 
 ### Bit-Packed Binary
 
@@ -113,16 +145,18 @@ prediction = argmax_candidate(sparse_score)
 
 | Method | MAE (cm) | RMSE (cm) | Nearest-bin accuracy (%) | Runtime (ms) | FLOPs | SOPs / integer ops |
 |---|---:|---:|---:|---:|---:|---:|
-| Fair raster LIF | 0.7562 | 0.8708 | 97.50 | 131.992 | 40,960,000 | 10,240,000 |
-| Fair raster binary | 0.7732 | 0.8995 | 92.90 | 100.698 | 0 | 5,120,000 |
-| Event-list binary | 0.7562 | 0.8708 | 97.50 | 51.663 | 0 | 256,000 |
-| Bit-packed binary | 0.7732 | 0.8995 | 92.90 | 336.070 | 0 | 179,200,000 |
-| Sparse-stack binary | 0.7562 | 0.8708 | 97.50 | 44.019 | 0 | 32,000 |
+| Fair raster LIF | 0.7562 | 0.8708 | 97.50 | 132.326 | 40,960,000 | 10,240,000 |
+| Fair raster binary | 0.7732 | 0.8995 | 92.90 | 100.627 | 0 | 5,120,000 |
+| Event-list binary | 0.7562 | 0.8708 | 97.50 | 47.745 | 0 | 256,000 |
+| Coordinate event accumulator | 0.7562 | 0.8708 | 97.50 | 37.956 | 0 | 32,000 |
+| Bit-packed binary | 0.7732 | 0.8995 | 92.90 | 332.751 | 0 | 179,200,000 |
+| Sparse-stack binary | 0.7562 | 0.8708 | 97.50 | 41.337 | 0 | 32,000 |
 
 ## Interpretation
 
 - The fair raster LIF and fair raster binary methods now consume only input rasters, so they are valid detector baselines.
-- The event-list and sparse-stack methods are the best conceptual fit for sparse spikes because they avoid scanning empty time samples.
+- The coordinate event accumulator is the most direct combination of the event-list and sparse-stack ideas: represent spikes as coordinates, compute delays by vector subtraction, then accumulate candidate votes.
+- The event-list and sparse-stack methods are kept as comparison points because they show the two halves of the combined coordinate accumulator.
 - The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.
 - Dense `unfold` is no longer treated as the main optimised method because it turns sparse spikes into a large dense memory-traffic problem.
 
@@ -133,4 +167,4 @@ prediction = argmax_candidate(sparse_score)
 - `runtime_cost`: `distance_pathway/outputs/binary_clean_optimisation/figures/runtime_cost.png`
 - `results`: `distance_pathway/outputs/binary_clean_optimisation/results.json`
 
-Runtime: `5.16 s`.
+Runtime: `5.37 s`.

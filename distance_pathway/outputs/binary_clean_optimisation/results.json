@@ -1,6 +1,6 @@
 {
   "experiment": "binary_clean_optimisation",
-  "elapsed_seconds": 5.161117790965363,
+  "elapsed_seconds": 5.373963790945709,
   "config": {
     "samples": 1000,
     "frequency_channels": 32,
@@ -17,7 +17,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 131.9919580128044,
+      "runtime_ms": 132.3257922194898,
       "flops": 40960000.0,
       "sops": 10240000.0
     },
@@ -26,7 +26,7 @@
       "mae_m": 0.007732103613298797,
       "rmse_m": 0.00899463879657562,
       "nearest_bin_accuracy_percent": 92.9,
-      "runtime_ms": 100.69795814342797,
+      "runtime_ms": 100.62654106877744,
       "flops": 0.0,
       "sops": 5120000
     },
@@ -35,16 +35,25 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 51.66345904581249,
+      "runtime_ms": 47.74512513540685,
       "flops": 0.0,
       "sops": 256000
+    },
+    {
+      "name": "Coordinate event accumulator",
+      "mae_m": 0.007562428919537313,
+      "rmse_m": 0.008708308044436293,
+      "nearest_bin_accuracy_percent": 97.5,
+      "runtime_ms": 37.95570810325444,
+      "flops": 0.0,
+      "sops": 32000
     },
     {
       "name": "Bit-packed binary",
       "mae_m": 0.007732103613298797,
       "rmse_m": 0.00899463879657562,
       "nearest_bin_accuracy_percent": 92.9,
-      "runtime_ms": 336.0703750513494,
+      "runtime_ms": 332.750832894817,
       "flops": 0.0,
       "sops": 179200000
     },
@@ -53,7 +62,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 44.01891608722508,
+      "runtime_ms": 41.33683396503329,
       "flops": 0.0,
       "sops": 32000
     }

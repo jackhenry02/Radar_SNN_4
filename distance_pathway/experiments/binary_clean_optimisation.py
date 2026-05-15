@@ -195,8 +195,23 @@ def _observed_delay_matrix(dataset: CleanSweepDataset) -> np.ndarray:
     return delays
 
 
-def _paired_event_delays_from_nonzero(dataset: CleanSweepDataset) -> tuple[np.ndarray, np.ndarray]:
-    """Extract paired echo-minus-CD delays from sparse event lists.
+def _event_coordinate_matrix(raster: torch.Tensor) -> np.ndarray:
+    """Convert a Boolean raster into a compact event coordinate matrix.
+
+    Args:
+        raster: Boolean raster with shape `[samples, channels, time]`.
+
+    Returns:
+        Integer coordinate matrix with shape `[num_spikes, 3]`, where columns
+        are `(sample_index, channel_index, timestamp)`.
+    """
+    return raster.nonzero(as_tuple=False).cpu().numpy().astype(np.int64)
+
+
+def _paired_event_coordinates_from_nonzero(
+    dataset: CleanSweepDataset,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract paired event coordinates and echo-minus-CD delays.
 
     This prototype starts from dense rasters, so `nonzero` still scans the
     raster once. The downstream computation, however, is event-list based and
@@ -206,10 +221,10 @@ def _paired_event_delays_from_nonzero(dataset: CleanSweepDataset) -> tuple[np.nd
         dataset: Clean sweep dataset.
 
     Returns:
-        Tuple of `(sample_ids, observed_delays)`.
+        Tuple of `(sample_ids, channel_ids, observed_delays)`.
     """
-    cd_events = dataset.cd_raster.nonzero(as_tuple=False).cpu().numpy()
-    echo_events = dataset.echo_raster.nonzero(as_tuple=False).cpu().numpy()
+    cd_events = _event_coordinate_matrix(dataset.cd_raster)
+    echo_events = _event_coordinate_matrix(dataset.echo_raster)
 
     cd_order = np.lexsort((cd_events[:, 1], cd_events[:, 0]))
     echo_order = np.lexsort((echo_events[:, 1], echo_events[:, 0]))
@@ -220,7 +235,21 @@ def _paired_event_delays_from_nonzero(dataset: CleanSweepDataset) -> tuple[np.nd
         raise ValueError("Clean event-list benchmark expects one CD and one echo event per sample/channel.")
 
     sample_ids = echo_events[:, 0].astype(np.int64)
+    channel_ids = echo_events[:, 1].astype(np.int64)
     observed_delays = (echo_events[:, 2] - cd_events[:, 2]).astype(np.int64)
+    return sample_ids, channel_ids, observed_delays
+
+
+def _paired_event_delays_from_nonzero(dataset: CleanSweepDataset) -> tuple[np.ndarray, np.ndarray]:
+    """Extract paired echo-minus-CD delays from sparse event lists.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Tuple of `(sample_ids, observed_delays)`.
+    """
+    sample_ids, _, observed_delays = _paired_event_coordinates_from_nonzero(dataset)
     return sample_ids, observed_delays
 
 
@@ -282,6 +311,49 @@ def _predict_event_list_binary(dataset: CleanSweepDataset) -> np.ndarray:
     nearest_candidates = np.argmin(distance_to_candidates, axis=1)
     scores = np.zeros((NUM_TEST_SAMPLES, NUM_DELAY_LINES), dtype=np.int32)
     np.add.at(scores, (sample_ids, nearest_candidates), 1)
+    return np.argmax(scores, axis=1)
+
+
+def _build_nearest_candidate_lookup(dataset: CleanSweepDataset) -> np.ndarray:
+    """Build a direct integer-delay to nearest-candidate lookup table.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Lookup array where index is integer sample delay and value is nearest
+        candidate-delay index.
+    """
+    max_delay = int(dataset.candidate_delay_samples.max()) + dataset.binary_tolerance_samples
+    delay_axis = np.arange(max_delay + 1)
+    return np.argmin(
+        np.abs(delay_axis[:, None] - dataset.candidate_delay_samples[None, :]), axis=1
+    ).astype(np.int64)
+
+
+def _predict_coordinate_event_accumulator(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance with a coordinate event accumulator.
+
+    This combines the useful parts of the event-list and sparse-stack methods.
+    The raster is reduced to compact coordinates `(batch, channel, time)`, echo
+    and CD times are subtracted as vectors, integer delays are quantised through
+    a lookup table, and votes are accumulated with `np.bincount`.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    sample_ids, _, observed_delays = _paired_event_coordinates_from_nonzero(dataset)
+    lookup = _build_nearest_candidate_lookup(dataset)
+    valid = (observed_delays >= 0) & (observed_delays < lookup.size)
+    candidate_ids = lookup[observed_delays[valid]]
+    vote_ids = sample_ids[valid] * NUM_DELAY_LINES + candidate_ids
+    scores = np.bincount(
+        vote_ids,
+        minlength=NUM_TEST_SAMPLES * NUM_DELAY_LINES,
+    ).reshape(NUM_TEST_SAMPLES, NUM_DELAY_LINES)
     return np.argmax(scores, axis=1)
 
 
@@ -458,6 +530,7 @@ def _operation_estimates(dataset: CleanSweepDataset) -> dict[str, tuple[float, f
         "Fair raster LIF": (dense_score_ops * 8.0, dense_score_ops * 2.0),
         "Fair raster binary": (0.0, dense_score_ops),
         "Event-list binary": (0.0, events * math.ceil(math.log2(candidate_delays))),
+        "Coordinate event accumulator": (0.0, events),
         "Bit-packed binary": (0.0, samples * channels * candidate_delays * words),
         "Sparse-stack binary": (0.0, events),
     }
@@ -602,6 +675,8 @@ def _write_report(
         "| True distance | continuous target distance | error calculation only |",
         "| True delay | generated echo shift | generation/error only, not prediction |",
         "",
+        "For this clean sweep benchmark there is exactly one CD spike per sample/channel and one echo spike per sample/channel. That lets the coordinate methods pair events by `(sample, channel)` without an ambiguity-resolution rule.",
+        "",
         "![Clean sweep rasters](../outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png)",
         "",
         "## Metrics",
@@ -641,6 +716,36 @@ def _write_report(
         "delay_events = echo_events.time - cd_events.time",
         "score[nearest_candidate(delay_event)] += 1",
         "```",
+        "",
+        "### Coordinate Event Accumulator",
+        "",
+        "This combines the event-list and sparse-stack ideas. The raster is converted into a compact coordinate matrix:",
+        "",
+        "```text",
+        "CD coordinates   = [[batch, channel, time], ...]",
+        "Echo coordinates = [[batch, channel, time], ...]",
+        "```",
+        "",
+        "Since the CD has one spike per channel, CD and echo events can be sorted by `(batch, channel)` and paired directly. The detector then performs vector subtraction and candidate lookup:",
+        "",
+        "```text",
+        "delay_i = echo_time_i - cd_time_i",
+        "candidate_i = nearest_candidate_lookup[delay_i]",
+        "score[batch_i, candidate_i] += 1",
+        "prediction = argmax_candidate(score)",
+        "```",
+        "",
+        "The accumulator uses `np.bincount` over flattened `(batch, candidate)` vote IDs rather than building a dense raster or a PyTorch sparse tensor. This is the current recommended implementation direction for sparse clean spikes.",
+        "",
+        "| Parameter | Value / behaviour |",
+        "|---|---|",
+        f"| CD spikes | `{NUM_TEST_SAMPLES * SWEEP_CHANNELS}` total, exactly one per sample/channel |",
+        f"| Echo spikes | `{NUM_TEST_SAMPLES * SWEEP_CHANNELS}` total, exactly one per sample/channel |",
+        "| Coordinate columns | `batch index`, `channel index`, `timestamp` |",
+        "| Pairing key | sorted `(batch, channel)` |",
+        "| Delay calculation | vectorised `echo_time - cd_time` |",
+        "| Candidate quantisation | nearest-candidate lookup table |",
+        "| Vote accumulation | vectorised `np.bincount` over flattened `(batch, candidate)` IDs |",
         "",
         "### Bit-Packed Binary",
         "",
@@ -697,7 +802,8 @@ def _write_report(
             "## Interpretation",
             "",
             "- The fair raster LIF and fair raster binary methods now consume only input rasters, so they are valid detector baselines.",
-            "- The event-list and sparse-stack methods are the best conceptual fit for sparse spikes because they avoid scanning empty time samples.",
+            "- The coordinate event accumulator is the most direct combination of the event-list and sparse-stack ideas: represent spikes as coordinates, compute delays by vector subtraction, then accumulate candidate votes.",
+            "- The event-list and sparse-stack methods are kept as comparison points because they show the two halves of the combined coordinate accumulator.",
             "- The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.",
             "- Dense `unfold` is no longer treated as the main optimised method because it turns sparse spikes into a large dense memory-traffic problem.",
             "",
@@ -729,6 +835,7 @@ def main() -> dict[str, object]:
         ("Fair raster LIF", _predict_fair_lif_raster),
         ("Fair raster binary", _predict_fair_binary_raster),
         ("Event-list binary", _predict_event_list_binary),
+        ("Coordinate event accumulator", _predict_coordinate_event_accumulator),
         ("Bit-packed binary", _predict_bit_packed_binary),
         ("Sparse-stack binary", _predict_sparse_stack_binary),
     ]
