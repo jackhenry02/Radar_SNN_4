@@ -1,0 +1,38 @@
+{
+  "experiment": "distance_noise_diagnostics",
+  "elapsed_seconds": 2.2470201251562685,
+  "distance_m": 3.0,
+  "target_snr_db": 10.0,
+  "jitter_std_s": 0.00025,
+  "noise_std": 2.9644242015988462,
+  "summary_rows": [
+    {
+      "name": "Cochleagram VCN",
+      "vcn_input": "cochleagram",
+      "first_global_sample": 1,
+      "first_global_ms": 0.015625,
+      "valid_channels": 48,
+      "mean_abs_timing_error_samples": 1130.9583333333333,
+      "median_timing_error_samples": -1130.5,
+      "min_timing_error_samples": -1142,
+      "max_timing_error_samples": -1116
+    },
+    {
+      "name": "Spike-raster VCN",
+      "vcn_input": "spikes",
+      "first_global_sample": 4,
+      "first_global_ms": 0.0625,
+      "valid_channels": 48,
+      "mean_abs_timing_error_samples": 1128.375,
+      "median_timing_error_samples": -1128.5,
+      "min_timing_error_samples": -1138,
+      "max_timing_error_samples": -1114
+    }
+  ],
+  "artifacts": {
+    "noisy_cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_cochleagram.png",
+    "noisy_spike_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_spike_raster.png",
+    "noisy_vcn_outputs": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_vcn_outputs.png",
+    "expected_vs_vcn": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/expected_vs_vcn.png"
+  }
+}

@@ -1,0 +1,357 @@
+from __future__ import annotations
+
+"""Noise diagnostics for the full distance pathway.
+
+This script visualises why the clean distance pathway fails under the harsh
+10 dB SNR + jitter diagnostic condition. It compares the two VCN input variants:
+
+1. VCN driven by the rectified cochleagram.
+2. VCN driven by the cochlear spike raster.
+"""
+
+import json
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from distance_pathway.experiments.full_distance_pathway_model import (
+    NOISE_ROBUSTNESS_JITTER_S,
+    NOISE_ROBUSTNESS_SNR_DB,
+    RNG_SEED,
+    VCN_LIF_THRESHOLD_FRACTION,
+    _chirp_channel_times,
+    _load_channel_latency,
+    _make_config,
+    _make_noisy_config,
+    _run_cochlea_binaural,
+    _simulate_scene,
+    _vcn_input_tensor,
+    _vcn_vnll_onset_detector,
+)
+from mini_models.common.plotting import ensure_dir, save_figure
+from mini_models.experiments.final_cochlea_model_analysis import _log_spaced_centers
+
+
+OUTPUT_DIR = ROOT / "distance_pathway" / "outputs" / "distance_noise_diagnostics"
+FIGURE_DIR = OUTPUT_DIR / "figures"
+REPORT_PATH = ROOT / "distance_pathway" / "reports" / "distance_noise_diagnostics.md"
+RESULTS_PATH = OUTPUT_DIR / "results.json"
+
+EXAMPLE_DISTANCE_M = 3.0
+
+
+@dataclass
+class DiagnosticModelOutput:
+    """Outputs for one VCN input variant.
+
+    Attributes:
+        name: Human-readable model name.
+        vcn_input: VCN input source, either `cochleagram` or `spikes`.
+        vcn_left: Left-ear VCN onset raster.
+        vcn_right: Right-ear VCN onset raster.
+        first_vcn_times: First combined VCN onset per channel.
+        first_vcn_global: First VCN onset over all channels.
+    """
+
+    name: str
+    vcn_input: str
+    vcn_left: np.ndarray
+    vcn_right: np.ndarray
+    first_vcn_times: np.ndarray
+    first_vcn_global: int
+
+
+def _first_times(raster: np.ndarray) -> np.ndarray:
+    """Return the first event time per channel.
+
+    Args:
+        raster: Binary raster `[channels, time]`.
+
+    Returns:
+        First event sample per channel, with `-1` for missing channels.
+    """
+    first = np.full(raster.shape[0], -1, dtype=np.int64)
+    for channel in range(raster.shape[0]):
+        event_times = np.flatnonzero(raster[channel] > 0.0)
+        if event_times.size:
+            first[channel] = int(event_times[0])
+    return first
+
+
+def _combined_first_global(raster: np.ndarray) -> int:
+    """Return the first event time over all channels."""
+    event_times = np.flatnonzero(raster.sum(axis=0) > 0.0)
+    return int(event_times[0]) if event_times.size else -1
+
+
+def _run_model_variant(cochlea, config, vcn_input: str, name: str) -> DiagnosticModelOutput:
+    """Run one VCN input variant on the same cochlea output.
+
+    Args:
+        cochlea: Binaural cochlea result.
+        config: Acoustic configuration.
+        vcn_input: `cochleagram` or `spikes`.
+        name: Human-readable model name.
+
+    Returns:
+        Diagnostic model output.
+    """
+    vcn_left = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "left", vcn_input), config)
+    vcn_right = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "right", vcn_input), config)
+    combined = np.maximum(vcn_left, vcn_right)
+    return DiagnosticModelOutput(
+        name=name,
+        vcn_input=vcn_input,
+        vcn_left=vcn_left,
+        vcn_right=vcn_right,
+        first_vcn_times=_first_times(combined),
+        first_vcn_global=_combined_first_global(combined),
+    )
+
+
+def _plot_cochleagram(cochlea, config, path: Path) -> str:
+    """Plot the noisy cochleagram shared by both VCN variants."""
+    combined = torch.maximum(cochlea.left_cochleagram, cochlea.right_cochleagram).detach().cpu().numpy()
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    time_ms = np.arange(combined.shape[1]) / config.sample_rate_hz * 1_000.0
+
+    fig, ax = plt.subplots(figsize=(12, 5.2))
+    image = ax.imshow(
+        combined,
+        aspect="auto",
+        origin="lower",
+        extent=[time_ms[0], time_ms[-1], centers_khz.min(), centers_khz.max()],
+        cmap="magma",
+    )
+    ax.set_yscale("log")
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("channel centre frequency (kHz)")
+    ax.set_title("Noisy cochleagram input to the VCN stage")
+    fig.colorbar(image, ax=ax, label="rectified filter output")
+    return save_figure(fig, path)
+
+
+def _plot_spike_raster(cochlea, config, path: Path) -> str:
+    """Plot the noisy cochlear spike raster shared by both variants."""
+    combined = torch.maximum(cochlea.left_spikes, cochlea.right_spikes).detach().cpu().numpy()
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    fig, ax = plt.subplots(figsize=(12, 5.2))
+    for channel, frequency_khz in enumerate(centers_khz):
+        event_times = np.flatnonzero(combined[channel] > 0.0) / config.sample_rate_hz * 1_000.0
+        if event_times.size:
+            ax.vlines(event_times, frequency_khz * 0.985, frequency_khz * 1.015, color="#1d4ed8", linewidth=0.8)
+    ax.set_yscale("log")
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("channel centre frequency (kHz)")
+    ax.set_title("Noisy cochlear spike raster")
+    ax.set_xlim(0.0, combined.shape[1] / config.sample_rate_hz * 1_000.0)
+    ax.grid(True, axis="x", alpha=0.2)
+    return save_figure(fig, path)
+
+
+def _plot_vcn_outputs(outputs: list[DiagnosticModelOutput], config, path: Path) -> str:
+    """Plot VCN outputs for both noisy variants."""
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    total_time = outputs[0].vcn_left.shape[1]
+    time_ms_end = total_time / config.sample_rate_hz * 1_000.0
+
+    fig, axes = plt.subplots(len(outputs), 1, figsize=(12, 7.5), sharex=True)
+    if len(outputs) == 1:
+        axes = [axes]
+    for ax, output in zip(axes, outputs):
+        combined = np.maximum(output.vcn_left, output.vcn_right)
+        for channel, frequency_khz in enumerate(centers_khz):
+            event_times = np.flatnonzero(combined[channel] > 0.0) / config.sample_rate_hz * 1_000.0
+            if event_times.size:
+                ax.vlines(event_times, frequency_khz * 0.985, frequency_khz * 1.015, color="#dc2626", linewidth=1.0)
+        ax.set_yscale("log")
+        ax.set_ylabel("kHz")
+        ax.set_title(f"{output.name}: VCN output under noisy input")
+        ax.grid(True, axis="x", alpha=0.2)
+    axes[-1].set_xlabel("time (ms)")
+    axes[-1].set_xlim(0.0, time_ms_end)
+    return save_figure(fig, path)
+
+
+def _plot_expected_vs_vcn(outputs: list[DiagnosticModelOutput], config, latency_samples: np.ndarray, path: Path) -> str:
+    """Plot expected latency-adjusted CD sweep against noisy VCN onset times."""
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    expected = _chirp_channel_times(config) + latency_samples
+    round_trip = int(round((2.0 * EXAMPLE_DISTANCE_M / config.speed_of_sound_m_s) * config.sample_rate_hz))
+    expected_echo = expected + round_trip
+    expected_ms = expected_echo / config.sample_rate_hz * 1_000.0
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    ax.plot(expected_ms, centers_khz, color="#111827", linewidth=2.0, label="expected CD + delay + latency")
+    colors = {"cochleagram": "#dc2626", "spikes": "#2563eb"}
+    for output in outputs:
+        valid = output.first_vcn_times >= 0
+        ax.scatter(
+            output.first_vcn_times[valid] / config.sample_rate_hz * 1_000.0,
+            centers_khz[valid],
+            s=24,
+            alpha=0.8,
+            color=colors.get(output.vcn_input, "#16a34a"),
+            label=output.name,
+        )
+    ax.set_yscale("log")
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("channel centre frequency (kHz)")
+    ax.set_title("Noisy VCN first onsets vs expected latency-adjusted echo sweep")
+    ax.grid(True, alpha=0.25)
+    ax.legend()
+    return save_figure(fig, path)
+
+
+def _summarize_outputs(outputs: list[DiagnosticModelOutput], config, latency_samples: np.ndarray) -> list[dict[str, object]]:
+    """Summarise onset timing errors for the report."""
+    expected = _chirp_channel_times(config) + latency_samples
+    round_trip = int(round((2.0 * EXAMPLE_DISTANCE_M / config.speed_of_sound_m_s) * config.sample_rate_hz))
+    expected_echo = expected + round_trip
+    rows = []
+    for output in outputs:
+        valid = output.first_vcn_times >= 0
+        error = output.first_vcn_times[valid] - expected_echo[valid]
+        rows.append(
+            {
+                "name": output.name,
+                "vcn_input": output.vcn_input,
+                "first_global_sample": output.first_vcn_global,
+                "first_global_ms": output.first_vcn_global / config.sample_rate_hz * 1_000.0 if output.first_vcn_global >= 0 else None,
+                "valid_channels": int(valid.sum()),
+                "mean_abs_timing_error_samples": float(np.mean(np.abs(error))) if error.size else None,
+                "median_timing_error_samples": float(np.median(error)) if error.size else None,
+                "min_timing_error_samples": int(error.min()) if error.size else None,
+                "max_timing_error_samples": int(error.max()) if error.size else None,
+            }
+        )
+    return rows
+
+
+def _write_report(results: dict[str, object]) -> None:
+    """Write the noise diagnostic report."""
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# Distance Noise Diagnostics",
+        "",
+        "This report diagnoses why the full distance pathway fails under the harsh noise condition used in the signal-analysis mini model.",
+        "",
+        "Two variants are compared on the same noisy echo:",
+        "",
+        "- Cochleagram VCN: the VCN onset LIF reads the rectified cochleagram.",
+        "- Spike-raster VCN: the VCN onset LIF reads the cochlear spike raster.",
+        "",
+        "## Noise Condition",
+        "",
+        f"- Distance: `{EXAMPLE_DISTANCE_M:.2f} m`",
+        f"- Additive white receiver noise: `{NOISE_ROBUSTNESS_SNR_DB:.1f} dB` SNR over the active echo window",
+        f"- Propagation jitter: `jitter_std = {NOISE_ROBUSTNESS_JITTER_S:.6g} s`",
+        f"- Realised `noise_std`: `{results['noise_std']:.6g}`",
+        "",
+        "The goal is not to prove final robustness. The goal is to see where the failure enters the pathway.",
+        "",
+        "## Shared Noisy Cochlea Output",
+        "",
+        "Both VCN variants receive the same noisy simulated echo and the same cochlea front end.",
+        "",
+        "![Noisy cochleagram](../outputs/distance_noise_diagnostics/figures/noisy_cochleagram.png)",
+        "",
+        "![Noisy cochlear spike raster](../outputs/distance_noise_diagnostics/figures/noisy_spike_raster.png)",
+        "",
+        "## VCN Outputs",
+        "",
+        "![VCN outputs](../outputs/distance_noise_diagnostics/figures/noisy_vcn_outputs.png)",
+        "",
+        "![Expected vs VCN](../outputs/distance_noise_diagnostics/figures/expected_vs_vcn.png)",
+        "",
+        "## Timing Summary",
+        "",
+        "| Model | VCN input | Active channels | First global onset | Mean abs timing error | Median timing error | Error range |",
+        "|---|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in results["summary_rows"]:
+        first_ms = "n/a" if row["first_global_ms"] is None else f"`{row['first_global_ms']:.3f} ms`"
+        mean_abs = "n/a" if row["mean_abs_timing_error_samples"] is None else f"`{row['mean_abs_timing_error_samples']:.1f}` samples"
+        median = "n/a" if row["median_timing_error_samples"] is None else f"`{row['median_timing_error_samples']:.1f}` samples"
+        error_range = "n/a" if row["min_timing_error_samples"] is None else f"`{row['min_timing_error_samples']} -> {row['max_timing_error_samples']}` samples"
+        lines.append(
+            f"| {row['name']} | `{row['vcn_input']}` | `{row['valid_channels']}` | {first_ms} | {mean_abs} | {median} | {error_range} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Interpretation",
+            "",
+            "- The cochleagram-driven VCN is very sensitive because it uses a low adaptive threshold on continuous cochleagram activity.",
+            "- Under strong white noise, early noise energy can cross that low threshold before the real echo onset.",
+            "- The spike-raster VCN is slightly more conservative because it waits for the cochlear spike encoder, but it still fails when noise creates false or shifted cochlear spikes.",
+            "- The clean 0.32 cm result is therefore a clean-timing result, not yet a robust-noise result.",
+            "- The next fix should be a more robust VCN onset rule, such as multi-channel agreement, matched sweep gating, higher/refractory adaptive thresholds, or a pre-onset denoising/gain-control stage.",
+            "",
+            "## Generated Files",
+            "",
+        ]
+    )
+    for name, path in results["artifacts"].items():
+        lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
+    lines.append(f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`")
+    lines.append("")
+    lines.append(f"Runtime: `{results['elapsed_seconds']:.2f} s`.")
+    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+
+
+def main() -> dict[str, object]:
+    """Run distance-pathway noise diagnostics."""
+    start = time.perf_counter()
+    ensure_dir(OUTPUT_DIR)
+    ensure_dir(FIGURE_DIR)
+    ensure_dir(REPORT_PATH.parent)
+
+    torch.manual_seed(RNG_SEED + 20_000)
+    np.random.seed(RNG_SEED + 20_000)
+    clean_config = _make_config()
+    noisy_config = _make_noisy_config(clean_config)
+    latency_samples = _load_channel_latency(clean_config)
+    receive = _simulate_scene(noisy_config, EXAMPLE_DISTANCE_M, add_noise=True)
+    cochlea = _run_cochlea_binaural(noisy_config, receive)
+    outputs = [
+        _run_model_variant(cochlea, noisy_config, "cochleagram", "Cochleagram VCN"),
+        _run_model_variant(cochlea, noisy_config, "spikes", "Spike-raster VCN"),
+    ]
+    artifacts = {
+        "noisy_cochleagram": _plot_cochleagram(cochlea, noisy_config, FIGURE_DIR / "noisy_cochleagram.png"),
+        "noisy_spike_raster": _plot_spike_raster(cochlea, noisy_config, FIGURE_DIR / "noisy_spike_raster.png"),
+        "noisy_vcn_outputs": _plot_vcn_outputs(outputs, noisy_config, FIGURE_DIR / "noisy_vcn_outputs.png"),
+        "expected_vs_vcn": _plot_expected_vs_vcn(outputs, noisy_config, latency_samples, FIGURE_DIR / "expected_vs_vcn.png"),
+    }
+    elapsed_s = time.perf_counter() - start
+    results = {
+        "experiment": "distance_noise_diagnostics",
+        "elapsed_seconds": elapsed_s,
+        "distance_m": EXAMPLE_DISTANCE_M,
+        "target_snr_db": NOISE_ROBUSTNESS_SNR_DB,
+        "jitter_std_s": NOISE_ROBUSTNESS_JITTER_S,
+        "noise_std": noisy_config.noise_std,
+        "summary_rows": _summarize_outputs(outputs, noisy_config, latency_samples),
+        "artifacts": artifacts,
+    }
+    RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    _write_report(results)
+    return results
+
+
+if __name__ == "__main__":
+    main()
+    print(REPORT_PATH)
