@@ -36,6 +36,12 @@ A tuned detector fires when its delayed corollary pulse arrives at the same time
 
 ![Coincidence animation](../outputs/simple_coincidence_model/figures/coincidence_detection.gif)
 
+## Amplitude Against Time Examples
+
+The plot below shows one example response for the LIF, RF, and binary detector forms. It uses the same corollary pulse and echo pulse, but the internal amplitude/state is different for each detector type.
+
+![Detector time examples](../outputs/simple_coincidence_model/figures/detector_time_examples.png)
+
 ## Example Detector Bank Response
 
 The plot below shows a single target at `2.7 m`. The matched delay line peaks at the correct distance.
@@ -62,6 +68,7 @@ The detector can be implemented as a LIF neuron: one input arrives from the dela
 
 - `pulse_timeline`: `distance_pathway/outputs/simple_coincidence_model/figures/pulse_timeline.png`
 - `coincidence_animation`: `distance_pathway/outputs/simple_coincidence_model/figures/coincidence_detection.gif`
+- `detector_time_examples`: `distance_pathway/outputs/simple_coincidence_model/figures/detector_time_examples.png`
 - `delay_bank_response`: `distance_pathway/outputs/simple_coincidence_model/figures/delay_bank_response.png`
 
-Runtime for full script: `4.87 s`.
+Runtime for full script: `6.03 s`.

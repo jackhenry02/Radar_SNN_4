@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-"""Distance pathway analysis: simple model and detector optimization tests.
+"""Distance pathway reports for simple coincidence and detector optimisation.
 
-This script generates two separate reports:
+The script generates two reports:
 
 1. `simple_coincidence_model.md`
-   A simple explanatory model using a corollary discharge, an echo pulse, and
-   distance-tuned delay lines.
+   Explanatory corollary-discharge and delay-line coincidence model.
 
 2. `accuracy_optimisation_testing.md`
-   A synthetic benchmark comparing LIF, RF, and binary coincidence detectors
-   for distance estimation.
-
-The experiment deliberately uses ideal pulse timing rather than the full
-cochlea. That keeps the distance pathway mechanism isolated and easy to
-explain before building the fuller biological and optimized versions.
+   Accuracy/runtime/FLOP/SOP comparison for LIF, RF, and binary detectors under
+   clean, noisy, jittered, and noisy+jittered pulse conditions.
 """
 
 import json
@@ -46,6 +41,7 @@ MAX_DISTANCE_M = 5.0
 NUM_DELAY_LINES = 160
 NUM_TEST_SAMPLES = 1_000
 JITTER_STD_S = 35e-6
+WHITE_NOISE_SNR_DB = 10.0
 RNG_SEED = 11
 
 BASE_OUTPUT_DIR = ROOT / "distance_pathway" / "outputs"
@@ -64,38 +60,36 @@ class Dataset:
     """Synthetic pulse-distance dataset.
 
     Attributes:
+        condition: Name of the signal condition.
         true_distance_m: True target distances in metres.
-        echo_delay_samples: Round-trip echo delay in samples after jitter.
-        echo_index: Echo pulse index in the simulated timeline.
-        candidate_distance_m: Distances represented by the delay-line bank.
+        ideal_echo_delay_samples: Perfect round-trip echo delay in samples.
+        echo_delay_samples: Echo delay in samples after optional jitter.
+        waveform: Synthetic pulse waveform after optional white noise,
+            shape `[samples, time]`.
+        candidate_distance_m: Distances represented by delay lines.
         candidate_delay_samples: Delay-line delays in samples.
-        num_time_steps: Length of the synthetic spike timeline.
+        num_time_steps: Length of the synthetic timeline.
+        has_noise: Whether additive white noise is present.
+        has_jitter: Whether true echo timing jitter is present.
     """
 
+    condition: str
     true_distance_m: np.ndarray
+    ideal_echo_delay_samples: np.ndarray
     echo_delay_samples: np.ndarray
-    echo_index: np.ndarray
+    waveform: np.ndarray
     candidate_distance_m: np.ndarray
     candidate_delay_samples: np.ndarray
     num_time_steps: int
+    has_noise: bool
+    has_jitter: bool
 
 
 @dataclass
 class DetectorResult:
-    """Accuracy and cost result for one detector type.
+    """Accuracy and cost result for one detector type and condition."""
 
-    Attributes:
-        name: Human-readable detector name.
-        predicted_distance_m: Predicted distance for every test sample.
-        mae_m: Mean absolute error in metres.
-        rmse_m: Root mean squared error in metres.
-        p95_abs_error_m: 95th percentile absolute error in metres.
-        max_abs_error_m: Worst-case absolute error in metres.
-        runtime_ms: Median runtime for the full test set.
-        flops: Estimated floating-point operations.
-        sops: Estimated synaptic operations or bit operations.
-    """
-
+    condition: str
     name: str
     predicted_distance_m: np.ndarray
     mae_m: float
@@ -112,7 +106,7 @@ def _median_runtime_s(function: Callable[[], object], repeats: int = 20) -> floa
 
     Args:
         function: Zero-argument callable.
-        repeats: Number of timed repeats.
+        repeats: Number of repeats.
 
     Returns:
         Median runtime in seconds.
@@ -126,19 +120,34 @@ def _median_runtime_s(function: Callable[[], object], repeats: int = 20) -> floa
     return float(np.median(times))
 
 
-def _make_dataset() -> Dataset:
-    """Create random pulse echo distances and a delay-line bank.
+def _base_distances() -> np.ndarray:
+    """Create the common true distances used by all conditions."""
+    rng = np.random.default_rng(RNG_SEED)
+    return rng.uniform(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_TEST_SAMPLES)
+
+
+def _make_dataset(condition: str, *, has_noise: bool, has_jitter: bool, seed_offset: int) -> Dataset:
+    """Create one benchmark condition.
+
+    Args:
+        condition: Human-readable condition name.
+        has_noise: Whether to add Gaussian white noise to the waveform.
+        has_jitter: Whether to jitter the true echo pulse.
+        seed_offset: Offset used for condition-specific randomness.
 
     Returns:
-        Synthetic dataset with true echo delays and candidate delay lines.
+        Dataset for the requested condition.
     """
-    rng = np.random.default_rng(RNG_SEED)
-    true_distance_m = rng.uniform(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_TEST_SAMPLES)
-    round_trip_delay_s = 2.0 * true_distance_m / SPEED_OF_SOUND_M_S
-    jitter_s = rng.normal(0.0, JITTER_STD_S, NUM_TEST_SAMPLES)
-    echo_delay_samples = np.rint((round_trip_delay_s + jitter_s) * SAMPLE_RATE_HZ).astype(np.int64)
-    echo_delay_samples = np.clip(echo_delay_samples, 1, None)
-    echo_index = TX_INDEX + echo_delay_samples
+    rng = np.random.default_rng(RNG_SEED + seed_offset)
+    true_distance_m = _base_distances()
+    ideal_delay_s = 2.0 * true_distance_m / SPEED_OF_SOUND_M_S
+    if has_jitter:
+        jitter_s = rng.normal(0.0, JITTER_STD_S, true_distance_m.size)
+    else:
+        jitter_s = np.zeros_like(true_distance_m)
+    echo_delay = np.rint((ideal_delay_s + jitter_s) * SAMPLE_RATE_HZ).astype(np.int64)
+    echo_delay = np.clip(echo_delay, 1, None)
+    ideal_echo_delay = np.rint(ideal_delay_s * SAMPLE_RATE_HZ).astype(np.int64)
 
     candidate_distance_m = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_DELAY_LINES)
     candidate_delay_samples = np.rint(
@@ -146,113 +155,101 @@ def _make_dataset() -> Dataset:
     ).astype(np.int64)
 
     max_candidate = int(candidate_delay_samples.max())
-    max_echo = int(echo_delay_samples.max())
-    num_time_steps = TX_INDEX + max(max_candidate, max_echo) + 80
+    max_observed = int(echo_delay.max())
+    num_time_steps = TX_INDEX + max(max_candidate, max_observed) + 80
+    waveform = np.zeros((true_distance_m.size, num_time_steps), dtype=np.float64)
+    echo_indices = TX_INDEX + echo_delay
+    waveform[np.arange(true_distance_m.size), echo_indices] = 1.0
+    if has_noise:
+        noise_std = 10.0 ** (-WHITE_NOISE_SNR_DB / 20.0)
+        waveform += rng.normal(0.0, noise_std, size=waveform.shape)
     return Dataset(
+        condition=condition,
         true_distance_m=true_distance_m,
-        echo_delay_samples=echo_delay_samples,
-        echo_index=echo_index,
+        ideal_echo_delay_samples=ideal_echo_delay,
+        echo_delay_samples=echo_delay,
+        waveform=waveform,
         candidate_distance_m=candidate_distance_m,
         candidate_delay_samples=candidate_delay_samples,
         num_time_steps=num_time_steps,
+        has_noise=has_noise,
+        has_jitter=has_jitter,
     )
 
 
-def _delay_error_matrix(dataset: Dataset) -> np.ndarray:
-    """Compute candidate delay error for every sample and delay line.
+def _all_datasets() -> list[Dataset]:
+    """Return the four requested benchmark conditions."""
+    return [
+        _make_dataset("Clean perfect", has_noise=False, has_jitter=False, seed_offset=0),
+        _make_dataset("Added noise", has_noise=True, has_jitter=False, seed_offset=100),
+        _make_dataset("Added jitter", has_noise=False, has_jitter=True, seed_offset=200),
+        _make_dataset("Noise + jitter", has_noise=True, has_jitter=True, seed_offset=300),
+    ]
+
+
+def _delay_error_tensor(dataset: Dataset) -> np.ndarray:
+    """Compute observed-pulse delay error against every candidate delay.
 
     Args:
-        dataset: Synthetic dataset.
+        dataset: Benchmark dataset.
 
     Returns:
-        Absolute delay mismatch matrix with shape `[samples, delay_lines]`.
+        Absolute delay mismatch tensor `[samples, pulses, delay_lines]`.
     """
-    return np.abs(dataset.echo_delay_samples[:, None] - dataset.candidate_delay_samples[None, :])
+    return np.abs(
+        dataset.observed_pulse_delay_samples[:, :, None] - dataset.candidate_delay_samples[None, None, :]
+    )
 
 
 def _predict_lif(dataset: Dataset) -> np.ndarray:
-    """Predict distance with a LIF soft-coincidence detector bank.
-
-    The delayed corollary pulse and echo pulse both add membrane voltage. If
-    they arrive close together, residual voltage from the first pulse helps the
-    second pulse cross threshold. For this synthetic benchmark, the score can
-    be written analytically as:
-
-    `score = w * (1 + beta ** delay_error)`.
-
-    Args:
-        dataset: Synthetic dataset.
-
-    Returns:
-        Predicted distances in metres.
-    """
-    delay_error = _delay_error_matrix(dataset)
+    """Predict distance with a LIF soft-coincidence detector bank."""
+    delay_error = _delay_error_tensor(dataset)
+    amplitudes = dataset.observed_pulse_amplitudes[:, :, None]
     beta = 0.982
     input_weight = 0.62
-    scores = input_weight * (1.0 + np.power(beta, delay_error))
+    pulse_scores = amplitudes * input_weight * (1.0 + np.power(beta, delay_error))
+    scores = pulse_scores.max(axis=1)
     return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
 
 
 def _predict_rf(dataset: Dataset) -> np.ndarray:
-    """Predict distance with an RF-style coincidence detector bank.
-
-    The RF detector uses a damped oscillatory afterpotential. It still peaks at
-    zero timing mismatch, but it can create side lobes if the oscillation is too
-    strong or poorly damped.
-
-    Args:
-        dataset: Synthetic dataset.
-
-    Returns:
-        Predicted distances in metres.
-    """
-    delay_error = _delay_error_matrix(dataset)
+    """Predict distance with an RF-style coincidence detector bank."""
+    delay_error = _delay_error_tensor(dataset)
+    amplitudes = dataset.observed_pulse_amplitudes[:, :, None]
     input_weight = 0.62
     tau_samples = 18.0
     omega = 2.0 * np.pi / 18.0
     afterpotential = np.exp(-delay_error / tau_samples) * np.cos(omega * delay_error)
-    scores = input_weight * (1.0 + afterpotential)
+    pulse_scores = amplitudes * input_weight * (1.0 + afterpotential)
+    scores = pulse_scores.max(axis=1)
     return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
 
 
 def _predict_binary(dataset: Dataset) -> np.ndarray:
-    """Predict distance with a binary delay-line coincidence detector.
-
-    This detector only checks whether the delayed corollary pulse and echo
-    pulse land within a small sample tolerance. If no candidate falls inside
-    the tolerance, it falls back to the closest delay.
-
-    Args:
-        dataset: Synthetic dataset.
-
-    Returns:
-        Predicted distances in metres.
-    """
-    delay_error = _delay_error_matrix(dataset)
+    """Predict distance with a binary delay-line coincidence detector."""
+    delay_error = _delay_error_tensor(dataset)
+    amplitudes = dataset.observed_pulse_amplitudes[:, :, None]
     tolerance_samples = 2
-    masked_score = np.where(delay_error <= tolerance_samples, -delay_error, -np.inf)
-    no_match = ~np.isfinite(masked_score).any(axis=1)
+    pulse_scores = np.where(delay_error <= tolerance_samples, amplitudes, -np.inf)
+    scores = pulse_scores.max(axis=1)
+    no_match = ~np.isfinite(scores).any(axis=1)
     if np.any(no_match):
-        masked_score[no_match] = -delay_error[no_match]
-    return dataset.candidate_distance_m[np.argmax(masked_score, axis=1)]
+        nearest_error = delay_error[no_match].min(axis=1)
+        scores[no_match] = -nearest_error
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
 
 
 def _score_detector(name: str, dataset: Dataset, predictor: Callable[[Dataset], np.ndarray]) -> DetectorResult:
-    """Benchmark and score one detector.
-
-    Args:
-        name: Detector name.
-        dataset: Synthetic dataset.
-        predictor: Prediction function.
-
-    Returns:
-        Detector result summary.
-    """
+    """Benchmark and score one detector on one condition."""
     runtime_s = _median_runtime_s(lambda: predictor(dataset))
     predicted = predictor(dataset)
     error = predicted - dataset.true_distance_m
     abs_error = np.abs(error)
-    operations = dataset.true_distance_m.size * dataset.candidate_distance_m.size
+    operations = (
+        dataset.true_distance_m.size
+        * dataset.candidate_distance_m.size
+        * dataset.observed_pulse_delay_samples.shape[1]
+    )
     if name.startswith("LIF"):
         flops = operations * 8.0
         sops = operations * 2.0
@@ -263,6 +260,7 @@ def _score_detector(name: str, dataset: Dataset, predictor: Callable[[Dataset], 
         flops = operations * 1.0
         sops = operations
     return DetectorResult(
+        condition=dataset.condition,
         name=name,
         predicted_distance_m=predicted,
         mae_m=float(abs_error.mean()),
@@ -276,14 +274,7 @@ def _score_detector(name: str, dataset: Dataset, predictor: Callable[[Dataset], 
 
 
 def _render_frame(fig: plt.Figure) -> Image.Image:
-    """Render a matplotlib figure into a PIL image.
-
-    Args:
-        fig: Matplotlib figure.
-
-    Returns:
-        Rendered RGBA image.
-    """
+    """Render a matplotlib figure into a PIL image."""
     fig.canvas.draw()
     width, height = fig.canvas.get_width_height()
     rgba = np.asarray(fig.canvas.buffer_rgba()).copy()
@@ -291,16 +282,7 @@ def _render_frame(fig: plt.Figure) -> Image.Image:
 
 
 def _save_gif(frames: list[Image.Image], path: Path, duration_ms: int = 100) -> str:
-    """Save animation frames as a GIF.
-
-    Args:
-        frames: Rendered frames.
-        path: Output GIF path.
-        duration_ms: Duration of each frame.
-
-    Returns:
-        Path to the saved GIF.
-    """
+    """Save animation frames as a GIF."""
     if not frames:
         raise ValueError("No animation frames were generated.")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -309,15 +291,7 @@ def _save_gif(frames: list[Image.Image], path: Path, duration_ms: int = 100) -> 
 
 
 def _plot_explanatory_timeline(dataset: Dataset, path: Path) -> str:
-    """Plot corollary discharge, echo, and three example delay lines.
-
-    Args:
-        dataset: Synthetic dataset.
-        path: Output figure path.
-
-    Returns:
-        Saved figure path.
-    """
+    """Plot corollary discharge, echo, and three example delay lines."""
     target_distance = 2.7
     true_delay = int(round((2.0 * target_distance / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ))
     true_echo = TX_INDEX + true_delay
@@ -346,15 +320,7 @@ def _plot_explanatory_timeline(dataset: Dataset, path: Path) -> str:
 
 
 def _plot_delay_bank_response(dataset: Dataset, path: Path) -> str:
-    """Plot detector-bank responses for one example target.
-
-    Args:
-        dataset: Synthetic dataset.
-        path: Output figure path.
-
-    Returns:
-        Saved figure path.
-    """
+    """Plot detector-bank responses for one example target."""
     target_distance = 2.7
     delay = int(round((2.0 * target_distance / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ))
     delay_error = np.abs(delay - dataset.candidate_delay_samples)
@@ -374,91 +340,75 @@ def _plot_delay_bank_response(dataset: Dataset, path: Path) -> str:
     return save_figure(fig, path)
 
 
-def _plot_accuracy(results: list[DetectorResult], dataset: Dataset, path: Path) -> str:
-    """Plot true-vs-predicted distance for each detector.
+def _plot_detector_time_examples(path: Path) -> str:
+    """Plot amplitude/state against time for one LIF, RF, and binary example."""
+    steps = 260
+    target_distance = 0.45
+    true_delay = int(round((2.0 * target_distance / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ))
+    matched_time = TX_INDEX + true_delay
+    short_time = matched_time - 16
+    long_time = matched_time + 18
+    echo_time = matched_time
+    time_ms = np.arange(steps) / SAMPLE_RATE_HZ * 1_000.0
+    pulse_train = np.zeros(steps)
+    for pulse_time, amplitude in [(TX_INDEX, 1.0), (echo_time, 1.0)]:
+        if 0 <= pulse_time < steps:
+            pulse_train[pulse_time] = amplitude
 
-    Args:
-        results: Detector results.
-        dataset: Synthetic dataset.
-        path: Output figure path.
+    candidate_times = [short_time, matched_time, long_time]
+    labels = ["short detector", "matched detector", "long detector"]
+    colors = ["#64748b", "#16a34a", "#64748b"]
+    lif = np.zeros((3, steps))
+    rf = np.zeros((3, steps))
+    binary = np.zeros((3, steps))
+    for det, candidate_time in enumerate(candidate_times):
+        voltage = 0.0
+        rf_state = 0.0
+        rf_velocity = 0.0
+        for step in range(steps):
+            detector_drive = 0.0
+            if step == candidate_time:
+                detector_drive += 0.62
+            if step == echo_time:
+                detector_drive += 0.62
+            voltage = 0.86 * voltage + detector_drive
+            if voltage >= 1.0:
+                voltage -= 1.0
+            lif[det, step] = voltage
 
-    Returns:
-        Saved figure path.
-    """
-    fig, axes = plt.subplots(1, len(results), figsize=(15, 4.8), sharex=True, sharey=True)
-    for ax, result in zip(axes, results):
-        ax.scatter(dataset.true_distance_m, result.predicted_distance_m, s=8, alpha=0.45)
-        ax.plot([MIN_DISTANCE_M, MAX_DISTANCE_M], [MIN_DISTANCE_M, MAX_DISTANCE_M], color="#111827")
-        ax.set_title(f"{result.name}\nMAE={result.mae_m * 100:.2f} cm")
-        ax.set_xlabel("true distance (m)")
-        ax.grid(True, alpha=0.25)
-    axes[0].set_ylabel("predicted distance (m)")
-    return save_figure(fig, path)
+            rf_velocity = 0.94 * rf_velocity + detector_drive - 0.34 * rf_state
+            rf_state = rf_state + 0.34 * rf_velocity
+            rf[det, step] = rf_state
+            binary[det, step] = 1.0 if abs(candidate_time - echo_time) <= 2 and step == echo_time else 0.0
 
-
-def _plot_error_histogram(results: list[DetectorResult], dataset: Dataset, path: Path) -> str:
-    """Plot absolute error histograms for each detector.
-
-    Args:
-        results: Detector results.
-        dataset: Synthetic dataset.
-        path: Output figure path.
-
-    Returns:
-        Saved figure path.
-    """
-    fig, ax = plt.subplots(figsize=(10.5, 5.5))
-    bins = np.linspace(0.0, 0.08, 35)
-    for result in results:
-        abs_error = np.abs(result.predicted_distance_m - dataset.true_distance_m)
-        ax.hist(abs_error, bins=bins, alpha=0.5, label=result.name)
-    ax.set_xlabel("absolute distance error (m)")
-    ax.set_ylabel("count")
-    ax.set_title("Distance error distribution")
-    ax.legend(loc="upper right")
-    ax.grid(True, alpha=0.25)
-    return save_figure(fig, path)
-
-
-def _plot_costs(results: list[DetectorResult], path: Path) -> str:
-    """Plot runtime, FLOPs, and SOPs/bit operations.
-
-    Args:
-        results: Detector results.
-        path: Output figure path.
-
-    Returns:
-        Saved figure path.
-    """
-    names = [result.name for result in results]
-    runtime = [result.runtime_ms for result in results]
-    flops = [result.flops for result in results]
-    sops = [result.sops for result in results]
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8))
-    axes[0].bar(names, runtime, color="#2563eb")
-    axes[0].set_title("Runtime")
-    axes[0].set_ylabel("ms per 1000 samples")
-    axes[1].bar(names, flops, color="#f97316")
-    axes[1].set_title("Estimated FLOPs")
-    axes[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-    axes[2].bar(names, sops, color="#16a34a")
-    axes[2].set_title("SOPs / bit operations")
-    axes[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    fig, axes = plt.subplots(4, 1, figsize=(12, 9), sharex=True)
+    axes[0].stem(time_ms, pulse_train, linefmt="#111827", markerfmt=" ", basefmt=" ")
+    axes[0].set_title("Input amplitude: corollary discharge pulse and echo pulse")
+    axes[0].set_ylabel("amplitude")
+    for det, label in enumerate(labels):
+        axes[1].plot(time_ms, lif[det], color=colors[det], linewidth=2.0, label=label)
+    axes[1].axhline(1.0, color="#dc2626", linestyle="--", linewidth=1.0, label="threshold")
+    axes[1].set_title("LIF membrane amplitude against time")
+    axes[1].set_ylabel("membrane")
+    axes[1].legend(loc="upper right")
+    for det, label in enumerate(labels):
+        axes[2].plot(time_ms, rf[det], color=colors[det], linewidth=2.0, label=label)
+    axes[2].set_title("RF resonant state amplitude against time")
+    axes[2].set_ylabel("RF state")
+    for det, label in enumerate(labels):
+        axes[3].step(time_ms, binary[det] + det * 1.2, where="post", color=colors[det], linewidth=2.0, label=label)
+    axes[3].set_title("Binary coincidence output against time")
+    axes[3].set_ylabel("binary output")
+    axes[3].set_xlabel("time (ms)")
+    axes[3].set_yticks([0.5, 1.7, 2.9], labels)
     for ax in axes:
-        ax.tick_params(axis="x", rotation=15)
-        ax.grid(True, axis="y", alpha=0.25)
+        ax.grid(True, alpha=0.25)
+        ax.set_xlim(time_ms[max(0, TX_INDEX - 20)], time_ms[min(steps - 1, echo_time + 45)])
     return save_figure(fig, path)
 
 
 def _save_coincidence_animation(path: Path) -> str:
-    """Create a GIF explaining delay-line coincidence detection.
-
-    Args:
-        path: Output GIF path.
-
-    Returns:
-        Saved GIF path.
-    """
+    """Create a GIF explaining delay-line coincidence detection."""
     frames: list[Image.Image] = []
     steps = 72
     echo_step = 38
@@ -518,18 +468,84 @@ def _save_coincidence_animation(path: Path) -> str:
         axes[1].grid(True, alpha=0.2)
         frames.append(_render_frame(fig))
         plt.close(fig)
-
     return _save_gif(frames, path, duration_ms=95)
 
 
-def _write_simple_report(dataset: Dataset, artifacts: dict[str, str], elapsed_s: float) -> None:
-    """Write the simple explanatory coincidence report.
+def _plot_condition_mae(results_by_condition: dict[str, list[DetectorResult]], path: Path) -> str:
+    """Plot MAE by condition and detector."""
+    conditions = list(results_by_condition)
+    detector_names = [result.name for result in next(iter(results_by_condition.values()))]
+    x = np.arange(len(conditions))
+    width = 0.24
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+    for index, detector in enumerate(detector_names):
+        mae_cm = [
+            next(result for result in results_by_condition[condition] if result.name == detector).mae_m * 100.0
+            for condition in conditions
+        ]
+        ax.bar(x + (index - 1) * width, mae_cm, width=width, label=detector)
+    ax.set_xticks(x, conditions)
+    ax.set_ylabel("MAE (cm)")
+    ax.set_title("Distance accuracy under clean, noise, jitter, and combined conditions")
+    ax.legend(loc="upper left")
+    ax.grid(True, axis="y", alpha=0.25)
+    return save_figure(fig, path)
 
-    Args:
-        dataset: Synthetic dataset.
-        artifacts: Generated artifact paths.
-        elapsed_s: Total script runtime.
-    """
+
+def _plot_accuracy(results: list[DetectorResult], dataset: Dataset, path: Path) -> str:
+    """Plot true-vs-predicted distance for one condition."""
+    fig, axes = plt.subplots(1, len(results), figsize=(15, 4.8), sharex=True, sharey=True)
+    for ax, result in zip(axes, results):
+        ax.scatter(dataset.true_distance_m, result.predicted_distance_m, s=8, alpha=0.45)
+        ax.plot([MIN_DISTANCE_M, MAX_DISTANCE_M], [MIN_DISTANCE_M, MAX_DISTANCE_M], color="#111827")
+        ax.set_title(f"{result.name}\nMAE={result.mae_m * 100:.2f} cm")
+        ax.set_xlabel("true distance (m)")
+        ax.grid(True, alpha=0.25)
+    axes[0].set_ylabel("predicted distance (m)")
+    return save_figure(fig, path)
+
+
+def _plot_error_histogram(results: list[DetectorResult], dataset: Dataset, path: Path) -> str:
+    """Plot absolute error histograms for one condition."""
+    fig, ax = plt.subplots(figsize=(10.5, 5.5))
+    bins = np.linspace(0.0, 1.6, 45)
+    for result in results:
+        abs_error = np.abs(result.predicted_distance_m - dataset.true_distance_m)
+        ax.hist(abs_error, bins=bins, alpha=0.45, label=result.name)
+    ax.set_xlabel("absolute distance error (m)")
+    ax.set_ylabel("count")
+    ax.set_title(f"Distance error distribution: {dataset.condition}")
+    ax.legend(loc="upper right")
+    ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
+def _plot_costs(results_by_condition: dict[str, list[DetectorResult]], path: Path) -> str:
+    """Plot runtime, FLOPs, and SOPs for the noise+jitter condition."""
+    results = results_by_condition["Noise + jitter"]
+    names = [result.name for result in results]
+    runtime = [result.runtime_ms for result in results]
+    flops = [result.flops for result in results]
+    sops = [result.sops for result in results]
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.8))
+    axes[0].bar(names, runtime, color="#2563eb")
+    axes[0].set_title("Runtime")
+    axes[0].set_ylabel("ms per 1000 samples")
+    axes[1].bar(names, flops, color="#f97316")
+    axes[1].set_title("Estimated FLOPs")
+    axes[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    axes[2].bar(names, sops, color="#16a34a")
+    axes[2].set_title("SOPs / bit operations")
+    axes[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    for ax in axes:
+        ax.tick_params(axis="x", rotation=15)
+        ax.grid(True, axis="y", alpha=0.25)
+    fig.suptitle("Cost comparison shown for the hardest condition: noise + jitter")
+    return save_figure(fig, path)
+
+
+def _write_simple_report(dataset: Dataset, artifacts: dict[str, str], elapsed_s: float) -> None:
+    """Write the simple explanatory coincidence report."""
     lines = [
         "# Distance Pathway 1: Simple Coincidence Model",
         "",
@@ -569,6 +585,12 @@ def _write_simple_report(dataset: Dataset, artifacts: dict[str, str], elapsed_s:
         "",
         "![Coincidence animation](../outputs/simple_coincidence_model/figures/coincidence_detection.gif)",
         "",
+        "## Amplitude Against Time Examples",
+        "",
+        "The plot below shows one example response for the LIF, RF, and binary detector forms. It uses the same corollary pulse and echo pulse, but the internal amplitude/state is different for each detector type.",
+        "",
+        "![Detector time examples](../outputs/simple_coincidence_model/figures/detector_time_examples.png)",
+        "",
         "## Example Detector Bank Response",
         "",
         "The plot below shows a single target at `2.7 m`. The matched delay line peaks at the correct distance.",
@@ -595,139 +617,159 @@ def _write_simple_report(dataset: Dataset, artifacts: dict[str, str], elapsed_s:
         "",
     ]
     for name, path in artifacts.items():
-        if name in {"pulse_timeline", "coincidence_animation", "delay_bank_response"}:
+        if name in {"pulse_timeline", "coincidence_animation", "detector_time_examples", "delay_bank_response"}:
             lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.extend(["", f"Runtime for full script: `{elapsed_s:.2f} s`.", ""])
     SIMPLE_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
 
 def _write_optimisation_report(
-    dataset: Dataset,
-    results: list[DetectorResult],
+    datasets: list[Dataset],
+    results_by_condition: dict[str, list[DetectorResult]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
-    """Write the LIF/RF/binary optimization report.
-
-    Args:
-        dataset: Synthetic dataset.
-        results: Detector results.
-        artifacts: Generated artifact paths.
-        elapsed_s: Total script runtime.
-    """
+    """Write the condition-based LIF/RF/binary optimization report."""
     lines = [
         "# Distance Pathway 2: Accuracy And Optimisation Testing",
         "",
-        "This report compares three ways of implementing the simple delay-line distance pathway on ideal pulse timing: LIF, RF, and binary coincidence detection.",
+        "This report compares LIF, RF, and binary delay-line coincidence detectors under four pulse conditions: clean, added noise, added jitter, and noise plus jitter.",
         "",
-        "## Detector Equations",
+        "## Signal Conditions",
         "",
-        "For all detectors, the mismatch between the observed echo delay and candidate delay is:",
-        "",
-        "```text",
-        "delta_k = abs(delay_echo - delay_candidate[k])",
-        "```",
-        "",
-        "### LIF Detector",
-        "",
-        "```text",
-        "score_k = w * (1 + beta^delta_k)",
-        "```",
-        "",
-        "The LIF version is a soft coincidence detector. It is tolerant to small timing offsets because residual membrane voltage decays gradually.",
-        "",
-        "### RF Detector",
-        "",
-        "```text",
-        "score_k = w * (1 + exp(-delta_k/tau_rf) * cos(omega_rf * delta_k))",
-        "```",
-        "",
-        "The RF version is also soft, but its oscillatory afterpotential can create side lobes. That may be useful for periodicity tasks, but it is not obviously better for pure echo-delay matching.",
-        "",
-        "### Binary Detector",
-        "",
-        "```text",
-        "match_k = 1 if delta_k <= tolerance else 0",
-        "```",
-        "",
-        "The binary version is the cheapest form. It assumes the upstream system has already produced reliable onset events.",
-        "",
-        "## Benchmark Setup",
-        "",
-        "| Parameter | Value |",
-        "|---|---:|",
-        f"| sample rate | `{SAMPLE_RATE_HZ} Hz` |",
-        f"| speed of sound | `{SPEED_OF_SOUND_M_S} m/s` |",
-        f"| distance range | `{MIN_DISTANCE_M} -> {MAX_DISTANCE_M} m` |",
-        f"| test samples | `{NUM_TEST_SAMPLES}` |",
-        f"| delay lines | `{NUM_DELAY_LINES}` |",
-        f"| jitter std | `{JITTER_STD_S * 1_000_000.0:.1f} us` |",
-        "",
-        "The jitter prevents the task from being a perfectly quantized lookup problem.",
-        "",
-        "## Results",
-        "",
-        "![Accuracy scatter](../outputs/accuracy_optimisation/figures/accuracy_scatter.png)",
-        "",
-        "![Error histogram](../outputs/accuracy_optimisation/figures/error_histogram.png)",
-        "",
-        "![Cost comparison](../outputs/accuracy_optimisation/figures/cost_comparison.png)",
-        "",
-        "| Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|",
+        "| Condition | True echo jitter | Spurious onset noise |",
+        "|---|---:|---:|",
     ]
-    for result in results:
+    for dataset in datasets:
         lines.append(
-            f"| {result.name} | {result.mae_m * 100.0:.2f} | {result.rmse_m * 100.0:.2f} | "
-            f"{result.p95_abs_error_m * 100.0:.2f} | {result.max_abs_error_m * 100.0:.2f} | "
-            f"{result.runtime_ms:.3f} | {result.flops:,.0f} | {result.sops:,.0f} |"
+            f"| {dataset.condition} | `{dataset.has_jitter}` | `{dataset.has_noise}` |"
         )
     lines.extend(
         [
             "",
+            "Noise here means extra spurious onset pulses in the echo window. Jitter means Gaussian timing jitter on the true echo pulse. This is still a simplified pulse model, not full waveform noise.",
+            "",
+            "## Detector Equations",
+            "",
+            "For all detectors, the mismatch between each observed pulse and candidate delay is:",
+            "",
+            "```text",
+            "delta_p,k = abs(delay_observed[p] - delay_candidate[k])",
+            "```",
+            "",
+            "The LIF and RF detectors score all observed pulses and use the strongest response. The binary detector checks whether any pulse lands inside a small timing window.",
+            "",
+            "```text",
+            "LIF:    score_k = max_p amplitude_p * w * (1 + beta^delta_p,k)",
+            "RF:     score_k = max_p amplitude_p * w * (1 + exp(-delta_p,k/tau_rf) * cos(omega_rf * delta_p,k))",
+            "Binary: match_k = any_p(delta_p,k <= tolerance)",
+            "```",
+            "",
+            "## Benchmark Setup",
+            "",
+            "| Parameter | Value |",
+            "|---|---:|",
+            f"| sample rate | `{SAMPLE_RATE_HZ} Hz` |",
+            f"| speed of sound | `{SPEED_OF_SOUND_M_S} m/s` |",
+            f"| distance range | `{MIN_DISTANCE_M} -> {MAX_DISTANCE_M} m` |",
+            f"| test samples per condition | `{NUM_TEST_SAMPLES}` |",
+            f"| delay lines | `{NUM_DELAY_LINES}` |",
+            f"| jitter std | `{JITTER_STD_S * 1_000_000.0:.1f} us` |",
+            f"| noise pulses | `{NOISE_PULSES}` |",
+            f"| noise amplitude range | `{NOISE_MIN_AMPLITUDE} -> {NOISE_MAX_AMPLITUDE}` |",
+            "",
+            "## Accuracy Across Conditions",
+            "",
+            "![Condition MAE](../outputs/accuracy_optimisation/figures/condition_mae.png)",
+            "",
+            "The detailed numeric results are:",
+            "",
+            "| Condition | Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for condition, results in results_by_condition.items():
+        for result in results:
+            lines.append(
+                f"| {condition} | {result.name} | {result.mae_m * 100.0:.2f} | "
+                f"{result.rmse_m * 100.0:.2f} | {result.p95_abs_error_m * 100.0:.2f} | "
+                f"{result.max_abs_error_m * 100.0:.2f} | {result.runtime_ms:.3f} | "
+                f"{result.flops:,.0f} | {result.sops:,.0f} |"
+            )
+    lines.extend(
+        [
+            "",
+            "## Hardest-Condition Plots",
+            "",
+            "The scatter, histogram, and cost plots below use the hardest condition, `Noise + jitter`.",
+            "",
+            "![Accuracy scatter](../outputs/accuracy_optimisation/figures/accuracy_scatter_noise_jitter.png)",
+            "",
+            "![Error histogram](../outputs/accuracy_optimisation/figures/error_histogram_noise_jitter.png)",
+            "",
+            "![Cost comparison](../outputs/accuracy_optimisation/figures/cost_comparison.png)",
+            "",
             "## Interpretation",
             "",
-            "- LIF is the clearest biological soft-coincidence baseline.",
-            "- RF is biologically interesting, but for pure delay matching it adds oscillatory side lobes and higher estimated FLOP cost.",
-            "- Binary coincidence is the most optimized form for ideal onset events and is the natural candidate for later bit-packing/event-based acceleration.",
-            "- The binary result should not be over-interpreted yet, because real cochlear spike rasters will have noise, missed spikes, extra spikes, and frequency-channel structure.",
+            "- Clean perfect signals are essentially a delay quantisation problem, so LIF and binary should be close.",
+            "- Jitter tests timing tolerance. LIF remains a useful soft detector because the membrane trace decays smoothly with timing mismatch.",
+            "- Noise tests false-onset robustness. Binary is cheap, but can be fooled if a strong false onset lands near another candidate delay.",
+            "- RF remains biologically interesting, but its oscillatory side lobes are a weakness for this specific pure-delay task.",
+            "- These results still assume onset pulses have already been extracted; the next hard problem is robust onset extraction from real cochlear spike rasters.",
             "",
             "## Generated Files",
             "",
         ]
     )
     for name, path in artifacts.items():
-        if name in {"accuracy_scatter", "error_histogram", "cost_comparison"}:
+        if name in {
+            "condition_mae",
+            "accuracy_scatter_noise_jitter",
+            "error_histogram_noise_jitter",
+            "cost_comparison",
+        }:
             lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.extend([f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`", "", f"Runtime: `{elapsed_s:.2f} s`.", ""])
     OPT_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> dict[str, object]:
-    """Run the distance pathway analyses.
-
-    Returns:
-        JSON-serializable results payload.
-    """
+    """Run the distance pathway analyses."""
     start = time.perf_counter()
     ensure_dir(SIMPLE_FIGURE_DIR)
     ensure_dir(OPT_FIGURE_DIR)
     ensure_dir(REPORT_DIR)
     ensure_dir(BASE_OUTPUT_DIR)
 
-    dataset = _make_dataset()
-    results = [
-        _score_detector("LIF detector", dataset, _predict_lif),
-        _score_detector("RF detector", dataset, _predict_rf),
-        _score_detector("Binary detector", dataset, _predict_binary),
-    ]
+    datasets = _all_datasets()
+    results_by_condition: dict[str, list[DetectorResult]] = {}
+    for dataset in datasets:
+        results_by_condition[dataset.condition] = [
+            _score_detector("LIF detector", dataset, _predict_lif),
+            _score_detector("RF detector", dataset, _predict_rf),
+            _score_detector("Binary detector", dataset, _predict_binary),
+        ]
+
+    simple_dataset = datasets[0]
+    hard_dataset = datasets[-1]
+    hard_results = results_by_condition[hard_dataset.condition]
     artifacts = {
-        "pulse_timeline": _plot_explanatory_timeline(dataset, SIMPLE_FIGURE_DIR / "pulse_timeline.png"),
+        "pulse_timeline": _plot_explanatory_timeline(simple_dataset, SIMPLE_FIGURE_DIR / "pulse_timeline.png"),
         "coincidence_animation": _save_coincidence_animation(SIMPLE_FIGURE_DIR / "coincidence_detection.gif"),
-        "delay_bank_response": _plot_delay_bank_response(dataset, SIMPLE_FIGURE_DIR / "delay_bank_response.png"),
-        "accuracy_scatter": _plot_accuracy(results, dataset, OPT_FIGURE_DIR / "accuracy_scatter.png"),
-        "error_histogram": _plot_error_histogram(results, dataset, OPT_FIGURE_DIR / "error_histogram.png"),
-        "cost_comparison": _plot_costs(results, OPT_FIGURE_DIR / "cost_comparison.png"),
+        "detector_time_examples": _plot_detector_time_examples(SIMPLE_FIGURE_DIR / "detector_time_examples.png"),
+        "delay_bank_response": _plot_delay_bank_response(simple_dataset, SIMPLE_FIGURE_DIR / "delay_bank_response.png"),
+        "condition_mae": _plot_condition_mae(results_by_condition, OPT_FIGURE_DIR / "condition_mae.png"),
+        "accuracy_scatter_noise_jitter": _plot_accuracy(
+            hard_results,
+            hard_dataset,
+            OPT_FIGURE_DIR / "accuracy_scatter_noise_jitter.png",
+        ),
+        "error_histogram_noise_jitter": _plot_error_histogram(
+            hard_results,
+            hard_dataset,
+            OPT_FIGURE_DIR / "error_histogram_noise_jitter.png",
+        ),
+        "cost_comparison": _plot_costs(results_by_condition, OPT_FIGURE_DIR / "cost_comparison.png"),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -742,27 +784,32 @@ def main() -> dict[str, object]:
             "num_delay_lines": NUM_DELAY_LINES,
             "num_test_samples": NUM_TEST_SAMPLES,
             "jitter_std_s": JITTER_STD_S,
+            "noise_pulses": NOISE_PULSES,
+            "noise_min_amplitude": NOISE_MIN_AMPLITUDE,
+            "noise_max_amplitude": NOISE_MAX_AMPLITUDE,
             "rng_seed": RNG_SEED,
-            "num_time_steps": dataset.num_time_steps,
         },
-        "results": [
-            {
-                "name": result.name,
-                "mae_m": result.mae_m,
-                "rmse_m": result.rmse_m,
-                "p95_abs_error_m": result.p95_abs_error_m,
-                "max_abs_error_m": result.max_abs_error_m,
-                "runtime_ms": result.runtime_ms,
-                "flops": result.flops,
-                "sops": result.sops,
-            }
-            for result in results
-        ],
+        "results_by_condition": {
+            condition: [
+                {
+                    "name": result.name,
+                    "mae_m": result.mae_m,
+                    "rmse_m": result.rmse_m,
+                    "p95_abs_error_m": result.p95_abs_error_m,
+                    "max_abs_error_m": result.max_abs_error_m,
+                    "runtime_ms": result.runtime_ms,
+                    "flops": result.flops,
+                    "sops": result.sops,
+                }
+                for result in results
+            ]
+            for condition, results in results_by_condition.items()
+        },
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    _write_simple_report(dataset, artifacts, elapsed_s)
-    _write_optimisation_report(dataset, results, artifacts, elapsed_s)
+    _write_simple_report(simple_dataset, artifacts, elapsed_s)
+    _write_optimisation_report(datasets, results_by_condition, artifacts, elapsed_s)
     return payload
 
 
