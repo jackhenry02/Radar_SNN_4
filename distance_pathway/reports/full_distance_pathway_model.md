@@ -132,6 +132,19 @@ The first test uses `80` clean distances sampled uniformly from `0.25` to `5.0 m
 | max abs error | `6.119 cm` |
 | bias | `-0.133 cm` |
 
+## Noise Robustness Test
+
+This test uses the noisy diagnostic condition from the signal-analysis mini model: additive white receiver noise at `10.0 dB` SNR over the active echo window, plus propagation-delay jitter with `jitter_std = 0.00025 s`. For this distance-pathway setup that gives `noise_std = 2.96442`.
+
+The same stochastic noise and jitter sequence is used for both VCN variants, so the comparison isolates the VCN input representation.
+
+| Variant | VCN input | Noise condition | MAE | RMSE | Max abs error | Bias |
+|---|---|---|---:|---:|---:|---:|
+| Current: cochleagram LIF + latency-adjusted CD | `cochleagram` | `10.0 dB SNR + jitter` | `138.617 cm` | `177.373 cm` | `471.981 cm` | `-107.721 cm` |
+| Ablation: spike-raster LIF + matched latency-adjusted CD | `spikes` | `10.0 dB SNR + jitter` | `117.863 cm` | `138.242 cm` | `463.321 cm` | `-19.090 cm` |
+
+These noisy results should be interpreted as a stress test, not as the final operating condition. The clean pathway is strongly timing-driven, so noise that creates early threshold crossings can be damaging unless the VCN onset detector includes stronger robustness logic.
+
 ## Ablation Comparison
 
 The following variants were run on the same clean `80`-distance test set. The goal is to separate the benefit of the latency-adjusted CD/IC comparison from the benefit of reading the cochleagram rather than the later cochlear spike raster.
@@ -178,4 +191,4 @@ The previous prototype subtracted the latency vector from echo onsets, which cou
 - `accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/accuracy.png`
 - `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
 
-Runtime: `7.24 s`.
+Runtime: `22.69 s`.

@@ -50,6 +50,9 @@ NUM_TEST_SAMPLES = 80
 REFERENCE_DISTANCE_M = 2.5
 RNG_SEED = 44
 LATENCY_CALIBRATION_DISTANCES_M = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, 12)
+NOISE_ROBUSTNESS_SNR_DB = 10.0
+NOISE_ROBUSTNESS_JITTER_S = 2.5e-4
+NOISE_REFERENCE_DISTANCE_M = 3.0
 
 VCN_REFRACTORY_S = 0.010
 VCN_LIF_BETA = 0.92
@@ -175,12 +178,13 @@ def _chirp_channel_times(config: GlobalConfig) -> np.ndarray:
     return np.rint(sweep_fraction * duration_s * config.sample_rate_hz).astype(np.int64)
 
 
-def _simulate_scene(config: GlobalConfig, distance_m: float) -> torch.Tensor:
+def _simulate_scene(config: GlobalConfig, distance_m: float, *, add_noise: bool = False) -> torch.Tensor:
     """Simulate one clean binaural echo.
 
     Args:
         config: Acoustic configuration.
         distance_m: Target radius in metres.
+        add_noise: Whether to add receiver noise from `config.noise_std`.
 
     Returns:
         Received waveform `[ears, time]`.
@@ -191,11 +195,33 @@ def _simulate_scene(config: GlobalConfig, distance_m: float) -> torch.Tensor:
         azimuth_deg=torch.tensor([0.0], dtype=torch.float32),
         elevation_deg=torch.tensor([0.0], dtype=torch.float32),
         binaural=True,
-        add_noise=False,
+        add_noise=add_noise,
         include_elevation_cues=False,
         transmit_gain=config.transmit_gain,
     )
     return scene.receive[0].detach()
+
+
+def _make_noisy_config(config: GlobalConfig) -> GlobalConfig:
+    """Create the 10 dB SNR + diagnostic jitter condition from signal analysis.
+
+    Args:
+        config: Clean acoustic configuration.
+
+    Returns:
+        Configuration with `noise_std` and `jitter_std_s` set for the noisy
+        robustness test.
+    """
+    clean_receive = _simulate_scene(config, NOISE_REFERENCE_DISTANCE_M, add_noise=False)
+    clean_signal = clean_receive[0]
+    active = clean_signal.abs() > 0.02 * clean_signal.abs().amax().clamp_min(1e-12)
+    signal_rms = clean_signal[active].square().mean().sqrt() if bool(active.any()) else clean_signal.square().mean().sqrt()
+    diagnostic_noise_std = float(signal_rms.item() / (10.0 ** (NOISE_ROBUSTNESS_SNR_DB / 20.0)))
+    return replace(
+        config,
+        noise_std=diagnostic_noise_std,
+        jitter_std_s=NOISE_ROBUSTNESS_JITTER_S,
+    )
 
 
 def _run_cochlea_binaural(config: GlobalConfig, receive: torch.Tensor) -> CochleaResult:
@@ -494,9 +520,10 @@ def _predict_one(
     distance_m: float,
     latency_samples: np.ndarray,
     vcn_input: str = "cochleagram",
+    add_noise: bool = False,
 ) -> PathwayPrediction:
     """Run the full distance pathway for one target distance."""
-    receive = _simulate_scene(config, distance_m)
+    receive = _simulate_scene(config, distance_m, add_noise=add_noise)
     cochlea = _run_cochlea_binaural(config, receive)
     vcn_left = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "left", vcn_input), config)
     vcn_right = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "right", vcn_input), config)
@@ -755,6 +782,8 @@ def _run_variant_predictions(
     config: GlobalConfig,
     distances: np.ndarray,
     variant: PathwayVariant,
+    *,
+    add_noise: bool = False,
 ) -> list[PathwayPrediction]:
     """Run one variant over the shared test distances.
 
@@ -772,16 +801,63 @@ def _run_variant_predictions(
             float(distance),
             variant.latency_samples,
             vcn_input=variant.vcn_input,
+            add_noise=add_noise,
         )
         for distance in distances
     ]
 
 
+def _run_noise_robustness(
+    noisy_config: GlobalConfig,
+    distances: np.ndarray,
+    variants: list[PathwayVariant],
+) -> list[dict[str, object]]:
+    """Run the requested noisy comparison on the two latency-adjusted variants.
+
+    Args:
+        noisy_config: Acoustic config with 10 dB SNR noise and diagnostic jitter.
+        distances: Shared test distances.
+        variants: All available variants.
+
+    Returns:
+        Summary rows for the cochleagram-VCN and spike-raster-VCN models.
+    """
+    selected_keys = {
+        "cochleagram_lif_latency_adjusted",
+        "spike_raster_lif_latency_adjusted",
+    }
+    rows = []
+    for variant in variants:
+        if variant.key not in selected_keys:
+            continue
+        # Reset the seed so both VCN variants see the same stochastic noise and
+        # jitter sequence over the same distance list.
+        torch.manual_seed(RNG_SEED + 10_000)
+        predictions = _run_variant_predictions(
+            noisy_config,
+            distances,
+            variant,
+            add_noise=True,
+        )
+        rows.append(
+            {
+                "key": variant.key,
+                "name": variant.name,
+                "vcn_input": variant.vcn_input,
+                "latency_description": "matched",
+                "metrics": _metrics(predictions),
+            }
+        )
+    return rows
+
+
 def _write_report(
     config: GlobalConfig,
+    noisy_config: GlobalConfig,
     latency_samples: np.ndarray,
     predictions: list[PathwayPrediction],
     variant_summaries: list[dict[str, object]],
+    noise_summaries: list[dict[str, object]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -924,13 +1000,40 @@ def _write_report(
         f"| max abs error | `{metric_values['max_abs_error_m'] * 100.0:.3f} cm` |",
         f"| bias | `{metric_values['bias_m'] * 100.0:.3f} cm` |",
         "",
+        "## Noise Robustness Test",
+        "",
+        f"This test uses the noisy diagnostic condition from the signal-analysis mini model: additive white receiver noise at `{NOISE_ROBUSTNESS_SNR_DB:.1f} dB` SNR over the active echo window, plus propagation-delay jitter with `jitter_std = {NOISE_ROBUSTNESS_JITTER_S:.6g} s`. For this distance-pathway setup that gives `noise_std = {noisy_config.noise_std:.6g}`.",
+        "",
+        "The same stochastic noise and jitter sequence is used for both VCN variants, so the comparison isolates the VCN input representation.",
+        "",
+        "| Variant | VCN input | Noise condition | MAE | RMSE | Max abs error | Bias |",
+        "|---|---|---|---:|---:|---:|---:|",
+    ]
+    for summary in noise_summaries:
+        metrics = summary["metrics"]
+        lines.append(
+            "| "
+            f"{summary['name']} | "
+            f"`{summary['vcn_input']}` | "
+            f"`{NOISE_ROBUSTNESS_SNR_DB:.1f} dB SNR + jitter` | "
+            f"`{metrics['mae_m'] * 100.0:.3f} cm` | "
+            f"`{metrics['rmse_m'] * 100.0:.3f} cm` | "
+            f"`{metrics['max_abs_error_m'] * 100.0:.3f} cm` | "
+            f"`{metrics['bias_m'] * 100.0:.3f} cm` |"
+        )
+    lines.extend(
+        [
+        "",
+        "These noisy results should be interpreted as a stress test, not as the final operating condition. The clean pathway is strongly timing-driven, so noise that creates early threshold crossings can be damaging unless the VCN onset detector includes stronger robustness logic.",
+        "",
         "## Ablation Comparison",
         "",
         "The following variants were run on the same clean `80`-distance test set. The goal is to separate the benefit of the latency-adjusted CD/IC comparison from the benefit of reading the cochleagram rather than the later cochlear spike raster.",
         "",
         "| Variant | VCN input | CD latency vector | MAE | RMSE | Max abs error | Bias | Interpretation |",
         "|---|---|---|---:|---:|---:|---:|---|",
-    ]
+        ]
+    )
     for summary in variant_summaries:
         metrics = summary["metrics"]
         lines.append(
@@ -995,6 +1098,7 @@ def main() -> dict[str, object]:
     np.random.seed(RNG_SEED)
 
     config = _make_config()
+    noisy_config = _make_noisy_config(config)
     latency_samples = _load_channel_latency(config)
     rng = np.random.default_rng(RNG_SEED)
     distances = rng.uniform(MIN_DISTANCE_M, MAX_DISTANCE_M, size=NUM_TEST_SAMPLES)
@@ -1020,6 +1124,7 @@ def main() -> dict[str, object]:
                 "metrics": _metrics(variant_predictions[variant.key]),
             }
         )
+    noise_summaries = _run_noise_robustness(noisy_config, distances, variants)
 
     artifacts = {
         "stage_rasters": _plot_stage_rasters(example, config, FIGURE_DIR / "stage_rasters.png"),
@@ -1052,6 +1157,12 @@ def main() -> dict[str, object]:
             "vcn_lif_threshold_fraction": VCN_LIF_THRESHOLD_FRACTION,
             "ac_inhibit_gain": AC_INHIBIT_GAIN,
         },
+        "noise_robustness": {
+            "target_snr_db": NOISE_ROBUSTNESS_SNR_DB,
+            "noise_std": noisy_config.noise_std,
+            "jitter_std_s": noisy_config.jitter_std_s,
+            "summaries": noise_summaries,
+        },
         "latency_vector_path": str(LATENCY_VECTOR_PATH),
         "latency_samples": latency_samples.tolist(),
         "metrics": metric_values,
@@ -1063,7 +1174,16 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    _write_report(config, latency_samples, predictions, variant_summaries, artifacts, elapsed_s)
+    _write_report(
+        config,
+        noisy_config,
+        latency_samples,
+        predictions,
+        variant_summaries,
+        noise_summaries,
+        artifacts,
+        elapsed_s,
+    )
     return payload
 
 

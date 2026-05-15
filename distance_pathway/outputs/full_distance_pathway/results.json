@@ -1,6 +1,6 @@
 {
   "experiment": "full_distance_pathway_model",
-  "elapsed_seconds": 7.237074041040614,
+  "elapsed_seconds": 22.68895462504588,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,
@@ -15,6 +15,37 @@
     "vcn_lif_beta": 0.92,
     "vcn_lif_threshold_fraction": 0.03,
     "ac_inhibit_gain": 0.58
+  },
+  "noise_robustness": {
+    "target_snr_db": 10.0,
+    "noise_std": 2.9644242015988462,
+    "jitter_std_s": 0.00025,
+    "summaries": [
+      {
+        "key": "cochleagram_lif_latency_adjusted",
+        "name": "Current: cochleagram LIF + latency-adjusted CD",
+        "vcn_input": "cochleagram",
+        "latency_description": "matched",
+        "metrics": {
+          "mae_m": 1.3861712016245653,
+          "rmse_m": 1.7737312716950129,
+          "max_abs_error_m": 4.719810078510152,
+          "bias_m": -1.0772072514237228
+        }
+      },
+      {
+        "key": "spike_raster_lif_latency_adjusted",
+        "name": "Ablation: spike-raster LIF + matched latency-adjusted CD",
+        "vcn_input": "spikes",
+        "latency_description": "matched",
+        "metrics": {
+          "mae_m": 1.178629880992449,
+          "rmse_m": 1.3824235913029588,
+          "max_abs_error_m": 4.633211832530257,
+          "bias_m": -0.19090186909189077
+        }
+      }
+    ]
   },
   "latency_vector_path": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/cochlea_latency/cochlea_latency_samples.npy",
   "latency_samples": [
