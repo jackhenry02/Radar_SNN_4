@@ -1,0 +1,44 @@
+{
+  "experiment": "binary_clean_optimisation",
+  "elapsed_seconds": 12.91844275011681,
+  "config": {
+    "samples": 256,
+    "frequency_channels": 32,
+    "delay_lines": 160,
+    "sample_rate_hz": 64000,
+    "sweep_duration_s": 0.003,
+    "chunk_size": 16,
+    "grid_aligned": true
+  },
+  "results": [
+    {
+      "name": "LIF score",
+      "mae_m": 0.0,
+      "accuracy_percent": 100.0,
+      "runtime_ms": 0.22704200819134712,
+      "flops": 10485760.0,
+      "sops": 2621440.0
+    },
+    {
+      "name": "Binary loop",
+      "mae_m": 0.0,
+      "accuracy_percent": 100.0,
+      "runtime_ms": 1083.0497909337282,
+      "flops": 0.0,
+      "sops": 461373440
+    },
+    {
+      "name": "Binary unfold",
+      "mae_m": 0.0,
+      "accuracy_percent": 100.0,
+      "runtime_ms": 1369.4721250794828,
+      "flops": 0.0,
+      "sops": 461373440
+    }
+  ],
+  "artifacts": {
+    "clean_sweep_rasters": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png",
+    "accuracy_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/binary_clean_optimisation/figures/accuracy_scatter.png",
+    "runtime_cost": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/binary_clean_optimisation/figures/runtime_cost.png"
+  }
+}
