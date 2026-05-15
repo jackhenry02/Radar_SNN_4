@@ -43,6 +43,9 @@ NUM_TEST_SAMPLES = 1_000
 JITTER_STD_S = 35e-6
 WHITE_NOISE_SNR_DB = 10.0
 ECHO_PULSE_SIGMA_SAMPLES = 2.0
+SPIKE_NOISE_EVENTS = 3
+SPIKE_NOISE_MIN_AMPLITUDE = 0.25
+SPIKE_NOISE_MAX_AMPLITUDE = 1.10
 RNG_SEED = 11
 
 BASE_OUTPUT_DIR = ROOT / "distance_pathway" / "outputs"
@@ -79,6 +82,37 @@ class Dataset:
     ideal_echo_delay_samples: np.ndarray
     echo_delay_samples: np.ndarray
     waveform: np.ndarray
+    candidate_distance_m: np.ndarray
+    candidate_delay_samples: np.ndarray
+    num_time_steps: int
+    has_noise: bool
+    has_jitter: bool
+
+
+@dataclass
+class SpikeDataset:
+    """Synthetic spike-input distance dataset.
+
+    Attributes:
+        condition: Name of the signal condition.
+        true_distance_m: True target distances in metres.
+        ideal_echo_delay_samples: Perfect round-trip echo delay in samples.
+        observed_spike_delay_samples: True echo spike plus optional false
+            spikes, shape `[samples, spikes]`.
+        observed_spike_amplitudes: Per-spike amplitudes, shape
+            `[samples, spikes]`.
+        candidate_distance_m: Distances represented by delay lines.
+        candidate_delay_samples: Delay-line delays in samples.
+        num_time_steps: Length of the synthetic timeline.
+        has_noise: Whether false spikes are present.
+        has_jitter: Whether true echo timing jitter is present.
+    """
+
+    condition: str
+    true_distance_m: np.ndarray
+    ideal_echo_delay_samples: np.ndarray
+    observed_spike_delay_samples: np.ndarray
+    observed_spike_amplitudes: np.ndarray
     candidate_distance_m: np.ndarray
     candidate_delay_samples: np.ndarray
     num_time_steps: int
@@ -196,6 +230,74 @@ def _all_datasets() -> list[Dataset]:
     ]
 
 
+def _make_spike_dataset(condition: str, *, has_noise: bool, has_jitter: bool, seed_offset: int) -> SpikeDataset:
+    """Create one spiking-input benchmark condition.
+
+    Args:
+        condition: Human-readable condition name.
+        has_noise: Whether to add false spikes.
+        has_jitter: Whether to jitter the true echo spike.
+        seed_offset: Offset used for condition-specific randomness.
+
+    Returns:
+        Spike dataset for the requested condition.
+    """
+    rng = np.random.default_rng(RNG_SEED + seed_offset)
+    true_distance_m = _base_distances()
+    ideal_delay_s = 2.0 * true_distance_m / SPEED_OF_SOUND_M_S
+    if has_jitter:
+        jitter_s = rng.normal(0.0, JITTER_STD_S, true_distance_m.size)
+    else:
+        jitter_s = np.zeros_like(true_distance_m)
+    echo_delay = np.rint((ideal_delay_s + jitter_s) * SAMPLE_RATE_HZ).astype(np.int64)
+    echo_delay = np.clip(echo_delay, 1, None)
+    ideal_echo_delay = np.rint(ideal_delay_s * SAMPLE_RATE_HZ).astype(np.int64)
+
+    candidate_distance_m = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_DELAY_LINES)
+    candidate_delay_samples = np.rint(
+        (2.0 * candidate_distance_m / SPEED_OF_SOUND_M_S) * SAMPLE_RATE_HZ
+    ).astype(np.int64)
+    max_candidate = int(candidate_delay_samples.max())
+
+    spike_count = 1 + (SPIKE_NOISE_EVENTS if has_noise else 0)
+    observed_delays = np.zeros((true_distance_m.size, spike_count), dtype=np.int64)
+    observed_amplitudes = np.zeros((true_distance_m.size, spike_count), dtype=np.float64)
+    observed_delays[:, 0] = echo_delay
+    observed_amplitudes[:, 0] = 1.0
+    if has_noise:
+        observed_delays[:, 1:] = rng.integers(1, max_candidate + 1, size=(true_distance_m.size, SPIKE_NOISE_EVENTS))
+        observed_amplitudes[:, 1:] = rng.uniform(
+            SPIKE_NOISE_MIN_AMPLITUDE,
+            SPIKE_NOISE_MAX_AMPLITUDE,
+            size=(true_distance_m.size, SPIKE_NOISE_EVENTS),
+        )
+
+    max_observed = int(observed_delays.max())
+    num_time_steps = TX_INDEX + max(max_candidate, max_observed) + 80
+    return SpikeDataset(
+        condition=condition,
+        true_distance_m=true_distance_m,
+        ideal_echo_delay_samples=ideal_echo_delay,
+        observed_spike_delay_samples=observed_delays,
+        observed_spike_amplitudes=observed_amplitudes,
+        candidate_distance_m=candidate_distance_m,
+        candidate_delay_samples=candidate_delay_samples,
+        num_time_steps=num_time_steps,
+        has_noise=has_noise,
+        has_jitter=has_jitter,
+    )
+
+
+def _all_spike_datasets() -> list[SpikeDataset]:
+    """Return the four requested spiking-input benchmark conditions."""
+    return [
+        _make_spike_dataset("Clean perfect", has_noise=False, has_jitter=False, seed_offset=400),
+        _make_spike_dataset("Added noise", has_noise=True, has_jitter=False, seed_offset=500),
+        _make_spike_dataset("Added jitter", has_noise=False, has_jitter=True, seed_offset=600),
+        _make_spike_dataset("Noise + jitter", has_noise=True, has_jitter=True, seed_offset=700),
+    ]
+
+
 def _candidate_waveform_amplitudes(dataset: Dataset) -> np.ndarray:
     """Sample the noisy echo waveform at each candidate delay line.
 
@@ -263,6 +365,102 @@ def _score_detector(name: str, dataset: Dataset, predictor: Callable[[Dataset], 
     error = predicted - dataset.true_distance_m
     abs_error = np.abs(error)
     operations = dataset.true_distance_m.size * dataset.candidate_distance_m.size
+    if name.startswith("LIF"):
+        flops = operations * 8.0
+        sops = operations * 2.0
+    elif name.startswith("RF"):
+        flops = operations * 14.0
+        sops = operations * 2.0
+    else:
+        flops = operations * 1.0
+        sops = operations
+    return DetectorResult(
+        condition=dataset.condition,
+        name=name,
+        predicted_distance_m=predicted,
+        mae_m=float(abs_error.mean()),
+        rmse_m=float(np.sqrt(np.mean(error**2))),
+        p95_abs_error_m=float(np.percentile(abs_error, 95.0)),
+        max_abs_error_m=float(abs_error.max()),
+        runtime_ms=runtime_s * 1_000.0,
+        flops=flops,
+        sops=sops,
+    )
+
+
+def _spike_delay_error_tensor(dataset: SpikeDataset) -> np.ndarray:
+    """Compute observed spike delay error against candidate delays.
+
+    Args:
+        dataset: Spiking-input dataset.
+
+    Returns:
+        Absolute mismatch tensor `[samples, spikes, delay_lines]`.
+    """
+    return np.abs(
+        dataset.observed_spike_delay_samples[:, :, None] - dataset.candidate_delay_samples[None, None, :]
+    )
+
+
+def _predict_spike_lif(dataset: SpikeDataset) -> np.ndarray:
+    """Predict distance from onset spikes with a LIF soft-coincidence bank."""
+    delay_error = _spike_delay_error_tensor(dataset)
+    amplitudes = dataset.observed_spike_amplitudes[:, :, None]
+    beta = 0.982
+    input_weight = 0.62
+    scores = (amplitudes * input_weight * (1.0 + np.power(beta, delay_error))).max(axis=1)
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _predict_spike_rf(dataset: SpikeDataset) -> np.ndarray:
+    """Predict distance from onset spikes with an RF-style detector bank."""
+    delay_error = _spike_delay_error_tensor(dataset)
+    amplitudes = dataset.observed_spike_amplitudes[:, :, None]
+    input_weight = 0.62
+    tau_samples = 18.0
+    omega = 2.0 * np.pi / 18.0
+    afterpotential = np.exp(-delay_error / tau_samples) * np.cos(omega * delay_error)
+    scores = (amplitudes * input_weight * (1.0 + afterpotential)).max(axis=1)
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _predict_spike_binary(dataset: SpikeDataset) -> np.ndarray:
+    """Predict distance from onset spikes with binary coincidence matching."""
+    delay_error = _spike_delay_error_tensor(dataset)
+    amplitudes = dataset.observed_spike_amplitudes[:, :, None]
+    tolerance_samples = 2
+    scores = np.where(delay_error <= tolerance_samples, amplitudes, -np.inf).max(axis=1)
+    no_match = ~np.isfinite(scores).any(axis=1)
+    if np.any(no_match):
+        nearest_error = delay_error[no_match].min(axis=1)
+        scores[no_match] = -nearest_error
+    return dataset.candidate_distance_m[np.argmax(scores, axis=1)]
+
+
+def _score_spike_detector(
+    name: str,
+    dataset: SpikeDataset,
+    predictor: Callable[[SpikeDataset], np.ndarray],
+) -> DetectorResult:
+    """Benchmark and score one detector on one spiking-input condition.
+
+    Args:
+        name: Detector name.
+        dataset: Spiking-input dataset.
+        predictor: Prediction function.
+
+    Returns:
+        Detector result summary.
+    """
+    runtime_s = _median_runtime_s(lambda: predictor(dataset))
+    predicted = predictor(dataset)
+    error = predicted - dataset.true_distance_m
+    abs_error = np.abs(error)
+    operations = (
+        dataset.true_distance_m.size
+        * dataset.candidate_distance_m.size
+        * dataset.observed_spike_delay_samples.shape[1]
+    )
     if name.startswith("LIF"):
         flops = operations * 8.0
         sops = operations * 2.0
@@ -639,6 +837,8 @@ def _write_simple_report(dataset: Dataset, artifacts: dict[str, str], elapsed_s:
 def _write_optimisation_report(
     datasets: list[Dataset],
     results_by_condition: dict[str, list[DetectorResult]],
+    spike_datasets: list[SpikeDataset],
+    spike_results_by_condition: dict[str, list[DetectorResult]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -646,7 +846,14 @@ def _write_optimisation_report(
     lines = [
         "# Distance Pathway 2: Accuracy And Optimisation Testing",
         "",
-        "This report compares LIF, RF, and binary delay-line coincidence detectors under four pulse conditions: clean, added noise, added jitter, and noise plus jitter.",
+        "This report compares LIF, RF, and binary delay-line coincidence detectors under four conditions: clean, added noise, added jitter, and noise plus jitter.",
+        "",
+        "There are now two input cases:",
+        "",
+        "- **Waveform input:** each delay line samples a synthetic echo waveform, with optional additive white noise.",
+        "- **Spiking input:** the upstream system has already extracted onset spikes, with optional false spikes.",
+        "",
+        "# Part A: Waveform Input",
         "",
         "## Signal Conditions",
         "",
@@ -723,13 +930,82 @@ def _write_optimisation_report(
             "",
             "![Cost comparison](../outputs/accuracy_optimisation/figures/cost_comparison.png)",
             "",
-            "## Interpretation",
+            "## Waveform-Input Interpretation",
             "",
             "- Clean perfect signals are essentially a delay quantisation problem, so LIF and binary should be close.",
             "- Jitter tests timing tolerance. LIF remains a useful soft detector because the membrane trace decays smoothly with timing mismatch.",
             "- Noise tests robustness to additive waveform fluctuations. In this simplified setup, delay lines sample the noisy waveform at candidate arrival times.",
             "- RF remains biologically interesting, but its oscillatory side lobes are a weakness for this specific pure-delay task.",
-            "- These results still assume onset pulses have already been extracted; the next hard problem is robust onset extraction from real cochlear spike rasters.",
+            "",
+            "# Part B: Spiking Input",
+            "",
+            "The second benchmark assumes an earlier front end has already converted the echo into onset spikes. This is closer to the simplified pulse model used before, but it is now explicitly separated from the waveform-input case.",
+            "",
+            "## Spiking Signal Conditions",
+            "",
+            "| Condition | True echo jitter | False spikes |",
+            "|---|---:|---:|",
+        ]
+    )
+    for dataset in spike_datasets:
+        lines.append(f"| {dataset.condition} | `{dataset.has_jitter}` | `{dataset.has_noise}` |")
+    lines.extend(
+        [
+            "",
+            f"Spiking noise means `{SPIKE_NOISE_EVENTS}` extra false onset spikes per sample, with amplitudes sampled from `{SPIKE_NOISE_MIN_AMPLITUDE}` to `{SPIKE_NOISE_MAX_AMPLITUDE}`. This tests false-onset robustness after spike extraction.",
+            "",
+            "## Spiking Detector Equations",
+            "",
+            "For observed spike `p` and candidate delay `k`:",
+            "",
+            "```text",
+            "delta_p,k = abs(delay_spike[p] - delay_candidate[k])",
+            "```",
+            "",
+            "The detector equations are:",
+            "",
+            "```text",
+            "LIF:    score_k = max_p amplitude_p * w * (1 + beta^delta_p,k)",
+            "RF:     score_k = max_p amplitude_p * w * (1 + exp(-delta_p,k/tau_rf) * cos(omega_rf * delta_p,k))",
+            "Binary: score_k = max_p amplitude_p if delta_p,k <= tolerance else no match",
+            "```",
+            "",
+            "## Spiking Accuracy Across Conditions",
+            "",
+            "![Spiking condition MAE](../outputs/accuracy_optimisation/figures/spiking_condition_mae.png)",
+            "",
+            "| Condition | Detector | MAE (cm) | RMSE (cm) | p95 abs error (cm) | max abs error (cm) | runtime (ms) | FLOPs | SOPs / bit ops |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for condition, results in spike_results_by_condition.items():
+        for result in results:
+            lines.append(
+                f"| {condition} | {result.name} | {result.mae_m * 100.0:.2f} | "
+                f"{result.rmse_m * 100.0:.2f} | {result.p95_abs_error_m * 100.0:.2f} | "
+                f"{result.max_abs_error_m * 100.0:.2f} | {result.runtime_ms:.3f} | "
+                f"{result.flops:,.0f} | {result.sops:,.0f} |"
+            )
+    lines.extend(
+        [
+            "",
+            "## Spiking Hardest-Condition Plots",
+            "",
+            "The scatter, histogram, and cost plots below use the spiking `Noise + jitter` condition.",
+            "",
+            "![Spiking accuracy scatter](../outputs/accuracy_optimisation/figures/spiking_accuracy_scatter_noise_jitter.png)",
+            "",
+            "![Spiking error histogram](../outputs/accuracy_optimisation/figures/spiking_error_histogram_noise_jitter.png)",
+            "",
+            "![Spiking cost comparison](../outputs/accuracy_optimisation/figures/spiking_cost_comparison.png)",
+            "",
+            "## Overall Interpretation",
+            "",
+            "- Waveform-input noise tests amplitude corruption before onset extraction.",
+            "- Spiking-input noise tests false onset events after onset extraction.",
+            "- Clean and jitter-only spiking inputs are mostly nearest-delay matching, so LIF and binary can be identical.",
+            "- False spikes are where LIF can outperform binary because amplitude-weighted soft coincidence can partially reduce the effect of isolated false events.",
+            "- The next realistic test should connect the final cochlea front end to this spiking-input pathway, so the spike statistics come from the actual cochlea rather than being synthetic.",
             "",
             "## Generated Files",
             "",
@@ -741,6 +1017,10 @@ def _write_optimisation_report(
             "accuracy_scatter_noise_jitter",
             "error_histogram_noise_jitter",
             "cost_comparison",
+            "spiking_condition_mae",
+            "spiking_accuracy_scatter_noise_jitter",
+            "spiking_error_histogram_noise_jitter",
+            "spiking_cost_comparison",
         }:
             lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.extend([f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`", "", f"Runtime: `{elapsed_s:.2f} s`.", ""])
@@ -763,10 +1043,20 @@ def main() -> dict[str, object]:
             _score_detector("RF detector", dataset, _predict_rf),
             _score_detector("Binary detector", dataset, _predict_binary),
         ]
+    spike_datasets = _all_spike_datasets()
+    spike_results_by_condition: dict[str, list[DetectorResult]] = {}
+    for dataset in spike_datasets:
+        spike_results_by_condition[dataset.condition] = [
+            _score_spike_detector("LIF detector", dataset, _predict_spike_lif),
+            _score_spike_detector("RF detector", dataset, _predict_spike_rf),
+            _score_spike_detector("Binary detector", dataset, _predict_spike_binary),
+        ]
 
     simple_dataset = datasets[0]
     hard_dataset = datasets[-1]
     hard_results = results_by_condition[hard_dataset.condition]
+    hard_spike_dataset = spike_datasets[-1]
+    hard_spike_results = spike_results_by_condition[hard_spike_dataset.condition]
     artifacts = {
         "pulse_timeline": _plot_explanatory_timeline(simple_dataset, SIMPLE_FIGURE_DIR / "pulse_timeline.png"),
         "coincidence_animation": _save_coincidence_animation(SIMPLE_FIGURE_DIR / "coincidence_detection.gif"),
@@ -784,6 +1074,24 @@ def main() -> dict[str, object]:
             OPT_FIGURE_DIR / "error_histogram_noise_jitter.png",
         ),
         "cost_comparison": _plot_costs(results_by_condition, OPT_FIGURE_DIR / "cost_comparison.png"),
+        "spiking_condition_mae": _plot_condition_mae(
+            spike_results_by_condition,
+            OPT_FIGURE_DIR / "spiking_condition_mae.png",
+        ),
+        "spiking_accuracy_scatter_noise_jitter": _plot_accuracy(
+            hard_spike_results,
+            hard_spike_dataset,
+            OPT_FIGURE_DIR / "spiking_accuracy_scatter_noise_jitter.png",
+        ),
+        "spiking_error_histogram_noise_jitter": _plot_error_histogram(
+            hard_spike_results,
+            hard_spike_dataset,
+            OPT_FIGURE_DIR / "spiking_error_histogram_noise_jitter.png",
+        ),
+        "spiking_cost_comparison": _plot_costs(
+            spike_results_by_condition,
+            OPT_FIGURE_DIR / "spiking_cost_comparison.png",
+        ),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -800,9 +1108,12 @@ def main() -> dict[str, object]:
             "jitter_std_s": JITTER_STD_S,
             "white_noise_snr_db": WHITE_NOISE_SNR_DB,
             "echo_pulse_sigma_samples": ECHO_PULSE_SIGMA_SAMPLES,
+            "spike_noise_events": SPIKE_NOISE_EVENTS,
+            "spike_noise_min_amplitude": SPIKE_NOISE_MIN_AMPLITUDE,
+            "spike_noise_max_amplitude": SPIKE_NOISE_MAX_AMPLITUDE,
             "rng_seed": RNG_SEED,
         },
-        "results_by_condition": {
+        "waveform_results_by_condition": {
             condition: [
                 {
                     "name": result.name,
@@ -818,11 +1129,34 @@ def main() -> dict[str, object]:
             ]
             for condition, results in results_by_condition.items()
         },
+        "spiking_results_by_condition": {
+            condition: [
+                {
+                    "name": result.name,
+                    "mae_m": result.mae_m,
+                    "rmse_m": result.rmse_m,
+                    "p95_abs_error_m": result.p95_abs_error_m,
+                    "max_abs_error_m": result.max_abs_error_m,
+                    "runtime_ms": result.runtime_ms,
+                    "flops": result.flops,
+                    "sops": result.sops,
+                }
+                for result in results
+            ]
+            for condition, results in spike_results_by_condition.items()
+        },
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     _write_simple_report(simple_dataset, artifacts, elapsed_s)
-    _write_optimisation_report(datasets, results_by_condition, artifacts, elapsed_s)
+    _write_optimisation_report(
+        datasets,
+        results_by_condition,
+        spike_datasets,
+        spike_results_by_condition,
+        artifacts,
+        elapsed_s,
+    )
     return payload
 
 

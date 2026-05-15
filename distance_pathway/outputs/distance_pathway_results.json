@@ -1,6 +1,6 @@
 {
   "experiment": "distance_pathway_analysis",
-  "elapsed_seconds": 5.350371167063713,
+  "elapsed_seconds": 6.5622167501132935,
   "config": {
     "sample_rate_hz": 64000,
     "speed_of_sound_m_s": 343.0,
@@ -11,9 +11,12 @@
     "jitter_std_s": 3.5e-05,
     "white_noise_snr_db": 10.0,
     "echo_pulse_sigma_samples": 2.0,
+    "spike_noise_events": 3,
+    "spike_noise_min_amplitude": 0.25,
+    "spike_noise_max_amplitude": 1.1,
     "rng_seed": 11
   },
-  "results_by_condition": {
+  "waveform_results_by_condition": {
     "Clean perfect": [
       {
         "name": "LIF detector",
@@ -21,7 +24,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 1.906124991364777,
+        "runtime_ms": 1.9432500703260303,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -31,7 +34,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 2.016937476582825,
+        "runtime_ms": 2.1343131083995104,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -41,7 +44,7 @@
         "rmse_m": 0.008852643471341034,
         "p95_abs_error_m": 0.01442687451620842,
         "max_abs_error_m": 0.015983081483447403,
-        "runtime_ms": 1.0227704187855124,
+        "runtime_ms": 1.0276871034875512,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -53,7 +56,7 @@
         "rmse_m": 1.0354958049735992,
         "p95_abs_error_m": 2.6711341843739698,
         "max_abs_error_m": 4.50407436586554,
-        "runtime_ms": 1.6790209338068962,
+        "runtime_ms": 1.916124951094389,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -63,7 +66,7 @@
         "rmse_m": 1.4953628396656922,
         "p95_abs_error_m": 3.3009906976090866,
         "max_abs_error_m": 4.50407436586554,
-        "runtime_ms": 2.0411040168255568,
+        "runtime_ms": 2.0801250357180834,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -73,7 +76,7 @@
         "rmse_m": 1.556493769883864,
         "p95_abs_error_m": 3.3914682293782077,
         "max_abs_error_m": 4.640192808062579,
-        "runtime_ms": 0.936417025513947,
+        "runtime_ms": 1.0759374126791954,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -85,7 +88,7 @@
         "rmse_m": 0.010620649101733628,
         "p95_abs_error_m": 0.019333974727396692,
         "max_abs_error_m": 0.031022866132511595,
-        "runtime_ms": 1.7617294797673821,
+        "runtime_ms": 1.8667494878172874,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -95,7 +98,7 @@
         "rmse_m": 0.010620649101733628,
         "p95_abs_error_m": 0.019333974727396692,
         "max_abs_error_m": 0.031022866132511595,
-        "runtime_ms": 2.024041605181992,
+        "runtime_ms": 2.131812507286668,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -105,7 +108,7 @@
         "rmse_m": 0.010620649101733628,
         "p95_abs_error_m": 0.019333974727396692,
         "max_abs_error_m": 0.031022866132511595,
-        "runtime_ms": 0.9839590638875961,
+        "runtime_ms": 0.9955414570868015,
         "flops": 160000.0,
         "sops": 160000
       }
@@ -117,7 +120,7 @@
         "rmse_m": 1.0538709574243073,
         "p95_abs_error_m": 2.7615818524201323,
         "max_abs_error_m": 4.596483481481408,
-        "runtime_ms": 1.754541415721178,
+        "runtime_ms": 1.8337290966883302,
         "flops": 1280000.0,
         "sops": 320000.0
       },
@@ -127,7 +130,7 @@
         "rmse_m": 1.4593241139023332,
         "p95_abs_error_m": 3.2743729177724226,
         "max_abs_error_m": 4.596483481481408,
-        "runtime_ms": 2.0817500771954656,
+        "runtime_ms": 2.064937027171254,
         "flops": 2240000.0,
         "sops": 320000.0
       },
@@ -137,9 +140,139 @@
         "rmse_m": 1.5351340701801253,
         "p95_abs_error_m": 3.3626636782985924,
         "max_abs_error_m": 4.596483481481408,
-        "runtime_ms": 1.055229571647942,
+        "runtime_ms": 1.021645963191986,
         "flops": 160000.0,
         "sops": 160000
+      }
+    ]
+  },
+  "spiking_results_by_condition": {
+    "Clean perfect": [
+      {
+        "name": "LIF detector",
+        "mae_m": 0.007662508064496825,
+        "rmse_m": 0.008852643471341034,
+        "p95_abs_error_m": 0.01442687451620842,
+        "max_abs_error_m": 0.015983081483447403,
+        "runtime_ms": 1.0869790567085147,
+        "flops": 1280000.0,
+        "sops": 320000.0
+      },
+      {
+        "name": "RF detector",
+        "mae_m": 0.022012629220771473,
+        "rmse_m": 0.030580394273659425,
+        "p95_abs_error_m": 0.04975595397165306,
+        "max_abs_error_m": 0.05133344547605034,
+        "runtime_ms": 1.3093749294057488,
+        "flops": 2240000.0,
+        "sops": 320000.0
+      },
+      {
+        "name": "Binary detector",
+        "mae_m": 0.007662508064496825,
+        "rmse_m": 0.008852643471341034,
+        "p95_abs_error_m": 0.01442687451620842,
+        "max_abs_error_m": 0.015983081483447403,
+        "runtime_ms": 0.6318954983726144,
+        "flops": 160000.0,
+        "sops": 160000
+      }
+    ],
+    "Added noise": [
+      {
+        "name": "LIF detector",
+        "mae_m": 0.5247494958071334,
+        "rmse_m": 1.1187554502188115,
+        "p95_abs_error_m": 2.85502650365355,
+        "max_abs_error_m": 4.680540842682302,
+        "runtime_ms": 5.7600210420787334,
+        "flops": 5120000.0,
+        "sops": 1280000.0
+      },
+      {
+        "name": "RF detector",
+        "mae_m": 0.635515690689262,
+        "rmse_m": 1.227277847940528,
+        "p95_abs_error_m": 3.0356437729011922,
+        "max_abs_error_m": 4.680540842682302,
+        "runtime_ms": 8.24612460564822,
+        "flops": 8960000.0,
+        "sops": 1280000.0
+      },
+      {
+        "name": "Binary detector",
+        "mae_m": 0.9621772172910226,
+        "rmse_m": 1.4994559561213325,
+        "p95_abs_error_m": 3.3588209933226945,
+        "max_abs_error_m": 4.5209503794635495,
+        "runtime_ms": 2.3364374646916986,
+        "flops": 640000.0,
+        "sops": 640000
+      }
+    ],
+    "Added jitter": [
+      {
+        "name": "LIF detector",
+        "mae_m": 0.009058817091562761,
+        "rmse_m": 0.010960759649096747,
+        "p95_abs_error_m": 0.020024141739020628,
+        "max_abs_error_m": 0.03061322087361451,
+        "runtime_ms": 1.168291550129652,
+        "flops": 1280000.0,
+        "sops": 320000.0
+      },
+      {
+        "name": "RF detector",
+        "mae_m": 0.02234727426125287,
+        "rmse_m": 0.03026450601422723,
+        "p95_abs_error_m": 0.05430645051792515,
+        "max_abs_error_m": 0.06603918935524034,
+        "runtime_ms": 1.3392709661275148,
+        "flops": 2240000.0,
+        "sops": 320000.0
+      },
+      {
+        "name": "Binary detector",
+        "mae_m": 0.009058817091562761,
+        "rmse_m": 0.010960759649096747,
+        "p95_abs_error_m": 0.020024141739020628,
+        "max_abs_error_m": 0.03061322087361451,
+        "runtime_ms": 0.5767500260844827,
+        "flops": 160000.0,
+        "sops": 160000
+      }
+    ],
+    "Noise + jitter": [
+      {
+        "name": "LIF detector",
+        "mae_m": 0.4940286004273916,
+        "rmse_m": 1.1015175408198574,
+        "p95_abs_error_m": 2.9475514581789164,
+        "max_abs_error_m": 4.665648550448276,
+        "runtime_ms": 5.696625099517405,
+        "flops": 5120000.0,
+        "sops": 1280000.0
+      },
+      {
+        "name": "RF detector",
+        "mae_m": 0.5855217171806455,
+        "rmse_m": 1.1779511932520823,
+        "p95_abs_error_m": 2.9979368088355334,
+        "max_abs_error_m": 4.482249240744099,
+        "runtime_ms": 7.887708023190498,
+        "flops": 8960000.0,
+        "sops": 1280000.0
+      },
+      {
+        "name": "Binary detector",
+        "mae_m": 0.9585136630730263,
+        "rmse_m": 1.521077972725887,
+        "p95_abs_error_m": 3.4622050700549813,
+        "max_abs_error_m": 4.665648550448276,
+        "runtime_ms": 2.0754374563694,
+        "flops": 640000.0,
+        "sops": 640000
       }
     ]
   },
@@ -151,6 +284,10 @@
     "condition_mae": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/condition_mae.png",
     "accuracy_scatter_noise_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/accuracy_scatter_noise_jitter.png",
     "error_histogram_noise_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/error_histogram_noise_jitter.png",
-    "cost_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/cost_comparison.png"
+    "cost_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/cost_comparison.png",
+    "spiking_condition_mae": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/spiking_condition_mae.png",
+    "spiking_accuracy_scatter_noise_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/spiking_accuracy_scatter_noise_jitter.png",
+    "spiking_error_histogram_noise_jitter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/spiking_error_histogram_noise_jitter.png",
+    "spiking_cost_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/accuracy_optimisation/figures/spiking_cost_comparison.png"
   }
 }
