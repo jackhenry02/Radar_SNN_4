@@ -67,6 +67,8 @@ class CleanSweepDataset:
         channel_offsets_samples: Corollary-discharge sweep offsets.
         cd_raster: Corollary discharge raster `[samples, channels, time]`.
         echo_raster: Echo raster `[samples, channels, time]`.
+        cd_events: Direct CD coordinate matrix `[num_spikes, 3]`.
+        echo_events: Direct echo coordinate matrix `[num_spikes, 3]`.
         binary_tolerance_samples: Half-bin tolerance for binary matching.
     """
 
@@ -78,6 +80,8 @@ class CleanSweepDataset:
     channel_offsets_samples: np.ndarray
     cd_raster: torch.Tensor
     echo_raster: torch.Tensor
+    cd_events: np.ndarray
+    echo_events: np.ndarray
     binary_tolerance_samples: int
 
 
@@ -149,6 +153,13 @@ def _make_clean_sweep_dataset() -> CleanSweepDataset:
         echo_times = torch.as_tensor(TX_INDEX + offset + true_delay_samples, dtype=torch.long)
         echo_raster[sample_indices, channel, echo_times] = True
 
+    event_sample_ids = np.repeat(np.arange(NUM_TEST_SAMPLES, dtype=np.int64), SWEEP_CHANNELS)
+    event_channel_ids = np.tile(np.arange(SWEEP_CHANNELS, dtype=np.int64), NUM_TEST_SAMPLES)
+    event_cd_times = TX_INDEX + channel_offsets[event_channel_ids]
+    event_echo_times = event_cd_times + true_delay_samples[event_sample_ids]
+    cd_events = np.column_stack([event_sample_ids, event_channel_ids, event_cd_times]).astype(np.int64)
+    echo_events = np.column_stack([event_sample_ids, event_channel_ids, event_echo_times]).astype(np.int64)
+
     return CleanSweepDataset(
         true_distance_m=true_distance_m,
         true_delay_samples=true_delay_samples,
@@ -158,6 +169,8 @@ def _make_clean_sweep_dataset() -> CleanSweepDataset:
         channel_offsets_samples=channel_offsets,
         cd_raster=cd_raster,
         echo_raster=echo_raster,
+        cd_events=cd_events,
+        echo_events=echo_events,
         binary_tolerance_samples=binary_tolerance_samples,
     )
 
@@ -251,6 +264,32 @@ def _paired_event_delays_from_nonzero(dataset: CleanSweepDataset) -> tuple[np.nd
     """
     sample_ids, _, observed_delays = _paired_event_coordinates_from_nonzero(dataset)
     return sample_ids, observed_delays
+
+
+def _paired_event_coordinates_direct(
+    dataset: CleanSweepDataset,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract paired delays from direct event-coordinate inputs.
+
+    This represents the ideal event-based path: the upstream cochlea/front end
+    emits coordinates directly, so the distance detector does not need to scan
+    a dense raster with `nonzero`.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Tuple of `(sample_ids, channel_ids, observed_delays)`.
+    """
+    cd_events = dataset.cd_events
+    echo_events = dataset.echo_events
+    if cd_events.shape != echo_events.shape or not np.array_equal(cd_events[:, :2], echo_events[:, :2]):
+        raise ValueError("Direct coordinate benchmark expects aligned CD and echo event coordinates.")
+
+    sample_ids = echo_events[:, 0].astype(np.int64)
+    channel_ids = echo_events[:, 1].astype(np.int64)
+    observed_delays = (echo_events[:, 2] - cd_events[:, 2]).astype(np.int64)
+    return sample_ids, channel_ids, observed_delays
 
 
 def _predict_fair_lif_raster(dataset: CleanSweepDataset) -> np.ndarray:
@@ -354,6 +393,72 @@ def _predict_coordinate_event_accumulator(dataset: CleanSweepDataset) -> np.ndar
         vote_ids,
         minlength=NUM_TEST_SAMPLES * NUM_DELAY_LINES,
     ).reshape(NUM_TEST_SAMPLES, NUM_DELAY_LINES)
+    return np.argmax(scores, axis=1)
+
+
+def _accumulate_coordinate_votes(
+    sample_ids: np.ndarray,
+    observed_delays: np.ndarray,
+    lookup: np.ndarray,
+) -> np.ndarray:
+    """Accumulate candidate votes from event coordinates.
+
+    Args:
+        sample_ids: Sample index for each event.
+        observed_delays: Echo-minus-CD delay for each event.
+        lookup: Integer delay to candidate index lookup table.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    valid = (observed_delays >= 0) & (observed_delays < lookup.size)
+    candidate_ids = lookup[observed_delays[valid]]
+    vote_ids = sample_ids[valid] * NUM_DELAY_LINES + candidate_ids
+    scores = np.bincount(
+        vote_ids,
+        minlength=NUM_TEST_SAMPLES * NUM_DELAY_LINES,
+    ).reshape(NUM_TEST_SAMPLES, NUM_DELAY_LINES)
+    return np.argmax(scores, axis=1)
+
+
+def _predict_direct_coordinate_event_accumulator(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance from direct coordinate-event inputs.
+
+    This is the pure version of the chosen optimisation mechanism. It assumes
+    the upstream front end already emits compact event coordinates instead of a
+    dense raster, so the detector only performs vector subtraction, lookup, and
+    vote accumulation.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    sample_ids, _, observed_delays = _paired_event_coordinates_direct(dataset)
+    lookup = _build_nearest_candidate_lookup(dataset)
+    return _accumulate_coordinate_votes(sample_ids, observed_delays, lookup)
+
+
+def _predict_direct_event_list_binary(dataset: CleanSweepDataset) -> np.ndarray:
+    """Predict distance with direct-coordinate event-list voting.
+
+    This is equivalent to the event-list method, but without the dense
+    raster-to-event conversion step.
+
+    Args:
+        dataset: Clean sweep dataset.
+
+    Returns:
+        Predicted candidate indices.
+    """
+    sample_ids, _, observed_delays = _paired_event_coordinates_direct(dataset)
+    distance_to_candidates = np.abs(
+        observed_delays[:, None] - dataset.candidate_delay_samples[None, :]
+    )
+    nearest_candidates = np.argmin(distance_to_candidates, axis=1)
+    scores = np.zeros((NUM_TEST_SAMPLES, NUM_DELAY_LINES), dtype=np.int32)
+    np.add.at(scores, (sample_ids, nearest_candidates), 1)
     return np.argmax(scores, axis=1)
 
 
@@ -531,6 +636,8 @@ def _operation_estimates(dataset: CleanSweepDataset) -> dict[str, tuple[float, f
         "Fair raster binary": (0.0, dense_score_ops),
         "Event-list binary": (0.0, events * math.ceil(math.log2(candidate_delays))),
         "Coordinate event accumulator": (0.0, events),
+        "Direct event-list binary": (0.0, events * math.ceil(math.log2(candidate_delays))),
+        "Direct coordinate accumulator": (0.0, events),
         "Bit-packed binary": (0.0, samples * channels * candidate_delays * words),
         "Sparse-stack binary": (0.0, events),
     }
@@ -671,11 +778,15 @@ def _write_report(
         "|---|---|---:|",
         f"| CD raster | `{NUM_TEST_SAMPLES} x {SWEEP_CHANNELS} x {time_steps}` Boolean spikes | yes |",
         f"| Echo raster | `{NUM_TEST_SAMPLES} x {SWEEP_CHANNELS} x {time_steps}` Boolean spikes | yes |",
+        f"| CD coordinate events | `{NUM_TEST_SAMPLES * SWEEP_CHANNELS} x 3` integer coordinates | direct-coordinate methods |",
+        f"| Echo coordinate events | `{NUM_TEST_SAMPLES * SWEEP_CHANNELS} x 3` integer coordinates | direct-coordinate methods |",
         f"| Candidate delay bank | `{NUM_DELAY_LINES}` candidate delays from `{MIN_DISTANCE_M}` to `{MAX_DISTANCE_M}` m | yes |",
         "| True distance | continuous target distance | error calculation only |",
         "| True delay | generated echo shift | generation/error only, not prediction |",
         "",
         "For this clean sweep benchmark there is exactly one CD spike per sample/channel and one echo spike per sample/channel. That lets the coordinate methods pair events by `(sample, channel)` without an ambiguity-resolution rule.",
+        "",
+        "Two coordinate-input variants are tested. The standard coordinate methods start from the dense raster and call `nonzero()` to recover event coordinates. The direct-coordinate variants use the coordinate matrices generated by the upstream system directly, representing the intended event-based interface.",
         "",
         "![Clean sweep rasters](../outputs/binary_clean_optimisation/figures/clean_sweep_rasters.png)",
         "",
@@ -749,6 +860,17 @@ def _write_report(
         "| Candidate quantisation | nearest-candidate lookup table |",
         "| Vote accumulation | vectorised `np.bincount` over flattened `(batch, candidate)` IDs |",
         "",
+        "### Direct Coordinate Event Inputs",
+        "",
+        "The direct-coordinate methods test the same logic under the assumption that the upstream cochlea/front end outputs coordinates directly:",
+        "",
+        "```text",
+        "cd_events   = [[batch, channel, cd_time], ...]",
+        "echo_events = [[batch, channel, echo_time], ...]",
+        "```",
+        "",
+        "This avoids the `raster.nonzero()` conversion cost. It is the more realistic target representation for an event-based model, because the detector should not need to scan a dense raster full of zeros if the cochlea can emit sparse events.",
+        "",
         "### Bit-Packed Binary",
         "",
         "Packs every time trace into a Python integer bitset. Candidate delays are tested by shifting the echo bitset and applying a bitwise `AND` with the CD bitset:",
@@ -809,6 +931,49 @@ def _write_report(
             "- The bit-packed method is closer to a real binary hardware implementation, but this Python-int prototype is mainly a correctness and scaling demonstration.",
             "- Dense `unfold` is no longer treated as the main optimised method because it turns sparse spikes into a large dense memory-traffic problem.",
             "",
+            "## Chosen Optimised Coincidence Detector",
+            "",
+            "The chosen mechanism is the direct coordinate event accumulator. It is the cleanest version of the distance detector for sparse spike inputs.",
+            "",
+            "### How It Works",
+            "",
+            "1. The upstream system emits sparse coordinate events rather than dense rasters.",
+            "2. Each CD event and echo event is represented as `(batch_index, channel_index, timestamp)`.",
+            "3. Since there is one CD spike per channel in this clean benchmark, CD and echo events are paired by `(batch_index, channel_index)`.",
+            "4. The detector computes `observed_delay = echo_time - cd_time` with vector subtraction.",
+            "5. Each observed delay is quantised to a candidate delay index using a nearest-candidate lookup table.",
+            "6. Votes are accumulated into `score[batch, candidate]` using `np.bincount`.",
+            "7. The predicted distance is the distance represented by the candidate with the most votes.",
+            "",
+            "### Parameters Used",
+            "",
+            f"- Distance range: `{MIN_DISTANCE_M} -> {MAX_DISTANCE_M} m`.",
+            f"- Candidate delay lines: `{NUM_DELAY_LINES}`.",
+            f"- Frequency channels / votes per sample: `{SWEEP_CHANNELS}`.",
+            f"- Sample rate: `{SAMPLE_RATE_HZ} Hz`.",
+            f"- Speed of sound: `{SPEED_OF_SOUND_M_S} m/s`.",
+            "- Quantisation rule: nearest candidate delay.",
+            "- Output rule: winner-take-all over candidate vote counts.",
+            "",
+            "### Why It Works Better",
+            "",
+            "The original raster methods repeatedly touch dense arrays whose size is proportional to `batch x channels x time` or `batch x channels x candidates`. Most entries are zeros. The coordinate accumulator only touches actual spikes, so its core computation scales with the number of events. For this benchmark that is `batch x channels`, because there is one useful echo event per channel.",
+            "",
+            "### Similarities To The Original LIF-Inspired System",
+            "",
+            "- Both use the same biological reference idea: compare an internal corollary-discharge time with an echo time.",
+            "- Both use the same candidate delay bank and distance mapping.",
+            "- Both choose the candidate delay that best explains the observed echo timing.",
+            "- Both are fair detector systems because they infer delay from input events rather than reading the true label.",
+            "",
+            "### Differences From The Original LIF-Inspired System",
+            "",
+            "- The LIF-inspired system is a soft score: nearby delays get graded exponential scores.",
+            "- The coordinate accumulator is event/vote based: each channel contributes a discrete vote to the nearest candidate.",
+            "- The LIF-inspired system scans all candidates for every observed delay.",
+            "- The coordinate accumulator uses a lookup table and only processes actual event coordinates.",
+            "- Neither is a full threshold/reset LIF neuron bank yet. A true LIF bank would simulate delayed CD input, echo input, membrane voltage, threshold crossing, reset, and output spikes.",
+            "",
             "## Generated Files",
             "",
         ]
@@ -838,6 +1003,8 @@ def main() -> dict[str, object]:
         ("Fair raster binary", _predict_fair_binary_raster),
         ("Event-list binary", _predict_event_list_binary),
         ("Coordinate event accumulator", _predict_coordinate_event_accumulator),
+        ("Direct event-list binary", _predict_direct_event_list_binary),
+        ("Direct coordinate accumulator", _predict_direct_coordinate_event_accumulator),
         ("Bit-packed binary", _predict_bit_packed_binary),
         ("Sparse-stack binary", _predict_sparse_stack_binary),
     ]

@@ -1,6 +1,6 @@
 {
   "experiment": "binary_clean_optimisation",
-  "elapsed_seconds": 5.6889963750727475,
+  "elapsed_seconds": 5.553361542057246,
   "config": {
     "samples": 1000,
     "frequency_channels": 32,
@@ -17,7 +17,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 130.01624983735383,
+      "runtime_ms": 131.13287510350347,
       "flops": 40960000.0,
       "sops": 10240000.0
     },
@@ -26,7 +26,7 @@
       "mae_m": 0.007732103613298797,
       "rmse_m": 0.00899463879657562,
       "nearest_bin_accuracy_percent": 92.9,
-      "runtime_ms": 100.03991588018835,
+      "runtime_ms": 100.12924997135997,
       "flops": 0.0,
       "sops": 5120000
     },
@@ -35,7 +35,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 51.3307498767972,
+      "runtime_ms": 49.41966594196856,
       "flops": 0.0,
       "sops": 256000
     },
@@ -44,7 +44,25 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 39.672458078712225,
+      "runtime_ms": 39.16512499563396,
+      "flops": 0.0,
+      "sops": 32000
+    },
+    {
+      "name": "Direct event-list binary",
+      "mae_m": 0.007562428919537313,
+      "rmse_m": 0.008708308044436293,
+      "nearest_bin_accuracy_percent": 97.5,
+      "runtime_ms": 11.861625127494335,
+      "flops": 0.0,
+      "sops": 256000
+    },
+    {
+      "name": "Direct coordinate accumulator",
+      "mae_m": 0.007562428919537313,
+      "rmse_m": 0.008708308044436293,
+      "nearest_bin_accuracy_percent": 97.5,
+      "runtime_ms": 1.0255000088363886,
       "flops": 0.0,
       "sops": 32000
     },
@@ -53,7 +71,7 @@
       "mae_m": 0.007732103613298797,
       "rmse_m": 0.00899463879657562,
       "nearest_bin_accuracy_percent": 92.9,
-      "runtime_ms": 337.2047080192715,
+      "runtime_ms": 328.1891669612378,
       "flops": 0.0,
       "sops": 179200000
     },
@@ -62,7 +80,7 @@
       "mae_m": 0.007562428919537313,
       "rmse_m": 0.008708308044436293,
       "nearest_bin_accuracy_percent": 97.5,
-      "runtime_ms": 38.29695889726281,
+      "runtime_ms": 41.505167027935386,
       "flops": 0.0,
       "sops": 32000
     }
