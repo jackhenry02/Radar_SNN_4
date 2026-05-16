@@ -1,0 +1,178 @@
+{
+  "experiment": "sc_line_attractor_integration",
+  "elapsed_seconds": 18.0545563751366,
+  "readout_time_s": 0.005,
+  "tau_s": 0.02,
+  "dt_s": 0.001,
+  "sim_time_s": 0.06,
+  "recurrent_sigma_bins": 8.0,
+  "input_tuning_sigma_bins": 3.0,
+  "alpha_sweep": [
+    {
+      "alpha_prime": 0.0,
+      "clean_mae_m": 0.040569894763294936,
+      "noisy_mae_m": 0.07144740818034905,
+      "selection_score_m": 0.05600865147182199,
+      "seconds_per_sample": 0.0004753906250698492
+    },
+    {
+      "alpha_prime": 0.5,
+      "clean_mae_m": 0.039838482945413214,
+      "noisy_mae_m": 0.07140980999454641,
+      "selection_score_m": 0.05562414646997981,
+      "seconds_per_sample": 0.0016165596316568553
+    },
+    {
+      "alpha_prime": 1.0,
+      "clean_mae_m": 0.03956826167053925,
+      "noisy_mae_m": 0.07138035177948884,
+      "selection_score_m": 0.05547430672501405,
+      "seconds_per_sample": 0.0012281802133657037
+    },
+    {
+      "alpha_prime": 2.0,
+      "clean_mae_m": 0.039669461360628246,
+      "noisy_mae_m": 0.0713371687448354,
+      "selection_score_m": 0.055503315052731816,
+      "seconds_per_sample": 0.0012056239633238875
+    },
+    {
+      "alpha_prime": 4.0,
+      "clean_mae_m": 0.04021669513518603,
+      "noisy_mae_m": 0.07175880124128824,
+      "selection_score_m": 0.05598774818823714,
+      "seconds_per_sample": 0.001513153906853404
+    },
+    {
+      "alpha_prime": 6.0,
+      "clean_mae_m": 0.04053900316188648,
+      "noisy_mae_m": 0.07203672668784529,
+      "selection_score_m": 0.056287864924865885,
+      "seconds_per_sample": 0.0005988112010527403
+    },
+    {
+      "alpha_prime": 8.0,
+      "clean_mae_m": 0.040751417623139274,
+      "noisy_mae_m": 0.07222020285881159,
+      "selection_score_m": 0.05648581024097543,
+      "seconds_per_sample": 0.0010463312501087785
+    }
+  ],
+  "selected_alpha_prime": 1.0,
+  "comparison_rows": [
+    {
+      "condition": "Small clean 0.25-5m",
+      "subset": "all",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.035709907136134374,
+        "rmse_m": 0.04364255533689014,
+        "max_abs_error_m": 0.11710133204283135,
+        "bias_m": -0.005560063331103046
+      },
+      "attractor_metrics": {
+        "mae_m": 0.03956826167053925,
+        "rmse_m": 0.04664212772613855,
+        "max_abs_error_m": 0.11349684562149986,
+        "bias_m": -0.0087982946730443
+      },
+      "attractor_seconds_per_sample": 0.000976781250210479
+    },
+    {
+      "condition": "Small noisy 10dB+jitter",
+      "subset": "all",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.07127154751922507,
+        "rmse_m": 0.1379699293368099,
+        "max_abs_error_m": 1.044231762654487,
+        "bias_m": -0.05767984893706518
+      },
+      "attractor_metrics": {
+        "mae_m": 0.07138035177948884,
+        "rmse_m": 0.13997013783243334,
+        "max_abs_error_m": 1.0485408040417954,
+        "bias_m": -0.059993408250368564
+      },
+      "attractor_seconds_per_sample": 0.0009154286497505381
+    },
+    {
+      "condition": "Full 3D clean 0.25-10m",
+      "subset": "<=5m",
+      "num_samples": 33,
+      "baseline_metrics": {
+        "mae_m": 0.028305808855023068,
+        "rmse_m": 0.0416738131557694,
+        "max_abs_error_m": 0.11499679610978564,
+        "bias_m": -0.016109049168228497
+      },
+      "attractor_metrics": {
+        "mae_m": 0.03706308620139765,
+        "rmse_m": 0.0477995824416133,
+        "max_abs_error_m": 0.09780491114944834,
+        "bias_m": -0.0071010740595923855
+      },
+      "attractor_seconds_per_sample": 0.0018032432271866128
+    },
+    {
+      "condition": "Full 3D clean 0.25-10m",
+      "subset": "<=10m",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.3404101517493475,
+        "rmse_m": 1.100137685608156,
+        "max_abs_error_m": 4.641307554582433,
+        "bias_m": -0.3082917681537811
+      },
+      "attractor_metrics": {
+        "mae_m": 0.35099293086143,
+        "rmse_m": 1.1083329184602426,
+        "max_abs_error_m": 4.668542191453941,
+        "bias_m": -0.310180964621485
+      },
+      "attractor_seconds_per_sample": 0.0018032432271866128
+    },
+    {
+      "condition": "Full 3D 50dB floor",
+      "subset": "<=5m",
+      "num_samples": 33,
+      "baseline_metrics": {
+        "mae_m": 0.0282578707515182,
+        "rmse_m": 0.041637330393708365,
+        "max_abs_error_m": 0.11499679610978564,
+        "bias_m": -0.016117747451185185
+      },
+      "attractor_metrics": {
+        "mae_m": 0.03693686066711509,
+        "rmse_m": 0.04760135158518658,
+        "max_abs_error_m": 0.09787999700103356,
+        "bias_m": -0.0071791785502521785
+      },
+      "attractor_seconds_per_sample": 0.001305111451074481
+    },
+    {
+      "condition": "Full 3D 50dB floor",
+      "subset": "<=10m",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.3404027201121057,
+        "rmse_m": 1.1001376600558515,
+        "max_abs_error_m": 4.641307554582433,
+        "bias_m": -0.3082830133650469
+      },
+      "attractor_metrics": {
+        "mae_m": 0.35099136696536726,
+        "rmse_m": 1.108331411119804,
+        "max_abs_error_m": 4.668542191453941,
+        "bias_m": -0.3101938605649862
+      },
+      "attractor_seconds_per_sample": 0.001305111451074481
+    }
+  ],
+  "artifacts": {
+    "fisher_input_gains": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/fisher_input_gains.png",
+    "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/alpha_sweep.png",
+    "readout_timing": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/readout_timing.png",
+    "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/prediction_scatter.png"
+  }
+}
