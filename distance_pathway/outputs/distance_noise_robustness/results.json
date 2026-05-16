@@ -1,6 +1,6 @@
 {
   "experiment": "distance_noise_robustness_experiments",
-  "elapsed_seconds": 32.996418540831655,
+  "elapsed_seconds": 45.84986587497406,
   "target_snr_db": 10.0,
   "noise_std": 2.9644242015988462,
   "jitter_std_s": 0.00025,
@@ -11,6 +11,7 @@
       "vcn_input": "cochleagram",
       "spike_threshold_multiplier": 1.0,
       "spike_beta": null,
+      "dynamic_cochlea_schedule": null,
       "vcn_detector": "first",
       "ic_mode": "plain",
       "latency_min_samples": -176,
@@ -45,6 +46,7 @@
       "vcn_input": "spikes",
       "spike_threshold_multiplier": 1.0,
       "spike_beta": null,
+      "dynamic_cochlea_schedule": null,
       "vcn_detector": "first",
       "ic_mode": "plain",
       "latency_min_samples": -124,
@@ -79,6 +81,7 @@
       "vcn_input": "spikes",
       "spike_threshold_multiplier": 16.0,
       "spike_beta": 0.5,
+      "dynamic_cochlea_schedule": null,
       "vcn_detector": "first",
       "ic_mode": "plain",
       "latency_min_samples": -62,
@@ -108,11 +111,55 @@
       "note": "Uses 16x cochlear threshold and beta=0.5."
     },
     {
+      "key": "spike_dynamic",
+      "name": "Spike VCN + dynamic cochlea",
+      "vcn_input": "spikes",
+      "spike_threshold_multiplier": 1.0,
+      "spike_beta": null,
+      "dynamic_cochlea_schedule": {
+        "name": "dynamic_x16_to_x2p5_beta0p2_to_0p60",
+        "threshold_start_mult": 16.0,
+        "threshold_floor_mult": 2.5,
+        "threshold_tau_ms": 16.0,
+        "beta_start": 0.2,
+        "beta_end": 0.6,
+        "beta_tau_ms": 24.0
+      },
+      "vcn_detector": "first",
+      "ic_mode": "plain",
+      "latency_min_samples": -43,
+      "latency_max_samples": 31,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -43,
+        "latency_max_samples": 31,
+        "latency_mean_std_samples": 27.88436695043848,
+        "latency_max_std_samples": 52.1368391830575
+      },
+      "clean_metrics": {
+        "mae_m": 0.03553604307514564,
+        "rmse_m": 0.043462957670922495,
+        "max_abs_error_m": 0.11698628868636585,
+        "bias_m": -0.005666890308609264
+      },
+      "noisy_metrics": {
+        "mae_m": 0.06550081120836618,
+        "rmse_m": 0.08487732091152585,
+        "max_abs_error_m": 0.23859603747162428,
+        "bias_m": -0.05230748661947906
+      },
+      "note": "Uses dynamic cochlear LIF: threshold x16->x2.5, beta 0.20->0.60."
+    },
+    {
       "key": "spike_tuned_consensus",
       "name": "Spike VCN + tuning + VCN consensus",
       "vcn_input": "spikes",
       "spike_threshold_multiplier": 16.0,
       "spike_beta": 0.5,
+      "dynamic_cochlea_schedule": null,
       "vcn_detector": "consensus",
       "ic_mode": "plain",
       "latency_min_samples": -62,
@@ -134,10 +181,10 @@
         "bias_m": 0.013036735977767732
       },
       "noisy_metrics": {
-        "mae_m": 0.052403330275817006,
-        "rmse_m": 0.06568349021427126,
+        "mae_m": 0.052389865586657106,
+        "rmse_m": 0.06566369974546413,
         "max_abs_error_m": 0.23414982648716987,
-        "bias_m": -0.011162728257090948
+        "bias_m": -0.01112724400964894
       },
       "note": "Adds local multi-channel coincidence in VCN."
     },
@@ -147,6 +194,7 @@
       "vcn_input": "spikes",
       "spike_threshold_multiplier": 16.0,
       "spike_beta": 0.5,
+      "dynamic_cochlea_schedule": null,
       "vcn_detector": "consensus",
       "ic_mode": "facilitated",
       "latency_min_samples": -62,
@@ -168,12 +216,55 @@
         "bias_m": 0.013136658430241619
       },
       "noisy_metrics": {
-        "mae_m": 0.05251960617407851,
-        "rmse_m": 0.06577698963040587,
+        "mae_m": 0.052507183761747234,
+        "rmse_m": 0.06575865798294583,
         "max_abs_error_m": 0.23406713538185464,
-        "bias_m": -0.011121981960142264
+        "bias_m": -0.011087071667823535
       },
       "note": "Adds soft sweep-consistency facilitation in IC."
+    },
+    {
+      "key": "spike_dynamic_consensus_facil",
+      "name": "Spike VCN + dynamic cochlea + consensus + IC facilitation",
+      "vcn_input": "spikes",
+      "spike_threshold_multiplier": 1.0,
+      "spike_beta": null,
+      "dynamic_cochlea_schedule": {
+        "name": "dynamic_x16_to_x2p5_beta0p2_to_0p60",
+        "threshold_start_mult": 16.0,
+        "threshold_floor_mult": 2.5,
+        "threshold_tau_ms": 16.0,
+        "beta_start": 0.2,
+        "beta_end": 0.6,
+        "beta_tau_ms": 24.0
+      },
+      "vcn_detector": "consensus",
+      "ic_mode": "facilitated",
+      "latency_min_samples": -43,
+      "latency_max_samples": 31,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -43,
+        "latency_max_samples": 31,
+        "latency_mean_std_samples": 27.88436695043848,
+        "latency_max_std_samples": 52.1368391830575
+      },
+      "clean_metrics": {
+        "mae_m": 0.035709907136134374,
+        "rmse_m": 0.04364255533689014,
+        "max_abs_error_m": 0.11710133204283135,
+        "bias_m": -0.005560063331103046
+      },
+      "noisy_metrics": {
+        "mae_m": 0.05626302753409666,
+        "rmse_m": 0.07215010335327973,
+        "max_abs_error_m": 0.23049822151757282,
+        "bias_m": -0.038448282574073525
+      },
+      "note": "Tests the selected dynamic cochlea schedule inside the robust pathway."
     },
     {
       "key": "cochleagram_consensus_facil",
@@ -181,6 +272,7 @@
       "vcn_input": "cochleagram",
       "spike_threshold_multiplier": 1.0,
       "spike_beta": null,
+      "dynamic_cochlea_schedule": null,
       "vcn_detector": "consensus",
       "ic_mode": "facilitated",
       "latency_min_samples": -111,
@@ -202,10 +294,10 @@
         "bias_m": -0.000641988688161551
       },
       "noisy_metrics": {
-        "mae_m": 1.1736395002347701,
-        "rmse_m": 1.6419539149509694,
+        "mae_m": 1.1738117332857416,
+        "rmse_m": 1.6419577048328358,
         "max_abs_error_m": 4.024190738768116,
-        "bias_m": -1.1702735122053525
+        "bias_m": -1.1702405819870818
       },
       "note": "Tests whether the same pathway-level fixes work without spike-raster input."
     }

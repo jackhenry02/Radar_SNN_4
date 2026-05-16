@@ -58,9 +58,19 @@ OUTPUT_DIR = ROOT / "distance_pathway" / "outputs" / "distance_noise_robustness"
 REPORT_PATH = ROOT / "distance_pathway" / "reports" / "distance_noise_robustness_experiments.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 ROBUST_LATENCY_VECTOR_PATH = OUTPUT_DIR / "spike_tuned_consensus_facil_latency_samples.npy"
+DYNAMIC_ROBUST_LATENCY_VECTOR_PATH = OUTPUT_DIR / "spike_dynamic_consensus_facil_latency_samples.npy"
 
 ROBUST_SPIKE_THRESHOLD_MULTIPLIER = 16.0
 ROBUST_SPIKE_BETA = 0.50
+DYNAMIC_COHLEA_SCHEDULE = {
+    "name": "dynamic_x16_to_x2p5_beta0p2_to_0p60",
+    "threshold_start_mult": 16.0,
+    "threshold_floor_mult": 2.5,
+    "threshold_tau_ms": 16.0,
+    "beta_start": 0.20,
+    "beta_end": 0.60,
+    "beta_tau_ms": 24.0,
+}
 CONSENSUS_CHANNEL_RADIUS = 2
 CONSENSUS_TIME_RADIUS = 8
 CONSENSUS_MIN_COUNT = 3
@@ -82,6 +92,8 @@ class RobustVariant:
         vcn_input: `cochleagram` or `spikes`.
         spike_threshold_multiplier: Multiplier applied to cochlear spike threshold.
         spike_beta: Optional override for cochlear LIF beta.
+        dynamic_cochlea_schedule: Optional time-varying threshold/beta schedule
+            applied to the rectified cochleagram to create a replacement spike raster.
         vcn_detector: `first` or `consensus`.
         ic_mode: `plain` or `facilitated`.
         note: Short explanation of the tested mechanism.
@@ -92,6 +104,7 @@ class RobustVariant:
     vcn_input: str
     spike_threshold_multiplier: float = 1.0
     spike_beta: float | None = None
+    dynamic_cochlea_schedule: dict[str, float] | None = None
     vcn_detector: str = "first"
     ic_mode: str = "plain"
     note: str = ""
@@ -128,18 +141,84 @@ def _variant_config(base_config, variant: RobustVariant):
     return replace(base_config, **kwargs)
 
 
-def _combined_vcn_input(cochlea, variant: RobustVariant) -> torch.Tensor:
-    """Return the bilateral activity tensor used by the VCN.
+def _dynamic_threshold_beta(config, schedule: dict[str, float], num_samples: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return dynamic threshold and beta vectors for a cochlear LIF schedule.
+
+    Args:
+        config: Acoustic configuration.
+        schedule: Time-varying cochlear LIF schedule.
+        num_samples: Number of time samples.
+
+    Returns:
+        Pair `(threshold_t, beta_t)` with one value per time sample.
+    """
+    time_ms = np.arange(num_samples, dtype=np.float64) / config.sample_rate_hz * 1_000.0
+    threshold_mult = schedule["threshold_floor_mult"] + (
+        schedule["threshold_start_mult"] - schedule["threshold_floor_mult"]
+    ) * np.exp(-time_ms / schedule["threshold_tau_ms"])
+    threshold_t = float(config.spike_threshold) * threshold_mult
+    beta_t = schedule["beta_start"] + (schedule["beta_end"] - schedule["beta_start"]) * (
+        1.0 - np.exp(-time_ms / schedule["beta_tau_ms"])
+    )
+    return threshold_t.astype(np.float64), beta_t.astype(np.float64)
+
+
+def _dynamic_lif_encode(cochleagram: torch.Tensor, config, schedule: dict[str, float]) -> torch.Tensor:
+    """Convert a rectified cochleagram into spikes using dynamic LIF settings.
+
+    Args:
+        cochleagram: Rectified cochleagram `[channels, time]`.
+        config: Acoustic configuration.
+        schedule: Time-varying cochlear LIF schedule.
+
+    Returns:
+        Dynamic spike raster as a torch tensor `[channels, time]`.
+    """
+    activity = cochleagram.detach().cpu().numpy()
+    threshold_t, beta_t = _dynamic_threshold_beta(config, schedule, activity.shape[1])
+    membrane = np.zeros(activity.shape[0], dtype=np.float64)
+    spikes = np.zeros_like(activity, dtype=np.float32)
+    for time_index in range(activity.shape[1]):
+        membrane = beta_t[time_index] * membrane + activity[:, time_index]
+        fired = membrane >= threshold_t[time_index]
+        if np.any(fired):
+            spikes[fired, time_index] = 1.0
+            membrane[fired] -= threshold_t[time_index]
+            membrane = np.maximum(membrane, 0.0)
+    return torch.from_numpy(spikes)
+
+
+def _vcn_input_tensor_variant(cochlea, ear: str, config, variant: RobustVariant) -> torch.Tensor:
+    """Return a VCN input tensor, replacing spike rasters for dynamic variants.
 
     Args:
         cochlea: Binaural cochlea output.
+        ear: `left` or `right`.
+        config: Acoustic configuration.
+        variant: Robustness variant.
+
+    Returns:
+        VCN input tensor `[channels, time]`.
+    """
+    if variant.dynamic_cochlea_schedule is None or variant.vcn_input != "spikes":
+        return _vcn_input_tensor(cochlea, ear, variant.vcn_input)
+    cochleagram = cochlea.left_cochleagram if ear == "left" else cochlea.right_cochleagram
+    return _dynamic_lif_encode(cochleagram, config, variant.dynamic_cochlea_schedule)
+
+
+def _combined_vcn_input_variant(cochlea, variant_config, variant: RobustVariant) -> torch.Tensor:
+    """Return bilateral VCN input, including dynamic spike replacement if needed.
+
+    Args:
+        cochlea: Binaural cochlea output.
+        variant_config: Acoustic configuration.
         variant: Robustness variant.
 
     Returns:
         Combined left/right VCN input `[channels, time]`.
     """
-    left = _vcn_input_tensor(cochlea, "left", variant.vcn_input)
-    right = _vcn_input_tensor(cochlea, "right", variant.vcn_input)
+    left = _vcn_input_tensor_variant(cochlea, "left", variant_config, variant)
+    right = _vcn_input_tensor_variant(cochlea, "right", variant_config, variant)
     return torch.maximum(left, right)
 
 
@@ -190,6 +269,26 @@ def _vcn_consensus_detector(activity_tensor: torch.Tensor, variant_config, sourc
     return output
 
 
+def _apply_vcn_frequency_mask_tensor(activity: torch.Tensor, config) -> torch.Tensor:
+    """Silence VCN input channels below the modelled call-relevant band.
+
+    This is applied before VCN detection so sub-4 kHz channels cannot affect
+    local consensus counts in neighbouring responsive channels.
+
+    Args:
+        activity: VCN input tensor `[channels, time]`.
+        config: Acoustic configuration.
+
+    Returns:
+        Activity tensor with sub-4 kHz channels set to zero.
+    """
+    centers = _log_spaced_centers(config).detach().cpu().numpy()
+    responsive = centers >= VCN_MIN_RESPONSIVE_HZ
+    masked = activity.clone()
+    masked[~torch.from_numpy(responsive).to(masked.device), :] = 0.0
+    return masked
+
+
 def _run_vcn(cochlea, variant_config, variant: RobustVariant) -> np.ndarray:
     """Run the selected VCN detector and return combined bilateral onsets.
 
@@ -202,12 +301,24 @@ def _run_vcn(cochlea, variant_config, variant: RobustVariant) -> np.ndarray:
         Combined VCN onset raster `[channels, time]`.
     """
     if variant.vcn_detector == "first":
-        left = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "left", variant.vcn_input), variant_config)
-        right = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "right", variant.vcn_input), variant_config)
+        left_input = _apply_vcn_frequency_mask_tensor(
+            _vcn_input_tensor_variant(cochlea, "left", variant_config, variant),
+            variant_config,
+        )
+        right_input = _apply_vcn_frequency_mask_tensor(
+            _vcn_input_tensor_variant(cochlea, "right", variant_config, variant),
+            variant_config,
+        )
+        left = _vcn_vnll_onset_detector(left_input, variant_config)
+        right = _vcn_vnll_onset_detector(right_input, variant_config)
         return _apply_vcn_frequency_mask(np.maximum(left, right), variant_config)
     if variant.vcn_detector == "consensus":
+        combined_input = _apply_vcn_frequency_mask_tensor(
+            _combined_vcn_input_variant(cochlea, variant_config, variant),
+            variant_config,
+        )
         return _apply_vcn_frequency_mask(
-            _vcn_consensus_detector(_combined_vcn_input(cochlea, variant), variant_config, variant.vcn_input),
+            _vcn_consensus_detector(combined_input, variant_config, variant.vcn_input),
             variant_config,
         )
     raise ValueError(f"Unknown VCN detector: {variant.vcn_detector}")
@@ -401,6 +512,13 @@ def _variant_definitions() -> list[RobustVariant]:
             note="Uses 16x cochlear threshold and beta=0.5.",
         ),
         RobustVariant(
+            key="spike_dynamic",
+            name="Spike VCN + dynamic cochlea",
+            vcn_input="spikes",
+            dynamic_cochlea_schedule=DYNAMIC_COHLEA_SCHEDULE,
+            note="Uses dynamic cochlear LIF: threshold x16->x2.5, beta 0.20->0.60.",
+        ),
+        RobustVariant(
             key="spike_tuned_consensus",
             name="Spike VCN + tuning + VCN consensus",
             vcn_input="spikes",
@@ -418,6 +536,15 @@ def _variant_definitions() -> list[RobustVariant]:
             vcn_detector="consensus",
             ic_mode="facilitated",
             note="Adds soft sweep-consistency facilitation in IC.",
+        ),
+        RobustVariant(
+            key="spike_dynamic_consensus_facil",
+            name="Spike VCN + dynamic cochlea + consensus + IC facilitation",
+            vcn_input="spikes",
+            dynamic_cochlea_schedule=DYNAMIC_COHLEA_SCHEDULE,
+            vcn_detector="consensus",
+            ic_mode="facilitated",
+            note="Tests the selected dynamic cochlea schedule inside the robust pathway.",
         ),
         RobustVariant(
             key="cochleagram_consensus_facil",
@@ -452,6 +579,9 @@ def _evaluate_variant(base_clean_config, base_noisy_config, distances: np.ndarra
     if variant.key == "spike_tuned_consensus_facil":
         ensure_dir(OUTPUT_DIR)
         np.save(ROBUST_LATENCY_VECTOR_PATH, latency_samples)
+    if variant.key == "spike_dynamic_consensus_facil":
+        ensure_dir(OUTPUT_DIR)
+        np.save(DYNAMIC_ROBUST_LATENCY_VECTOR_PATH, latency_samples)
 
     torch.manual_seed(RNG_SEED + 30_000)
     clean_predictions = [
@@ -469,6 +599,7 @@ def _evaluate_variant(base_clean_config, base_noisy_config, distances: np.ndarra
         "vcn_input": variant.vcn_input,
         "spike_threshold_multiplier": variant.spike_threshold_multiplier,
         "spike_beta": variant.spike_beta,
+        "dynamic_cochlea_schedule": variant.dynamic_cochlea_schedule,
         "vcn_detector": variant.vcn_detector,
         "ic_mode": variant.ic_mode,
         "latency_min_samples": int(latency_samples.min()),
@@ -486,7 +617,9 @@ def _write_report(results: dict[str, object]) -> None:
     best_noisy = min(results["variant_results"], key=lambda row: row["noisy_metrics"]["mae_m"])
     best_clean = min(results["variant_results"], key=lambda row: row["clean_metrics"]["mae_m"])
     selected = next(row for row in results["variant_results"] if row["key"] == "spike_tuned_consensus_facil")
+    dynamic_selected = next(row for row in results["variant_results"] if row["key"] == "spike_dynamic_consensus_facil")
     selected_stats = selected["calibration_stats"]
+    dynamic_selected_stats = dynamic_selected["calibration_stats"]
     lines = [
         "# Distance Noise Robustness Experiments",
         "",
@@ -501,9 +634,10 @@ def _write_report(results: dict[str, object]) -> None:
         "## Tested Mechanisms",
         "",
         f"- Cochlea tuning: spike threshold `x{ROBUST_SPIKE_THRESHOLD_MULTIPLIER:.0f}`, cochlear LIF beta `{ROBUST_SPIKE_BETA}`.",
+        "- Dynamic cochlea tuning: threshold `x16 -> x2.5`, beta `0.20 -> 0.60`.",
         f"- VCN consensus: local window `±{CONSENSUS_CHANNEL_RADIUS}` channels and `±{CONSENSUS_TIME_RADIUS}` samples, requiring at least `{CONSENSUS_MIN_COUNT}` local events.",
         f"- IC facilitation: soft local sweep-consistency gain `{IC_FACIL_GAIN}`, tau `{IC_FACIL_TAU_SAMPLES}` samples.",
-        f"- VCN frequency mask: channels below `{VCN_MIN_RESPONSIVE_HZ / 1_000.0:.1f} kHz` are silenced because the call-relevant sweep does not use them.",
+        f"- VCN frequency mask: channels below `{VCN_MIN_RESPONSIVE_HZ / 1_000.0:.1f} kHz` are silenced before VCN detection and after VCN output, because the call-relevant sweep does not use them.",
         "",
         "## Results",
         "",
@@ -512,7 +646,13 @@ def _write_report(results: dict[str, object]) -> None:
     ]
     for row in results["variant_results"]:
         tuning = "default"
-        if row["spike_threshold_multiplier"] != 1.0 or row["spike_beta"] is not None:
+        if row["dynamic_cochlea_schedule"] is not None:
+            schedule = row["dynamic_cochlea_schedule"]
+            tuning = (
+                f"dynamic x{schedule['threshold_start_mult']:.0f}->x{schedule['threshold_floor_mult']:.1f}, "
+                f"beta={schedule['beta_start']:.2f}->{schedule['beta_end']:.2f}"
+            )
+        elif row["spike_threshold_multiplier"] != 1.0 or row["spike_beta"] is not None:
             tuning = f"x{row['spike_threshold_multiplier']:.0f}, beta={row['spike_beta']}"
         clean = row["clean_metrics"]
         noisy = row["noisy_metrics"]
@@ -537,12 +677,13 @@ def _write_report(results: dict[str, object]) -> None:
             f"- Best clean result: `{best_clean['name']}` with MAE `{best_clean['clean_metrics']['mae_m'] * 100.0:.3f} cm`.",
             f"- Best noisy result: `{best_noisy['name']}` with MAE `{best_noisy['noisy_metrics']['mae_m'] * 100.0:.3f} cm`.",
             "- The main robustness gain came from cochlea tuning on the spike-raster pathway: threshold `x16` and beta `0.5` reduced noisy MAE from metre-scale failure to approximately `5 cm`.",
+            "- The dynamic cochlea variants test the selected diagnostic setting: threshold `x16 -> x2.5`, beta `0.20 -> 0.60`.",
             "- VCN consensus and IC facilitation did not materially improve this first tuned spike-raster result. They may need retuning now that the cochlear input is much sparser.",
             "- The cochleagram pathway remains excellent clean, but it is still highly noise-sensitive because it reads continuous low-threshold activity before the cochlear spike encoder.",
             "",
             "## Recalibrated Robust Latency Vector",
             "",
-            "The selected robust model is `Spike VCN + tuning + consensus + IC facilitation`, with VCN channels below `4 kHz` silenced. Its latency vector is recalibrated after applying the spike-raster cochlea tuning, VCN consensus, and frequency mask.",
+            "The selected robust model is `Spike VCN + tuning + consensus + IC facilitation`, with VCN channels below `4 kHz` silenced before detection. Its latency vector is recalibrated after applying the spike-raster cochlea tuning, VCN consensus, and frequency mask.",
             "",
             "| Calibration property | Value |",
             "|---|---:|",
@@ -557,13 +698,31 @@ def _write_report(results: dict[str, object]) -> None:
             "",
             f"With this recalibrated vector, the selected robust model gives clean MAE `{selected['clean_metrics']['mae_m'] * 100.0:.3f} cm` and noisy MAE `{selected['noisy_metrics']['mae_m'] * 100.0:.3f} cm`.",
             "",
+            "## Dynamic Cochlea Robust Latency Vector",
+            "",
+            "The dynamic robust model uses the selected dynamic cochlea schedule, VCN consensus, IC facilitation, and the same pre-VCN `4 kHz` mask.",
+            "",
+            "| Dynamic calibration property | Value |",
+            "|---|---:|",
+            f"| responsive channels | `{dynamic_selected_stats['responsive_channels']}` |",
+            f"| silenced channels below 4 kHz | `{dynamic_selected_stats['silenced_channels']}` |",
+            f"| calibrated responsive channels | `{dynamic_selected_stats['calibrated_responsive_channels']}` |",
+            f"| missing responsive channels | `{dynamic_selected_stats['missing_responsive_channels']}` |",
+            f"| latency range over responsive channels | `{dynamic_selected_stats['latency_min_samples']} -> {dynamic_selected_stats['latency_max_samples']}` samples |",
+            f"| mean latency std across calibration distances | `{dynamic_selected_stats['latency_mean_std_samples']:.3f}` samples |",
+            f"| max latency std across calibration distances | `{dynamic_selected_stats['latency_max_std_samples']:.3f}` samples |",
+            f"| saved vector | `{DYNAMIC_ROBUST_LATENCY_VECTOR_PATH.relative_to(ROOT)}` |",
+            "",
+            f"With this recalibrated vector, the dynamic robust model gives clean MAE `{dynamic_selected['clean_metrics']['mae_m'] * 100.0:.3f} cm` and noisy MAE `{dynamic_selected['noisy_metrics']['mae_m'] * 100.0:.3f} cm`.",
+            "",
             "## Interpretation",
             "",
             "- The spike-raster pathway is the relevant path for cochlea threshold/beta tuning, because cochleagram VCN bypasses cochlear spike generation.",
             "- VCN consensus is intended to reject isolated noisy events by requiring local channel agreement.",
             "- IC facilitation is deliberately soft: it boosts sweep-consistent candidate distances but does not hard-gate the response.",
-            "- The VCN frequency mask is a biological/engineering assumption that sub-call-band channels should not drive the distance pathway.",
+            "- The VCN frequency mask is a biological/engineering assumption that sub-call-band channels should not drive the distance pathway or contribute to consensus counts.",
             "- If a variant improves noisy MAE but destroys clean MAE, it is not yet acceptable as a general distance pathway.",
+            "- The dynamic cochlea schedule should be judged on full pathway distance error, not just visual raster cleanliness, because stricter spike cleanup can also remove useful timing events.",
             "",
             "## Generated Files",
             "",
