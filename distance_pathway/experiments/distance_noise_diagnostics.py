@@ -113,6 +113,15 @@ DYNAMIC_SCHEDULES = [
         "beta_end": 0.70,
         "beta_tau_ms": 24.0,
     },
+    {
+        "name": "dyn_G_x16_to_x2p5_beta0p2_to_0p60",
+        "threshold_start_mult": 16.0,
+        "threshold_floor_mult": 2.5,
+        "threshold_tau_ms": 16.0,
+        "beta_start": 0.20,
+        "beta_end": 0.60,
+        "beta_tau_ms": 24.0,
+    },
 ]
 
 
@@ -1074,6 +1083,16 @@ def _write_report(results: dict[str, object]) -> None:
     )
     lines.extend(
         [
+            "## 5 m Updated Threshold 2.5 And Beta 0.60 Comparison",
+            "",
+            "This plot tests a stricter late threshold and faster leak than the beta `0.70` case: threshold `x16 -> x2.5` and beta `0.20 -> 0.60`.",
+            "",
+            "![5 m threshold 2.5 beta 0.60 comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_5m_thr2p5_beta0p60.png)",
+            "",
+        ]
+    )
+    lines.extend(
+        [
             "",
             "## Interpretation",
             "",
@@ -1196,6 +1215,13 @@ def main() -> dict[str, object]:
         5.0,
         beta070_schedule,
         FIGURE_DIR / "distance_comparison_5m_beta0p70.png",
+    )
+    threshold25_beta060_schedule = _schedule_by_name("dyn_G_x16_to_x2p5_beta0p2_to_0p60")
+    artifacts["distance_comparison_5m_thr2p5_beta0p60"] = _plot_distance_comparison(
+        noisy_config,
+        5.0,
+        threshold25_beta060_schedule,
+        FIGURE_DIR / "distance_comparison_5m_thr2p5_beta0p60.png",
     )
     elapsed_s = time.perf_counter() - start
     results = {
