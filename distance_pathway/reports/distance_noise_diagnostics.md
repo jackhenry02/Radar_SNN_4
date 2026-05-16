@@ -70,6 +70,52 @@ Using the `16x` cochlear spike threshold as the best cleanup attempt so far, thi
 | `0.95` | `6.72` | `5243` | `48` | `0.469 ms` |
 | `0.98` | `6.72` | `6143` | `48` | `0.453 ms` |
 
+## Dynamic Threshold And Beta
+
+The next test addresses the distance-dependent volume problem. Near echoes are loud and arrive early; far echoes are weak and arrive late. A fixed threshold/beta therefore either over-fires on early noise or misses far echoes.
+
+The tested dynamic LIF uses:
+
+```text
+threshold(t) = threshold_base * (floor + (start - floor)*exp(-t/tau_threshold))
+beta(t) = beta_start + (beta_end - beta_start)*(1 - exp(-t/tau_beta))
+v_c[t] = beta(t)*v_c[t-1] + cochleagram_c[t]
+spike_c[t] = 1 if v_c[t] >= threshold(t)
+```
+
+This is a heuristic rather than an analytic optimum. Analytically deriving the optimum would require a calibrated model of echo amplitude, target reflectivity, channel noise variance, filter group delay, and acceptable false-alarm probability. Here, a small parameter sweep is used as a practical first step.
+
+Spike-count SNR is measured as the ratio of spike rate in the expected echo window to spike rate in an equal-length pre-echo noise window:
+
+```text
+SNR_spike = 10 log10((echo_rate + 1) / (noise_rate + 1))
+```
+
+![Dynamic schedule](../outputs/distance_noise_diagnostics/figures/dynamic_schedule.png)
+
+![Dynamic chosen raster](../outputs/distance_noise_diagnostics/figures/dynamic_chosen_raster.png)
+
+![Dynamic SNR across distance](../outputs/distance_noise_diagnostics/figures/dynamic_snr_across_distance.png)
+
+| Schedule | Start threshold | Floor threshold | Threshold tau | Beta start | Beta end | Beta tau | Mean SNR | SNR std | Min SNR | Score |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `dyn_A_x32_to_x8_beta0_to_0p75` | `x32` | `x8` | `10.0 ms` | `0.00` | `0.75` | `18.0 ms` | `5.03 dB` | `3.91 dB` | `0.93 dB` | `1.58` |
+| `dyn_B_x32_to_x4_beta0_to_0p75` | `x32` | `x4` | `12.0 ms` | `0.00` | `0.75` | `18.0 ms` | `5.78 dB` | `3.32 dB` | `2.49 dB` | `3.71` |
+| `dyn_C_x24_to_x6_beta0_to_0p8` | `x24` | `x6` | `14.0 ms` | `0.00` | `0.80` | `22.0 ms` | `5.38 dB` | `3.93 dB` | `1.37 dB` | `2.13` |
+| `dyn_D_x16_to_x4_beta0p2_to_0p8` | `x16` | `x4` | `10.0 ms` | `0.20` | `0.80` | `18.0 ms` | `7.65 dB` | `3.60 dB` | `3.41 dB` | `5.75` |
+| `dyn_E_x16_to_x2_beta0p2_to_0p88` | `x16` | `x2` | `16.0 ms` | `0.20` | `0.88` | `24.0 ms` | `7.66 dB` | `3.24 dB` | `4.28 dB` | `6.56` |
+
+Chosen schedule: `dyn_E_x16_to_x2_beta0p2_to_0p88` with threshold `x16 -> x2` and beta `0.20 -> 0.88`.
+
+| Distance | Echo spikes | Noise spikes | Spike SNR |
+|---:|---:|---:|---:|
+| `0.50 m` | `6465` | `0` | `12.87 dB` |
+| `1.00 m` | `4052` | `0` | `10.97 dB` |
+| `2.00 m` | `1615` | `0` | `7.47 dB` |
+| `3.00 m` | `1069` | `7` | `5.97 dB` |
+| `4.00 m` | `954` | `135` | `4.28 dB` |
+| `5.00 m` | `1495` | `319` | `4.40 dB` |
+
 ## Interpretation
 
 - The cochleagram-driven VCN is very sensitive because it uses a low adaptive threshold on continuous cochleagram activity.
@@ -78,6 +124,7 @@ Using the `16x` cochlear spike threshold as the best cleanup attempt so far, thi
 - The clean 0.32 cm result is therefore a clean-timing result, not yet a robust-noise result.
 - Raising the cochlear spike threshold can reduce spike density, but the important question is whether it removes the early false events without deleting the real echo.
 - Reducing cochlear beta tests whether faster leak can stop isolated noisy samples from accumulating into false early spikes.
+- Dynamic thresholding/beta is a better match to distance-dependent volume: it suppresses early noise strongly, then gradually becomes more sensitive to later weak echoes.
 - The next fix should be a more robust VCN onset rule, such as multi-channel agreement, matched sweep gating, higher/refractory adaptive thresholds, or a pre-onset denoising/gain-control stage.
 
 ## Generated Files
@@ -90,6 +137,9 @@ Using the `16x` cochlear spike threshold as the best cleanup attempt so far, thi
 - `threshold_summary`: `distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_summary.png`
 - `beta_spike_rasters`: `distance_pathway/outputs/distance_noise_diagnostics/figures/beta_spike_rasters.png`
 - `beta_summary`: `distance_pathway/outputs/distance_noise_diagnostics/figures/beta_summary.png`
+- `dynamic_chosen_raster`: `distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_chosen_raster.png`
+- `dynamic_snr_across_distance`: `distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_snr_across_distance.png`
+- `dynamic_schedule`: `distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_schedule.png`
 - `results`: `distance_pathway/outputs/distance_noise_diagnostics/results.json`
 
-Runtime: `8.48 s`.
+Runtime: `8.28 s`.

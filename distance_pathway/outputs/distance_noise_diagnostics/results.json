@@ -1,6 +1,6 @@
 {
   "experiment": "distance_noise_diagnostics",
-  "elapsed_seconds": 8.47539324988611,
+  "elapsed_seconds": 8.28445874992758,
   "distance_m": 3.0,
   "target_snr_db": 10.0,
   "jitter_std_s": 0.00025,
@@ -111,6 +111,154 @@
       "first_global_sample": 29
     }
   ],
+  "dynamic_schedule_rows": [
+    {
+      "schedule": {
+        "name": "dyn_A_x32_to_x8_beta0_to_0p75",
+        "threshold_start_mult": 32.0,
+        "threshold_floor_mult": 8.0,
+        "threshold_tau_ms": 10.0,
+        "beta_start": 0.0,
+        "beta_end": 0.75,
+        "beta_tau_ms": 18.0
+      },
+      "mean_spike_snr_db": 5.026572753156055,
+      "std_spike_snr_db": 3.912970449397009,
+      "min_spike_snr_db": 0.9294382579045506,
+      "score": 1.5783214327113209
+    },
+    {
+      "schedule": {
+        "name": "dyn_B_x32_to_x4_beta0_to_0p75",
+        "threshold_start_mult": 32.0,
+        "threshold_floor_mult": 4.0,
+        "threshold_tau_ms": 12.0,
+        "beta_start": 0.0,
+        "beta_end": 0.75,
+        "beta_tau_ms": 18.0
+      },
+      "mean_spike_snr_db": 5.778704764270522,
+      "std_spike_snr_db": 3.319077147639477,
+      "min_spike_snr_db": 2.4933735386594416,
+      "score": 3.7063143859607655
+    },
+    {
+      "schedule": {
+        "name": "dyn_C_x24_to_x6_beta0_to_0p8",
+        "threshold_start_mult": 24.0,
+        "threshold_floor_mult": 6.0,
+        "threshold_tau_ms": 14.0,
+        "beta_start": 0.0,
+        "beta_end": 0.8,
+        "beta_tau_ms": 22.0
+      },
+      "mean_spike_snr_db": 5.377043201557889,
+      "std_spike_snr_db": 3.925055498902934,
+      "min_spike_snr_db": 1.365043747607186,
+      "score": 2.134509576458548
+    },
+    {
+      "schedule": {
+        "name": "dyn_D_x16_to_x4_beta0p2_to_0p8",
+        "threshold_start_mult": 16.0,
+        "threshold_floor_mult": 4.0,
+        "threshold_tau_ms": 10.0,
+        "beta_start": 0.2,
+        "beta_end": 0.8,
+        "beta_tau_ms": 18.0
+      },
+      "mean_spike_snr_db": 7.647601430919463,
+      "std_spike_snr_db": 3.60114497190448,
+      "min_spike_snr_db": 3.413494649171529,
+      "score": 5.753203783600747
+    },
+    {
+      "schedule": {
+        "name": "dyn_E_x16_to_x2_beta0p2_to_0p88",
+        "threshold_start_mult": 16.0,
+        "threshold_floor_mult": 2.0,
+        "threshold_tau_ms": 16.0,
+        "beta_start": 0.2,
+        "beta_end": 0.88,
+        "beta_tau_ms": 24.0
+      },
+      "mean_spike_snr_db": 7.662125323546557,
+      "std_spike_snr_db": 3.241415973750341,
+      "min_spike_snr_db": 4.284142157244208,
+      "score": 6.5627804284183195
+    }
+  ],
+  "dynamic_chosen": {
+    "schedule": {
+      "name": "dyn_E_x16_to_x2_beta0p2_to_0p88",
+      "threshold_start_mult": 16.0,
+      "threshold_floor_mult": 2.0,
+      "threshold_tau_ms": 16.0,
+      "beta_start": 0.2,
+      "beta_end": 0.88,
+      "beta_tau_ms": 24.0
+    },
+    "mean_spike_snr_db": 7.662125323546557,
+    "std_spike_snr_db": 3.241415973750341,
+    "min_spike_snr_db": 4.284142157244208,
+    "score": 6.5627804284183195,
+    "distance_rows": [
+      {
+        "distance_m": 0.5,
+        "echo_count": 6465.0,
+        "noise_count": 0.0,
+        "echo_rate": 18.366477272727273,
+        "noise_rate": 0.0,
+        "spike_snr_db": 12.870506305203254,
+        "spike_count": 6465
+      },
+      {
+        "distance_m": 1.0,
+        "echo_count": 4052.0,
+        "noise_count": 0.0,
+        "echo_rate": 11.511363636363637,
+        "noise_rate": 0.0,
+        "spike_snr_db": 10.973046468215832,
+        "spike_count": 6252
+      },
+      {
+        "distance_m": 2.0,
+        "echo_count": 1615.0,
+        "noise_count": 0.0,
+        "echo_rate": 4.588068181818182,
+        "noise_rate": 0.0,
+        "spike_snr_db": 7.472616964412056,
+        "spike_count": 3895
+      },
+      {
+        "distance_m": 3.0,
+        "echo_count": 1069.0,
+        "noise_count": 7.0,
+        "echo_rate": 3.0369318181818183,
+        "noise_rate": 0.019886363636363636,
+        "spike_snr_db": 5.974996293491507,
+        "spike_count": 3085
+      },
+      {
+        "distance_m": 4.0,
+        "echo_count": 954.0,
+        "noise_count": 135.0,
+        "echo_rate": 2.710227272727273,
+        "noise_rate": 0.3835227272727273,
+        "spike_snr_db": 4.284142157244208,
+        "spike_count": 2695
+      },
+      {
+        "distance_m": 5.0,
+        "echo_count": 1495.0,
+        "noise_count": 319.0,
+        "echo_rate": 4.247159090909091,
+        "noise_rate": 0.90625,
+        "spike_snr_db": 4.397443752712493,
+        "spike_count": 2498
+      }
+    ]
+  },
   "artifacts": {
     "noisy_cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_cochleagram.png",
     "noisy_spike_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_spike_raster.png",
@@ -119,6 +267,9 @@
     "threshold_spike_rasters": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_spike_rasters.png",
     "threshold_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_summary.png",
     "beta_spike_rasters": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/beta_spike_rasters.png",
-    "beta_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/beta_summary.png"
+    "beta_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/beta_summary.png",
+    "dynamic_chosen_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_chosen_raster.png",
+    "dynamic_snr_across_distance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_snr_across_distance.png",
+    "dynamic_schedule": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_schedule.png"
   }
 }
