@@ -1,6 +1,6 @@
 {
   "experiment": "line_attractor_analysis",
-  "elapsed_seconds": 16.446474750060588,
+  "elapsed_seconds": 12.473172375001013,
   "params": {
     "length_m": 10.0,
     "num_neurons": 120,
@@ -49,6 +49,7 @@
     "tuning_and_fisher": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/tuning_and_fisher.png",
     "boundary_weights": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/boundary_weights.png",
     "readout_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/readout_snapshots.png",
+    "energy_landscape": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/energy_landscape.png",
     "stability_transients": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/stability_transients.png",
     "fisher_through_time": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/fisher_through_time.png",
     "decoding_error": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/decoding_error.png"

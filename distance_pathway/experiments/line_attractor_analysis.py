@@ -631,6 +631,150 @@ def plot_decoding_error(
     return save_figure(fig, path), final_errors
 
 
+def bump_energy_along_line(
+    params: LineAttractorParams,
+    model: ModelMatrices,
+    represented_positions: np.ndarray,
+    *,
+    stimulus_m: float | None = None,
+    input_gain: float = 1.0,
+) -> np.ndarray:
+    """Evaluate quadratic attractor energy along the bump-position manifold.
+
+    For a symmetric rate model, a useful Lyapunov-style energy is:
+
+    `E(r) = 0.5*r^T*(I - W)*r - input_gain*h(s)^T*r`.
+
+    This function evaluates that energy only on a low-dimensional manifold of
+    reflected Gaussian bump states `r = h(q)`. That creates a visual energy
+    landscape over represented position `q`.
+
+    Args:
+        params: Model parameters.
+        model: Model matrix set. The readout matrix is used so the same helper
+            can visualise the readout manifold of all model variants.
+        represented_positions: Candidate bump centres.
+        stimulus_m: Optional external input position.
+        input_gain: Strength of external input term.
+
+    Returns:
+        Energy value for each represented position.
+    """
+    readout_w = model.C @ model.W @ model.B
+    eye = np.eye(params.num_neurons)
+    stimulus = None if stimulus_m is None else reflected_population_code(params, stimulus_m)
+    energies = []
+    for position_m in represented_positions:
+        bump = reflected_population_code(params, float(position_m))
+        energy = 0.5 * float(bump @ (eye - readout_w) @ bump)
+        if stimulus is not None:
+            energy -= input_gain * float(stimulus @ bump)
+        energies.append(energy)
+    energies_np = np.array(energies)
+    return energies_np - energies_np.min()
+
+
+def plot_energy_landscape(
+    params: LineAttractorParams,
+    models: list[ModelMatrices],
+    path: Path,
+) -> str:
+    """Plot attractor energy and pseudo-energy landscapes.
+
+    Args:
+        params: Model parameters.
+        models: Models to compare.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    q = np.linspace(0.0, params.length_m, 240)
+    stimulus_grid = np.linspace(0.0, params.length_m, 120)
+    stimulus_m = 0.62 * params.length_m
+    symmetric_model = next(model for model in models if model.name == "Symmetric line attractor")
+    balanced_model = next(model for model in models if model.name == "Balanced E/I line attractor")
+
+    fig = plt.figure(figsize=(13.5, 9.0))
+    ax_flat = fig.add_subplot(2, 2, 1)
+    ax_input = fig.add_subplot(2, 2, 2)
+    ax_surface = fig.add_subplot(2, 2, 3, projection="3d")
+    ax_balanced = fig.add_subplot(2, 2, 4)
+
+    raw_energy = bump_energy_along_line(params, symmetric_model, q, stimulus_m=None)
+    input_energy = bump_energy_along_line(
+        params,
+        symmetric_model,
+        q,
+        stimulus_m=stimulus_m,
+        input_gain=1.0,
+    )
+    ax_flat.plot(q, raw_energy, linewidth=2.2, label="no external input")
+    ax_flat.set_title("Symmetric line: near-flat attractor manifold")
+    ax_flat.set_xlabel("bump centre q (m)")
+    ax_flat.set_ylabel("relative energy")
+    ax_flat.grid(True, alpha=0.25)
+    ax_flat.legend(frameon=False)
+
+    ax_input.plot(q, input_energy, linewidth=2.2, color="#2563eb", label=f"input at {stimulus_m:.1f} m")
+    ax_input.axvline(stimulus_m, color="#111827", linestyle=":", linewidth=1.4)
+    ax_input.set_title("Input creates an energy well")
+    ax_input.set_xlabel("bump centre q (m)")
+    ax_input.set_ylabel("relative energy")
+    ax_input.grid(True, alpha=0.25)
+    ax_input.legend(frameon=False)
+
+    energy_surface = np.stack(
+        [
+            bump_energy_along_line(
+                params,
+                symmetric_model,
+                q,
+                stimulus_m=float(stimulus),
+                input_gain=1.0,
+            )
+            for stimulus in stimulus_grid
+        ],
+        axis=0,
+    )
+    q_mesh, stimulus_mesh = np.meshgrid(q, stimulus_grid)
+    surface = ax_surface.plot_surface(
+        q_mesh,
+        stimulus_mesh,
+        energy_surface,
+        cmap="viridis",
+        linewidth=0,
+        antialiased=True,
+        alpha=0.92,
+    )
+    ax_surface.set_title("Energy landscape over input and bump centre")
+    ax_surface.set_xlabel("bump centre q (m)")
+    ax_surface.set_ylabel("input position s (m)")
+    ax_surface.set_zlabel("relative energy")
+    fig.colorbar(surface, ax=ax_surface, shrink=0.65, label="relative energy")
+
+    balanced_no_input = bump_energy_along_line(params, balanced_model, q, stimulus_m=None)
+    balanced_input = bump_energy_along_line(
+        params,
+        balanced_model,
+        q,
+        stimulus_m=stimulus_m,
+        input_gain=1.0,
+    )
+    ax_balanced.plot(q, input_energy, linewidth=2.0, label="symmetric energy")
+    ax_balanced.plot(q, balanced_input, linewidth=2.0, linestyle="--", label="balanced readout pseudo-energy")
+    ax_balanced.plot(q, balanced_no_input, linewidth=1.4, linestyle=":", label="balanced no-input pseudo-energy")
+    ax_balanced.axvline(stimulus_m, color="#111827", linestyle=":", linewidth=1.2)
+    ax_balanced.set_title("Balanced E/I uses pseudo-energy only")
+    ax_balanced.set_xlabel("bump centre q (m)")
+    ax_balanced.set_ylabel("relative value")
+    ax_balanced.grid(True, alpha=0.25)
+    ax_balanced.legend(frameon=False, fontsize=8)
+
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
 def write_report(
     params: LineAttractorParams,
     artifacts: dict[str, str],
@@ -788,6 +932,26 @@ def write_report(
         "",
         "The symmetric line attractor keeps the bump shape stable for longer than no recurrence. The balanced E/I version can transiently amplify the readout while still decaying eventually.",
         "",
+        "## Energy Landscape View",
+        "",
+        "For the symmetric line model, the recurrent system can be viewed with a quadratic Lyapunov-style energy:",
+        "",
+        "```text",
+        "E(r) = 0.5*r^T*(I - W)*r - h(s)^T*r",
+        "```",
+        "",
+        "The first term describes the recurrent attractor landscape. The second term is the external input, which creates an energy well at the stimulus position. To visualise this in one dimension, the report evaluates the energy only along the bump manifold `r = h(q)`, where `q` is the represented bump centre:",
+        "",
+        "```text",
+        "E(q | s) = 0.5*h(q)^T*(I - W)*h(q) - h(s)^T*h(q)",
+        "```",
+        "",
+        "A good continuous line attractor should have an almost flat no-input landscape along `q`, so the bump can represent any distance without being pulled to a preferred point. When input arrives, the landscape should form a well around the measured position.",
+        "",
+        "![Energy landscape](../outputs/line_attractor_analysis/figures/energy_landscape.png)",
+        "",
+        "The balanced E/I model is non-normal, so it does not generally have a single scalar energy function that fully explains its dynamics. The plotted balanced curve is therefore a readout pseudo-energy, useful as an intuition for bump localisation, while the transient-growth and eigenvalue plots remain the correct stability analysis.",
+        "",
         "## Fisher Information Through Time",
         "",
         "![Fisher through time](../outputs/line_attractor_analysis/figures/fisher_through_time.png)",
@@ -848,6 +1012,7 @@ def main() -> dict[str, object]:
         "tuning_and_fisher": plot_tuning_and_fisher(params, FIGURE_DIR / "tuning_and_fisher.png"),
         "boundary_weights": plot_boundary_weights(params, FIGURE_DIR / "boundary_weights.png"),
         "readout_snapshots": plot_model_snapshots(params, models, FIGURE_DIR / "readout_snapshots.png"),
+        "energy_landscape": plot_energy_landscape(params, models, FIGURE_DIR / "energy_landscape.png"),
     }
     stability_path, stability_summary = plot_stability_and_transients(
         params,

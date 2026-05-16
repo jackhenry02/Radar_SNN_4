@@ -132,6 +132,26 @@ Transient growth is still possible when `A` is non-normal. In that case, eigenve
 
 The symmetric line attractor keeps the bump shape stable for longer than no recurrence. The balanced E/I version can transiently amplify the readout while still decaying eventually.
 
+## Energy Landscape View
+
+For the symmetric line model, the recurrent system can be viewed with a quadratic Lyapunov-style energy:
+
+```text
+E(r) = 0.5*r^T*(I - W)*r - h(s)^T*r
+```
+
+The first term describes the recurrent attractor landscape. The second term is the external input, which creates an energy well at the stimulus position. To visualise this in one dimension, the report evaluates the energy only along the bump manifold `r = h(q)`, where `q` is the represented bump centre:
+
+```text
+E(q | s) = 0.5*h(q)^T*(I - W)*h(q) - h(s)^T*h(q)
+```
+
+A good continuous line attractor should have an almost flat no-input landscape along `q`, so the bump can represent any distance without being pulled to a preferred point. When input arrives, the landscape should form a well around the measured position.
+
+![Energy landscape](../outputs/line_attractor_analysis/figures/energy_landscape.png)
+
+The balanced E/I model is non-normal, so it does not generally have a single scalar energy function that fully explains its dynamics. The plotted balanced curve is therefore a readout pseudo-energy, useful as an intuition for bump localisation, while the transient-growth and eigenvalue plots remain the correct stability analysis.
+
 ## Fisher Information Through Time
 
 ![Fisher through time](../outputs/line_attractor_analysis/figures/fisher_through_time.png)
@@ -178,9 +198,10 @@ A simple centre-of-mass decoder was applied to noisy readout activity. This is n
 - `tuning_and_fisher`: `distance_pathway/outputs/line_attractor_analysis/figures/tuning_and_fisher.png`
 - `boundary_weights`: `distance_pathway/outputs/line_attractor_analysis/figures/boundary_weights.png`
 - `readout_snapshots`: `distance_pathway/outputs/line_attractor_analysis/figures/readout_snapshots.png`
+- `energy_landscape`: `distance_pathway/outputs/line_attractor_analysis/figures/energy_landscape.png`
 - `stability_transients`: `distance_pathway/outputs/line_attractor_analysis/figures/stability_transients.png`
 - `fisher_through_time`: `distance_pathway/outputs/line_attractor_analysis/figures/fisher_through_time.png`
 - `decoding_error`: `distance_pathway/outputs/line_attractor_analysis/figures/decoding_error.png`
 - `results`: `distance_pathway/outputs/line_attractor_analysis/results.json`
 
-Runtime: `16.45 s`.
+Runtime: `12.47 s`.
