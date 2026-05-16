@@ -62,11 +62,37 @@ The refractory period was `10.0 ms`, threshold fraction `0.03`, and beta `0.92`.
 | simple first-spike swap safe | `False` |
 | latency vector accepted | `True` |
 
+## Robust Spike-Raster Model Recalibration
+
+This section shows the recalibrated latency vector for the current robust noisy-distance model:
+
+```text
+Spike VCN + cochlea tuning + VCN consensus + IC facilitation + <4 kHz VCN silence
+```
+
+This is not the same timing regime as the clean cochleagram-LIF model above. It uses the tuned cochlear spike raster, so first-event timing is coarser and less stable, but much more robust under noise.
+
+![Robust latency heatmap](../outputs/cochlea_latency/figures/robust_latency_heatmap.png)
+
+![Robust latency vector](../outputs/cochlea_latency/figures/robust_latency_vector.png)
+
+| Robust calibration property | Value |
+|---|---:|
+| responsive channels | `33` |
+| silenced channels below 4 kHz | `15` |
+| calibrated responsive channels | `33` |
+| missing responsive channels | `0` |
+| latency range over responsive channels | `-62 -> 25` samples |
+| mean latency std across distances | `31.376` samples |
+| max latency std across distances | `53.363` samples |
+| saved robust vector | `distance_pathway/outputs/distance_noise_robustness/spike_tuned_consensus_facil_latency_samples.npy` |
+
 ## Interpretation
 
 - The latency vector is accepted if refractory-LIF latency is stable across distance, because it can then be treated as a fixed cochlea/front-end delay per channel.
 - The simple first-spike method is only safe to use if its onset timing closely matches the refractory-LIF detector.
 - The latency correction should be applied to the corollary-discharge expectation or IC comparison, not by moving echo spikes earlier in time.
+- The robust spike-raster vector should be interpreted as a lower-precision but noise-tolerant timing calibration.
 
 ## Saved Files
 
@@ -75,5 +101,7 @@ The refractory period was `10.0 ms`, threshold fraction `0.03`, and beta `0.92`.
 - `latency_heatmap`: `distance_pathway/outputs/cochlea_latency/figures/latency_heatmap.png`
 - `latency_vector`: `distance_pathway/outputs/cochlea_latency/figures/latency_vector.png`
 - `detector_comparison`: `distance_pathway/outputs/cochlea_latency/figures/detector_comparison.png`
+- `robust_latency_heatmap`: `distance_pathway/outputs/cochlea_latency/figures/robust_latency_heatmap.png`
+- `robust_latency_vector`: `distance_pathway/outputs/cochlea_latency/figures/robust_latency_vector.png`
 
-Runtime: `0.70 s`.
+Runtime: `1.16 s`.

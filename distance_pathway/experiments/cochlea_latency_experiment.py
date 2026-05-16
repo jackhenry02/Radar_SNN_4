@@ -35,6 +35,14 @@ from distance_pathway.experiments.full_distance_pathway_model import (
     _run_cochlea_binaural,
     _simulate_scene,
 )
+from distance_pathway.experiments.distance_noise_robustness_experiments import (
+    ROBUST_LATENCY_VECTOR_PATH,
+    VCN_MIN_RESPONSIVE_HZ,
+    _responsive_channel_mask,
+    _run_vcn as _run_robust_vcn,
+    _variant_config,
+    _variant_definitions,
+)
 from mini_models.common.plotting import ensure_dir, save_figure
 from mini_models.experiments.final_cochlea_model_analysis import _log_spaced_centers
 
@@ -69,6 +77,23 @@ class LatencyExperimentResult:
     latency_vector: np.ndarray
     first_spike_matrix: np.ndarray
     refractory_lif_matrix: np.ndarray
+
+
+@dataclass
+class RobustLatencyResult:
+    """Robust-model latency recalibration outputs.
+
+    Attributes:
+        latency_matrix: Latency per distance and channel.
+        latency_vector: Median latency per channel.
+        onset_matrix: First robust VCN onset per distance and channel.
+        responsive_mask: Channels allowed to drive the robust VCN.
+    """
+
+    latency_matrix: np.ndarray
+    latency_vector: np.ndarray
+    onset_matrix: np.ndarray
+    responsive_mask: np.ndarray
 
 
 def _round_trip_delay_samples(distance_m: float) -> int:
@@ -175,6 +200,54 @@ def _run_experiment() -> LatencyExperimentResult:
     )
 
 
+def _robust_variant():
+    """Return the selected robust spike-raster distance-pathway variant."""
+    for variant in _variant_definitions():
+        if variant.key == "spike_tuned_consensus_facil":
+            return variant
+    raise RuntimeError("Robust spike-raster variant is not defined")
+
+
+def _run_robust_latency_experiment() -> RobustLatencyResult:
+    """Measure latency for the selected robust spike-raster model.
+
+    Returns:
+        Robust latency recalibration result.
+    """
+    base_config = _make_config()
+    variant = _robust_variant()
+    config = _variant_config(base_config, variant)
+    responsive = _responsive_channel_mask(config)
+    cd_times = _chirp_channel_times(config)
+    latency_rows = []
+    onset_rows = []
+    for distance_m in TEST_DISTANCES_M:
+        receive = _simulate_scene(config, float(distance_m), add_noise=False)
+        cochlea = _run_cochlea_binaural(config, receive)
+        vcn = _run_robust_vcn(cochlea, config, variant)
+        first = _first_spike_times(torch.from_numpy(vcn))
+        expected = cd_times + _round_trip_delay_samples(float(distance_m))
+        latency = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+        valid = (first >= 0) & responsive
+        latency[valid] = first[valid] - expected[valid]
+        latency_rows.append(latency)
+        onset_rows.append(first)
+
+    latency_matrix = np.vstack(latency_rows)
+    onset_matrix = np.vstack(onset_rows)
+    latency_vector = np.zeros(NUM_CHANNELS, dtype=np.int64)
+    for channel in range(NUM_CHANNELS):
+        values = latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        latency_vector[channel] = int(np.rint(np.median(values))) if values.size else 0
+    return RobustLatencyResult(
+        latency_matrix=latency_matrix,
+        latency_vector=latency_vector,
+        onset_matrix=onset_matrix,
+        responsive_mask=responsive,
+    )
+
+
 def _plot_latency_heatmap(result: LatencyExperimentResult, path: Path) -> str:
     """Plot refractory-LIF latency by distance and frequency channel."""
     config = _make_config()
@@ -248,6 +321,64 @@ def _plot_detector_comparison(result: LatencyExperimentResult, path: Path) -> st
     return save_figure(fig, path)
 
 
+def _plot_robust_latency_heatmap(result: RobustLatencyResult, path: Path) -> str:
+    """Plot robust-model latency by distance and frequency channel."""
+    config = _variant_config(_make_config(), _robust_variant())
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    image = ax.imshow(
+        result.latency_matrix,
+        aspect="auto",
+        origin="lower",
+        cmap="coolwarm",
+        extent=[centers_khz.min(), centers_khz.max(), TEST_DISTANCES_M.min(), TEST_DISTANCES_M.max()],
+    )
+    ax.axvspan(centers_khz.min(), VCN_MIN_RESPONSIVE_HZ / 1_000.0, color="#111827", alpha=0.12, label="silenced <4 kHz")
+    ax.set_xscale("log")
+    ax.set_xlabel("channel centre frequency (kHz)")
+    ax.set_ylabel("distance (m)")
+    ax.set_title("Robust spike-raster model latency vs expected CD sweep")
+    ax.legend(loc="upper left")
+    fig.colorbar(image, ax=ax, label="latency (samples)")
+    return save_figure(fig, path)
+
+
+def _plot_robust_latency_vector(result: RobustLatencyResult, path: Path) -> str:
+    """Plot robust-model latency vector and distance consistency."""
+    config = _variant_config(_make_config(), _robust_variant())
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    latency_std = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+    for channel in range(NUM_CHANNELS):
+        values = result.latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        if values.size:
+            latency_std[channel] = float(np.std(values))
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
+    axes[0].plot(
+        centers_khz[result.responsive_mask],
+        result.latency_vector[result.responsive_mask],
+        marker="o",
+        linewidth=1.5,
+    )
+    axes[0].set_ylabel("median latency (samples)")
+    axes[0].set_title("Robust model recalibrated latency vector")
+    axes[1].plot(
+        centers_khz[result.responsive_mask],
+        latency_std[result.responsive_mask],
+        marker="o",
+        color="#dc2626",
+        linewidth=1.5,
+    )
+    axes[1].set_ylabel("std across distances (samples)")
+    axes[1].set_xlabel("channel centre frequency (kHz)")
+    axes[1].set_xscale("log")
+    for ax in axes:
+        ax.axvspan(centers_khz.min(), VCN_MIN_RESPONSIVE_HZ / 1_000.0, color="#111827", alpha=0.12)
+        ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
 def _summary_stats(result: LatencyExperimentResult) -> dict[str, float]:
     """Calculate latency experiment summary statistics."""
     latency = np.where(
@@ -278,9 +409,37 @@ def _summary_stats(result: LatencyExperimentResult) -> dict[str, float]:
     }
 
 
-def _write_report(result: LatencyExperimentResult, artifacts: dict[str, str], elapsed_s: float) -> None:
+def _robust_summary_stats(result: RobustLatencyResult) -> dict[str, float]:
+    """Calculate robust-model latency summary statistics."""
+    responsive_latency = result.latency_matrix[:, result.responsive_mask]
+    latency_std = np.full(responsive_latency.shape[1], np.nan, dtype=np.float64)
+    for channel in range(responsive_latency.shape[1]):
+        values = responsive_latency[:, channel]
+        values = values[np.isfinite(values)]
+        if values.size:
+            latency_std[channel] = float(np.std(values))
+    calibrated = np.isfinite(responsive_latency).any(axis=0)
+    return {
+        "responsive_channels": int(np.sum(result.responsive_mask)),
+        "silenced_channels": int(NUM_CHANNELS - np.sum(result.responsive_mask)),
+        "calibrated_responsive_channels": int(np.sum(calibrated)),
+        "missing_responsive_channels": int(np.sum(~calibrated)),
+        "latency_min_samples": int(np.min(result.latency_vector[result.responsive_mask])),
+        "latency_max_samples": int(np.max(result.latency_vector[result.responsive_mask])),
+        "latency_mean_std_samples": float(np.nanmean(latency_std)),
+        "latency_max_std_samples": float(np.nanmax(latency_std)),
+    }
+
+
+def _write_report(
+    result: LatencyExperimentResult,
+    robust_result: RobustLatencyResult,
+    artifacts: dict[str, str],
+    elapsed_s: float,
+) -> None:
     """Write the latency experiment report."""
     stats = _summary_stats(result)
+    robust_stats = _robust_summary_stats(robust_result)
     config = _make_config()
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -348,11 +507,37 @@ def _write_report(result: LatencyExperimentResult, artifacts: dict[str, str], el
         f"| simple first-spike swap safe | `{stats['simple_first_spike_swap_safe']}` |",
         f"| latency vector accepted | `{stats['successful_latency_vector']}` |",
         "",
+        "## Robust Spike-Raster Model Recalibration",
+        "",
+        "This section shows the recalibrated latency vector for the current robust noisy-distance model:",
+        "",
+        "```text",
+        "Spike VCN + cochlea tuning + VCN consensus + IC facilitation + <4 kHz VCN silence",
+        "```",
+        "",
+        "This is not the same timing regime as the clean cochleagram-LIF model above. It uses the tuned cochlear spike raster, so first-event timing is coarser and less stable, but much more robust under noise.",
+        "",
+        "![Robust latency heatmap](../outputs/cochlea_latency/figures/robust_latency_heatmap.png)",
+        "",
+        "![Robust latency vector](../outputs/cochlea_latency/figures/robust_latency_vector.png)",
+        "",
+        "| Robust calibration property | Value |",
+        "|---|---:|",
+        f"| responsive channels | `{robust_stats['responsive_channels']}` |",
+        f"| silenced channels below 4 kHz | `{robust_stats['silenced_channels']}` |",
+        f"| calibrated responsive channels | `{robust_stats['calibrated_responsive_channels']}` |",
+        f"| missing responsive channels | `{robust_stats['missing_responsive_channels']}` |",
+        f"| latency range over responsive channels | `{robust_stats['latency_min_samples']} -> {robust_stats['latency_max_samples']}` samples |",
+        f"| mean latency std across distances | `{robust_stats['latency_mean_std_samples']:.3f}` samples |",
+        f"| max latency std across distances | `{robust_stats['latency_max_std_samples']:.3f}` samples |",
+        f"| saved robust vector | `{ROBUST_LATENCY_VECTOR_PATH.relative_to(ROOT)}` |",
+        "",
         "## Interpretation",
         "",
         "- The latency vector is accepted if refractory-LIF latency is stable across distance, because it can then be treated as a fixed cochlea/front-end delay per channel.",
         "- The simple first-spike method is only safe to use if its onset timing closely matches the refractory-LIF detector.",
         "- The latency correction should be applied to the corollary-discharge expectation or IC comparison, not by moving echo spikes earlier in time.",
+        "- The robust spike-raster vector should be interpreted as a lower-precision but noise-tolerant timing calibration.",
         "",
         "## Saved Files",
         "",
@@ -373,11 +558,21 @@ def main() -> dict[str, object]:
     ensure_dir(FIGURE_DIR)
     ensure_dir(REPORT_PATH.parent)
     result = _run_experiment()
+    robust_result = _run_robust_latency_experiment()
     np.save(LATENCY_VECTOR_PATH, result.latency_vector)
+    np.save(ROBUST_LATENCY_VECTOR_PATH, robust_result.latency_vector)
     artifacts = {
         "latency_heatmap": _plot_latency_heatmap(result, FIGURE_DIR / "latency_heatmap.png"),
         "latency_vector": _plot_latency_vector(result, FIGURE_DIR / "latency_vector.png"),
         "detector_comparison": _plot_detector_comparison(result, FIGURE_DIR / "detector_comparison.png"),
+        "robust_latency_heatmap": _plot_robust_latency_heatmap(
+            robust_result,
+            FIGURE_DIR / "robust_latency_heatmap.png",
+        ),
+        "robust_latency_vector": _plot_robust_latency_vector(
+            robust_result,
+            FIGURE_DIR / "robust_latency_vector.png",
+        ),
     }
     elapsed_s = time.perf_counter() - start
     stats = _summary_stats(result)
@@ -387,11 +582,14 @@ def main() -> dict[str, object]:
         "distances_m": TEST_DISTANCES_M.tolist(),
         "latency_vector_samples": result.latency_vector.tolist(),
         "stats": stats,
+        "robust_latency_vector_samples": robust_result.latency_vector.tolist(),
+        "robust_stats": _robust_summary_stats(robust_result),
         "artifacts": artifacts,
         "latency_vector_path": str(LATENCY_VECTOR_PATH),
+        "robust_latency_vector_path": str(ROBUST_LATENCY_VECTOR_PATH),
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    _write_report(result, artifacts, elapsed_s)
+    _write_report(result, robust_result, artifacts, elapsed_s)
     return payload
 
 
