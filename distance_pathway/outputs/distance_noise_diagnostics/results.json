@@ -1,6 +1,6 @@
 {
   "experiment": "distance_noise_diagnostics",
-  "elapsed_seconds": 6.4436560408212245,
+  "elapsed_seconds": 8.47539324988611,
   "distance_m": 3.0,
   "target_snr_db": 10.0,
   "jitter_std_s": 0.00025,
@@ -67,12 +67,58 @@
       "first_global_sample": 41
     }
   ],
+  "beta_summary_rows": [
+    {
+      "spike_beta": 0.0,
+      "spike_threshold": 6.72,
+      "spike_count": 41,
+      "active_channels": 10,
+      "first_global_sample": 1197
+    },
+    {
+      "spike_beta": 0.5,
+      "spike_threshold": 6.72,
+      "spike_count": 427,
+      "active_channels": 41,
+      "first_global_sample": 163
+    },
+    {
+      "spike_beta": 0.75,
+      "spike_threshold": 6.72,
+      "spike_count": 1190,
+      "active_channels": 45,
+      "first_global_sample": 58
+    },
+    {
+      "spike_beta": 0.88,
+      "spike_threshold": 6.72,
+      "spike_count": 2950,
+      "active_channels": 48,
+      "first_global_sample": 41
+    },
+    {
+      "spike_beta": 0.95,
+      "spike_threshold": 6.72,
+      "spike_count": 5243,
+      "active_channels": 48,
+      "first_global_sample": 30
+    },
+    {
+      "spike_beta": 0.98,
+      "spike_threshold": 6.72,
+      "spike_count": 6143,
+      "active_channels": 48,
+      "first_global_sample": 29
+    }
+  ],
   "artifacts": {
     "noisy_cochleagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_cochleagram.png",
     "noisy_spike_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_spike_raster.png",
     "noisy_vcn_outputs": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_vcn_outputs.png",
     "expected_vs_vcn": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/expected_vs_vcn.png",
     "threshold_spike_rasters": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_spike_rasters.png",
-    "threshold_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_summary.png"
+    "threshold_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/threshold_summary.png",
+    "beta_spike_rasters": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/beta_spike_rasters.png",
+    "beta_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/beta_summary.png"
   }
 }

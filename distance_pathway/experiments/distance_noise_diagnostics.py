@@ -51,6 +51,8 @@ RESULTS_PATH = OUTPUT_DIR / "results.json"
 
 EXAMPLE_DISTANCE_M = 3.0
 THRESHOLD_MULTIPLIERS = [1.0, 2.0, 4.0, 8.0, 16.0]
+BETA_SWEEP_THRESHOLD_MULTIPLIER = 16.0
+BETA_SWEEP_VALUES = [0.0, 0.5, 0.75, 0.88, 0.95, 0.98]
 
 
 @dataclass
@@ -229,6 +231,72 @@ def _plot_threshold_summary(threshold_outputs: list[dict[str, object]], config, 
     return save_figure(fig, path)
 
 
+def _plot_beta_spike_rasters(beta_outputs: list[dict[str, object]], config, path: Path) -> str:
+    """Plot cochlear spike rasters for the fixed-threshold beta sweep.
+
+    Args:
+        beta_outputs: Beta-sweep outputs from `_run_beta_sweep`.
+        config: Acoustic configuration.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    fig, axes = plt.subplots(len(beta_outputs), 1, figsize=(12, 2.5 * len(beta_outputs)), sharex=True)
+    if len(beta_outputs) == 1:
+        axes = [axes]
+    for ax, output in zip(axes, beta_outputs):
+        raster = output["combined_spikes"]
+        for channel, frequency_khz in enumerate(centers_khz):
+            event_times = np.flatnonzero(raster[channel] > 0.0) / config.sample_rate_hz * 1_000.0
+            if event_times.size:
+                ax.vlines(event_times, frequency_khz * 0.985, frequency_khz * 1.015, color="#7c3aed", linewidth=0.7)
+        ax.set_yscale("log")
+        ax.set_ylabel("kHz")
+        ax.set_title(
+            f"threshold x{BETA_SWEEP_THRESHOLD_MULTIPLIER:.0f}, beta={output['spike_beta']:.2f} "
+            f"(spikes={output['spike_count']})"
+        )
+        ax.grid(True, axis="x", alpha=0.2)
+    axes[-1].set_xlabel("time (ms)")
+    axes[-1].set_xlim(0.0, beta_outputs[0]["combined_spikes"].shape[1] / config.sample_rate_hz * 1_000.0)
+    return save_figure(fig, path)
+
+
+def _plot_beta_summary(beta_outputs: list[dict[str, object]], config, path: Path) -> str:
+    """Plot spike count and first-spike timing against cochlear LIF beta.
+
+    Args:
+        beta_outputs: Beta-sweep outputs from `_run_beta_sweep`.
+        config: Acoustic configuration.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    betas = np.array([float(output["spike_beta"]) for output in beta_outputs])
+    spike_counts = np.array([int(output["spike_count"]) for output in beta_outputs])
+    active_channels = np.array([int(output["active_channels"]) for output in beta_outputs])
+    first_global = np.array([
+        np.nan if output["first_global_sample"] < 0 else output["first_global_sample"] / config.sample_rate_hz * 1_000.0
+        for output in beta_outputs
+    ])
+
+    fig, axes = plt.subplots(3, 1, figsize=(9, 8), sharex=True)
+    axes[0].plot(betas, spike_counts, marker="o", linewidth=2.0)
+    axes[0].set_ylabel("total spikes")
+    axes[0].set_title(f"Effect of cochlear LIF decay at threshold x{BETA_SWEEP_THRESHOLD_MULTIPLIER:.0f}")
+    axes[1].plot(betas, active_channels, marker="o", color="#16a34a", linewidth=2.0)
+    axes[1].set_ylabel("active channels")
+    axes[2].plot(betas, first_global, marker="o", color="#dc2626", linewidth=2.0)
+    axes[2].set_ylabel("first spike (ms)")
+    axes[2].set_xlabel("cochlear LIF beta")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
 def _plot_vcn_outputs(outputs: list[DiagnosticModelOutput], config, path: Path) -> str:
     """Plot VCN outputs for both noisy variants."""
     centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
@@ -340,6 +408,39 @@ def _run_threshold_sweep(noisy_config, receive: torch.Tensor) -> list[dict[str, 
     return rows
 
 
+def _run_beta_sweep(noisy_config, receive: torch.Tensor) -> list[dict[str, object]]:
+    """Rerun the noisy cochlea at threshold x16 while varying LIF beta.
+
+    Args:
+        noisy_config: Acoustic config for the noisy condition.
+        receive: Shared noisy received waveform `[ears, time]`.
+
+    Returns:
+        Per-beta combined cochlear spike rasters and summary values.
+    """
+    rows = []
+    for beta in BETA_SWEEP_VALUES:
+        beta_config = replace(
+            noisy_config,
+            spike_threshold=float(noisy_config.spike_threshold) * BETA_SWEEP_THRESHOLD_MULTIPLIER,
+            spike_beta=float(beta),
+        )
+        cochlea = _run_cochlea_binaural(beta_config, receive)
+        combined_spikes = torch.maximum(cochlea.left_spikes, cochlea.right_spikes).detach().cpu().numpy()
+        first_times = _first_times(combined_spikes)
+        rows.append(
+            {
+                "spike_beta": float(beta),
+                "spike_threshold": float(beta_config.spike_threshold),
+                "combined_spikes": combined_spikes,
+                "spike_count": int(combined_spikes.sum()),
+                "active_channels": int(np.sum(first_times >= 0)),
+                "first_global_sample": _combined_first_global(combined_spikes),
+            }
+        )
+    return rows
+
+
 def _write_report(results: dict[str, object]) -> None:
     """Write the noise diagnostic report."""
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -412,6 +513,26 @@ def _write_report(results: dict[str, object]) -> None:
     lines.extend(
         [
             "",
+            "## Cochlear Decay Sweep At 16x Threshold",
+            "",
+            "Using the `16x` cochlear spike threshold as the best cleanup attempt so far, this sweep varies the cochlear LIF decay/beta. Lower beta leaks faster and should reduce accumulation from isolated noise; higher beta integrates longer and may increase sensitivity.",
+            "",
+            "![Beta spike rasters](../outputs/distance_noise_diagnostics/figures/beta_spike_rasters.png)",
+            "",
+            "![Beta summary](../outputs/distance_noise_diagnostics/figures/beta_summary.png)",
+            "",
+            "| Cochlear beta | Spike threshold | Total cochlear spikes | Active channels | First global spike |",
+            "|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for row in results["beta_summary_rows"]:
+        first_ms = "n/a" if row["first_global_sample"] < 0 else f"`{row['first_global_sample'] / results['sample_rate_hz'] * 1_000.0:.3f} ms`"
+        lines.append(
+            f"| `{row['spike_beta']:.2f}` | `{row['spike_threshold']:.3g}` | `{row['spike_count']}` | `{row['active_channels']}` | {first_ms} |"
+        )
+    lines.extend(
+        [
+            "",
             "## Interpretation",
             "",
             "- The cochleagram-driven VCN is very sensitive because it uses a low adaptive threshold on continuous cochleagram activity.",
@@ -419,6 +540,7 @@ def _write_report(results: dict[str, object]) -> None:
             "- The spike-raster VCN is slightly more conservative because it waits for the cochlear spike encoder, but it still fails when noise creates false or shifted cochlear spikes.",
             "- The clean 0.32 cm result is therefore a clean-timing result, not yet a robust-noise result.",
             "- Raising the cochlear spike threshold can reduce spike density, but the important question is whether it removes the early false events without deleting the real echo.",
+            "- Reducing cochlear beta tests whether faster leak can stop isolated noisy samples from accumulating into false early spikes.",
             "- The next fix should be a more robust VCN onset rule, such as multi-channel agreement, matched sweep gating, higher/refractory adaptive thresholds, or a pre-onset denoising/gain-control stage.",
             "",
             "## Generated Files",
@@ -448,6 +570,7 @@ def main() -> dict[str, object]:
     receive = _simulate_scene(noisy_config, EXAMPLE_DISTANCE_M, add_noise=True)
     cochlea = _run_cochlea_binaural(noisy_config, receive)
     threshold_outputs = _run_threshold_sweep(noisy_config, receive)
+    beta_outputs = _run_beta_sweep(noisy_config, receive)
     outputs = [
         _run_model_variant(cochlea, noisy_config, "cochleagram", "Cochleagram VCN"),
         _run_model_variant(cochlea, noisy_config, "spikes", "Spike-raster VCN"),
@@ -466,6 +589,16 @@ def main() -> dict[str, object]:
             threshold_outputs,
             noisy_config,
             FIGURE_DIR / "threshold_summary.png",
+        ),
+        "beta_spike_rasters": _plot_beta_spike_rasters(
+            beta_outputs,
+            noisy_config,
+            FIGURE_DIR / "beta_spike_rasters.png",
+        ),
+        "beta_summary": _plot_beta_summary(
+            beta_outputs,
+            noisy_config,
+            FIGURE_DIR / "beta_summary.png",
         ),
     }
     elapsed_s = time.perf_counter() - start
@@ -487,6 +620,16 @@ def main() -> dict[str, object]:
                 "first_global_sample": row["first_global_sample"],
             }
             for row in threshold_outputs
+        ],
+        "beta_summary_rows": [
+            {
+                "spike_beta": row["spike_beta"],
+                "spike_threshold": row["spike_threshold"],
+                "spike_count": row["spike_count"],
+                "active_channels": row["active_channels"],
+                "first_global_sample": row["first_global_sample"],
+            }
+            for row in beta_outputs
         ],
         "artifacts": artifacts,
     }
