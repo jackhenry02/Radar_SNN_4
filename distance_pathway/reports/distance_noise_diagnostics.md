@@ -104,6 +104,7 @@ SNR_spike = 10 log10((echo_rate + 1) / (noise_rate + 1))
 | `dyn_C_x24_to_x6_beta0_to_0p8` | `x24` | `x6` | `14.0 ms` | `0.00` | `0.80` | `22.0 ms` | `5.38 dB` | `3.93 dB` | `1.37 dB` | `2.13` |
 | `dyn_D_x16_to_x4_beta0p2_to_0p8` | `x16` | `x4` | `10.0 ms` | `0.20` | `0.80` | `18.0 ms` | `7.65 dB` | `3.60 dB` | `3.41 dB` | `5.75` |
 | `dyn_E_x16_to_x2_beta0p2_to_0p88` | `x16` | `x2` | `16.0 ms` | `0.20` | `0.88` | `24.0 ms` | `7.66 dB` | `3.24 dB` | `4.28 dB` | `6.56` |
+| `dyn_F_x16_to_x2_beta0p2_to_0p70` | `x16` | `x2` | `16.0 ms` | `0.20` | `0.70` | `24.0 ms` | `7.46 dB` | `3.28 dB` | `4.05 dB` | `6.20` |
 
 Chosen schedule: `dyn_E_x16_to_x2_beta0p2_to_0p88` with threshold `x16 -> x2` and beta `0.20 -> 0.88`.
 
@@ -139,6 +140,12 @@ The following plots compare the same noisy call/echo condition at `1, 2, 3, 4, 5
 ### 5 m
 
 ![5 m comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_5m.png)
+
+## 5 m Updated Beta 0.70 Comparison
+
+This plot uses the requested updated dynamic cochlea schedule: threshold `x16 -> x2` and beta `0.20 -> 0.70`. It is shown separately because the automatic sweep still selects the beta `0.88` schedule by the current spike-count SNR score.
+
+![5 m beta 0.70 comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_5m_beta0p70.png)
 
 
 ## Interpretation
@@ -200,6 +207,7 @@ Therefore the actual received SNR is not fixed across distance. It is highest fo
 - `distance_comparison_3m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_3m.png`
 - `distance_comparison_4m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_4m.png`
 - `distance_comparison_5m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_5m.png`
+- `distance_comparison_5m_beta0p70`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_5m_beta0p70.png`
 - `results`: `distance_pathway/outputs/distance_noise_diagnostics/results.json`
 
-Runtime: `10.78 s`.
+Runtime: `11.06 s`.

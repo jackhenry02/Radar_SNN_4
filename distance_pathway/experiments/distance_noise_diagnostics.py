@@ -104,6 +104,15 @@ DYNAMIC_SCHEDULES = [
         "beta_end": 0.88,
         "beta_tau_ms": 24.0,
     },
+    {
+        "name": "dyn_F_x16_to_x2_beta0p2_to_0p70",
+        "threshold_start_mult": 16.0,
+        "threshold_floor_mult": 2.0,
+        "threshold_tau_ms": 16.0,
+        "beta_start": 0.20,
+        "beta_end": 0.70,
+        "beta_tau_ms": 24.0,
+    },
 ]
 
 
@@ -653,7 +662,7 @@ def _plot_distance_comparison(
 
     for ax, raster, title, color in [
         (axes[1], static_spikes, "Static robust cochlea: threshold x16, beta 0.50", "#7c3aed"),
-        (axes[2], dynamic_spikes, "Dynamic cochlea: chosen threshold/beta schedule", "#0f766e"),
+        (axes[2], dynamic_spikes, f"Dynamic cochlea: {schedule['name']}", "#0f766e"),
     ]:
         for channel, frequency_khz in enumerate(centers_khz):
             event_times = np.flatnonzero(raster[channel] > 0.0) / noisy_config.sample_rate_hz * 1_000.0
@@ -720,6 +729,21 @@ def _plot_distance_comparisons(noisy_config, schedule: dict[str, float]) -> dict
             FIGURE_DIR / f"{key}.png",
         )
     return artifacts
+
+
+def _schedule_by_name(name: str) -> dict[str, float]:
+    """Return a dynamic schedule by name.
+
+    Args:
+        name: Schedule name.
+
+    Returns:
+        Dynamic schedule dictionary.
+    """
+    for schedule in DYNAMIC_SCHEDULES:
+        if schedule["name"] == name:
+            return schedule
+    raise ValueError(f"Unknown dynamic schedule: {name}")
 
 
 def _plot_vcn_outputs(outputs: list[DiagnosticModelOutput], config, path: Path) -> str:
@@ -1040,6 +1064,16 @@ def _write_report(results: dict[str, object]) -> None:
         )
     lines.extend(
         [
+            "## 5 m Updated Beta 0.70 Comparison",
+            "",
+            "This plot uses the requested updated dynamic cochlea schedule: threshold `x16 -> x2` and beta `0.20 -> 0.70`. It is shown separately because the automatic sweep still selects the beta `0.88` schedule by the current spike-count SNR score.",
+            "",
+            "![5 m beta 0.70 comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_5m_beta0p70.png)",
+            "",
+        ]
+    )
+    lines.extend(
+        [
             "",
             "## Interpretation",
             "",
@@ -1156,6 +1190,13 @@ def main() -> dict[str, object]:
         ),
     }
     artifacts.update(_plot_distance_comparisons(noisy_config, dynamic_chosen["schedule"]))
+    beta070_schedule = _schedule_by_name("dyn_F_x16_to_x2_beta0p2_to_0p70")
+    artifacts["distance_comparison_5m_beta0p70"] = _plot_distance_comparison(
+        noisy_config,
+        5.0,
+        beta070_schedule,
+        FIGURE_DIR / "distance_comparison_5m_beta0p70.png",
+    )
     elapsed_s = time.perf_counter() - start
     results = {
         "experiment": "distance_noise_diagnostics",
