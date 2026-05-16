@@ -1,0 +1,56 @@
+{
+  "experiment": "line_attractor_analysis",
+  "elapsed_seconds": 16.446474750060588,
+  "params": {
+    "length_m": 10.0,
+    "num_neurons": 120,
+    "tau_s": 0.02,
+    "dt_s": 0.001,
+    "t_end_s": 0.06,
+    "tuning_sigma_m": 0.42,
+    "recurrent_sigma_m": 0.7,
+    "fisher_noise_sigma": 0.05,
+    "readout_noise_sigma": 0.04,
+    "symmetric_alpha": 0.985,
+    "balanced_alpha_prime": 4.0,
+    "num_decode_positions": 45,
+    "num_decode_trials": 160,
+    "rng_seed": 109
+  },
+  "stability_summary": {
+    "No recurrence": {
+      "max_real_A": -50.0,
+      "peak_state_gain": 1.0,
+      "peak_readout_gain": 1.0,
+      "final_state_gain": 0.04606979898695193,
+      "final_readout_gain": 0.04606979898695193
+    },
+    "Symmetric line attractor": {
+      "max_real_A": -0.7500000000000762,
+      "peak_state_gain": 1.0,
+      "peak_readout_gain": 1.0,
+      "final_state_gain": 0.9560140373040744,
+      "final_readout_gain": 0.9560140373040744
+    },
+    "Balanced E/I line attractor": {
+      "max_real_A": -49.99999791280122,
+      "peak_state_gain": 3.0653323315982894,
+      "peak_readout_gain": 1.926338747925052,
+      "final_state_gain": 1.1657085640252371,
+      "final_readout_gain": 0.628013513597887
+    }
+  },
+  "final_decoding_errors_m": {
+    "No recurrence": 2.055542769491488,
+    "Symmetric line attractor": 0.4570347964493559,
+    "Balanced E/I line attractor": 0.5414884308609038
+  },
+  "artifacts": {
+    "tuning_and_fisher": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/tuning_and_fisher.png",
+    "boundary_weights": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/boundary_weights.png",
+    "readout_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/readout_snapshots.png",
+    "stability_transients": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/stability_transients.png",
+    "fisher_through_time": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/fisher_through_time.png",
+    "decoding_error": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/line_attractor_analysis/figures/decoding_error.png"
+  }
+}
