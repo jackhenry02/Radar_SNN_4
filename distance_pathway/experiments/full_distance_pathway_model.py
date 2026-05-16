@@ -20,6 +20,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -41,6 +42,7 @@ FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "distance_pathway" / "reports" / "full_distance_pathway_model.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 LATENCY_VECTOR_PATH = ROOT / "distance_pathway" / "outputs" / "cochlea_latency" / "cochlea_latency_samples.npy"
+DYNAMIC_LATENCY_VECTOR_PATH = OUTPUT_DIR / "dynamic_consensus_facil_latency_samples.npy"
 
 NUM_CHANNELS = 48
 NUM_DISTANCE_BINS = 180
@@ -63,6 +65,22 @@ IC_LIF_THRESHOLD = 1.45
 AC_EXCITE_SIGMA_BINS = 2.0
 AC_INHIBIT_SIGMA_BINS = 8.0
 AC_INHIBIT_GAIN = 0.58
+VCN_MIN_RESPONSIVE_HZ = 4_000.0
+CONSENSUS_CHANNEL_RADIUS = 2
+CONSENSUS_TIME_RADIUS = 8
+CONSENSUS_MIN_COUNT = 3
+CONSENSUS_REFRACTORY_S = 0.0005
+IC_FACIL_GAIN = 0.45
+IC_FACIL_TAU_SAMPLES = 8.0
+DYNAMIC_COHLEA_SCHEDULE = {
+    "name": "dynamic_x16_to_x2p5_beta0p2_to_0p60",
+    "threshold_start_mult": 16.0,
+    "threshold_floor_mult": 2.5,
+    "threshold_tau_ms": 16.0,
+    "beta_start": 0.20,
+    "beta_end": 0.60,
+    "beta_tau_ms": 24.0,
+}
 
 
 @dataclass
@@ -118,6 +136,9 @@ class PathwayVariant:
         name: Human-readable variant name.
         vcn_input: Activity source for VCN/VNLL, either `cochleagram` or `spikes`.
         latency_samples: Per-channel latency samples added to the CD expectation.
+        dynamic_cochlea_schedule: Optional time-varying cochlear LIF schedule.
+        vcn_detector: Onset detector, either `lif_first` or `consensus`.
+        ic_mode: IC coincidence mode, either `plain` or `facilitated`.
         note: Short interpretation of what this variant changes.
     """
 
@@ -125,7 +146,10 @@ class PathwayVariant:
     name: str
     vcn_input: str
     latency_samples: np.ndarray
-    note: str
+    note: str = ""
+    dynamic_cochlea_schedule: dict[str, float] | None = None
+    vcn_detector: str = "lif_first"
+    ic_mode: str = "plain"
 
 
 def _make_config() -> GlobalConfig:
@@ -299,6 +323,215 @@ def _vcn_input_tensor(cochlea: CochleaResult, ear: str, source: str) -> torch.Te
     raise ValueError(f"Unknown VCN input source: {source}")
 
 
+def _dynamic_threshold_beta(config: GlobalConfig, schedule: dict[str, float], num_samples: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return dynamic cochlear threshold and beta vectors.
+
+    Args:
+        config: Acoustic configuration.
+        schedule: Time-varying cochlear LIF schedule.
+        num_samples: Number of time samples.
+
+    Returns:
+        Pair `(threshold_t, beta_t)` with one value per time sample.
+    """
+    time_ms = np.arange(num_samples, dtype=np.float64) / config.sample_rate_hz * 1_000.0
+    threshold_mult = schedule["threshold_floor_mult"] + (
+        schedule["threshold_start_mult"] - schedule["threshold_floor_mult"]
+    ) * np.exp(-time_ms / schedule["threshold_tau_ms"])
+    threshold_t = float(config.spike_threshold) * threshold_mult
+    beta_t = schedule["beta_start"] + (schedule["beta_end"] - schedule["beta_start"]) * (
+        1.0 - np.exp(-time_ms / schedule["beta_tau_ms"])
+    )
+    return threshold_t.astype(np.float64), beta_t.astype(np.float64)
+
+
+def _dynamic_lif_encode(cochleagram: torch.Tensor, config: GlobalConfig, schedule: dict[str, float]) -> torch.Tensor:
+    """Convert a rectified cochleagram into spikes with dynamic LIF settings.
+
+    Args:
+        cochleagram: Rectified cochleagram `[channels, time]`.
+        config: Acoustic configuration.
+        schedule: Time-varying threshold/beta schedule.
+
+    Returns:
+        Binary spike raster `[channels, time]`.
+    """
+    activity = cochleagram.detach().cpu().numpy()
+    threshold_t, beta_t = _dynamic_threshold_beta(config, schedule, activity.shape[1])
+    membrane = np.zeros(activity.shape[0], dtype=np.float64)
+    spikes = np.zeros_like(activity, dtype=np.float32)
+    for time_index in range(activity.shape[1]):
+        membrane = beta_t[time_index] * membrane + activity[:, time_index]
+        fired = membrane >= threshold_t[time_index]
+        if np.any(fired):
+            spikes[fired, time_index] = 1.0
+            membrane[fired] -= threshold_t[time_index]
+            membrane = np.maximum(membrane, 0.0)
+    return torch.from_numpy(spikes)
+
+
+def _apply_vcn_frequency_mask_tensor(activity: torch.Tensor, config: GlobalConfig) -> torch.Tensor:
+    """Silence channels below the call-relevant band before VCN processing.
+
+    Args:
+        activity: Activity tensor `[channels, time]`.
+        config: Acoustic configuration.
+
+    Returns:
+        Masked tensor with channels below `VCN_MIN_RESPONSIVE_HZ` set to zero.
+    """
+    centers = _log_spaced_centers(config).detach().cpu().numpy()
+    responsive = torch.from_numpy(centers >= VCN_MIN_RESPONSIVE_HZ).to(activity.device)
+    masked = activity.clone()
+    masked[~responsive, :] = 0.0
+    return masked
+
+
+def _apply_vcn_frequency_mask(vcn: np.ndarray, config: GlobalConfig) -> np.ndarray:
+    """Silence VCN output channels below the call-relevant band.
+
+    Args:
+        vcn: VCN raster `[channels, time]`.
+        config: Acoustic configuration.
+
+    Returns:
+        VCN raster with sub-4 kHz channels set to zero.
+    """
+    centers = _log_spaced_centers(config).detach().cpu().numpy()
+    responsive = centers >= VCN_MIN_RESPONSIVE_HZ
+    masked = vcn.copy()
+    masked[~responsive, :] = 0.0
+    return masked
+
+
+def _vcn_input_tensor_variant(
+    cochlea: CochleaResult,
+    ear: str,
+    config: GlobalConfig,
+    variant: PathwayVariant,
+) -> torch.Tensor:
+    """Return VCN input for a variant, including dynamic spike replacement.
+
+    Args:
+        cochlea: Binaural cochlea result.
+        ear: `left` or `right`.
+        config: Acoustic configuration.
+        variant: Pathway variant.
+
+    Returns:
+        VCN input tensor `[channels, time]`.
+    """
+    if variant.dynamic_cochlea_schedule is None or variant.vcn_input != "spikes":
+        return _vcn_input_tensor(cochlea, ear, variant.vcn_input)
+    cochleagram = cochlea.left_cochleagram if ear == "left" else cochlea.right_cochleagram
+    return _dynamic_lif_encode(cochleagram, config, variant.dynamic_cochlea_schedule)
+
+
+def _combined_vcn_input_variant(
+    cochlea: CochleaResult,
+    config: GlobalConfig,
+    variant: PathwayVariant,
+) -> torch.Tensor:
+    """Return bilateral VCN input for a variant.
+
+    Args:
+        cochlea: Binaural cochlea result.
+        config: Acoustic configuration.
+        variant: Pathway variant.
+
+    Returns:
+        Combined left/right activity `[channels, time]`.
+    """
+    left = _vcn_input_tensor_variant(cochlea, "left", config, variant)
+    right = _vcn_input_tensor_variant(cochlea, "right", config, variant)
+    return torch.maximum(left, right)
+
+
+def _vcn_consensus_detector(activity_tensor: torch.Tensor, config: GlobalConfig, source: str) -> np.ndarray:
+    """Detect first VCN events using local multi-channel consensus.
+
+    Args:
+        activity_tensor: VCN input `[channels, time]`.
+        config: Acoustic configuration.
+        source: `cochleagram` or `spikes`.
+
+    Returns:
+        Consensus onset raster `[channels, time]`.
+    """
+    activity = activity_tensor.detach().cpu().to(torch.float32)
+    if source == "cochleagram":
+        thresholds = VCN_LIF_THRESHOLD_FRACTION * torch.clamp(activity.max(dim=1).values, min=1e-12)
+        raw = activity >= thresholds[:, None]
+    elif source == "spikes":
+        raw = activity > 0.0
+    else:
+        raise ValueError(f"Unknown VCN source: {source}")
+
+    kernel = torch.ones(
+        1,
+        1,
+        2 * CONSENSUS_CHANNEL_RADIUS + 1,
+        2 * CONSENSUS_TIME_RADIUS + 1,
+        dtype=torch.float32,
+    )
+    counts = F.conv2d(
+        raw.to(torch.float32)[None, None],
+        kernel,
+        padding=(CONSENSUS_CHANNEL_RADIUS, CONSENSUS_TIME_RADIUS),
+    )[0, 0]
+    candidates = raw & (counts >= CONSENSUS_MIN_COUNT)
+    candidate_np = candidates.numpy()
+    output = np.zeros_like(candidate_np, dtype=np.float32)
+    refractory = int(round(CONSENSUS_REFRACTORY_S * config.sample_rate_hz))
+    for channel in range(candidate_np.shape[0]):
+        event_times = np.flatnonzero(candidate_np[channel])
+        last_emit = -refractory
+        for event_time in event_times:
+            if event_time - last_emit >= refractory:
+                output[channel, int(event_time)] = 1.0
+                last_emit = int(event_time)
+                break
+    return output
+
+
+def _run_vcn_for_variant(cochlea: CochleaResult, config: GlobalConfig, variant: PathwayVariant) -> tuple[np.ndarray, np.ndarray]:
+    """Run the variant-specific bilateral VCN detector.
+
+    Args:
+        cochlea: Binaural cochlea result.
+        config: Acoustic configuration.
+        variant: Pathway variant.
+
+    Returns:
+        Pair `(left_vcn, right_vcn)`.
+    """
+    if variant.vcn_detector == "lif_first":
+        left_input = _apply_vcn_frequency_mask_tensor(
+            _vcn_input_tensor_variant(cochlea, "left", config, variant),
+            config,
+        )
+        right_input = _apply_vcn_frequency_mask_tensor(
+            _vcn_input_tensor_variant(cochlea, "right", config, variant),
+            config,
+        )
+        left = _vcn_vnll_onset_detector(left_input, config)
+        right = _vcn_vnll_onset_detector(right_input, config)
+        return _apply_vcn_frequency_mask(left, config), _apply_vcn_frequency_mask(right, config)
+
+    if variant.vcn_detector == "consensus":
+        combined_input = _apply_vcn_frequency_mask_tensor(
+            _combined_vcn_input_variant(cochlea, config, variant),
+            config,
+        )
+        combined = _apply_vcn_frequency_mask(
+            _vcn_consensus_detector(combined_input, config, variant.vcn_input),
+            config,
+        )
+        return combined, combined.copy()
+
+    raise ValueError(f"Unknown VCN detector: {variant.vcn_detector}")
+
+
 def _dnll_suppression(vcn_left: np.ndarray, vcn_right: np.ndarray, config: GlobalConfig) -> np.ndarray:
     """Apply simplified DNLL delayed inhibition and bilateral combination.
 
@@ -358,6 +591,23 @@ def _combined_vcn_input(cochlea: CochleaResult, source: str) -> torch.Tensor:
     left = _vcn_input_tensor(cochlea, "left", source)
     right = _vcn_input_tensor(cochlea, "right", source)
     return torch.maximum(left, right)
+
+
+def _first_times(raster: np.ndarray) -> np.ndarray:
+    """Return first event time per channel.
+
+    Args:
+        raster: Binary raster `[channels, time]`.
+
+    Returns:
+        First event sample per channel, with `-1` for missing channels.
+    """
+    first = np.full(raster.shape[0], -1, dtype=np.int64)
+    for channel in range(raster.shape[0]):
+        event_times = np.flatnonzero(raster[channel] > 0.0)
+        if event_times.size:
+            first[channel] = int(event_times[0])
+    return first
 
 
 def _calibrate_channel_latency(config: GlobalConfig, vcn_input: str = "cochleagram") -> np.ndarray:
@@ -422,11 +672,52 @@ def _calibrate_channel_latency_over_distances(config: GlobalConfig, vcn_input: s
                 row[channel] = int(event_times[0]) - int(cd_times[channel] + round_trip_delay)
         latency_rows.append(row)
     latency_matrix = np.vstack(latency_rows)
-    median_latency = np.rint(np.nanmedian(latency_matrix, axis=0))
-    if np.any(~np.isfinite(median_latency)):
-        finite = median_latency[np.isfinite(median_latency)]
-        fallback = int(np.median(finite)) if finite.size else 0
-        median_latency = np.where(np.isfinite(median_latency), median_latency, fallback)
+    median_latency = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+    for channel in range(NUM_CHANNELS):
+        values = latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        if values.size:
+            median_latency[channel] = np.rint(np.median(values))
+    finite = median_latency[np.isfinite(median_latency)]
+    fallback = int(np.median(finite)) if finite.size else 0
+    median_latency = np.where(np.isfinite(median_latency), median_latency, fallback)
+    return median_latency.astype(np.int64)
+
+
+def _calibrate_variant_latency(config: GlobalConfig, variant: PathwayVariant) -> np.ndarray:
+    """Estimate per-channel latency for a full pathway variant.
+
+    Args:
+        config: Acoustic configuration.
+        variant: Variant with detector and cochlea settings.
+
+    Returns:
+        Per-channel median latency correction in samples.
+    """
+    cd_times = _chirp_channel_times(config)
+    latency_rows = []
+    for distance_m in LATENCY_CALIBRATION_DISTANCES_M:
+        receive = _simulate_scene(config, float(distance_m), add_noise=False)
+        cochlea = _run_cochlea_binaural(config, receive)
+        vcn_left, vcn_right = _run_vcn_for_variant(cochlea, config, variant)
+        combined = np.maximum(vcn_left, vcn_right)
+        first = _first_times(combined)
+        round_trip_delay = int(round((2.0 * float(distance_m) / config.speed_of_sound_m_s) * config.sample_rate_hz))
+        row = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+        valid = first >= 0
+        row[valid] = first[valid] - (cd_times[valid] + round_trip_delay)
+        latency_rows.append(row)
+
+    latency_matrix = np.vstack(latency_rows)
+    median_latency = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+    for channel in range(NUM_CHANNELS):
+        values = latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        if values.size:
+            median_latency[channel] = np.rint(np.median(values))
+    finite = median_latency[np.isfinite(median_latency)]
+    fallback = int(np.median(finite)) if finite.size else 0
+    median_latency = np.where(np.isfinite(median_latency), median_latency, fallback)
     return median_latency.astype(np.int64)
 
 
@@ -480,6 +771,56 @@ def _ic_lif_coincidence(
     return activation
 
 
+def _ic_facilitated_coincidence(
+    dnll_onsets: np.ndarray,
+    config: GlobalConfig,
+    latency_samples: np.ndarray,
+) -> np.ndarray:
+    """Compute IC activation with soft local sweep facilitation.
+
+    The base score is still a LIF coincidence response. A local facilitation
+    term boosts candidate delays that are consistent across neighbouring
+    frequency channels, but it does not hard-gate the response.
+
+    Args:
+        dnll_onsets: Combined VCN/VNLL onset raster after DNLL suppression.
+        config: Acoustic configuration.
+        latency_samples: Per-channel latency added to the CD expectation.
+
+    Returns:
+        IC activation over candidate distance bins.
+    """
+    cd_times = _chirp_channel_times(config) + latency_samples.astype(np.int64)
+    candidate_delays = _candidate_delay_samples(config)
+    echo_first = _first_times(dnll_onsets)
+    channel_scores = np.zeros((NUM_CHANNELS, NUM_DISTANCE_BINS), dtype=np.float64)
+    facil_scores = np.zeros_like(channel_scores)
+
+    for channel in range(NUM_CHANNELS):
+        if echo_first[channel] < 0:
+            continue
+        expected_times = cd_times[channel] + candidate_delays
+        delta = np.abs(int(echo_first[channel]) - expected_times)
+        membrane_peak = 1.0 + np.power(IC_LIF_BETA, delta)
+        channel_scores[channel] = np.maximum(0.0, membrane_peak - IC_LIF_THRESHOLD)
+
+    for channel in range(NUM_CHANNELS):
+        neighbours = [
+            neighbour
+            for neighbour in (channel - 2, channel - 1, channel + 1, channel + 2)
+            if 0 <= neighbour < NUM_CHANNELS and echo_first[neighbour] >= 0
+        ]
+        if not neighbours:
+            continue
+        for neighbour in neighbours:
+            expected_neighbour = cd_times[neighbour] + candidate_delays
+            delta_neighbour = np.abs(int(echo_first[neighbour]) - expected_neighbour)
+            facil_scores[channel] += np.exp(-delta_neighbour / IC_FACIL_TAU_SAMPLES)
+        facil_scores[channel] /= len(neighbours)
+
+    return np.sum(channel_scores * (1.0 + IC_FACIL_GAIN * facil_scores), axis=0)
+
+
 def _mexican_hat_kernel() -> np.ndarray:
     """Return a static Mexican-hat lateral interaction kernel."""
     radius = int(math.ceil(AC_INHIBIT_SIGMA_BINS * 3.0))
@@ -518,18 +859,19 @@ def _sc_center_of_mass(ac_activation: np.ndarray) -> float:
 def _predict_one(
     config: GlobalConfig,
     distance_m: float,
-    latency_samples: np.ndarray,
-    vcn_input: str = "cochleagram",
+    variant: PathwayVariant,
     add_noise: bool = False,
 ) -> PathwayPrediction:
     """Run the full distance pathway for one target distance."""
     receive = _simulate_scene(config, distance_m, add_noise=add_noise)
     cochlea = _run_cochlea_binaural(config, receive)
-    vcn_left = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "left", vcn_input), config)
-    vcn_right = _vcn_vnll_onset_detector(_vcn_input_tensor(cochlea, "right", vcn_input), config)
+    vcn_left, vcn_right = _run_vcn_for_variant(cochlea, config, variant)
     dnll = _dnll_suppression(vcn_left, vcn_right, config)
-    cd = _make_cd_raster(config, receive.shape[-1], latency_samples)
-    ic = _ic_lif_coincidence(dnll, config, latency_samples)
+    cd = _make_cd_raster(config, receive.shape[-1], variant.latency_samples)
+    if variant.ic_mode == "facilitated":
+        ic = _ic_facilitated_coincidence(dnll, config, variant.latency_samples)
+    else:
+        ic = _ic_lif_coincidence(dnll, config, variant.latency_samples)
     ac = _ac_topographic_map(ic)
     predicted = _sc_center_of_mass(ac)
     return PathwayPrediction(
@@ -597,18 +939,44 @@ def _simulate_ic_membranes_for_plot(
     return time_ms, membranes, labels
 
 
-def _plot_stage_rasters(prediction: PathwayPrediction, config: GlobalConfig, path: Path) -> str:
+def _plot_stage_rasters(
+    prediction: PathwayPrediction,
+    config: GlobalConfig,
+    variant: PathwayVariant,
+    path: Path,
+) -> str:
     """Plot cochlea, VCN/VNLL, DNLL, and CD rasters for one example."""
     centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
     time_ms = np.arange(prediction.cochlea.left_spikes.shape[1]) / config.sample_rate_hz * 1_000.0
-    cochleagram = torch.maximum(
-        prediction.cochlea.left_cochleagram,
-        prediction.cochlea.right_cochleagram,
-    ).detach().cpu().numpy()
-    thresholds = VCN_LIF_THRESHOLD_FRACTION * np.maximum(cochleagram.max(axis=1), 1e-12)
-    cochlea_activity = (cochleagram >= thresholds[:, None]).astype(np.float32)
+    if variant.dynamic_cochlea_schedule is not None and variant.vcn_input == "spikes":
+        left_dynamic = _dynamic_lif_encode(
+            prediction.cochlea.left_cochleagram,
+            config,
+            variant.dynamic_cochlea_schedule,
+        )
+        right_dynamic = _dynamic_lif_encode(
+            prediction.cochlea.right_cochleagram,
+            config,
+            variant.dynamic_cochlea_schedule,
+        )
+        cochlea_activity = torch.maximum(left_dynamic, right_dynamic).detach().cpu().numpy()
+        cochlea_title = "Dynamic cochlear spike raster used by VCN"
+    elif variant.vcn_input == "spikes":
+        cochlea_activity = torch.maximum(
+            prediction.cochlea.left_spikes,
+            prediction.cochlea.right_spikes,
+        ).detach().cpu().numpy()
+        cochlea_title = "Cochlear spike raster used by VCN"
+    else:
+        cochleagram = torch.maximum(
+            prediction.cochlea.left_cochleagram,
+            prediction.cochlea.right_cochleagram,
+        ).detach().cpu().numpy()
+        thresholds = VCN_LIF_THRESHOLD_FRACTION * np.maximum(cochleagram.max(axis=1), 1e-12)
+        cochlea_activity = (cochleagram >= thresholds[:, None]).astype(np.float32)
+        cochlea_title = "Cochleagram activity crossing VCN threshold"
     stages = [
-        ("Cochleagram activity crossing VCN threshold", cochlea_activity),
+        (cochlea_title, cochlea_activity),
         ("VCN/VNLL first-onset code", np.maximum(prediction.vcn_left, prediction.vcn_right)),
         ("DNLL-gated onset code", prediction.dnll_combined),
         ("Corollary-discharge sweep", prediction.cd_raster),
@@ -753,10 +1121,23 @@ def _make_variants(config: GlobalConfig, latency_samples: np.ndarray) -> list[Pa
     """
     zero_latency = np.zeros(NUM_CHANNELS, dtype=np.int64)
     spike_latency = _calibrate_channel_latency_over_distances(config, "spikes")
+    dynamic_template = PathwayVariant(
+        key="dynamic_spike_consensus_facil",
+        name="Primary: dynamic spike VCN + consensus + IC facilitation",
+        vcn_input="spikes",
+        latency_samples=zero_latency,
+        dynamic_cochlea_schedule=DYNAMIC_COHLEA_SCHEDULE,
+        vcn_detector="consensus",
+        ic_mode="facilitated",
+        note="Updated primary model: dynamic cochlear spikes, sub-4 kHz VCN silence, local VCN consensus, and soft IC sweep facilitation.",
+    )
+    dynamic_latency = _calibrate_variant_latency(config, dynamic_template)
+    np.save(DYNAMIC_LATENCY_VECTOR_PATH, dynamic_latency)
     return [
+        replace(dynamic_template, latency_samples=dynamic_latency),
         PathwayVariant(
             key="cochleagram_lif_latency_adjusted",
-            name="Current: cochleagram LIF + latency-adjusted CD",
+            name="Previous: cochleagram LIF + latency-adjusted CD",
             vcn_input="cochleagram",
             latency_samples=latency_samples,
             note="Current causal prototype; VCN reads cochleagram and CD expectation is latency-adjusted.",
@@ -799,8 +1180,7 @@ def _run_variant_predictions(
         _predict_one(
             config,
             float(distance),
-            variant.latency_samples,
-            vcn_input=variant.vcn_input,
+            variant,
             add_noise=add_noise,
         )
         for distance in distances
@@ -823,6 +1203,7 @@ def _run_noise_robustness(
         Summary rows for the cochleagram-VCN and spike-raster-VCN models.
     """
     selected_keys = {
+        "dynamic_spike_consensus_facil",
         "cochleagram_lif_latency_adjusted",
         "spike_raster_lif_latency_adjusted",
     }
@@ -844,6 +1225,8 @@ def _run_noise_robustness(
                 "key": variant.key,
                 "name": variant.name,
                 "vcn_input": variant.vcn_input,
+                "vcn_detector": variant.vcn_detector,
+                "ic_mode": variant.ic_mode,
                 "latency_description": "matched",
                 "metrics": _metrics(predictions),
             }
@@ -855,6 +1238,7 @@ def _write_report(
     config: GlobalConfig,
     noisy_config: GlobalConfig,
     latency_samples: np.ndarray,
+    primary_variant: PathwayVariant,
     predictions: list[PathwayPrediction],
     variant_summaries: list[dict[str, object]],
     noise_summaries: list[dict[str, object]],
@@ -868,14 +1252,14 @@ def _write_report(
     lines = [
         "# Full Distance Pathway Model",
         "",
-        "This report introduces the first full distance-pathway prototype. It starts with the final cochlea front end and builds a biologically structured distance pathway around it: cochlea, VCN/VNLL, DNLL, corollary discharge, IC, AC, and SC.",
+        "This report describes the current full distance-pathway prototype using the updated primary model: dynamic cochlear spike encoding, VCN consensus, DNLL suppression, IC coincidence with soft sweep facilitation, AC topographic sharpening, and SC centre-of-mass readout.",
         "",
         "## High-Level Pipeline",
         "",
         "```mermaid",
         "flowchart LR",
-        "    A[Received binaural echo] --> B[Cochlea<br/>IIR + LIF spikes]",
-        "    B --> C[VCN/VNLL<br/>onset sharpening]",
+        "    A[Received binaural echo] --> B[Cochlea<br/>IIR + dynamic LIF spikes]",
+        "    B --> C[VCN/VNLL<br/>4 kHz mask + local consensus]",
         "    C --> D[DNLL<br/>late inhibition]",
         "    E[Corollary discharge<br/>ideal sweep copy] --> F[IC<br/>LIF coincidence bank]",
         "    D --> F",
@@ -903,13 +1287,18 @@ def _write_report(
         f"| IC LIF threshold | `{IC_LIF_THRESHOLD}` |",
         f"| VCN LIF beta | `{VCN_LIF_BETA}` |",
         f"| VCN threshold fraction | `{VCN_LIF_THRESHOLD_FRACTION}` |",
+        f"| VCN minimum responsive frequency | `{VCN_MIN_RESPONSIVE_HZ / 1_000.0:.1f} kHz` |",
+        f"| VCN consensus window | `±{CONSENSUS_CHANNEL_RADIUS}` channels, `±{CONSENSUS_TIME_RADIUS}` samples |",
+        f"| VCN consensus minimum count | `{CONSENSUS_MIN_COUNT}` |",
+        f"| IC facilitation gain | `{IC_FACIL_GAIN}` |",
+        f"| IC facilitation tau | `{IC_FACIL_TAU_SAMPLES}` samples |",
         f"| AC Mexican-hat inhibit gain | `{AC_INHIBIT_GAIN}` |",
         "",
         "## Stage Details",
         "",
         "### 1. Cochlea",
         "",
-        "The cochlea is the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and TorchScript LIF spike encoding. In this distance-pathway prototype, the VCN/VNLL onset detector reads the rectified cochleagram activity, because the latency experiment showed this gives a more stable onset than the later cochlear spike raster.",
+        "The cochlea starts with the final model developed in the cochlea mini-model work: active-window detection, IIR resonator filterbank, half-wave rectification, and LIF spike encoding. The current primary model then replaces the fixed cochlear spike raster with a dynamic LIF spike raster before the VCN.",
         "",
         "```text",
         "y_c[n] = b0_c*x[n] + 2*r_c*cos(theta_c)*y_c[n-1] - r_c^2*y_c[n-2]",
@@ -917,14 +1306,21 @@ def _write_report(
         "spike_c[n] = 1 if v_c[n] >= threshold",
         "```",
         "",
-        "### 2. VCN/VNLL",
-        "",
-        "The VCN/VNLL stage is simplified to a low-threshold LIF onset detector with a long refractory period. This keeps the model causal: the VCN/VNLL onset is emitted at the observed cochleagram onset, not moved earlier in time.",
+        "For the primary dynamic cochlear spike raster:",
         "",
         "```text",
-        "v_c[t] = beta*v_c[t-1] + cochleagram_c[t]",
-        "threshold_c = threshold_fraction*max_t(cochleagram_c[t])",
-        "t_vcn,c = first t where v_c[t] >= threshold_c",
+        "threshold(t): x16 -> x2.5",
+        "beta(t):      0.20 -> 0.60",
+        "```",
+        "",
+        "### 2. VCN/VNLL",
+        "",
+        "The primary VCN/VNLL stage uses the dynamic cochlear spike raster. Channels below `4 kHz` are silenced before VCN detection. The VCN then uses local multi-channel consensus, requiring activity within a small frequency-time neighbourhood before emitting the first onset for a channel.",
+        "",
+        "```text",
+        "raw_c,t = dynamic_spike_c,t and f_c >= 4 kHz",
+        "count_c,t = sum raw over local frequency-time window",
+        "t_vcn,c = first t where raw_c,t = 1 and count_c,t >= consensus_min",
         "```",
         "",
         f"The saved cochlea-latency vector is not subtracted from the VCN spikes. It is applied to the corollary-discharge expectation instead. The latency vector ranges from `{int(latency_samples.min())}` to `{int(latency_samples.max())}` samples.",
@@ -950,12 +1346,13 @@ def _write_report(
         "",
         "### 5. IC LIF Coincidence Bank",
         "",
-        "The IC compares the VCN/VNLL echo onset against delayed corollary-discharge spikes for every candidate distance. For clean two-spike coincidence, the LIF membrane peak can be calculated directly:",
+        "The IC compares the VCN/VNLL echo onset against delayed corollary-discharge spikes for every candidate distance. For clean two-spike coincidence, the LIF membrane peak can be calculated directly. The primary model also applies soft local sweep facilitation: neighbouring channels with consistent delays boost a candidate distance without hard-gating it.",
         "",
         "```text",
         "delta_c,k = abs(t_echo,c - (t_cd,c + delay_k))",
         "m_c,k = 1 + beta^delta_c,k",
         "IC_k = sum_c relu(m_c,k - threshold)",
+        "IC_k = sum_c score_c,k * (1 + facil_gain*facil_c,k)",
         "```",
         "",
         "This is equivalent to a thresholded LIF coincidence detector for two unit input spikes, but evaluated in closed form for speed.",
@@ -989,7 +1386,7 @@ def _write_report(
         "",
         "## Accuracy Test",
         "",
-        f"The first test uses `{NUM_TEST_SAMPLES}` clean distances sampled uniformly from `{MIN_DISTANCE_M}` to `{MAX_DISTANCE_M} m`.",
+        f"The first test uses `{NUM_TEST_SAMPLES}` clean distances sampled uniformly from `{MIN_DISTANCE_M}` to `{MAX_DISTANCE_M} m` with primary model `{primary_variant.name}`.",
         "",
         "![Accuracy](../outputs/full_distance_pathway/figures/accuracy.png)",
         "",
@@ -1004,10 +1401,10 @@ def _write_report(
         "",
         f"This test uses the noisy diagnostic condition from the signal-analysis mini model: additive white receiver noise at `{NOISE_ROBUSTNESS_SNR_DB:.1f} dB` SNR over the active echo window, plus propagation-delay jitter with `jitter_std = {NOISE_ROBUSTNESS_JITTER_S:.6g} s`. For this distance-pathway setup that gives `noise_std = {noisy_config.noise_std:.6g}`.",
         "",
-        "The same stochastic noise and jitter sequence is used for both VCN variants, so the comparison isolates the VCN input representation.",
+        "The same stochastic noise and jitter sequence is used for each variant, so the comparison isolates the pathway representation and detector changes.",
         "",
-        "| Variant | VCN input | Noise condition | MAE | RMSE | Max abs error | Bias |",
-        "|---|---|---|---:|---:|---:|---:|",
+        "| Variant | VCN input | Detector | IC mode | Noise condition | MAE | RMSE | Max abs error | Bias |",
+        "|---|---|---|---|---|---:|---:|---:|---:|",
     ]
     for summary in noise_summaries:
         metrics = summary["metrics"]
@@ -1015,6 +1412,8 @@ def _write_report(
             "| "
             f"{summary['name']} | "
             f"`{summary['vcn_input']}` | "
+            f"`{summary['vcn_detector']}` | "
+            f"`{summary['ic_mode']}` | "
             f"`{NOISE_ROBUSTNESS_SNR_DB:.1f} dB SNR + jitter` | "
             f"`{metrics['mae_m'] * 100.0:.3f} cm` | "
             f"`{metrics['rmse_m'] * 100.0:.3f} cm` | "
@@ -1028,10 +1427,10 @@ def _write_report(
         "",
         "## Ablation Comparison",
         "",
-        "The following variants were run on the same clean `80`-distance test set. The goal is to separate the benefit of the latency-adjusted CD/IC comparison from the benefit of reading the cochleagram rather than the later cochlear spike raster.",
+        "The following variants were run on the same clean `80`-distance test set. The goal is to compare the updated primary dynamic pathway against the earlier cochleagram-LIF pathway and simpler ablations.",
         "",
-        "| Variant | VCN input | CD latency vector | MAE | RMSE | Max abs error | Bias | Interpretation |",
-        "|---|---|---|---:|---:|---:|---:|---|",
+        "| Variant | VCN input | Detector | IC mode | CD latency vector | MAE | RMSE | Max abs error | Bias | Interpretation |",
+        "|---|---|---|---|---|---:|---:|---:|---:|---|",
         ]
     )
     for summary in variant_summaries:
@@ -1040,6 +1439,8 @@ def _write_report(
             "| "
             f"{summary['name']} | "
             f"`{summary['vcn_input']}` | "
+            f"`{summary['vcn_detector']}` | "
+            f"`{summary['ic_mode']}` | "
             f"{summary['latency_description']} | "
             f"`{metrics['mae_m'] * 100.0:.3f} cm` | "
             f"`{metrics['rmse_m'] * 100.0:.3f} cm` | "
@@ -1050,7 +1451,7 @@ def _write_report(
     lines.extend(
         [
         "",
-        "The no-latency ablation isolates the importance of the per-channel timing correction. The spike-raster ablation tests whether the VCN/VNLL onset stage can be driven by the already-spiking cochlea output rather than by the rectified cochleagram activity.",
+        "The no-latency ablation isolates the importance of the per-channel timing correction. The dynamic primary model tests whether a stricter spike-raster pathway can retain useful distance timing while improving noise robustness.",
         "",
         "## Comparison To Previous Full Models",
         "",
@@ -1061,9 +1462,9 @@ def _write_report(
         "| Round 4 combined model | full distance + azimuth + elevation | `7.86 cm` |",
         "| Round 3 `2B + 3` | full distance + azimuth + elevation | `6.46 cm` |",
         "| Round 5 trained-once fixed ridge decoder | full distance + azimuth + elevation with fixed tuned decoder | `4.38 cm` |",
-        f"| Full distance pathway prototype | clean distance-only pathway, `{MIN_DISTANCE_M} -> {MAX_DISTANCE_M} m` | `{metric_values['mae_m'] * 100.0:.2f} cm` |",
+        f"| Full distance pathway prototype, updated primary dynamic model | clean distance-only pathway, `{MIN_DISTANCE_M} -> {MAX_DISTANCE_M} m` | `{metric_values['mae_m'] * 100.0:.2f} cm` |",
         "",
-        "On nominal distance MAE, this new distance-only pathway is better than the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation and is tested under cleaner conditions. The useful conclusion is narrower: the new structured distance pathway works as a distance estimator and is competitive enough to justify developing it further.",
+        "On nominal distance MAE, this updated distance-only pathway is competitive with the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation. The useful conclusion is narrower: the structured distance pathway works as a distance estimator and can be made substantially more noise robust than the original cochleagram-driven path.",
         "",
         "## Causality Update",
         "",
@@ -1072,7 +1473,7 @@ def _write_report(
         "## Interpretation",
         "",
         "- The model now has the intended high-level biological pathway structure rather than just a standalone coincidence detector.",
-        "- The VCN/VNLL stage is deliberately simplified; robust biological onset coding is difficult to tune, and here it is represented by a causal low-threshold refractory-LIF onset detector.",
+        "- The primary model now uses a spike-raster VCN input with dynamic cochlear threshold/beta, a 4 kHz frequency mask, and local consensus.",
         "- The IC stage is still a simplified LIF coincidence model. It uses the closed-form two-spike LIF peak rather than time-stepping every IC neuron for every sample.",
         "- The AC and SC stages give a smooth population readout, which is useful for sub-bin distance estimates.",
         "- The next optimisation step is to replace dense cochlear rasters with coordinate events so the chosen coordinate accumulator can be used downstream.",
@@ -1107,7 +1508,8 @@ def main() -> dict[str, object]:
         variant.key: _run_variant_predictions(config, distances, variant)
         for variant in variants
     }
-    predictions = variant_predictions["cochleagram_lif_latency_adjusted"]
+    primary_variant = next(variant for variant in variants if variant.key == "dynamic_spike_consensus_facil")
+    predictions = variant_predictions[primary_variant.key]
     example_index = int(np.argmin(np.abs(distances - 3.0)))
     example = predictions[example_index]
     variant_summaries = []
@@ -1117,6 +1519,9 @@ def main() -> dict[str, object]:
                 "key": variant.key,
                 "name": variant.name,
                 "vcn_input": variant.vcn_input,
+                "vcn_detector": variant.vcn_detector,
+                "ic_mode": variant.ic_mode,
+                "dynamic_cochlea_schedule": variant.dynamic_cochlea_schedule,
                 "latency_description": "none" if np.all(variant.latency_samples == 0) else "matched",
                 "latency_min_samples": int(variant.latency_samples.min()),
                 "latency_max_samples": int(variant.latency_samples.max()),
@@ -1127,11 +1532,11 @@ def main() -> dict[str, object]:
     noise_summaries = _run_noise_robustness(noisy_config, distances, variants)
 
     artifacts = {
-        "stage_rasters": _plot_stage_rasters(example, config, FIGURE_DIR / "stage_rasters.png"),
+        "stage_rasters": _plot_stage_rasters(example, config, primary_variant, FIGURE_DIR / "stage_rasters.png"),
         "population_progression": _plot_population_progression(
             example,
             config,
-            latency_samples,
+            primary_variant.latency_samples,
             FIGURE_DIR / "population_progression.png",
         ),
         "mexican_hat_matrix": _plot_mexican_hat_matrix(FIGURE_DIR / "mexican_hat_matrix.png"),
@@ -1164,7 +1569,9 @@ def main() -> dict[str, object]:
             "summaries": noise_summaries,
         },
         "latency_vector_path": str(LATENCY_VECTOR_PATH),
-        "latency_samples": latency_samples.tolist(),
+        "primary_model_key": primary_variant.key,
+        "primary_latency_vector_path": str(DYNAMIC_LATENCY_VECTOR_PATH),
+        "latency_samples": primary_variant.latency_samples.tolist(),
         "metrics": metric_values,
         "variant_summaries": variant_summaries,
         "example": {
@@ -1177,7 +1584,8 @@ def main() -> dict[str, object]:
     _write_report(
         config,
         noisy_config,
-        latency_samples,
+        primary_variant.latency_samples,
+        primary_variant,
         predictions,
         variant_summaries,
         noise_summaries,
