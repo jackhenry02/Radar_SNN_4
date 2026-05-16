@@ -35,6 +35,12 @@ r_I(0) = 0
 
 The distance is decoded by centre of mass from the excitatory readout. The requested first readout time is `5 ms`, but the timing plot shows how the decoded distance changes over the full `60 ms` simulation.
 
+This version compares three AC-to-SC input transforms:
+
+- `diagonal FI`: the original topographic diagonal Fisher-balanced gain matrix.
+- `Gaussian matrix`: a fixed off-diagonal Gaussian input matrix that spreads each AC bin into neighbouring SC bins before recurrence.
+- `local peak vector`: a nonlinear local population vector centred on the AC peak neighbourhood; this is not a fixed matrix, because it first estimates the peak location for each sample.
+
 ## Fisher-Balanced Input Weights
 
 The recurrent weights are kept as the reflected line-attractor structure. Input weights are diagonal gains chosen to flatten Fisher information over the distance grid rather than learned from labels.
@@ -57,6 +63,12 @@ This keeps the input topographic while reducing boundary-related Fisher informat
 
 ![Fisher input gains](../outputs/sc_line_attractor_integration/figures/fisher_input_gains.png)
 
+## Input And Recurrent Matrices
+
+The heatmaps below show the fixed input matrices and recurrent matrices. The diagonal FI matrix is the original input. The Gaussian matrix is the widened input tested here. The local peak-vector input is not shown as a fixed matrix because it is computed separately for each sample.
+
+![Input and recurrent matrices](../outputs/sc_line_attractor_integration/figures/input_recurrent_heatmaps.png)
+
 ## Alpha Sweep
 
 The original ring-model notebook showed that increasing recurrent gain can improve readout accuracy. Here the same idea is tested by sweeping the balanced E/I `alpha_prime` parameter while keeping the recurrent structure fixed.
@@ -65,13 +77,13 @@ The original ring-model notebook showed that increasing recurrent gain can impro
 
 | alpha prime | Clean MAE | Noisy MAE | Selection score | Runtime/sample |
 |---:|---:|---:|---:|---:|
-| `0.00` | `4.057 cm` | `7.145 cm` | `5.601 cm` | `0.78 ms` |
-| `0.50` | `3.984 cm` | `7.141 cm` | `5.562 cm` | `1.65 ms` |
-| `1.00` | `3.957 cm` | `7.138 cm` | `5.547 cm` | `1.13 ms` |
-| `2.00` | `3.967 cm` | `7.134 cm` | `5.550 cm` | `1.29 ms` |
-| `4.00` | `4.022 cm` | `7.176 cm` | `5.599 cm` | `1.44 ms` |
-| `6.00` | `4.054 cm` | `7.204 cm` | `5.629 cm` | `1.56 ms` |
-| `8.00` | `4.075 cm` | `7.222 cm` | `5.649 cm` | `0.73 ms` |
+| `0.00` | `4.057 cm` | `7.145 cm` | `5.601 cm` | `0.53 ms` |
+| `0.50` | `3.984 cm` | `7.141 cm` | `5.562 cm` | `0.93 ms` |
+| `1.00` | `3.957 cm` | `7.138 cm` | `5.547 cm` | `0.93 ms` |
+| `2.00` | `3.967 cm` | `7.134 cm` | `5.550 cm` | `1.34 ms` |
+| `4.00` | `4.022 cm` | `7.176 cm` | `5.599 cm` | `1.79 ms` |
+| `6.00` | `4.054 cm` | `7.204 cm` | `5.629 cm` | `1.07 ms` |
+| `8.00` | `4.075 cm` | `7.222 cm` | `5.649 cm` | `2.47 ms` |
 
 The selected alpha for the controlled comparisons is `1.00`, chosen by the mean of clean and noisy small-space MAE.
 
@@ -83,24 +95,42 @@ The integration uses the readout at `5 ms`. The plot below checks whether that i
 
 ## Bump Dynamics
 
-The plot below shows the upstream AC population and the attractor excitatory population at several times. It includes one good full-3D clean case and one failure case. The dashed grey curve is the original AC input, the blue curve is the attractor excitatory bump, the black dotted line is the true distance, and the red dashed line is the decoded distance at that time.
+The plots below show the upstream AC population, transformed SC input, and attractor excitatory population at several times. They include one good full-3D clean case and one failure case. The grey dotted curve is the original AC map, the green dashed curve is the SC input after the selected input transform, the blue curve is the attractor excitatory bump, the black dotted line is the true distance, and the red dashed line is the decoded distance at that time.
 
-![Bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics.png)
+![Diagonal bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics_diagonal.png)
+
+![Gaussian bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics_gaussian.png)
+
+![Local peak-vector bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics_local_peak.png)
 
 ## Controlled Comparisons
 
 The comparison uses the same upstream AC activations for both readouts, so any difference is caused by the SC readout only.
 
+![Input mode MAE](../outputs/sc_line_attractor_integration/figures/input_mode_mae.png)
+
 ![Prediction scatter](../outputs/sc_line_attractor_integration/figures/prediction_scatter.png)
 
-| Condition | Subset | N | Baseline MAE | Attractor MAE | Baseline RMSE | Attractor RMSE | Baseline max error | Attractor max error | Attractor runtime/sample |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Small clean 0.25-5m | all | `80` | `3.571 cm` | `3.957 cm` | `4.364 cm` | `4.664 cm` | `11.710 cm` | `11.350 cm` | `1.10 ms` |
-| Small noisy 10dB+jitter | all | `80` | `7.127 cm` | `7.138 cm` | `13.797 cm` | `13.997 cm` | `104.423 cm` | `104.854 cm` | `1.18 ms` |
-| Full 3D clean 0.25-10m | <=5m | `33` | `2.831 cm` | `3.706 cm` | `4.167 cm` | `4.780 cm` | `11.500 cm` | `9.780 cm` | `0.50 ms` |
-| Full 3D clean 0.25-10m | <=10m | `80` | `34.041 cm` | `35.099 cm` | `110.014 cm` | `110.833 cm` | `464.131 cm` | `466.854 cm` | `0.50 ms` |
-| Full 3D 50dB floor | <=5m | `33` | `2.826 cm` | `3.694 cm` | `4.164 cm` | `4.760 cm` | `11.500 cm` | `9.788 cm` | `0.62 ms` |
-| Full 3D 50dB floor | <=10m | `80` | `34.040 cm` | `35.099 cm` | `110.014 cm` | `110.833 cm` | `464.131 cm` | `466.854 cm` | `0.62 ms` |
+| Condition | SC input | Subset | N | Baseline MAE | Attractor MAE | Baseline RMSE | Attractor RMSE | Baseline max error | Attractor max error | Attractor runtime/sample |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Small clean 0.25-5m | diagonal FI | all | `80` | `3.571 cm` | `3.957 cm` | `4.364 cm` | `4.664 cm` | `11.710 cm` | `11.350 cm` | `0.99 ms` |
+| Small noisy 10dB+jitter | diagonal FI | all | `80` | `7.127 cm` | `7.138 cm` | `13.797 cm` | `13.997 cm` | `104.423 cm` | `104.854 cm` | `1.05 ms` |
+| Full 3D clean 0.25-10m | diagonal FI | <=5m | `33` | `2.831 cm` | `3.706 cm` | `4.167 cm` | `4.780 cm` | `11.500 cm` | `9.780 cm` | `0.93 ms` |
+| Full 3D clean 0.25-10m | diagonal FI | <=10m | `80` | `34.041 cm` | `35.099 cm` | `110.014 cm` | `110.833 cm` | `464.131 cm` | `466.854 cm` | `0.93 ms` |
+| Full 3D 50dB floor | diagonal FI | <=5m | `33` | `2.826 cm` | `3.694 cm` | `4.164 cm` | `4.760 cm` | `11.500 cm` | `9.788 cm` | `1.40 ms` |
+| Full 3D 50dB floor | diagonal FI | <=10m | `80` | `34.040 cm` | `35.099 cm` | `110.014 cm` | `110.833 cm` | `464.131 cm` | `466.854 cm` | `1.40 ms` |
+| Small clean 0.25-5m | Gaussian matrix | all | `80` | `3.571 cm` | `3.753 cm` | `4.364 cm` | `4.531 cm` | `11.710 cm` | `12.535 cm` | `2.88 ms` |
+| Small noisy 10dB+jitter | Gaussian matrix | all | `80` | `7.127 cm` | `7.289 cm` | `13.797 cm` | `13.815 cm` | `104.423 cm` | `103.344 cm` | `1.87 ms` |
+| Full 3D clean 0.25-10m | Gaussian matrix | <=5m | `33` | `2.831 cm` | `2.290 cm` | `4.167 cm` | `2.831 cm` | `11.500 cm` | `7.223 cm` | `1.29 ms` |
+| Full 3D clean 0.25-10m | Gaussian matrix | <=10m | `80` | `34.041 cm` | `33.960 cm` | `110.014 cm` | `110.778 cm` | `464.131 cm` | `466.854 cm` | `1.29 ms` |
+| Full 3D 50dB floor | Gaussian matrix | <=5m | `33` | `2.826 cm` | `2.288 cm` | `4.164 cm` | `2.829 cm` | `11.500 cm` | `7.223 cm` | `0.97 ms` |
+| Full 3D 50dB floor | Gaussian matrix | <=10m | `80` | `34.040 cm` | `33.961 cm` | `110.014 cm` | `110.778 cm` | `464.131 cm` | `466.854 cm` | `0.97 ms` |
+| Small clean 0.25-5m | local peak vector | all | `80` | `3.571 cm` | `3.814 cm` | `4.364 cm` | `4.667 cm` | `11.710 cm` | `13.483 cm` | `1.31 ms` |
+| Small noisy 10dB+jitter | local peak vector | all | `80` | `7.127 cm` | `6.717 cm` | `13.797 cm` | `13.378 cm` | `104.423 cm` | `104.197 cm` | `1.43 ms` |
+| Full 3D clean 0.25-10m | local peak vector | <=5m | `33` | `2.831 cm` | `2.034 cm` | `4.167 cm` | `2.686 cm` | `11.500 cm` | `7.057 cm` | `1.30 ms` |
+| Full 3D clean 0.25-10m | local peak vector | <=10m | `80` | `34.041 cm` | `74.152 cm` | `110.014 cm` | `244.800 cm` | `464.131 cm` | `926.329 cm` | `1.30 ms` |
+| Full 3D 50dB floor | local peak vector | <=5m | `33` | `2.826 cm` | `2.030 cm` | `4.164 cm` | `2.681 cm` | `11.500 cm` | `7.057 cm` | `1.27 ms` |
+| Full 3D 50dB floor | local peak vector | <=10m | `80` | `34.040 cm` | `74.151 cm` | `110.014 cm` | `244.800 cm` | `464.131 cm` | `926.329 cm` | `1.27 ms` |
 
 ## Full-3D Failure Cases
 
@@ -121,22 +151,28 @@ The table below lists the worst clean full-3D cases by the original simple-reado
 
 ## Interpretation
 
-Result: this first balanced line-attractor SC integration should be treated as diagnostic, not accepted as the primary readout yet. It is mechanically successful and reversible, but the simple centre-of-mass readout still has lower MAE in the main comparisons.
+Result: this balanced line-attractor SC integration should still be treated as diagnostic. The Gaussian and local peak-vector inputs make the bump visibly smoother and improve the `<=5m` full-3D subset, but they do not solve the long-range upstream failure mode.
 
 - This is an SC readout ablation only; the cochlea, VCN, DNLL, IC, and AC stages are unchanged.
 - Matching the attractor neurons to the AC distance grid keeps the interface simple and reversible.
 - The alpha sweep shows the best balanced gain is modest, around `alpha_prime = 1`, rather than increasing indefinitely as in the original ring notebook.
-- The attractor slightly reduces some max-error values in the `<=5m` full-space subset, but it increases MAE and RMSE overall.
+- The widened input variants reduce MAE and max-error values in the `<=5m` full-space subset.
 - The `<=10m` rows show that this SC readout does not solve the upstream long-range/angle-induced failure mode; the AC population is already biased before the SC readout.
-- The likely next readout experiment is not simply stronger recurrence, but a better-matched input pulse or a time-varying attractor input that preserves the AC confidence profile.
+- The Gaussian input matrix widens the initial bump as intended and is the safer of the two new variants because it preserves the full AC activity profile.
+- The local peak-vector transform improves the `<=5m` subset, but it discards confidence/asymmetry information from the original AC map and fails badly when the AC peak itself is wrong.
+- The likely next readout experiment is not simply stronger recurrence, but a better-matched dynamic input pulse that preserves the AC confidence profile while only smoothing pathological sharp peaks.
 
 ## Generated Files
 
 - `fisher_input_gains`: `distance_pathway/outputs/sc_line_attractor_integration/figures/fisher_input_gains.png`
+- `input_recurrent_heatmaps`: `distance_pathway/outputs/sc_line_attractor_integration/figures/input_recurrent_heatmaps.png`
 - `alpha_sweep`: `distance_pathway/outputs/sc_line_attractor_integration/figures/alpha_sweep.png`
 - `readout_timing`: `distance_pathway/outputs/sc_line_attractor_integration/figures/readout_timing.png`
-- `bump_dynamics`: `distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics.png`
+- `bump_dynamics_diagonal`: `distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics_diagonal.png`
+- `bump_dynamics_gaussian`: `distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics_gaussian.png`
+- `bump_dynamics_local_peak`: `distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics_local_peak.png`
+- `input_mode_mae`: `distance_pathway/outputs/sc_line_attractor_integration/figures/input_mode_mae.png`
 - `prediction_scatter`: `distance_pathway/outputs/sc_line_attractor_integration/figures/prediction_scatter.png`
 - `results`: `distance_pathway/outputs/sc_line_attractor_integration/results.json`
 
-Runtime: `18.60 s`.
+Runtime: `21.35 s`.

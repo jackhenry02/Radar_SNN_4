@@ -1,67 +1,77 @@
 {
   "experiment": "sc_line_attractor_integration",
-  "elapsed_seconds": 18.59708470897749,
+  "elapsed_seconds": 21.346448792144656,
   "readout_time_s": 0.005,
   "tau_s": 0.02,
   "dt_s": 0.001,
   "sim_time_s": 0.06,
   "recurrent_sigma_bins": 8.0,
   "input_tuning_sigma_bins": 3.0,
+  "gaussian_input_sigma_bins": 6.0,
+  "local_peak_sigma_bins": 6.0,
+  "local_peak_radius_bins": 5,
   "alpha_sweep": [
     {
       "alpha_prime": 0.0,
-      "clean_mae_m": 0.040569894763294936,
-      "noisy_mae_m": 0.07144740818034905,
-      "selection_score_m": 0.05600865147182199,
-      "seconds_per_sample": 0.0007809562550392002
+      "clean_mae_m": 0.04056989476329505,
+      "noisy_mae_m": 0.0714474081803489,
+      "selection_score_m": 0.05600865147182198,
+      "seconds_per_sample": 0.000532020311220549
     },
     {
       "alpha_prime": 0.5,
-      "clean_mae_m": 0.039838482945413214,
-      "noisy_mae_m": 0.07140980999454641,
-      "selection_score_m": 0.05562414646997981,
-      "seconds_per_sample": 0.0016525143320905043
+      "clean_mae_m": 0.03983848294541313,
+      "noisy_mae_m": 0.0714098099945463,
+      "selection_score_m": 0.055624146469979714,
+      "seconds_per_sample": 0.0009285343752708286
     },
     {
       "alpha_prime": 1.0,
-      "clean_mae_m": 0.03956826167053925,
-      "noisy_mae_m": 0.07138035177948884,
-      "selection_score_m": 0.05547430672501405,
-      "seconds_per_sample": 0.0011256713565671816
+      "clean_mae_m": 0.039568261670539236,
+      "noisy_mae_m": 0.0713803517794889,
+      "selection_score_m": 0.055474306725014064,
+      "seconds_per_sample": 0.000926665888982825
     },
     {
       "alpha_prime": 2.0,
-      "clean_mae_m": 0.039669461360628246,
-      "noisy_mae_m": 0.0713371687448354,
-      "selection_score_m": 0.055503315052731816,
-      "seconds_per_sample": 0.0012927921867230906
+      "clean_mae_m": 0.03966946136062823,
+      "noisy_mae_m": 0.07133716874483534,
+      "selection_score_m": 0.05550331505273179,
+      "seconds_per_sample": 0.0013391304688411764
     },
     {
       "alpha_prime": 4.0,
-      "clean_mae_m": 0.04021669513518603,
-      "noisy_mae_m": 0.07175880124128824,
-      "selection_score_m": 0.05598774818823714,
-      "seconds_per_sample": 0.0014439903694437816
+      "clean_mae_m": 0.04021669513518597,
+      "noisy_mae_m": 0.07175880124128826,
+      "selection_score_m": 0.05598774818823712,
+      "seconds_per_sample": 0.0017907591187395155
     },
     {
       "alpha_prime": 6.0,
-      "clean_mae_m": 0.04053900316188648,
-      "noisy_mae_m": 0.07203672668784529,
-      "selection_score_m": 0.056287864924865885,
-      "seconds_per_sample": 0.0015560510451905428
+      "clean_mae_m": 0.04053900316188659,
+      "noisy_mae_m": 0.07203672668784548,
+      "selection_score_m": 0.05628786492486604,
+      "seconds_per_sample": 0.0010670973992091604
     },
     {
       "alpha_prime": 8.0,
-      "clean_mae_m": 0.040751417623139274,
+      "clean_mae_m": 0.04075141762313911,
       "noisy_mae_m": 0.07222020285881159,
-      "selection_score_m": 0.05648581024097543,
-      "seconds_per_sample": 0.0007295898423762992
+      "selection_score_m": 0.05648581024097535,
+      "seconds_per_sample": 0.002473517443286255
     }
   ],
   "selected_alpha_prime": 1.0,
+  "input_modes": {
+    "diagonal_fi": "diagonal FI",
+    "gaussian_matrix": "Gaussian matrix",
+    "local_peak_vector": "local peak vector"
+  },
   "comparison_rows": [
     {
       "condition": "Small clean 0.25-5m",
+      "input_mode": "diagonal_fi",
+      "input_mode_label": "diagonal FI",
       "subset": "all",
       "num_samples": 80,
       "baseline_metrics": {
@@ -71,15 +81,17 @@
         "bias_m": -0.005560063331103046
       },
       "attractor_metrics": {
-        "mae_m": 0.03956826167053925,
-        "rmse_m": 0.04664212772613855,
-        "max_abs_error_m": 0.11349684562149986,
-        "bias_m": -0.0087982946730443
+        "mae_m": 0.039568261670539236,
+        "rmse_m": 0.0466421277261385,
+        "max_abs_error_m": 0.11349684562149998,
+        "bias_m": -0.008798294673044282
       },
-      "attractor_seconds_per_sample": 0.0010990895883878694
+      "attractor_seconds_per_sample": 0.0009872765629552304
     },
     {
       "condition": "Small noisy 10dB+jitter",
+      "input_mode": "diagonal_fi",
+      "input_mode_label": "diagonal FI",
       "subset": "all",
       "num_samples": 80,
       "baseline_metrics": {
@@ -89,15 +101,17 @@
         "bias_m": -0.05767984893706518
       },
       "attractor_metrics": {
-        "mae_m": 0.07138035177948884,
+        "mae_m": 0.0713803517794889,
         "rmse_m": 0.13997013783243334,
-        "max_abs_error_m": 1.0485408040417954,
-        "bias_m": -0.059993408250368564
+        "max_abs_error_m": 1.0485408040417958,
+        "bias_m": -0.05999340825036849
       },
-      "attractor_seconds_per_sample": 0.0011822510394267737
+      "attractor_seconds_per_sample": 0.0010507916624192149
     },
     {
       "condition": "Full 3D clean 0.25-10m",
+      "input_mode": "diagonal_fi",
+      "input_mode_label": "diagonal FI",
       "subset": "<=5m",
       "num_samples": 33,
       "baseline_metrics": {
@@ -107,15 +121,17 @@
         "bias_m": -0.016109049168228497
       },
       "attractor_metrics": {
-        "mae_m": 0.03706308620139765,
-        "rmse_m": 0.0477995824416133,
-        "max_abs_error_m": 0.09780491114944834,
-        "bias_m": -0.0071010740595923855
+        "mae_m": 0.037063086201397706,
+        "rmse_m": 0.047799582441613406,
+        "max_abs_error_m": 0.09780491114944923,
+        "bias_m": -0.007101074059592271
       },
-      "attractor_seconds_per_sample": 0.0005030609376262873
+      "attractor_seconds_per_sample": 0.0009345213620690629
     },
     {
       "condition": "Full 3D clean 0.25-10m",
+      "input_mode": "diagonal_fi",
+      "input_mode_label": "diagonal FI",
       "subset": "<=10m",
       "num_samples": 80,
       "baseline_metrics": {
@@ -128,12 +144,14 @@
         "mae_m": 0.35099293086143,
         "rmse_m": 1.1083329184602426,
         "max_abs_error_m": 4.668542191453941,
-        "bias_m": -0.310180964621485
+        "bias_m": -0.3101809646214847
       },
-      "attractor_seconds_per_sample": 0.0005030609376262873
+      "attractor_seconds_per_sample": 0.0009345213620690629
     },
     {
       "condition": "Full 3D 50dB floor",
+      "input_mode": "diagonal_fi",
+      "input_mode_label": "diagonal FI",
       "subset": "<=5m",
       "num_samples": 33,
       "baseline_metrics": {
@@ -143,15 +161,17 @@
         "bias_m": -0.016117747451185185
       },
       "attractor_metrics": {
-        "mae_m": 0.03693686066711509,
-        "rmse_m": 0.04760135158518658,
-        "max_abs_error_m": 0.09787999700103356,
-        "bias_m": -0.0071791785502521785
+        "mae_m": 0.03693686066711514,
+        "rmse_m": 0.04760135158518659,
+        "max_abs_error_m": 0.09787999700103267,
+        "bias_m": -0.007179178550252128
       },
-      "attractor_seconds_per_sample": 0.0006208255101228133
+      "attractor_seconds_per_sample": 0.0013968296872917563
     },
     {
       "condition": "Full 3D 50dB floor",
+      "input_mode": "diagonal_fi",
+      "input_mode_label": "diagonal FI",
       "subset": "<=10m",
       "num_samples": 80,
       "baseline_metrics": {
@@ -164,9 +184,249 @@
         "mae_m": 0.35099136696536726,
         "rmse_m": 1.108331411119804,
         "max_abs_error_m": 4.668542191453941,
-        "bias_m": -0.3101938605649862
+        "bias_m": -0.3101938605649861
       },
-      "attractor_seconds_per_sample": 0.0006208255101228133
+      "attractor_seconds_per_sample": 0.0013968296872917563
+    },
+    {
+      "condition": "Small clean 0.25-5m",
+      "input_mode": "gaussian_matrix",
+      "input_mode_label": "Gaussian matrix",
+      "subset": "all",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.035709907136134374,
+        "rmse_m": 0.04364255533689014,
+        "max_abs_error_m": 0.11710133204283135,
+        "bias_m": -0.005560063331103046
+      },
+      "attractor_metrics": {
+        "mae_m": 0.03752943360420548,
+        "rmse_m": 0.045312404069861124,
+        "max_abs_error_m": 0.12534994395817112,
+        "bias_m": -0.007802150814734378
+      },
+      "attractor_seconds_per_sample": 0.0028777937521226706
+    },
+    {
+      "condition": "Small noisy 10dB+jitter",
+      "input_mode": "gaussian_matrix",
+      "input_mode_label": "Gaussian matrix",
+      "subset": "all",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.07127154751922507,
+        "rmse_m": 0.1379699293368099,
+        "max_abs_error_m": 1.044231762654487,
+        "bias_m": -0.05767984893706518
+      },
+      "attractor_metrics": {
+        "mae_m": 0.07288530966822616,
+        "rmse_m": 0.1381524702411039,
+        "max_abs_error_m": 1.03343885789603,
+        "bias_m": -0.05725290760062176
+      },
+      "attractor_seconds_per_sample": 0.0018726515641901641
+    },
+    {
+      "condition": "Full 3D clean 0.25-10m",
+      "input_mode": "gaussian_matrix",
+      "input_mode_label": "Gaussian matrix",
+      "subset": "<=5m",
+      "num_samples": 33,
+      "baseline_metrics": {
+        "mae_m": 0.028305808855023068,
+        "rmse_m": 0.0416738131557694,
+        "max_abs_error_m": 0.11499679610978564,
+        "bias_m": -0.016109049168228497
+      },
+      "attractor_metrics": {
+        "mae_m": 0.02290068676170576,
+        "rmse_m": 0.028309460651500088,
+        "max_abs_error_m": 0.07223173025575913,
+        "bias_m": -0.005682150461383667
+      },
+      "attractor_seconds_per_sample": 0.0012944458372658118
+    },
+    {
+      "condition": "Full 3D clean 0.25-10m",
+      "input_mode": "gaussian_matrix",
+      "input_mode_label": "Gaussian matrix",
+      "subset": "<=10m",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.3404101517493475,
+        "rmse_m": 1.100137685608156,
+        "max_abs_error_m": 4.641307554582433,
+        "bias_m": -0.3082917681537811
+      },
+      "attractor_metrics": {
+        "mae_m": 0.3396032414888328,
+        "rmse_m": 1.1077754369067616,
+        "max_abs_error_m": 4.668542191453941,
+        "bias_m": -0.3074884698139209
+      },
+      "attractor_seconds_per_sample": 0.0012944458372658118
+    },
+    {
+      "condition": "Full 3D 50dB floor",
+      "input_mode": "gaussian_matrix",
+      "input_mode_label": "Gaussian matrix",
+      "subset": "<=5m",
+      "num_samples": 33,
+      "baseline_metrics": {
+        "mae_m": 0.0282578707515182,
+        "rmse_m": 0.041637330393708365,
+        "max_abs_error_m": 0.11499679610978564,
+        "bias_m": -0.016117747451185185
+      },
+      "attractor_metrics": {
+        "mae_m": 0.022884360425379013,
+        "rmse_m": 0.028287011253025907,
+        "max_abs_error_m": 0.07223173025575913,
+        "bias_m": -0.005694894710131501
+      },
+      "attractor_seconds_per_sample": 0.0009704343741759658
+    },
+    {
+      "condition": "Full 3D 50dB floor",
+      "input_mode": "gaussian_matrix",
+      "input_mode_label": "Gaussian matrix",
+      "subset": "<=10m",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.3404027201121057,
+        "rmse_m": 1.1001376600558515,
+        "max_abs_error_m": 4.641307554582433,
+        "bias_m": -0.3082830133650469
+      },
+      "attractor_metrics": {
+        "mae_m": 0.3396086838896795,
+        "rmse_m": 1.1077764313912384,
+        "max_abs_error_m": 4.668542191453941,
+        "bias_m": -0.3074815498019479
+      },
+      "attractor_seconds_per_sample": 0.0009704343741759658
+    },
+    {
+      "condition": "Small clean 0.25-5m",
+      "input_mode": "local_peak_vector",
+      "input_mode_label": "local peak vector",
+      "subset": "all",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.035709907136134374,
+        "rmse_m": 0.04364255533689014,
+        "max_abs_error_m": 0.11710133204283135,
+        "bias_m": -0.005560063331103046
+      },
+      "attractor_metrics": {
+        "mae_m": 0.038142265552021035,
+        "rmse_m": 0.046667636948666255,
+        "max_abs_error_m": 0.13483449503375766,
+        "bias_m": -0.011537688060677165
+      },
+      "attractor_seconds_per_sample": 0.001308264586259611
+    },
+    {
+      "condition": "Small noisy 10dB+jitter",
+      "input_mode": "local_peak_vector",
+      "input_mode_label": "local peak vector",
+      "subset": "all",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.07127154751922507,
+        "rmse_m": 0.1379699293368099,
+        "max_abs_error_m": 1.044231762654487,
+        "bias_m": -0.05767984893706518
+      },
+      "attractor_metrics": {
+        "mae_m": 0.06716864317365633,
+        "rmse_m": 0.13378164620777655,
+        "max_abs_error_m": 1.0419674232527782,
+        "bias_m": -0.052084183781991936
+      },
+      "attractor_seconds_per_sample": 0.0014291348867118358
+    },
+    {
+      "condition": "Full 3D clean 0.25-10m",
+      "input_mode": "local_peak_vector",
+      "input_mode_label": "local peak vector",
+      "subset": "<=5m",
+      "num_samples": 33,
+      "baseline_metrics": {
+        "mae_m": 0.028305808855023068,
+        "rmse_m": 0.0416738131557694,
+        "max_abs_error_m": 0.11499679610978564,
+        "bias_m": -0.016109049168228497
+      },
+      "attractor_metrics": {
+        "mae_m": 0.020341197059341825,
+        "rmse_m": 0.026856375209402122,
+        "max_abs_error_m": 0.07057121817435341,
+        "bias_m": -0.0039728768080061596
+      },
+      "attractor_seconds_per_sample": 0.001296352074132301
+    },
+    {
+      "condition": "Full 3D clean 0.25-10m",
+      "input_mode": "local_peak_vector",
+      "input_mode_label": "local peak vector",
+      "subset": "<=10m",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.3404101517493475,
+        "rmse_m": 1.100137685608156,
+        "max_abs_error_m": 4.641307554582433,
+        "bias_m": -0.3082917681537811
+      },
+      "attractor_metrics": {
+        "mae_m": 0.7415164268132355,
+        "rmse_m": 2.448003865747206,
+        "max_abs_error_m": 9.263285609261144,
+        "bias_m": -0.7077400791943574
+      },
+      "attractor_seconds_per_sample": 0.001296352074132301
+    },
+    {
+      "condition": "Full 3D 50dB floor",
+      "input_mode": "local_peak_vector",
+      "input_mode_label": "local peak vector",
+      "subset": "<=5m",
+      "num_samples": 33,
+      "baseline_metrics": {
+        "mae_m": 0.0282578707515182,
+        "rmse_m": 0.041637330393708365,
+        "max_abs_error_m": 0.11499679610978564,
+        "bias_m": -0.016117747451185185
+      },
+      "attractor_metrics": {
+        "mae_m": 0.020295515792512465,
+        "rmse_m": 0.02681456663328089,
+        "max_abs_error_m": 0.07057121817435341,
+        "bias_m": -0.003984492770975608
+      },
+      "attractor_seconds_per_sample": 0.0012683411507168785
+    },
+    {
+      "condition": "Full 3D 50dB floor",
+      "input_mode": "local_peak_vector",
+      "input_mode_label": "local peak vector",
+      "subset": "<=10m",
+      "num_samples": 80,
+      "baseline_metrics": {
+        "mae_m": 0.3404027201121057,
+        "rmse_m": 1.1001376600558515,
+        "max_abs_error_m": 4.641307554582433,
+        "bias_m": -0.3082830133650469
+      },
+      "attractor_metrics": {
+        "mae_m": 0.7415099382941167,
+        "rmse_m": 2.44800392329934,
+        "max_abs_error_m": 9.263285609261144,
+        "bias_m": -0.707732515775634
+      },
+      "attractor_seconds_per_sample": 0.0012683411507168785
     }
   ],
   "full_3d_failure_cases": [
@@ -264,9 +524,9 @@
       "azimuth_deg": -57.508080126297486,
       "elevation_deg": -18.158464788594046,
       "baseline_readout_m": 0.5233586764123999,
-      "attractor_readout_m": 0.5526335887877598,
+      "attractor_readout_m": 0.5526335887877596,
       "baseline_error_m": -0.10683007272869605,
-      "attractor_error_m": -0.0775551603533361,
+      "attractor_error_m": -0.07755516035333632,
       "estimated_reason": "likely local ambiguity or broad AC activity rather than an obvious geometric extreme"
     },
     {
@@ -275,17 +535,21 @@
       "azimuth_deg": 66.79229254025864,
       "elevation_deg": -10.610747106611981,
       "baseline_readout_m": 0.5209570716148928,
-      "attractor_readout_m": 0.55012206292763,
+      "attractor_readout_m": 0.5501220629276301,
       "baseline_error_m": -0.09488261867106151,
-      "attractor_error_m": -0.06571762735832432,
+      "attractor_error_m": -0.0657176273583242,
       "estimated_reason": "likely local ambiguity or broad AC activity rather than an obvious geometric extreme"
     }
   ],
   "artifacts": {
     "fisher_input_gains": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/fisher_input_gains.png",
+    "input_recurrent_heatmaps": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/input_recurrent_heatmaps.png",
     "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/alpha_sweep.png",
     "readout_timing": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/readout_timing.png",
-    "bump_dynamics": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics.png",
+    "bump_dynamics_diagonal": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics_diagonal.png",
+    "bump_dynamics_gaussian": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics_gaussian.png",
+    "bump_dynamics_local_peak": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics_local_peak.png",
+    "input_mode_mae": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/input_mode_mae.png",
     "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/prediction_scatter.png"
   }
 }

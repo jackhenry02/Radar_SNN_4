@@ -41,7 +41,20 @@ SIM_TIME_S = 0.060
 READOUT_TIME_S = 0.005
 RECURRENT_SIGMA_BINS = 8.0
 INPUT_TUNING_SIGMA_BINS = 3.0
+GAUSSIAN_INPUT_SIGMA_BINS = 6.0
+LOCAL_PEAK_SIGMA_BINS = 6.0
+LOCAL_PEAK_RADIUS_BINS = 5
 ALPHA_SWEEP = [0.0, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0]
+
+INPUT_MODE_DIAGONAL = "diagonal_fi"
+INPUT_MODE_GAUSSIAN = "gaussian_matrix"
+INPUT_MODE_LOCAL_PEAK = "local_peak_vector"
+INPUT_MODES = [INPUT_MODE_DIAGONAL, INPUT_MODE_GAUSSIAN, INPUT_MODE_LOCAL_PEAK]
+INPUT_MODE_LABELS = {
+    INPUT_MODE_DIAGONAL: "diagonal FI",
+    INPUT_MODE_GAUSSIAN: "Gaussian matrix",
+    INPUT_MODE_LOCAL_PEAK: "local peak vector",
+}
 
 
 @dataclass(frozen=True)
@@ -56,6 +69,7 @@ class ReadoutResult:
         attractor_trajectory_m: Attractor decoded distance through time.
         seconds_per_sample: Runtime per sample for the attractor readout only.
         ac_activations: Upstream AC population activations.
+        input_mode: SC input transform used before recurrent dynamics.
         azimuth_deg: Optional target azimuths for full-3D diagnostics.
         elevation_deg: Optional target elevations for full-3D diagnostics.
     """
@@ -67,6 +81,7 @@ class ReadoutResult:
     attractor_trajectory_m: np.ndarray
     seconds_per_sample: float
     ac_activations: np.ndarray
+    input_mode: str
     azimuth_deg: np.ndarray | None = None
     elevation_deg: np.ndarray | None = None
 
@@ -175,6 +190,112 @@ def build_balanced_ei_matrix(positions_m: np.ndarray, alpha_prime: float) -> np.
     return np.block([[local, -local], [local, -local]])
 
 
+def build_recurrent_local_matrix(positions_m: np.ndarray, alpha_prime: float) -> np.ndarray:
+    """Build the positive local recurrent kernel before E/I block expansion.
+
+    Args:
+        positions_m: Distance grid represented by the AC/SC population.
+        alpha_prime: Target spectral scale for the local recurrent kernel.
+
+    Returns:
+        Reflected, row-normalised recurrent kernel `[target, source]`.
+    """
+    bin_width_m = float(np.mean(np.diff(positions_m)))
+    sigma_m = RECURRENT_SIGMA_BINS * bin_width_m
+    local = reflected_kernel_matrix(positions_m, sigma_m)
+    local = local / np.maximum(local.sum(axis=1, keepdims=True), 1e-12)
+    return rescale_to_alpha(local, alpha_prime)
+
+
+def build_input_matrix(positions_m: np.ndarray, input_mode: str) -> np.ndarray:
+    """Build the fixed AC-to-SC input matrix for linear input modes.
+
+    Args:
+        positions_m: Distance grid shared by AC and SC.
+        input_mode: Either the diagonal FI mode or the Gaussian matrix mode.
+
+    Returns:
+        Matrix `[SC target bin, AC source bin]`.
+
+    Raises:
+        ValueError: If `input_mode` is the nonlinear local peak-vector mode.
+    """
+    bin_width_m = float(np.mean(np.diff(positions_m)))
+    input_sigma_m = INPUT_TUNING_SIGMA_BINS * bin_width_m
+    gains, _, _ = fisher_balanced_input_gains(positions_m, input_sigma_m)
+    if input_mode == INPUT_MODE_DIAGONAL:
+        return np.diag(gains)
+    if input_mode == INPUT_MODE_GAUSSIAN:
+        gaussian_sigma_m = GAUSSIAN_INPUT_SIGMA_BINS * bin_width_m
+        matrix = reflected_kernel_matrix(positions_m, gaussian_sigma_m)
+        matrix = matrix / np.maximum(matrix.sum(axis=0, keepdims=True), 1e-12)
+        matrix = gains[:, None] * matrix
+        matrix = matrix / np.maximum(matrix.sum(axis=0, keepdims=True), 1e-12)
+        return matrix
+    raise ValueError(f"`{input_mode}` does not have a fixed input matrix.")
+
+
+def local_peak_population(ac_activations: np.ndarray, positions_m: np.ndarray) -> np.ndarray:
+    """Convert each AC map into a smooth local population around its peak.
+
+    This is a nonlinear input transform rather than a fixed matrix. It first
+    estimates a local centre from the AC peak neighbourhood, then creates a
+    Gaussian population vector around that centre.
+
+    Args:
+        ac_activations: AC population activations `[samples, bins]`.
+        positions_m: Distance grid.
+
+    Returns:
+        Smoothed local population input `[samples, bins]`.
+    """
+    num_samples, num_bins = ac_activations.shape
+    bin_width_m = float(np.mean(np.diff(positions_m)))
+    sigma_m = LOCAL_PEAK_SIGMA_BINS * bin_width_m
+    radius = int(LOCAL_PEAK_RADIUS_BINS)
+    populations = np.empty_like(ac_activations, dtype=np.float64)
+    for sample_idx in range(num_samples):
+        activation = np.maximum(ac_activations[sample_idx], 0.0)
+        peak_idx = int(np.argmax(activation))
+        lo = max(0, peak_idx - radius)
+        hi = min(num_bins, peak_idx + radius + 1)
+        local = activation[lo:hi]
+        local_positions = positions_m[lo:hi]
+        if float(np.sum(local)) <= 1e-12:
+            centre_m = positions_m[peak_idx]
+        else:
+            centre_m = float(np.sum(local * local_positions) / np.sum(local))
+        population = gaussian(positions_m - centre_m, sigma_m)
+        populations[sample_idx] = population / max(float(np.max(population)), 1e-12)
+    return populations
+
+
+def prepare_initial_excitation(
+    ac_activations: np.ndarray,
+    positions_m: np.ndarray,
+    input_mode: str,
+) -> np.ndarray:
+    """Transform AC activations into the initial SC excitatory population.
+
+    Args:
+        ac_activations: AC activity `[samples, bins]`.
+        positions_m: Distance grid.
+        input_mode: Input transform mode.
+
+    Returns:
+        Initial excitatory state `[samples, bins]`.
+    """
+    normalised_ac = ac_activations / np.maximum(ac_activations.max(axis=1, keepdims=True), 1e-12)
+    if input_mode in {INPUT_MODE_DIAGONAL, INPUT_MODE_GAUSSIAN}:
+        input_matrix = build_input_matrix(positions_m, input_mode)
+        excitation = normalised_ac @ input_matrix.T
+    elif input_mode == INPUT_MODE_LOCAL_PEAK:
+        excitation = local_peak_population(normalised_ac, positions_m)
+    else:
+        raise ValueError(f"Unknown input mode: {input_mode}")
+    return excitation / np.maximum(excitation.max(axis=1, keepdims=True), 1e-12)
+
+
 def decode_center_of_mass(activity: np.ndarray, positions_m: np.ndarray) -> np.ndarray:
     """Decode distance from non-negative population activity."""
     positive = np.maximum(activity, 0.0)
@@ -188,6 +309,7 @@ def run_attractor_readout(
     ac_activations: np.ndarray,
     positions_m: np.ndarray,
     alpha_prime: float,
+    input_mode: str = INPUT_MODE_DIAGONAL,
 ) -> tuple[np.ndarray, np.ndarray, float]:
     """Run the balanced E/I line-attractor readout on AC activations.
 
@@ -195,20 +317,17 @@ def run_attractor_readout(
         ac_activations: AC population activations `[samples, bins]`.
         positions_m: Distance represented by each AC/SC bin.
         alpha_prime: Balanced E/I recurrent gain.
+        input_mode: AC-to-SC input transform.
 
     Returns:
         Tuple `(decoded_at_5ms, decoded_trajectory, seconds_per_sample)`.
     """
     start = time.perf_counter()
     num_samples, num_bins = ac_activations.shape
-    bin_width_m = float(np.mean(np.diff(positions_m)))
-    input_sigma_m = INPUT_TUNING_SIGMA_BINS * bin_width_m
-    input_gains, _, _ = fisher_balanced_input_gains(positions_m, input_sigma_m)
     recurrent = build_balanced_ei_matrix(positions_m, alpha_prime)
 
     state = np.zeros((num_samples, 2 * num_bins), dtype=np.float64)
-    normalised_ac = ac_activations / np.maximum(ac_activations.max(axis=1, keepdims=True), 1e-12)
-    state[:, :num_bins] = normalised_ac * input_gains[None, :]
+    state[:, :num_bins] = prepare_initial_excitation(ac_activations, positions_m, input_mode)
 
     num_steps = int(round(SIM_TIME_S / DT_S))
     readout_index = int(round(READOUT_TIME_S / DT_S))
@@ -225,6 +344,7 @@ def run_attractor_state_history(
     ac_activation: np.ndarray,
     positions_m: np.ndarray,
     alpha_prime: float,
+    input_mode: str = INPUT_MODE_DIAGONAL,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Run one AC population through the attractor and keep state history.
 
@@ -232,19 +352,16 @@ def run_attractor_state_history(
         ac_activation: One AC activation vector `[bins]`.
         positions_m: Distance grid.
         alpha_prime: Balanced E/I recurrent gain.
+        input_mode: AC-to-SC input transform.
 
     Returns:
         Tuple `(times_s, excitatory_history, decoded_trajectory)`.
     """
     num_bins = ac_activation.shape[0]
-    bin_width_m = float(np.mean(np.diff(positions_m)))
-    input_sigma_m = INPUT_TUNING_SIGMA_BINS * bin_width_m
-    input_gains, _, _ = fisher_balanced_input_gains(positions_m, input_sigma_m)
     recurrent = build_balanced_ei_matrix(positions_m, alpha_prime)
 
     state = np.zeros(2 * num_bins, dtype=np.float64)
-    normalised = ac_activation / max(float(np.max(ac_activation)), 1e-12)
-    state[:num_bins] = normalised * input_gains
+    state[:num_bins] = prepare_initial_excitation(ac_activation[None, :], positions_m, input_mode)[0]
 
     num_steps = int(round(SIM_TIME_S / DT_S))
     times = np.arange(num_steps + 1) * DT_S
@@ -286,12 +403,13 @@ def run_readout_condition(
     positions_m: np.ndarray,
     alpha_prime: float,
     *,
+    input_mode: str = INPUT_MODE_DIAGONAL,
     azimuth_deg: np.ndarray | None = None,
     elevation_deg: np.ndarray | None = None,
 ) -> ReadoutResult:
     """Compare baseline and attractor readouts for one condition."""
     true, baseline, ac = collect_ac_predictions(predictions)
-    attractor, trajectory, seconds_per_sample = run_attractor_readout(ac, positions_m, alpha_prime)
+    attractor, trajectory, seconds_per_sample = run_attractor_readout(ac, positions_m, alpha_prime, input_mode)
     return ReadoutResult(
         condition=name,
         true_distance_m=true,
@@ -300,6 +418,7 @@ def run_readout_condition(
         attractor_trajectory_m=trajectory,
         seconds_per_sample=seconds_per_sample,
         ac_activations=ac,
+        input_mode=input_mode,
         azimuth_deg=azimuth_deg,
         elevation_deg=elevation_deg,
     )
@@ -385,8 +504,8 @@ def sweep_alpha(
     clean_true, _, clean_ac = collect_ac_predictions(clean_predictions)
     noisy_true, _, noisy_ac = collect_ac_predictions(noisy_predictions)
     for alpha_prime in ALPHA_SWEEP:
-        clean_pred, _, clean_seconds = run_attractor_readout(clean_ac, positions_m, alpha_prime)
-        noisy_pred, _, noisy_seconds = run_attractor_readout(noisy_ac, positions_m, alpha_prime)
+        clean_pred, _, clean_seconds = run_attractor_readout(clean_ac, positions_m, alpha_prime, INPUT_MODE_DIAGONAL)
+        noisy_pred, _, noisy_seconds = run_attractor_readout(noisy_ac, positions_m, alpha_prime, INPUT_MODE_DIAGONAL)
         clean_metrics = metrics(clean_true, clean_pred)
         noisy_metrics = metrics(noisy_true, noisy_pred)
         selection_score = 0.5 * (clean_metrics["mae_m"] + noisy_metrics["mae_m"])
@@ -497,14 +616,18 @@ def plot_bump_dynamics(
             result.ac_activations[index],
             positions_m,
             alpha_prime,
+            result.input_mode,
         )
         ac_norm = result.ac_activations[index] / max(float(np.max(result.ac_activations[index])), 1e-12)
+        sc_input = prepare_initial_excitation(result.ac_activations[index][None, :], positions_m, result.input_mode)[0]
+        sc_input = sc_input / max(float(np.max(sc_input)), 1e-12)
         for col, time_s in enumerate(snapshot_times_s):
             time_index = int(np.argmin(np.abs(times - time_s)))
             activity = excitatory[time_index]
             activity = activity / max(float(np.max(activity)), 1e-12)
             ax = axes[row, col]
-            ax.plot(positions_m, ac_norm, color="#6b7280", linestyle="--", linewidth=1.5, label="AC input")
+            ax.plot(positions_m, ac_norm, color="#6b7280", linestyle=":", linewidth=1.2, label="AC")
+            ax.plot(positions_m, sc_input, color="#059669", linestyle="--", linewidth=1.5, label="SC input")
             ax.plot(positions_m, activity, color="#2563eb", linewidth=2.0, label="attractor E")
             ax.axvline(result.true_distance_m[index], color="#111827", linestyle=":", linewidth=1.2, label="true")
             ax.axvline(decoded[time_index], color="#dc2626", linestyle="--", linewidth=1.2, label="decoded")
@@ -519,6 +642,75 @@ def plot_bump_dynamics(
     for ax in axes[-1, :]:
         ax.set_xlabel("distance represented by SC neuron (m)")
     axes[0, 0].legend(frameon=False, fontsize=8)
+    return save_figure(fig, path)
+
+
+def plot_input_recurrent_heatmaps(positions_m: np.ndarray, alpha_prime: float, path: Path) -> str:
+    """Plot the fixed input matrices and recurrent matrices.
+
+    Args:
+        positions_m: Shared AC/SC distance grid.
+        alpha_prime: Recurrent gain used for the controlled comparison.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    diagonal = build_input_matrix(positions_m, INPUT_MODE_DIAGONAL)
+    gaussian_input = build_input_matrix(positions_m, INPUT_MODE_GAUSSIAN)
+    local = build_recurrent_local_matrix(positions_m, alpha_prime)
+    recurrent = build_balanced_ei_matrix(positions_m, alpha_prime)
+    extent = [positions_m[0], positions_m[-1], positions_m[-1], positions_m[0]]
+    fig, axes = plt.subplots(2, 2, figsize=(11.5, 9.0))
+    panels = [
+        (diagonal, "Diagonal FI input matrix", "viridis", extent),
+        (gaussian_input, "Gaussian input matrix", "viridis", extent),
+        (local, "Positive recurrent kernel W0", "magma", extent),
+        (recurrent, "Full balanced E/I recurrent matrix", "coolwarm", None),
+    ]
+    for ax, (matrix, title, cmap, matrix_extent) in zip(axes.flat, panels):
+        im = ax.imshow(matrix, aspect="auto", cmap=cmap, extent=matrix_extent)
+        ax.set_title(title)
+        if matrix_extent is None:
+            ax.set_xlabel("source neuron index")
+            ax.set_ylabel("target neuron index")
+        else:
+            ax.set_xlabel("AC/source distance (m)")
+            ax.set_ylabel("SC/target distance (m)")
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_input_mode_mae(rows: list[dict[str, object]], path: Path) -> str:
+    """Plot MAE by input mode for the controlled comparisons."""
+    small_rows = [row for row in rows if row["condition"] in {"Small clean 0.25-5m", "Small noisy 10dB+jitter"}]
+    conditions = []
+    for row in small_rows:
+        if row["condition"] not in conditions:
+            conditions.append(str(row["condition"]))
+    modes = INPUT_MODES
+    width = 0.22
+    x = np.arange(len(conditions))
+    fig, ax = plt.subplots(figsize=(9.5, 4.8))
+    baseline = []
+    for condition in conditions:
+        first = next(row for row in small_rows if row["condition"] == condition and row["input_mode"] == INPUT_MODE_DIAGONAL)
+        baseline.append(first["baseline_metrics"]["mae_m"] * 100.0)
+    ax.plot(x, baseline, color="#111827", marker="o", linewidth=2.0, label="simple COM")
+    for mode_idx, mode in enumerate(modes):
+        values = []
+        for condition in conditions:
+            row = next(item for item in small_rows if item["condition"] == condition and item["input_mode"] == mode)
+            values.append(row["attractor_metrics"]["mae_m"] * 100.0)
+        ax.bar(x + (mode_idx - 1) * width, values, width=width, label=INPUT_MODE_LABELS[mode], alpha=0.82)
+    ax.set_xticks(x)
+    ax.set_xticklabels(conditions, rotation=8)
+    ax.set_ylabel("MAE (cm)")
+    ax.set_title("SC input-mode comparison")
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(frameon=False, fontsize=8)
+    fig.tight_layout()
     return save_figure(fig, path)
 
 
@@ -608,6 +800,8 @@ def comparison_rows(results: list[ReadoutResult]) -> list[dict[str, object]]:
             rows.append(
                 {
                     "condition": result.condition,
+                    "input_mode": result.input_mode,
+                    "input_mode_label": INPUT_MODE_LABELS[result.input_mode],
                     "subset": subset,
                     "num_samples": int(np.count_nonzero(mask)),
                     "baseline_metrics": metrics(result.true_distance_m[mask], result.baseline_distance_m[mask]),
@@ -644,6 +838,7 @@ def write_report(
         comparison_table.append(
             "| "
             f"{row['condition']} | "
+            f"{row['input_mode_label']} | "
             f"{row['subset']} | "
             f"`{row['num_samples']}` | "
             f"`{baseline['mae_m'] * 100.0:.3f} cm` | "
@@ -703,6 +898,12 @@ def write_report(
         "",
         "The distance is decoded by centre of mass from the excitatory readout. The requested first readout time is `5 ms`, but the timing plot shows how the decoded distance changes over the full `60 ms` simulation.",
         "",
+        "This version compares three AC-to-SC input transforms:",
+        "",
+        "- `diagonal FI`: the original topographic diagonal Fisher-balanced gain matrix.",
+        "- `Gaussian matrix`: a fixed off-diagonal Gaussian input matrix that spreads each AC bin into neighbouring SC bins before recurrence.",
+        "- `local peak vector`: a nonlinear local population vector centred on the AC peak neighbourhood; this is not a fixed matrix, because it first estimates the peak location for each sample.",
+        "",
         "## Fisher-Balanced Input Weights",
         "",
         "The recurrent weights are kept as the reflected line-attractor structure. Input weights are diagonal gains chosen to flatten Fisher information over the distance grid rather than learned from labels.",
@@ -725,6 +926,12 @@ def write_report(
         "",
         "![Fisher input gains](../outputs/sc_line_attractor_integration/figures/fisher_input_gains.png)",
         "",
+        "## Input And Recurrent Matrices",
+        "",
+        "The heatmaps below show the fixed input matrices and recurrent matrices. The diagonal FI matrix is the original input. The Gaussian matrix is the widened input tested here. The local peak-vector input is not shown as a fixed matrix because it is computed separately for each sample.",
+        "",
+        "![Input and recurrent matrices](../outputs/sc_line_attractor_integration/figures/input_recurrent_heatmaps.png)",
+        "",
         "## Alpha Sweep",
         "",
         "The original ring-model notebook showed that increasing recurrent gain can improve readout accuracy. Here the same idea is tested by sweeping the balanced E/I `alpha_prime` parameter while keeping the recurrent structure fixed.",
@@ -745,18 +952,24 @@ def write_report(
         "",
         "## Bump Dynamics",
         "",
-        "The plot below shows the upstream AC population and the attractor excitatory population at several times. It includes one good full-3D clean case and one failure case. The dashed grey curve is the original AC input, the blue curve is the attractor excitatory bump, the black dotted line is the true distance, and the red dashed line is the decoded distance at that time.",
+        "The plots below show the upstream AC population, transformed SC input, and attractor excitatory population at several times. They include one good full-3D clean case and one failure case. The grey dotted curve is the original AC map, the green dashed curve is the SC input after the selected input transform, the blue curve is the attractor excitatory bump, the black dotted line is the true distance, and the red dashed line is the decoded distance at that time.",
         "",
-        "![Bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics.png)",
+        "![Diagonal bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics_diagonal.png)",
+        "",
+        "![Gaussian bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics_gaussian.png)",
+        "",
+        "![Local peak-vector bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics_local_peak.png)",
         "",
         "## Controlled Comparisons",
         "",
         "The comparison uses the same upstream AC activations for both readouts, so any difference is caused by the SC readout only.",
         "",
+        "![Input mode MAE](../outputs/sc_line_attractor_integration/figures/input_mode_mae.png)",
+        "",
         "![Prediction scatter](../outputs/sc_line_attractor_integration/figures/prediction_scatter.png)",
         "",
-        "| Condition | Subset | N | Baseline MAE | Attractor MAE | Baseline RMSE | Attractor RMSE | Baseline max error | Attractor max error | Attractor runtime/sample |",
-        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Condition | SC input | Subset | N | Baseline MAE | Attractor MAE | Baseline RMSE | Attractor RMSE | Baseline max error | Attractor max error | Attractor runtime/sample |",
+        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         *comparison_table,
         "",
         "## Full-3D Failure Cases",
@@ -769,14 +982,16 @@ def write_report(
         "",
         "## Interpretation",
         "",
-        "Result: this first balanced line-attractor SC integration should be treated as diagnostic, not accepted as the primary readout yet. It is mechanically successful and reversible, but the simple centre-of-mass readout still has lower MAE in the main comparisons.",
+        "Result: this balanced line-attractor SC integration should still be treated as diagnostic. The Gaussian and local peak-vector inputs make the bump visibly smoother and improve the `<=5m` full-3D subset, but they do not solve the long-range upstream failure mode.",
         "",
         "- This is an SC readout ablation only; the cochlea, VCN, DNLL, IC, and AC stages are unchanged.",
         "- Matching the attractor neurons to the AC distance grid keeps the interface simple and reversible.",
         "- The alpha sweep shows the best balanced gain is modest, around `alpha_prime = 1`, rather than increasing indefinitely as in the original ring notebook.",
-        "- The attractor slightly reduces some max-error values in the `<=5m` full-space subset, but it increases MAE and RMSE overall.",
+        "- The widened input variants reduce MAE and max-error values in the `<=5m` full-space subset.",
         "- The `<=10m` rows show that this SC readout does not solve the upstream long-range/angle-induced failure mode; the AC population is already biased before the SC readout.",
-        "- The likely next readout experiment is not simply stronger recurrence, but a better-matched input pulse or a time-varying attractor input that preserves the AC confidence profile.",
+        "- The Gaussian input matrix widens the initial bump as intended and is the safer of the two new variants because it preserves the full AC activity profile.",
+        "- The local peak-vector transform improves the `<=5m` subset, but it discards confidence/asymmetry information from the original AC map and fails badly when the AC peak itself is wrong.",
+        "- The likely next readout experiment is not simply stronger recurrence, but a better-matched dynamic input pulse that preserves the AC confidence profile while only smoothing pathological sharp peaks.",
         "",
         "## Generated Files",
         "",
@@ -801,37 +1016,88 @@ def main() -> dict[str, object]:
     small_positions = fdm._candidate_distances(config)
     alpha_rows, selected_alpha = sweep_alpha(clean_small, noisy_small, small_positions)
 
-    clean_small_result = run_readout_condition("Small clean 0.25-5m", clean_small, small_positions, selected_alpha)
-    noisy_small_result = run_readout_condition("Small noisy 10dB+jitter", noisy_small, small_positions, selected_alpha)
-
     full_config, clean_full, ambient_full, full_coordinates = run_full_space_predictions(variant)
     full_positions = fdm._candidate_distances(full_config)
-    clean_full_result = run_readout_condition(
-        "Full 3D clean 0.25-10m",
-        clean_full,
-        full_positions,
-        selected_alpha,
-        azimuth_deg=full_coordinates["azimuth_deg"],
-        elevation_deg=full_coordinates["elevation_deg"],
-    )
-    ambient_full_result = run_readout_condition(
-        "Full 3D 50dB floor",
-        ambient_full,
-        full_positions,
-        selected_alpha,
-        azimuth_deg=full_coordinates["azimuth_deg"],
-        elevation_deg=full_coordinates["elevation_deg"],
-    )
 
-    results = [clean_small_result, noisy_small_result, clean_full_result, ambient_full_result]
+    results = []
+    for input_mode in INPUT_MODES:
+        results.extend(
+            [
+                run_readout_condition(
+                    "Small clean 0.25-5m",
+                    clean_small,
+                    small_positions,
+                    selected_alpha,
+                    input_mode=input_mode,
+                ),
+                run_readout_condition(
+                    "Small noisy 10dB+jitter",
+                    noisy_small,
+                    small_positions,
+                    selected_alpha,
+                    input_mode=input_mode,
+                ),
+                run_readout_condition(
+                    "Full 3D clean 0.25-10m",
+                    clean_full,
+                    full_positions,
+                    selected_alpha,
+                    input_mode=input_mode,
+                    azimuth_deg=full_coordinates["azimuth_deg"],
+                    elevation_deg=full_coordinates["elevation_deg"],
+                ),
+                run_readout_condition(
+                    "Full 3D 50dB floor",
+                    ambient_full,
+                    full_positions,
+                    selected_alpha,
+                    input_mode=input_mode,
+                    azimuth_deg=full_coordinates["azimuth_deg"],
+                    elevation_deg=full_coordinates["elevation_deg"],
+                ),
+            ]
+        )
+
     rows = comparison_rows(results)
-    failures = failure_cases(clean_full_result, count=10)
+    clean_small_result = next(
+        result for result in results if result.condition == "Small clean 0.25-5m" and result.input_mode == INPUT_MODE_DIAGONAL
+    )
+    clean_full_diagonal = next(
+        result for result in results if result.condition == "Full 3D clean 0.25-10m" and result.input_mode == INPUT_MODE_DIAGONAL
+    )
+    clean_full_gaussian = next(
+        result for result in results if result.condition == "Full 3D clean 0.25-10m" and result.input_mode == INPUT_MODE_GAUSSIAN
+    )
+    clean_full_local_peak = next(
+        result for result in results if result.condition == "Full 3D clean 0.25-10m" and result.input_mode == INPUT_MODE_LOCAL_PEAK
+    )
+    diagonal_results = [result for result in results if result.input_mode == INPUT_MODE_DIAGONAL]
+    failures = failure_cases(clean_full_diagonal, count=10)
     artifacts = {
         "fisher_input_gains": plot_fisher_gains(small_positions, FIGURE_DIR / "fisher_input_gains.png"),
+        "input_recurrent_heatmaps": plot_input_recurrent_heatmaps(full_positions, selected_alpha, FIGURE_DIR / "input_recurrent_heatmaps.png"),
         "alpha_sweep": plot_alpha_sweep(alpha_rows, FIGURE_DIR / "alpha_sweep.png"),
         "readout_timing": plot_timing(clean_small_result, FIGURE_DIR / "readout_timing.png"),
-        "bump_dynamics": plot_bump_dynamics(clean_full_result, full_positions, selected_alpha, FIGURE_DIR / "bump_dynamics.png"),
-        "prediction_scatter": plot_prediction_scatter(results, FIGURE_DIR / "prediction_scatter.png"),
+        "bump_dynamics_diagonal": plot_bump_dynamics(
+            clean_full_diagonal,
+            full_positions,
+            selected_alpha,
+            FIGURE_DIR / "bump_dynamics_diagonal.png",
+        ),
+        "bump_dynamics_gaussian": plot_bump_dynamics(
+            clean_full_gaussian,
+            full_positions,
+            selected_alpha,
+            FIGURE_DIR / "bump_dynamics_gaussian.png",
+        ),
+        "bump_dynamics_local_peak": plot_bump_dynamics(
+            clean_full_local_peak,
+            full_positions,
+            selected_alpha,
+            FIGURE_DIR / "bump_dynamics_local_peak.png",
+        ),
+        "input_mode_mae": plot_input_mode_mae(rows, FIGURE_DIR / "input_mode_mae.png"),
+        "prediction_scatter": plot_prediction_scatter(diagonal_results, FIGURE_DIR / "prediction_scatter.png"),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -844,8 +1110,12 @@ def main() -> dict[str, object]:
         "sim_time_s": SIM_TIME_S,
         "recurrent_sigma_bins": RECURRENT_SIGMA_BINS,
         "input_tuning_sigma_bins": INPUT_TUNING_SIGMA_BINS,
+        "gaussian_input_sigma_bins": GAUSSIAN_INPUT_SIGMA_BINS,
+        "local_peak_sigma_bins": LOCAL_PEAK_SIGMA_BINS,
+        "local_peak_radius_bins": LOCAL_PEAK_RADIUS_BINS,
         "alpha_sweep": alpha_rows,
         "selected_alpha_prime": selected_alpha,
+        "input_modes": INPUT_MODE_LABELS,
         "comparison_rows": rows,
         "full_3d_failure_cases": failures,
         "artifacts": artifacts,
