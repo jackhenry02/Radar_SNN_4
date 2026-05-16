@@ -57,6 +57,7 @@ from mini_models.experiments.final_cochlea_model_analysis import _log_spaced_cen
 OUTPUT_DIR = ROOT / "distance_pathway" / "outputs" / "distance_noise_robustness"
 REPORT_PATH = ROOT / "distance_pathway" / "reports" / "distance_noise_robustness_experiments.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
+ROBUST_LATENCY_VECTOR_PATH = OUTPUT_DIR / "spike_tuned_consensus_facil_latency_samples.npy"
 
 ROBUST_SPIKE_THRESHOLD_MULTIPLIER = 16.0
 ROBUST_SPIKE_BETA = 0.50
@@ -229,6 +230,19 @@ def _apply_vcn_frequency_mask(vcn: np.ndarray, config) -> np.ndarray:
     return masked
 
 
+def _responsive_channel_mask(config) -> np.ndarray:
+    """Return channels allowed to drive the VCN distance pathway.
+
+    Args:
+        config: Acoustic configuration.
+
+    Returns:
+        Boolean mask over cochlea channels.
+    """
+    centers = _log_spaced_centers(config).detach().cpu().numpy()
+    return centers >= VCN_MIN_RESPONSIVE_HZ
+
+
 def _first_times(raster: np.ndarray) -> np.ndarray:
     """Return first event time per channel."""
     first = np.full(raster.shape[0], -1, dtype=np.int64)
@@ -239,7 +253,7 @@ def _first_times(raster: np.ndarray) -> np.ndarray:
     return first
 
 
-def _calibrate_latency(config, variant: RobustVariant) -> np.ndarray:
+def _calibrate_latency(config, variant: RobustVariant) -> tuple[np.ndarray, dict[str, object]]:
     """Calibrate per-channel latency for a variant using clean echoes.
 
     Args:
@@ -247,9 +261,10 @@ def _calibrate_latency(config, variant: RobustVariant) -> np.ndarray:
         variant: Robustness variant.
 
     Returns:
-        Median per-channel latency samples.
+        Pair of median per-channel latency samples and calibration stats.
     """
     cd_times = _chirp_channel_times(config)
+    responsive = _responsive_channel_mask(config)
     rows = []
     for distance_m in LATENCY_CALIBRATION_DISTANCES_M:
         receive = _simulate_scene(config, float(distance_m), add_noise=False)
@@ -258,16 +273,41 @@ def _calibrate_latency(config, variant: RobustVariant) -> np.ndarray:
         first = _first_times(vcn)
         round_trip = int(round((2.0 * float(distance_m) / config.speed_of_sound_m_s) * config.sample_rate_hz))
         row = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
-        valid = first >= 0
+        valid = (first >= 0) & responsive
         row[valid] = first[valid] - (cd_times[valid] + round_trip)
         rows.append(row)
     matrix = np.vstack(rows)
-    median = np.rint(np.nanmedian(matrix, axis=0))
-    if np.any(~np.isfinite(median)):
-        finite = median[np.isfinite(median)]
-        fallback = int(np.median(finite)) if finite.size else 0
-        median = np.where(np.isfinite(median), median, fallback)
-    return median.astype(np.int64)
+    median = np.zeros(NUM_CHANNELS, dtype=np.float64)
+    responsive_matrix = matrix[:, responsive]
+    responsive_medians = np.full(responsive_matrix.shape[1], np.nan, dtype=np.float64)
+    calibrated_responsive = np.zeros(responsive_matrix.shape[1], dtype=bool)
+    for channel_index in range(responsive_matrix.shape[1]):
+        values = responsive_matrix[:, channel_index]
+        values = values[np.isfinite(values)]
+        if values.size:
+            responsive_medians[channel_index] = np.rint(np.median(values))
+            calibrated_responsive[channel_index] = True
+    finite_medians = responsive_medians[np.isfinite(responsive_medians)]
+    fallback = int(np.median(finite_medians)) if finite_medians.size else 0
+    responsive_medians = np.where(np.isfinite(responsive_medians), responsive_medians, fallback)
+    median[responsive] = responsive_medians
+    latency_std = np.full(responsive_matrix.shape[1], np.nan, dtype=np.float64)
+    for channel_index in range(responsive_matrix.shape[1]):
+        values = responsive_matrix[:, channel_index]
+        values = values[np.isfinite(values)]
+        if values.size:
+            latency_std[channel_index] = float(np.std(values))
+    stats = {
+        "responsive_channels": int(np.sum(responsive)),
+        "silenced_channels": int(NUM_CHANNELS - np.sum(responsive)),
+        "calibrated_responsive_channels": int(np.sum(calibrated_responsive)),
+        "missing_responsive_channels": int(np.sum(~calibrated_responsive)),
+        "latency_min_samples": int(np.min(median[responsive])) if np.any(responsive) else 0,
+        "latency_max_samples": int(np.max(median[responsive])) if np.any(responsive) else 0,
+        "latency_mean_std_samples": float(np.nanmean(latency_std)) if latency_std.size else 0.0,
+        "latency_max_std_samples": float(np.nanmax(latency_std)) if latency_std.size else 0.0,
+    }
+    return median.astype(np.int64), stats
 
 
 def _ic_plain(vcn: np.ndarray, config, latency_samples: np.ndarray) -> np.ndarray:
@@ -396,8 +436,22 @@ def _evaluate_variant(base_clean_config, base_noisy_config, distances: np.ndarra
     noisy_config = _variant_config(base_noisy_config, variant)
     if variant.key == "cochleagram_baseline":
         latency_samples = _load_channel_latency(clean_config)
+        responsive = _responsive_channel_mask(clean_config)
+        calibration_stats = {
+            "responsive_channels": int(np.sum(responsive)),
+            "silenced_channels": int(NUM_CHANNELS - np.sum(responsive)),
+            "calibrated_responsive_channels": int(np.sum(responsive)),
+            "missing_responsive_channels": 0,
+            "latency_min_samples": int(latency_samples[responsive].min()),
+            "latency_max_samples": int(latency_samples[responsive].max()),
+            "latency_mean_std_samples": None,
+            "latency_max_std_samples": None,
+        }
     else:
-        latency_samples = _calibrate_latency(clean_config, variant)
+        latency_samples, calibration_stats = _calibrate_latency(clean_config, variant)
+    if variant.key == "spike_tuned_consensus_facil":
+        ensure_dir(OUTPUT_DIR)
+        np.save(ROBUST_LATENCY_VECTOR_PATH, latency_samples)
 
     torch.manual_seed(RNG_SEED + 30_000)
     clean_predictions = [
@@ -419,6 +473,7 @@ def _evaluate_variant(base_clean_config, base_noisy_config, distances: np.ndarra
         "ic_mode": variant.ic_mode,
         "latency_min_samples": int(latency_samples.min()),
         "latency_max_samples": int(latency_samples.max()),
+        "calibration_stats": calibration_stats,
         "clean_metrics": _metrics(clean_predictions),
         "noisy_metrics": _metrics(noisy_predictions),
         "note": variant.note,
@@ -430,6 +485,8 @@ def _write_report(results: dict[str, object]) -> None:
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     best_noisy = min(results["variant_results"], key=lambda row: row["noisy_metrics"]["mae_m"])
     best_clean = min(results["variant_results"], key=lambda row: row["clean_metrics"]["mae_m"])
+    selected = next(row for row in results["variant_results"] if row["key"] == "spike_tuned_consensus_facil")
+    selected_stats = selected["calibration_stats"]
     lines = [
         "# Distance Noise Robustness Experiments",
         "",
@@ -482,6 +539,23 @@ def _write_report(results: dict[str, object]) -> None:
             "- The main robustness gain came from cochlea tuning on the spike-raster pathway: threshold `x16` and beta `0.5` reduced noisy MAE from metre-scale failure to approximately `5 cm`.",
             "- VCN consensus and IC facilitation did not materially improve this first tuned spike-raster result. They may need retuning now that the cochlear input is much sparser.",
             "- The cochleagram pathway remains excellent clean, but it is still highly noise-sensitive because it reads continuous low-threshold activity before the cochlear spike encoder.",
+            "",
+            "## Recalibrated Robust Latency Vector",
+            "",
+            "The selected robust model is `Spike VCN + tuning + consensus + IC facilitation`, with VCN channels below `4 kHz` silenced. Its latency vector is recalibrated after applying the spike-raster cochlea tuning, VCN consensus, and frequency mask.",
+            "",
+            "| Calibration property | Value |",
+            "|---|---:|",
+            f"| responsive channels | `{selected_stats['responsive_channels']}` |",
+            f"| silenced channels below 4 kHz | `{selected_stats['silenced_channels']}` |",
+            f"| calibrated responsive channels | `{selected_stats['calibrated_responsive_channels']}` |",
+            f"| missing responsive channels | `{selected_stats['missing_responsive_channels']}` |",
+            f"| latency range over responsive channels | `{selected_stats['latency_min_samples']} -> {selected_stats['latency_max_samples']}` samples |",
+            f"| mean latency std across calibration distances | `{selected_stats['latency_mean_std_samples']:.3f}` samples |",
+            f"| max latency std across calibration distances | `{selected_stats['latency_max_std_samples']:.3f}` samples |",
+            f"| saved vector | `{ROBUST_LATENCY_VECTOR_PATH.relative_to(ROOT)}` |",
+            "",
+            f"With this recalibrated vector, the selected robust model gives clean MAE `{selected['clean_metrics']['mae_m'] * 100.0:.3f} cm` and noisy MAE `{selected['noisy_metrics']['mae_m'] * 100.0:.3f} cm`.",
             "",
             "## Interpretation",
             "",

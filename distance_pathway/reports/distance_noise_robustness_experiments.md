@@ -34,6 +34,23 @@ This report tests staged fixes for the distance-pathway noise failure observed i
 - VCN consensus and IC facilitation did not materially improve this first tuned spike-raster result. They may need retuning now that the cochlear input is much sparser.
 - The cochleagram pathway remains excellent clean, but it is still highly noise-sensitive because it reads continuous low-threshold activity before the cochlear spike encoder.
 
+## Recalibrated Robust Latency Vector
+
+The selected robust model is `Spike VCN + tuning + consensus + IC facilitation`, with VCN channels below `4 kHz` silenced. Its latency vector is recalibrated after applying the spike-raster cochlea tuning, VCN consensus, and frequency mask.
+
+| Calibration property | Value |
+|---|---:|
+| responsive channels | `33` |
+| silenced channels below 4 kHz | `15` |
+| calibrated responsive channels | `33` |
+| missing responsive channels | `0` |
+| latency range over responsive channels | `-62 -> 25` samples |
+| mean latency std across calibration distances | `31.376` samples |
+| max latency std across calibration distances | `53.363` samples |
+| saved vector | `distance_pathway/outputs/distance_noise_robustness/spike_tuned_consensus_facil_latency_samples.npy` |
+
+With this recalibrated vector, the selected robust model gives clean MAE `5.010 cm` and noisy MAE `5.252 cm`.
+
 ## Interpretation
 
 - The spike-raster pathway is the relevant path for cochlea threshold/beta tuning, because cochleagram VCN bypasses cochlear spike generation.
@@ -46,4 +63,4 @@ This report tests staged fixes for the distance-pathway noise failure observed i
 
 - `results`: `distance_pathway/outputs/distance_noise_robustness/results.json`
 
-Runtime: `33.09 s`.
+Runtime: `33.00 s`.

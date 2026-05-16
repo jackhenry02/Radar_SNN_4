@@ -1,6 +1,6 @@
 {
   "experiment": "distance_noise_robustness_experiments",
-  "elapsed_seconds": 33.09422325016931,
+  "elapsed_seconds": 32.996418540831655,
   "target_snr_db": 10.0,
   "noise_std": 2.9644242015988462,
   "jitter_std_s": 0.00025,
@@ -15,6 +15,16 @@
       "ic_mode": "plain",
       "latency_min_samples": -176,
       "latency_max_samples": 8,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -145,
+        "latency_max_samples": 8,
+        "latency_mean_std_samples": null,
+        "latency_max_std_samples": null
+      },
       "clean_metrics": {
         "mae_m": 0.003420893844734202,
         "rmse_m": 0.009385905081978336,
@@ -39,6 +49,16 @@
       "ic_mode": "plain",
       "latency_min_samples": -124,
       "latency_max_samples": 17,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -124,
+        "latency_max_samples": 17,
+        "latency_mean_std_samples": 11.497843661899413,
+        "latency_max_std_samples": 18.248858411783825
+      },
       "clean_metrics": {
         "mae_m": 0.021538176814638682,
         "rmse_m": 0.02470776938975728,
@@ -63,6 +83,16 @@
       "ic_mode": "plain",
       "latency_min_samples": -62,
       "latency_max_samples": 25,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -62,
+        "latency_max_samples": 25,
+        "latency_mean_std_samples": 31.511568643120157,
+        "latency_max_std_samples": 53.36275230283136
+      },
       "clean_metrics": {
         "mae_m": 0.04960014076777673,
         "rmse_m": 0.056268012146778186,
@@ -87,6 +117,16 @@
       "ic_mode": "plain",
       "latency_min_samples": -62,
       "latency_max_samples": 25,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -62,
+        "latency_max_samples": 25,
+        "latency_mean_std_samples": 31.3756114533256,
+        "latency_max_std_samples": 53.36275230283136
+      },
       "clean_metrics": {
         "mae_m": 0.0497701950410944,
         "rmse_m": 0.056361808770460715,
@@ -111,6 +151,16 @@
       "ic_mode": "facilitated",
       "latency_min_samples": -62,
       "latency_max_samples": 25,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -62,
+        "latency_max_samples": 25,
+        "latency_mean_std_samples": 31.3756114533256,
+        "latency_max_std_samples": 53.36275230283136
+      },
       "clean_metrics": {
         "mae_m": 0.05010330678962355,
         "rmse_m": 0.05658826871208807,
@@ -135,6 +185,16 @@
       "ic_mode": "facilitated",
       "latency_min_samples": -111,
       "latency_max_samples": 15,
+      "calibration_stats": {
+        "responsive_channels": 33,
+        "silenced_channels": 15,
+        "calibrated_responsive_channels": 33,
+        "missing_responsive_channels": 0,
+        "latency_min_samples": -111,
+        "latency_max_samples": 15,
+        "latency_mean_std_samples": 1.6155555652602493,
+        "latency_max_std_samples": 2.8284271247461903
+      },
       "clean_metrics": {
         "mae_m": 0.0034039820045540744,
         "rmse_m": 0.008476076827822079,
