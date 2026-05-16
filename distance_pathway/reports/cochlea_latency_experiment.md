@@ -87,21 +87,53 @@ This is not the same timing regime as the clean cochleagram-LIF model above. It 
 | max latency std across distances | `53.363` samples |
 | saved robust vector | `distance_pathway/outputs/distance_noise_robustness/spike_tuned_consensus_facil_latency_samples.npy` |
 
+## Selected Dynamic Cochlear LIF Calibration
+
+This section recalibrates latency for the selected noise-cleanup cochlear spike encoder from `distance_noise_diagnostics.md`:
+
+```text
+threshold(t): x16 -> x2.5
+beta(t):      0.20 -> 0.60
+```
+
+This calibration uses clean echoes so it measures the deterministic front-end timing produced by that dynamic spike encoder. It should not be interpreted as the noisy detection accuracy by itself.
+
+![Selected dynamic schedule](../outputs/cochlea_latency/figures/dynamic_selected_schedule.png)
+
+![Selected dynamic latency heatmap](../outputs/cochlea_latency/figures/dynamic_selected_latency_heatmap.png)
+
+![Selected dynamic latency vector](../outputs/cochlea_latency/figures/dynamic_selected_latency_vector.png)
+
+| Dynamic calibration property | Value |
+|---|---:|
+| calibrated channels | `48` |
+| missing channels | `0` |
+| missing first-spike fraction | `0.3559` |
+| latency range | `-119 -> 31` samples |
+| mean latency std across distances | `30.691` samples |
+| max latency std across distances | `54.261` samples |
+| saved dynamic vector | `distance_pathway/outputs/cochlea_latency/dynamic_x16_to_x2p5_beta0p2_to_0p60_latency_samples.npy` |
+
 ## Interpretation
 
 - The latency vector is accepted if refractory-LIF latency is stable across distance, because it can then be treated as a fixed cochlea/front-end delay per channel.
 - The simple first-spike method is only safe to use if its onset timing closely matches the refractory-LIF detector.
 - The latency correction should be applied to the corollary-discharge expectation or IC comparison, not by moving echo spikes earlier in time.
 - The robust spike-raster vector should be interpreted as a lower-precision but noise-tolerant timing calibration.
+- The selected dynamic cochlear LIF vector is a separate timing regime again: it should be used only if the downstream pathway is actually fed by the dynamic cochlear spike raster.
 
 ## Saved Files
 
 - `latency_vector`: `distance_pathway/outputs/cochlea_latency/cochlea_latency_samples.npy`
+- `dynamic_latency_vector`: `distance_pathway/outputs/cochlea_latency/dynamic_x16_to_x2p5_beta0p2_to_0p60_latency_samples.npy`
 - `results`: `distance_pathway/outputs/cochlea_latency/results.json`
 - `latency_heatmap`: `distance_pathway/outputs/cochlea_latency/figures/latency_heatmap.png`
 - `latency_vector`: `distance_pathway/outputs/cochlea_latency/figures/latency_vector.png`
 - `detector_comparison`: `distance_pathway/outputs/cochlea_latency/figures/detector_comparison.png`
 - `robust_latency_heatmap`: `distance_pathway/outputs/cochlea_latency/figures/robust_latency_heatmap.png`
 - `robust_latency_vector`: `distance_pathway/outputs/cochlea_latency/figures/robust_latency_vector.png`
+- `dynamic_selected_schedule`: `distance_pathway/outputs/cochlea_latency/figures/dynamic_selected_schedule.png`
+- `dynamic_selected_latency_heatmap`: `distance_pathway/outputs/cochlea_latency/figures/dynamic_selected_latency_heatmap.png`
+- `dynamic_selected_latency_vector`: `distance_pathway/outputs/cochlea_latency/figures/dynamic_selected_latency_vector.png`
 
-Runtime: `1.16 s`.
+Runtime: `1.67 s`.

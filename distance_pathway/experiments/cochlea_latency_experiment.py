@@ -52,12 +52,22 @@ FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "distance_pathway" / "reports" / "cochlea_latency_experiment.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 LATENCY_VECTOR_PATH = OUTPUT_DIR / "cochlea_latency_samples.npy"
+DYNAMIC_LATENCY_VECTOR_PATH = OUTPUT_DIR / "dynamic_x16_to_x2p5_beta0p2_to_0p60_latency_samples.npy"
 
 TEST_DISTANCES_M = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, 12)
 REFRACTORY_LIF_BETA = 0.92
 REFRACTORY_LIF_THRESHOLD_FRACTION = 0.03
 REFRACTORY_PERIOD_S = 0.010
 CONSISTENCY_STD_THRESHOLD_SAMPLES = 6.0
+DYNAMIC_SELECTED_SCHEDULE = {
+    "name": "dynamic_x16_to_x2p5_beta0p2_to_0p60",
+    "threshold_start_mult": 16.0,
+    "threshold_floor_mult": 2.5,
+    "threshold_tau_ms": 16.0,
+    "beta_start": 0.20,
+    "beta_end": 0.60,
+    "beta_tau_ms": 24.0,
+}
 
 
 @dataclass
@@ -94,6 +104,23 @@ class RobustLatencyResult:
     latency_vector: np.ndarray
     onset_matrix: np.ndarray
     responsive_mask: np.ndarray
+
+
+@dataclass
+class DynamicLatencyResult:
+    """Latency outputs for the selected dynamic cochlear spike encoder.
+
+    Attributes:
+        latency_matrix: Latency per distance and channel.
+        latency_vector: Median latency per channel.
+        first_spike_matrix: First dynamic cochlear spike time per distance and channel.
+        schedule: Dynamic threshold/beta schedule used for the cochlear LIF.
+    """
+
+    latency_matrix: np.ndarray
+    latency_vector: np.ndarray
+    first_spike_matrix: np.ndarray
+    schedule: dict[str, float]
 
 
 def _round_trip_delay_samples(distance_m: float) -> int:
@@ -148,6 +175,52 @@ def _refractory_lif_onsets(cochleagram: torch.Tensor) -> np.ndarray:
     return first
 
 
+def _dynamic_threshold_beta(config, schedule: dict[str, float], num_samples: int) -> tuple[np.ndarray, np.ndarray]:
+    """Return time-varying threshold and beta vectors for dynamic cochlear LIF.
+
+    Args:
+        config: Acoustic configuration.
+        schedule: Dynamic threshold/beta schedule.
+        num_samples: Number of time samples.
+
+    Returns:
+        Pair `(threshold_t, beta_t)` with one value per time sample.
+    """
+    time_ms = np.arange(num_samples, dtype=np.float64) / config.sample_rate_hz * 1_000.0
+    threshold_mult = schedule["threshold_floor_mult"] + (
+        schedule["threshold_start_mult"] - schedule["threshold_floor_mult"]
+    ) * np.exp(-time_ms / schedule["threshold_tau_ms"])
+    threshold_t = float(config.spike_threshold) * threshold_mult
+    beta_t = schedule["beta_start"] + (schedule["beta_end"] - schedule["beta_start"]) * (
+        1.0 - np.exp(-time_ms / schedule["beta_tau_ms"])
+    )
+    return threshold_t.astype(np.float64), beta_t.astype(np.float64)
+
+
+def _dynamic_lif_encode(cochleagram: np.ndarray, config, schedule: dict[str, float]) -> np.ndarray:
+    """Encode a cochleagram with the selected time-varying cochlear LIF.
+
+    Args:
+        cochleagram: Rectified cochleagram `[channels, time]`.
+        config: Acoustic configuration.
+        schedule: Dynamic threshold/beta schedule.
+
+    Returns:
+        Binary spike raster `[channels, time]`.
+    """
+    threshold_t, beta_t = _dynamic_threshold_beta(config, schedule, cochleagram.shape[1])
+    membrane = np.zeros(cochleagram.shape[0], dtype=np.float64)
+    spikes = np.zeros_like(cochleagram, dtype=np.float32)
+    for time_index in range(cochleagram.shape[1]):
+        membrane = beta_t[time_index] * membrane + cochleagram[:, time_index]
+        fired = membrane >= threshold_t[time_index]
+        if np.any(fired):
+            spikes[fired, time_index] = 1.0
+            membrane[fired] -= threshold_t[time_index]
+            membrane = np.maximum(membrane, 0.0)
+    return spikes
+
+
 def _measure_latency_for_distance(distance_m: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Measure latency vectors for one distance.
 
@@ -170,6 +243,28 @@ def _measure_latency_for_distance(distance_m: float) -> tuple[np.ndarray, np.nda
     refractory_latency = refractory_times - expected
     refractory_latency[refractory_times < 0] = np.iinfo(np.int64).min
     return refractory_latency, first_spike_latency, first_spikes, refractory_times
+
+
+def _measure_dynamic_latency_for_distance(distance_m: float) -> tuple[np.ndarray, np.ndarray]:
+    """Measure latency from the selected dynamic cochlear spike encoder.
+
+    Args:
+        distance_m: Distance in metres.
+
+    Returns:
+        Pair `(latency, first_spike_times)`.
+    """
+    config = _make_config()
+    receive = _simulate_scene(config, float(distance_m), add_noise=False)
+    cochlea = _run_cochlea_binaural(config, receive)
+    combined_cochleagram = torch.maximum(cochlea.left_cochleagram, cochlea.right_cochleagram).detach().cpu().numpy()
+    dynamic_spikes = _dynamic_lif_encode(combined_cochleagram, config, DYNAMIC_SELECTED_SCHEDULE)
+    first_spikes = _first_spike_times(torch.from_numpy(dynamic_spikes))
+    expected = _chirp_channel_times(config) + _round_trip_delay_samples(float(distance_m))
+    latency = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+    valid = first_spikes >= 0
+    latency[valid] = first_spikes[valid] - expected[valid]
+    return latency, first_spikes
 
 
 def _run_experiment() -> LatencyExperimentResult:
@@ -197,6 +292,30 @@ def _run_experiment() -> LatencyExperimentResult:
         latency_vector=latency_vector,
         first_spike_matrix=first_spike_matrix,
         refractory_lif_matrix=refractory_lif_matrix,
+    )
+
+
+def _run_dynamic_latency_experiment() -> DynamicLatencyResult:
+    """Run latency calibration for the selected dynamic cochlear spike encoder."""
+    latency_rows = []
+    first_spike_rows = []
+    for distance_m in TEST_DISTANCES_M:
+        latency, first_spikes = _measure_dynamic_latency_for_distance(float(distance_m))
+        latency_rows.append(latency)
+        first_spike_rows.append(first_spikes)
+
+    latency_matrix = np.vstack(latency_rows)
+    first_spike_matrix = np.vstack(first_spike_rows)
+    latency_vector = np.zeros(NUM_CHANNELS, dtype=np.int64)
+    for channel in range(NUM_CHANNELS):
+        values = latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        latency_vector[channel] = int(np.rint(np.median(values))) if values.size else 0
+    return DynamicLatencyResult(
+        latency_matrix=latency_matrix,
+        latency_vector=latency_vector,
+        first_spike_matrix=first_spike_matrix,
+        schedule=DYNAMIC_SELECTED_SCHEDULE,
     )
 
 
@@ -379,6 +498,68 @@ def _plot_robust_latency_vector(result: RobustLatencyResult, path: Path) -> str:
     return save_figure(fig, path)
 
 
+def _plot_dynamic_latency_heatmap(result: DynamicLatencyResult, path: Path) -> str:
+    """Plot selected dynamic cochlear encoder latency by distance and channel."""
+    config = _make_config()
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    image = ax.imshow(
+        result.latency_matrix,
+        aspect="auto",
+        origin="lower",
+        cmap="coolwarm",
+        extent=[centers_khz.min(), centers_khz.max(), TEST_DISTANCES_M.min(), TEST_DISTANCES_M.max()],
+    )
+    ax.set_xscale("log")
+    ax.set_xlabel("channel centre frequency (kHz)")
+    ax.set_ylabel("distance (m)")
+    ax.set_title("Selected dynamic cochlear LIF latency vs expected CD sweep")
+    fig.colorbar(image, ax=ax, label="latency (samples)")
+    return save_figure(fig, path)
+
+
+def _plot_dynamic_latency_vector(result: DynamicLatencyResult, path: Path) -> str:
+    """Plot selected dynamic cochlear latency vector and distance consistency."""
+    config = _make_config()
+    centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
+    latency_std = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+    for channel in range(NUM_CHANNELS):
+        values = result.latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        if values.size:
+            latency_std[channel] = float(np.std(values))
+
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7), sharex=True)
+    axes[0].plot(centers_khz, result.latency_vector, marker="o", linewidth=1.5, color="#0f766e")
+    axes[0].set_ylabel("median latency (samples)")
+    axes[0].set_title("Selected dynamic cochlear LIF latency vector")
+    axes[1].plot(centers_khz, latency_std, marker="o", color="#dc2626", linewidth=1.5)
+    axes[1].axhline(CONSISTENCY_STD_THRESHOLD_SAMPLES, color="#111827", linestyle="--")
+    axes[1].set_ylabel("std across distances (samples)")
+    axes[1].set_xlabel("channel centre frequency (kHz)")
+    axes[1].set_xscale("log")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
+def _plot_dynamic_latency_schedule(path: Path) -> str:
+    """Plot the selected dynamic threshold and beta schedule."""
+    config = _make_config()
+    threshold_t, beta_t = _dynamic_threshold_beta(config, DYNAMIC_SELECTED_SCHEDULE, config.signal_samples)
+    time_ms = np.arange(config.signal_samples) / config.sample_rate_hz * 1_000.0
+    fig, axes = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
+    axes[0].plot(time_ms, threshold_t, color="#dc2626", linewidth=2.0)
+    axes[0].set_ylabel("threshold")
+    axes[0].set_title("Selected dynamic cochlear LIF schedule")
+    axes[1].plot(time_ms, beta_t, color="#2563eb", linewidth=2.0)
+    axes[1].set_ylabel("beta")
+    axes[1].set_xlabel("time (ms)")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
 def _summary_stats(result: LatencyExperimentResult) -> dict[str, float]:
     """Calculate latency experiment summary statistics."""
     latency = np.where(
@@ -431,15 +612,37 @@ def _robust_summary_stats(result: RobustLatencyResult) -> dict[str, float]:
     }
 
 
+def _dynamic_summary_stats(result: DynamicLatencyResult) -> dict[str, float]:
+    """Calculate selected dynamic cochlear latency summary statistics."""
+    latency_std = np.full(NUM_CHANNELS, np.nan, dtype=np.float64)
+    calibrated = np.isfinite(result.latency_matrix).any(axis=0)
+    for channel in range(NUM_CHANNELS):
+        values = result.latency_matrix[:, channel]
+        values = values[np.isfinite(values)]
+        if values.size:
+            latency_std[channel] = float(np.std(values))
+    return {
+        "calibrated_channels": int(np.sum(calibrated)),
+        "missing_channels": int(NUM_CHANNELS - np.sum(calibrated)),
+        "latency_min_samples": int(np.min(result.latency_vector[calibrated])) if np.any(calibrated) else 0,
+        "latency_max_samples": int(np.max(result.latency_vector[calibrated])) if np.any(calibrated) else 0,
+        "latency_mean_std_samples": float(np.nanmean(latency_std)),
+        "latency_max_std_samples": float(np.nanmax(latency_std)),
+        "missing_first_spike_fraction": float(np.mean(result.first_spike_matrix < 0)),
+    }
+
+
 def _write_report(
     result: LatencyExperimentResult,
     robust_result: RobustLatencyResult,
+    dynamic_result: DynamicLatencyResult,
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
     """Write the latency experiment report."""
     stats = _summary_stats(result)
     robust_stats = _robust_summary_stats(robust_result)
+    dynamic_stats = _dynamic_summary_stats(dynamic_result)
     config = _make_config()
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -532,16 +735,45 @@ def _write_report(
         f"| max latency std across distances | `{robust_stats['latency_max_std_samples']:.3f}` samples |",
         f"| saved robust vector | `{ROBUST_LATENCY_VECTOR_PATH.relative_to(ROOT)}` |",
         "",
+        "## Selected Dynamic Cochlear LIF Calibration",
+        "",
+        "This section recalibrates latency for the selected noise-cleanup cochlear spike encoder from `distance_noise_diagnostics.md`:",
+        "",
+        "```text",
+        "threshold(t): x16 -> x2.5",
+        "beta(t):      0.20 -> 0.60",
+        "```",
+        "",
+        "This calibration uses clean echoes so it measures the deterministic front-end timing produced by that dynamic spike encoder. It should not be interpreted as the noisy detection accuracy by itself.",
+        "",
+        "![Selected dynamic schedule](../outputs/cochlea_latency/figures/dynamic_selected_schedule.png)",
+        "",
+        "![Selected dynamic latency heatmap](../outputs/cochlea_latency/figures/dynamic_selected_latency_heatmap.png)",
+        "",
+        "![Selected dynamic latency vector](../outputs/cochlea_latency/figures/dynamic_selected_latency_vector.png)",
+        "",
+        "| Dynamic calibration property | Value |",
+        "|---|---:|",
+        f"| calibrated channels | `{dynamic_stats['calibrated_channels']}` |",
+        f"| missing channels | `{dynamic_stats['missing_channels']}` |",
+        f"| missing first-spike fraction | `{dynamic_stats['missing_first_spike_fraction']:.4f}` |",
+        f"| latency range | `{dynamic_stats['latency_min_samples']} -> {dynamic_stats['latency_max_samples']}` samples |",
+        f"| mean latency std across distances | `{dynamic_stats['latency_mean_std_samples']:.3f}` samples |",
+        f"| max latency std across distances | `{dynamic_stats['latency_max_std_samples']:.3f}` samples |",
+        f"| saved dynamic vector | `{DYNAMIC_LATENCY_VECTOR_PATH.relative_to(ROOT)}` |",
+        "",
         "## Interpretation",
         "",
         "- The latency vector is accepted if refractory-LIF latency is stable across distance, because it can then be treated as a fixed cochlea/front-end delay per channel.",
         "- The simple first-spike method is only safe to use if its onset timing closely matches the refractory-LIF detector.",
         "- The latency correction should be applied to the corollary-discharge expectation or IC comparison, not by moving echo spikes earlier in time.",
         "- The robust spike-raster vector should be interpreted as a lower-precision but noise-tolerant timing calibration.",
+        "- The selected dynamic cochlear LIF vector is a separate timing regime again: it should be used only if the downstream pathway is actually fed by the dynamic cochlear spike raster.",
         "",
         "## Saved Files",
         "",
         f"- `latency_vector`: `{LATENCY_VECTOR_PATH.relative_to(ROOT)}`",
+        f"- `dynamic_latency_vector`: `{DYNAMIC_LATENCY_VECTOR_PATH.relative_to(ROOT)}`",
         f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`",
     ]
     for name, path in artifacts.items():
@@ -559,8 +791,10 @@ def main() -> dict[str, object]:
     ensure_dir(REPORT_PATH.parent)
     result = _run_experiment()
     robust_result = _run_robust_latency_experiment()
+    dynamic_result = _run_dynamic_latency_experiment()
     np.save(LATENCY_VECTOR_PATH, result.latency_vector)
     np.save(ROBUST_LATENCY_VECTOR_PATH, robust_result.latency_vector)
+    np.save(DYNAMIC_LATENCY_VECTOR_PATH, dynamic_result.latency_vector)
     artifacts = {
         "latency_heatmap": _plot_latency_heatmap(result, FIGURE_DIR / "latency_heatmap.png"),
         "latency_vector": _plot_latency_vector(result, FIGURE_DIR / "latency_vector.png"),
@@ -573,6 +807,17 @@ def main() -> dict[str, object]:
             robust_result,
             FIGURE_DIR / "robust_latency_vector.png",
         ),
+        "dynamic_selected_schedule": _plot_dynamic_latency_schedule(
+            FIGURE_DIR / "dynamic_selected_schedule.png",
+        ),
+        "dynamic_selected_latency_heatmap": _plot_dynamic_latency_heatmap(
+            dynamic_result,
+            FIGURE_DIR / "dynamic_selected_latency_heatmap.png",
+        ),
+        "dynamic_selected_latency_vector": _plot_dynamic_latency_vector(
+            dynamic_result,
+            FIGURE_DIR / "dynamic_selected_latency_vector.png",
+        ),
     }
     elapsed_s = time.perf_counter() - start
     stats = _summary_stats(result)
@@ -584,12 +829,16 @@ def main() -> dict[str, object]:
         "stats": stats,
         "robust_latency_vector_samples": robust_result.latency_vector.tolist(),
         "robust_stats": _robust_summary_stats(robust_result),
+        "dynamic_selected_schedule": dynamic_result.schedule,
+        "dynamic_latency_vector_samples": dynamic_result.latency_vector.tolist(),
+        "dynamic_stats": _dynamic_summary_stats(dynamic_result),
         "artifacts": artifacts,
         "latency_vector_path": str(LATENCY_VECTOR_PATH),
         "robust_latency_vector_path": str(ROBUST_LATENCY_VECTOR_PATH),
+        "dynamic_latency_vector_path": str(DYNAMIC_LATENCY_VECTOR_PATH),
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    _write_report(result, robust_result, artifacts, elapsed_s)
+    _write_report(result, robust_result, dynamic_result, artifacts, elapsed_s)
     return payload
 
 
