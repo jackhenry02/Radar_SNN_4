@@ -1,0 +1,153 @@
+{
+  "experiment": "distance_noise_robustness_experiments",
+  "elapsed_seconds": 33.09422325016931,
+  "target_snr_db": 10.0,
+  "noise_std": 2.9644242015988462,
+  "jitter_std_s": 0.00025,
+  "variant_results": [
+    {
+      "key": "cochleagram_baseline",
+      "name": "Cochleagram VCN baseline",
+      "vcn_input": "cochleagram",
+      "spike_threshold_multiplier": 1.0,
+      "spike_beta": null,
+      "vcn_detector": "first",
+      "ic_mode": "plain",
+      "latency_min_samples": -176,
+      "latency_max_samples": 8,
+      "clean_metrics": {
+        "mae_m": 0.003420893844734202,
+        "rmse_m": 0.009385905081978336,
+        "max_abs_error_m": 0.06100954242523038,
+        "bias_m": -0.0016104027595579384
+      },
+      "noisy_metrics": {
+        "mae_m": 1.1020309259929255,
+        "rmse_m": 1.326851019712313,
+        "max_abs_error_m": 3.5942525034756674,
+        "bias_m": -0.8314870423196663
+      },
+      "note": "Current high-accuracy clean model; VCN reads cochleagram."
+    },
+    {
+      "key": "spike_baseline",
+      "name": "Spike-raster VCN baseline",
+      "vcn_input": "spikes",
+      "spike_threshold_multiplier": 1.0,
+      "spike_beta": null,
+      "vcn_detector": "first",
+      "ic_mode": "plain",
+      "latency_min_samples": -124,
+      "latency_max_samples": 17,
+      "clean_metrics": {
+        "mae_m": 0.021538176814638682,
+        "rmse_m": 0.02470776938975728,
+        "max_abs_error_m": 0.048240116033029246,
+        "bias_m": -0.001719575314165707
+      },
+      "noisy_metrics": {
+        "mae_m": 1.1485005553802898,
+        "rmse_m": 1.3061869060155407,
+        "max_abs_error_m": 2.3398138530748813,
+        "bias_m": -0.16077254347973177
+      },
+      "note": "Strictly spike-raster VCN input."
+    },
+    {
+      "key": "spike_tuned",
+      "name": "Spike VCN + cochlea tuning",
+      "vcn_input": "spikes",
+      "spike_threshold_multiplier": 16.0,
+      "spike_beta": 0.5,
+      "vcn_detector": "first",
+      "ic_mode": "plain",
+      "latency_min_samples": -62,
+      "latency_max_samples": 25,
+      "clean_metrics": {
+        "mae_m": 0.04960014076777673,
+        "rmse_m": 0.056268012146778186,
+        "max_abs_error_m": 0.11657088592244524,
+        "bias_m": 0.012217659447352956
+      },
+      "noisy_metrics": {
+        "mae_m": 0.05238738875853456,
+        "rmse_m": 0.06585377932843718,
+        "max_abs_error_m": 0.2353242498770538,
+        "bias_m": -0.013574418918966014
+      },
+      "note": "Uses 16x cochlear threshold and beta=0.5."
+    },
+    {
+      "key": "spike_tuned_consensus",
+      "name": "Spike VCN + tuning + VCN consensus",
+      "vcn_input": "spikes",
+      "spike_threshold_multiplier": 16.0,
+      "spike_beta": 0.5,
+      "vcn_detector": "consensus",
+      "ic_mode": "plain",
+      "latency_min_samples": -62,
+      "latency_max_samples": 25,
+      "clean_metrics": {
+        "mae_m": 0.0497701950410944,
+        "rmse_m": 0.056361808770460715,
+        "max_abs_error_m": 0.11537610003764986,
+        "bias_m": 0.013036735977767732
+      },
+      "noisy_metrics": {
+        "mae_m": 0.052403330275817006,
+        "rmse_m": 0.06568349021427126,
+        "max_abs_error_m": 0.23414982648716987,
+        "bias_m": -0.011162728257090948
+      },
+      "note": "Adds local multi-channel coincidence in VCN."
+    },
+    {
+      "key": "spike_tuned_consensus_facil",
+      "name": "Spike VCN + tuning + consensus + IC facilitation",
+      "vcn_input": "spikes",
+      "spike_threshold_multiplier": 16.0,
+      "spike_beta": 0.5,
+      "vcn_detector": "consensus",
+      "ic_mode": "facilitated",
+      "latency_min_samples": -62,
+      "latency_max_samples": 25,
+      "clean_metrics": {
+        "mae_m": 0.05010330678962355,
+        "rmse_m": 0.05658826871208807,
+        "max_abs_error_m": 0.11529117268694977,
+        "bias_m": 0.013136658430241619
+      },
+      "noisy_metrics": {
+        "mae_m": 0.05251960617407851,
+        "rmse_m": 0.06577698963040587,
+        "max_abs_error_m": 0.23406713538185464,
+        "bias_m": -0.011121981960142264
+      },
+      "note": "Adds soft sweep-consistency facilitation in IC."
+    },
+    {
+      "key": "cochleagram_consensus_facil",
+      "name": "Cochleagram VCN + consensus + IC facilitation",
+      "vcn_input": "cochleagram",
+      "spike_threshold_multiplier": 1.0,
+      "spike_beta": null,
+      "vcn_detector": "consensus",
+      "ic_mode": "facilitated",
+      "latency_min_samples": -111,
+      "latency_max_samples": 15,
+      "clean_metrics": {
+        "mae_m": 0.0034039820045540744,
+        "rmse_m": 0.008476076827822079,
+        "max_abs_error_m": 0.055515560550901455,
+        "bias_m": -0.000641988688161551
+      },
+      "noisy_metrics": {
+        "mae_m": 1.1736395002347701,
+        "rmse_m": 1.6419539149509694,
+        "max_abs_error_m": 4.024190738768116,
+        "bias_m": -1.1702735122053525
+      },
+      "note": "Tests whether the same pathway-level fixes work without spike-raster input."
+    }
+  ]
+}

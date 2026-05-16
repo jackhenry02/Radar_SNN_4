@@ -1,0 +1,49 @@
+# Distance Noise Robustness Experiments
+
+This report tests staged fixes for the distance-pathway noise failure observed in `distance_noise_diagnostics.md`.
+
+## Noise Condition
+
+- Noisy test: `10.0 dB` SNR additive white receiver noise plus `jitter_std = 0.00025 s`.
+- Realised noisy config `noise_std`: `2.96442`.
+- Distances: `0.25 -> 5.0 m`, `80` samples.
+
+## Tested Mechanisms
+
+- Cochlea tuning: spike threshold `x16`, cochlear LIF beta `0.5`.
+- VCN consensus: local window `±2` channels and `±8` samples, requiring at least `3` local events.
+- IC facilitation: soft local sweep-consistency gain `0.45`, tau `8.0` samples.
+- VCN frequency mask: channels below `4.0 kHz` are silenced because the call-relevant sweep does not use them.
+
+## Results
+
+| Variant | VCN input | Cochlea tuning | VCN detector | IC mode | Clean MAE | Noisy MAE | Noisy RMSE | Noisy max error | Note |
+|---|---|---|---|---|---:|---:|---:|---:|---|
+| Cochleagram VCN baseline | `cochleagram` | `default` | `first` | `plain` | `0.342 cm` | `110.203 cm` | `132.685 cm` | `359.425 cm` | Current high-accuracy clean model; VCN reads cochleagram. |
+| Spike-raster VCN baseline | `spikes` | `default` | `first` | `plain` | `2.154 cm` | `114.850 cm` | `130.619 cm` | `233.981 cm` | Strictly spike-raster VCN input. |
+| Spike VCN + cochlea tuning | `spikes` | `x16, beta=0.5` | `first` | `plain` | `4.960 cm` | `5.239 cm` | `6.585 cm` | `23.532 cm` | Uses 16x cochlear threshold and beta=0.5. |
+| Spike VCN + tuning + VCN consensus | `spikes` | `x16, beta=0.5` | `consensus` | `plain` | `4.977 cm` | `5.240 cm` | `6.568 cm` | `23.415 cm` | Adds local multi-channel coincidence in VCN. |
+| Spike VCN + tuning + consensus + IC facilitation | `spikes` | `x16, beta=0.5` | `consensus` | `facilitated` | `5.010 cm` | `5.252 cm` | `6.578 cm` | `23.407 cm` | Adds soft sweep-consistency facilitation in IC. |
+| Cochleagram VCN + consensus + IC facilitation | `cochleagram` | `default` | `consensus` | `facilitated` | `0.340 cm` | `117.364 cm` | `164.195 cm` | `402.419 cm` | Tests whether the same pathway-level fixes work without spike-raster input. |
+
+## Main Findings
+
+- Best clean result: `Cochleagram VCN + consensus + IC facilitation` with MAE `0.340 cm`.
+- Best noisy result: `Spike VCN + cochlea tuning` with MAE `5.239 cm`.
+- The main robustness gain came from cochlea tuning on the spike-raster pathway: threshold `x16` and beta `0.5` reduced noisy MAE from metre-scale failure to approximately `5 cm`.
+- VCN consensus and IC facilitation did not materially improve this first tuned spike-raster result. They may need retuning now that the cochlear input is much sparser.
+- The cochleagram pathway remains excellent clean, but it is still highly noise-sensitive because it reads continuous low-threshold activity before the cochlear spike encoder.
+
+## Interpretation
+
+- The spike-raster pathway is the relevant path for cochlea threshold/beta tuning, because cochleagram VCN bypasses cochlear spike generation.
+- VCN consensus is intended to reject isolated noisy events by requiring local channel agreement.
+- IC facilitation is deliberately soft: it boosts sweep-consistent candidate distances but does not hard-gate the response.
+- The VCN frequency mask is a biological/engineering assumption that sub-call-band channels should not drive the distance pathway.
+- If a variant improves noisy MAE but destroys clean MAE, it is not yet acceptable as a general distance pathway.
+
+## Generated Files
+
+- `results`: `distance_pathway/outputs/distance_noise_robustness/results.json`
+
+Runtime: `33.09 s`.
