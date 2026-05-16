@@ -185,6 +185,40 @@ The table below compares the distance error here against the old trained multi-o
 
 On nominal distance MAE, this updated distance-only pathway is competitive with the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation. The useful conclusion is narrower: the structured distance pathway works as a distance estimator and can be made substantially more noise robust than the original cochleagram-driven path.
 
+## Round 5 Old-Model Results
+
+The following values are copied directly from `outputs/round_5_experiments_report.md`; no old models were rerun for this report. Round 5 used the previous small-space localisation setup, where the model predicted distance, azimuth, and elevation jointly. From the Round 5 experiment payload, that setup used distance support `0.5 -> 5.0 m`, azimuth `-45 -> 45 deg`, and elevation `-30 -> 30 deg`. The shared spike/pathway data preparation time was `15.93 s`; the runtime column for Round 5 variants is decoder fitting/evaluation after that preparation.
+
+| Model | Setup | Combined | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean | Runtime |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Round 4 combined baseline | trained full multi-output model | `0.0435` | `0.0786 m` | `2.8320 deg` | `2.7802 deg` | `0.2264 m` | n/a |
+| Round 3 `2B + 3` reference | simpler trained multi-output model | `0.0394` | `0.0646 m` | `2.8595 deg` | `2.5258 deg` | `0.2043 m` | n/a |
+| Round 5 Experiment 1A | naive fixed population decoder | `0.2688` | `0.1646 m` | `31.8177 deg` | `14.3279 deg` | `1.6060 m` | `0.55 s` |
+| Round 5 Experiment 1B | minimal closed-form scale/bias calibration | `0.1766` | `0.1385 m` | `14.4682 deg` | `12.3877 deg` | `0.9845 m` | `0.01 s` |
+| Round 5 Experiment 1C | trained-once fixed ridge decoder | `0.0387` | `0.0438 m` | `3.1077 deg` | `2.5876 deg` | `0.2069 m` | `1.10 s` |
+
+These old results are useful as context, but not as a strict like-for-like comparison with the current distance pathway. The old models solved a three-output localisation task over the previous small space; the current pathway is deliberately distance-only and uses a newer hand-structured front end.
+
+## Full Test
+
+The full test asks whether the current distance-only pathway still works when the acoustic scene varies over 3D position. It uses `80` targets sampled uniformly over distance `0.25 -> 10.00 m`, azimuth `-90 -> 90 deg`, and elevation `-45 -> 45 deg`. Only distance error is measured.
+
+The signal setup is the matched-human call: `64000 Hz` sample rate, `3.0 ms` chirp, `18.0 -> 2.0 kHz` sweep, and transmit gain `1000.0`. Under the project convention, amplitude `1.0` is treated as `80 dB` and the `1000x` call gain is treated as `140 dB`.
+
+The 3D simulation includes binaural path-length differences, ITD, ILD/head-shadow gain, inverse-square attenuation, and the elevation spectral notch/slope filter. The previously rejected azimuth spectral-notch cue is not enabled; azimuth affects this distance test through binaural geometry and head-shadow rather than an extra spectral notch.
+
+Noise floors are fixed receiver noise levels, not re-normalised per target distance. This means farther echoes have lower effective SNR, which is the intended stress test.
+
+![Full test accuracy](../outputs/full_distance_pathway/figures/full_test_accuracy.png)
+
+| Condition | Noise floor | Noise std | MAE | RMSE | Max abs error | Bias |
+|---|---:|---:|---:|---:|---:|---:|
+| Clean | clean | `0` | `34.041 cm` | `110.014 cm` | `464.131 cm` | `-30.829 cm` |
+| Ambient noise floor 50 dB | 50 dB | `0.0316228` | `34.040 cm` | `110.014 cm` | `464.131 cm` | `-30.828 cm` |
+| Heavy noise floor 100 dB | 100 dB | `10` | `442.394 cm` | `510.774 cm` | `935.522 cm` | `-436.324 cm` |
+
+The clean and 50 dB ambient-noise results are almost identical, which means the low fixed ambient floor is not the limiting factor here. The larger error is already present in the clean 3D expanded-space condition, so the current distance pathway is being stressed mainly by the wider 10 m support and angular/binaural cue variation. The 100 dB fixed noise floor is severe and collapses many predictions toward short distances, which is visible as a large negative bias.
+
 ## Causality Update
 
 The previous prototype subtracted the latency vector from echo onsets, which could make VCN/VNLL and DNLL spikes appear before the cochlea output. This version fixes that: VCN/VNLL and DNLL stay causal, and the latency vector is added to the corollary-discharge expectation inside the CD/IC comparison.
@@ -198,29 +232,13 @@ The previous prototype subtracted the latency vector from echo onsets, which cou
 - The next optimisation step is to replace dense cochlear rasters with coordinate events so the chosen coordinate accumulator can be used downstream.
 - This should be counted as a successful first full-distance-pathway prototype: the full chain from cochlea to SC readout produces a structured distance population and low clean distance error while preserving causal onset timing.
 
-## Updated model:
-
-Updated the full distance pathway so the primary model is now:
-
-`dynamic cochlea x16 -> x2.5, beta 0.20 -> 0.60` + `4 kHz VCN mask` + `VCN consensus` + `IC facilitation`.
-Key results:
-
-| Model | Clean MAE | Noisy MAE |
-|---|---:|---:|
-| Updated dynamic primary | `3.571 cm` | `7.127 cm` |
-| Previous cochleagram path | `0.342 cm` | `118.744 cm` |
-| Basic spike-raster path | `2.154 cm` | `117.853 cm` |
-
-
-The dynamic primary is less accurate clean than the old cochleagram path, but dramatically more robust under the 10 dB noise + jitter test.
-
 ## Generated Files
 
 - `stage_rasters`: `distance_pathway/outputs/full_distance_pathway/figures/stage_rasters.png`
 - `population_progression`: `distance_pathway/outputs/full_distance_pathway/figures/population_progression.png`
 - `mexican_hat_matrix`: `distance_pathway/outputs/full_distance_pathway/figures/mexican_hat_matrix.png`
 - `accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/accuracy.png`
+- `full_test_accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/full_test_accuracy.png`
 - `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
 
-Runtime: `21.01 s`.
-
+Runtime: `40.51 s`.

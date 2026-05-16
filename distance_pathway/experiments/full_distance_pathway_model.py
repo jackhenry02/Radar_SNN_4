@@ -49,6 +49,14 @@ NUM_DISTANCE_BINS = 180
 MIN_DISTANCE_M = 0.25
 MAX_DISTANCE_M = 5.0
 NUM_TEST_SAMPLES = 80
+FULL_TEST_SAMPLES = 80
+FULL_TEST_MAX_DISTANCE_M = 10.0
+FULL_TEST_AZIMUTH_LIMIT_DEG = 90.0
+FULL_TEST_ELEVATION_LIMIT_DEG = 45.0
+REFERENCE_DB_SPL = 80.0
+CALL_DB_SPL = 140.0
+AMBIENT_NOISE_DB_SPL = 50.0
+HEAVY_NOISE_DB_SPL = 100.0
 REFERENCE_DISTANCE_M = 2.5
 RNG_SEED = 44
 LATENCY_CALIBRATION_DISTANCES_M = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, 12)
@@ -171,14 +179,16 @@ def _make_config() -> GlobalConfig:
     )
 
 
-def _candidate_distances() -> np.ndarray:
+def _candidate_distances(config: GlobalConfig | None = None) -> np.ndarray:
     """Return distance-bin centres in metres."""
-    return np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, NUM_DISTANCE_BINS)
+    min_distance = MIN_DISTANCE_M if config is None else float(config.min_range_m)
+    max_distance = MAX_DISTANCE_M if config is None else float(config.max_range_m)
+    return np.linspace(min_distance, max_distance, NUM_DISTANCE_BINS)
 
 
 def _candidate_delay_samples(config: GlobalConfig) -> np.ndarray:
     """Return candidate round-trip delay samples."""
-    distances = _candidate_distances()
+    distances = _candidate_distances(config)
     return np.rint(
         (2.0 * distances / config.speed_of_sound_m_s) * config.sample_rate_hz
     ).astype(np.int64)
@@ -221,6 +231,39 @@ def _simulate_scene(config: GlobalConfig, distance_m: float, *, add_noise: bool 
         binaural=True,
         add_noise=add_noise,
         include_elevation_cues=False,
+        transmit_gain=config.transmit_gain,
+    )
+    return scene.receive[0].detach()
+
+
+def _simulate_scene_3d(
+    config: GlobalConfig,
+    distance_m: float,
+    azimuth_deg: float,
+    elevation_deg: float,
+    *,
+    add_noise: bool = False,
+) -> torch.Tensor:
+    """Simulate one binaural 3D echo with full angular acoustic cues.
+
+    Args:
+        config: Acoustic configuration.
+        distance_m: Target radius in metres.
+        azimuth_deg: Target azimuth in degrees.
+        elevation_deg: Target elevation in degrees.
+        add_noise: Whether to add fixed receiver noise from `config.noise_std`.
+
+    Returns:
+        Received binaural waveform `[ears, time]`.
+    """
+    scene = simulate_echo_batch(
+        config,
+        radii_m=torch.tensor([distance_m], dtype=torch.float32),
+        azimuth_deg=torch.tensor([azimuth_deg], dtype=torch.float32),
+        elevation_deg=torch.tensor([elevation_deg], dtype=torch.float32),
+        binaural=True,
+        add_noise=add_noise,
+        include_elevation_cues=True,
         transmit_gain=config.transmit_gain,
     )
     return scene.receive[0].detach()
@@ -684,19 +727,26 @@ def _calibrate_channel_latency_over_distances(config: GlobalConfig, vcn_input: s
     return median_latency.astype(np.int64)
 
 
-def _calibrate_variant_latency(config: GlobalConfig, variant: PathwayVariant) -> np.ndarray:
+def _calibrate_variant_latency(
+    config: GlobalConfig,
+    variant: PathwayVariant,
+    calibration_distances: np.ndarray | None = None,
+) -> np.ndarray:
     """Estimate per-channel latency for a full pathway variant.
 
     Args:
         config: Acoustic configuration.
         variant: Variant with detector and cochlea settings.
+        calibration_distances: Optional calibration distances. If omitted, the
+            standard small-space calibration grid is used.
 
     Returns:
         Per-channel median latency correction in samples.
     """
     cd_times = _chirp_channel_times(config)
     latency_rows = []
-    for distance_m in LATENCY_CALIBRATION_DISTANCES_M:
+    distances = LATENCY_CALIBRATION_DISTANCES_M if calibration_distances is None else calibration_distances
+    for distance_m in distances:
         receive = _simulate_scene(config, float(distance_m), add_noise=False)
         cochlea = _run_cochlea_binaural(config, receive)
         vcn_left, vcn_right = _run_vcn_for_variant(cochlea, config, variant)
@@ -840,7 +890,7 @@ def _ac_topographic_map(ic_activation: np.ndarray) -> np.ndarray:
     return ac
 
 
-def _sc_center_of_mass(ac_activation: np.ndarray) -> float:
+def _sc_center_of_mass(ac_activation: np.ndarray, config: GlobalConfig) -> float:
     """Read out distance using SC centre of mass.
 
     Args:
@@ -849,7 +899,7 @@ def _sc_center_of_mass(ac_activation: np.ndarray) -> float:
     Returns:
         Predicted distance in metres.
     """
-    distances = _candidate_distances()
+    distances = _candidate_distances(config)
     total = ac_activation.sum()
     if total <= 1e-12:
         return float(distances[len(distances) // 2])
@@ -873,7 +923,59 @@ def _predict_one(
     else:
         ic = _ic_lif_coincidence(dnll, config, variant.latency_samples)
     ac = _ac_topographic_map(ic)
-    predicted = _sc_center_of_mass(ac)
+    predicted = _sc_center_of_mass(ac, config)
+    return PathwayPrediction(
+        distance_m=float(distance_m),
+        predicted_distance_m=predicted,
+        cochlea=cochlea,
+        vcn_left=vcn_left,
+        vcn_right=vcn_right,
+        dnll_combined=dnll,
+        cd_raster=cd,
+        ic_activation=ic,
+        ac_activation=ac,
+    )
+
+
+def _predict_one_3d(
+    config: GlobalConfig,
+    distance_m: float,
+    azimuth_deg: float,
+    elevation_deg: float,
+    variant: PathwayVariant,
+    *,
+    add_noise: bool = False,
+) -> PathwayPrediction:
+    """Run the distance pathway for one 3D target while predicting distance only.
+
+    Args:
+        config: Acoustic configuration.
+        distance_m: Target radius in metres.
+        azimuth_deg: Target azimuth in degrees.
+        elevation_deg: Target elevation in degrees.
+        variant: Full pathway variant.
+        add_noise: Whether to add receiver noise.
+
+    Returns:
+        Distance-only prediction with full 3D acoustic simulation.
+    """
+    receive = _simulate_scene_3d(
+        config,
+        distance_m,
+        azimuth_deg,
+        elevation_deg,
+        add_noise=add_noise,
+    )
+    cochlea = _run_cochlea_binaural(config, receive)
+    vcn_left, vcn_right = _run_vcn_for_variant(cochlea, config, variant)
+    dnll = _dnll_suppression(vcn_left, vcn_right, config)
+    cd = _make_cd_raster(config, receive.shape[-1], variant.latency_samples)
+    if variant.ic_mode == "facilitated":
+        ic = _ic_facilitated_coincidence(dnll, config, variant.latency_samples)
+    else:
+        ic = _ic_lif_coincidence(dnll, config, variant.latency_samples)
+    ac = _ac_topographic_map(ic)
+    predicted = _sc_center_of_mass(ac, config)
     return PathwayPrediction(
         distance_m=float(distance_m),
         predicted_distance_m=predicted,
@@ -901,7 +1003,7 @@ def _simulate_ic_membranes_for_plot(
     Returns:
         Tuple `(time_ms, membrane_traces, labels)`.
     """
-    candidate_distances = _candidate_distances()
+    candidate_distances = _candidate_distances(config)
     nearest_index = int(np.argmin(np.abs(candidate_distances - prediction.distance_m)))
     candidate_indices = [
         max(0, nearest_index - 18),
@@ -1003,7 +1105,7 @@ def _plot_population_progression(
     path: Path,
 ) -> str:
     """Plot IC, AC, and SC population activity."""
-    distances = _candidate_distances()
+    distances = _candidate_distances(config)
     fig, axes = plt.subplots(3, 1, figsize=(10, 9), sharex=False)
     axes[0].plot(distances, prediction.ic_activation, color="#2563eb", linewidth=2.0)
     axes[0].axvline(prediction.distance_m, color="#111827", linestyle="--", label="true")
@@ -1106,6 +1208,143 @@ def _metrics(predictions: list[PathwayPrediction]) -> dict[str, float]:
         "rmse_m": float(np.sqrt(np.mean(error**2))),
         "max_abs_error_m": float(np.max(np.abs(error))),
         "bias_m": float(np.mean(error)),
+    }
+
+
+def _noise_std_from_db(noise_db_spl: float) -> float:
+    """Convert an effective dB SPL value to waveform noise standard deviation.
+
+    The project convention treats amplitude `1.0` as an 80 dB reference and
+    `transmit_gain=1000` as 140 dB, because `20 log10(1000) = 60 dB`.
+
+    Args:
+        noise_db_spl: Effective acoustic noise level in dB SPL.
+
+    Returns:
+        Additive waveform noise standard deviation.
+    """
+    return float(10.0 ** ((noise_db_spl - REFERENCE_DB_SPL) / 20.0))
+
+
+def _make_full_test_config(noise_std: float = 0.0) -> GlobalConfig:
+    """Create the expanded 3D full-test configuration.
+
+    Args:
+        noise_std: Fixed receiver noise standard deviation.
+
+    Returns:
+        Configuration covering echoes out to 10 m.
+    """
+    return replace(
+        _make_config(),
+        max_range_m=FULL_TEST_MAX_DISTANCE_M,
+        signal_duration_s=0.070,
+        jitter_std_s=0.0,
+        noise_std=float(noise_std),
+    )
+
+
+def _plot_full_test_accuracy(full_test: dict[str, object], path: Path) -> str:
+    """Plot the full 3D distance-only test results.
+
+    Args:
+        full_test: Full-test result dictionary.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
+    for condition in full_test["conditions"]:
+        true = np.array(condition["true_distance_m"], dtype=np.float64)
+        pred = np.array(condition["predicted_distance_m"], dtype=np.float64)
+        axes[0].scatter(true, pred, s=18, alpha=0.65, label=condition["name"])
+        order = np.argsort(true)
+        error_cm = (pred - true) * 100.0
+        window = max(5, len(order) // 12)
+        smoothed = np.convolve(np.abs(error_cm[order]), np.ones(window) / window, mode="same")
+        axes[1].plot(true[order], smoothed, linewidth=1.8, label=condition["name"])
+    axes[0].plot([MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M], [MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M], color="#111827")
+    axes[0].set_xlabel("true distance (m)")
+    axes[0].set_ylabel("predicted distance (m)")
+    axes[0].set_title("Full 3D test: distance readout")
+    axes[0].legend(fontsize=8)
+    axes[0].grid(True, alpha=0.25)
+    axes[1].set_xlabel("true distance (m)")
+    axes[1].set_ylabel("smoothed absolute error (cm)")
+    axes[1].set_title("Error vs distance")
+    axes[1].legend(fontsize=8)
+    axes[1].grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
+def _run_full_space_test(base_variant: PathwayVariant) -> dict[str, object]:
+    """Run the expanded 3D full test for the current primary distance model.
+
+    Args:
+        base_variant: Primary small-space variant template.
+
+    Returns:
+        Full-test metrics and predictions for clean and fixed-noise conditions.
+    """
+    rng = np.random.default_rng(RNG_SEED + 50_000)
+    distances = rng.uniform(MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M, size=FULL_TEST_SAMPLES)
+    azimuths = rng.uniform(-FULL_TEST_AZIMUTH_LIMIT_DEG, FULL_TEST_AZIMUTH_LIMIT_DEG, size=FULL_TEST_SAMPLES)
+    elevations = rng.uniform(-FULL_TEST_ELEVATION_LIMIT_DEG, FULL_TEST_ELEVATION_LIMIT_DEG, size=FULL_TEST_SAMPLES)
+
+    full_config = _make_full_test_config(noise_std=0.0)
+    latency_template = replace(base_variant, latency_samples=np.zeros(NUM_CHANNELS, dtype=np.int64))
+    full_latency = _calibrate_variant_latency(
+        full_config,
+        latency_template,
+        calibration_distances=np.linspace(MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M, 16),
+    )
+    full_variant = replace(base_variant, latency_samples=full_latency)
+
+    condition_specs = [
+        ("Clean", None, 0.0),
+        ("Ambient noise floor 50 dB", AMBIENT_NOISE_DB_SPL, _noise_std_from_db(AMBIENT_NOISE_DB_SPL)),
+        ("Heavy noise floor 100 dB", HEAVY_NOISE_DB_SPL, _noise_std_from_db(HEAVY_NOISE_DB_SPL)),
+    ]
+    conditions = []
+    for condition_index, (name, noise_db, noise_std) in enumerate(condition_specs):
+        config = _make_full_test_config(noise_std=noise_std)
+        torch.manual_seed(RNG_SEED + 60_000 + condition_index)
+        predictions = [
+            _predict_one_3d(
+                config,
+                float(distance),
+                float(azimuth),
+                float(elevation),
+                full_variant,
+                add_noise=noise_std > 0.0,
+            )
+            for distance, azimuth, elevation in zip(distances, azimuths, elevations)
+        ]
+        metrics = _metrics(predictions)
+        conditions.append(
+            {
+                "name": name,
+                "noise_db_spl": noise_db,
+                "noise_std": noise_std,
+                "metrics": metrics,
+                "true_distance_m": [float(prediction.distance_m) for prediction in predictions],
+                "predicted_distance_m": [float(prediction.predicted_distance_m) for prediction in predictions],
+            }
+        )
+    return {
+        "num_samples": FULL_TEST_SAMPLES,
+        "distance_range_m": [MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M],
+        "azimuth_range_deg": [-FULL_TEST_AZIMUTH_LIMIT_DEG, FULL_TEST_AZIMUTH_LIMIT_DEG],
+        "elevation_range_deg": [-FULL_TEST_ELEVATION_LIMIT_DEG, FULL_TEST_ELEVATION_LIMIT_DEG],
+        "signal_duration_s": full_config.signal_duration_s,
+        "sample_rate_hz": full_config.sample_rate_hz,
+        "transmit_gain": full_config.transmit_gain,
+        "call_db_spl": CALL_DB_SPL,
+        "reference_db_spl": REFERENCE_DB_SPL,
+        "latency_min_samples": int(full_latency.min()),
+        "latency_max_samples": int(full_latency.max()),
+        "conditions": conditions,
     }
 
 
@@ -1242,6 +1481,7 @@ def _write_report(
     predictions: list[PathwayPrediction],
     variant_summaries: list[dict[str, object]],
     noise_summaries: list[dict[str, object]],
+    full_test: dict[str, object],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -1249,6 +1489,19 @@ def _write_report(
     metric_values = _metrics(predictions)
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     candidate_delays = _candidate_delay_samples(config)
+    full_test_rows = []
+    for condition in full_test["conditions"]:
+        noise_label = "clean" if condition["noise_db_spl"] is None else f"{condition['noise_db_spl']:.0f} dB"
+        full_test_rows.append(
+            "| "
+            f"{condition['name']} | "
+            f"{noise_label} | "
+            f"`{condition['noise_std']:.6g}` | "
+            f"`{condition['metrics']['mae_m'] * 100.0:.3f} cm` | "
+            f"`{condition['metrics']['rmse_m'] * 100.0:.3f} cm` | "
+            f"`{condition['metrics']['max_abs_error_m'] * 100.0:.3f} cm` | "
+            f"`{condition['metrics']['bias_m'] * 100.0:.3f} cm` |"
+        )
     lines = [
         "# Full Distance Pathway Model",
         "",
@@ -1466,6 +1719,38 @@ def _write_report(
         "",
         "On nominal distance MAE, this updated distance-only pathway is competitive with the previous full models. The correct interpretation is not that the whole new model is already better overall, because it does not yet solve azimuth/elevation. The useful conclusion is narrower: the structured distance pathway works as a distance estimator and can be made substantially more noise robust than the original cochleagram-driven path.",
         "",
+        "## Round 5 Old-Model Results",
+        "",
+        "The following values are copied directly from `outputs/round_5_experiments_report.md`; no old models were rerun for this report. Round 5 used the previous small-space localisation setup, where the model predicted distance, azimuth, and elevation jointly. From the Round 5 experiment payload, that setup used distance support `0.5 -> 5.0 m`, azimuth `-45 -> 45 deg`, and elevation `-30 -> 30 deg`. The shared spike/pathway data preparation time was `15.93 s`; the runtime column for Round 5 variants is decoder fitting/evaluation after that preparation.",
+        "",
+        "| Model | Setup | Combined | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean | Runtime |",
+        "|---|---|---:|---:|---:|---:|---:|---:|",
+        "| Round 4 combined baseline | trained full multi-output model | `0.0435` | `0.0786 m` | `2.8320 deg` | `2.7802 deg` | `0.2264 m` | n/a |",
+        "| Round 3 `2B + 3` reference | simpler trained multi-output model | `0.0394` | `0.0646 m` | `2.8595 deg` | `2.5258 deg` | `0.2043 m` | n/a |",
+        "| Round 5 Experiment 1A | naive fixed population decoder | `0.2688` | `0.1646 m` | `31.8177 deg` | `14.3279 deg` | `1.6060 m` | `0.55 s` |",
+        "| Round 5 Experiment 1B | minimal closed-form scale/bias calibration | `0.1766` | `0.1385 m` | `14.4682 deg` | `12.3877 deg` | `0.9845 m` | `0.01 s` |",
+        "| Round 5 Experiment 1C | trained-once fixed ridge decoder | `0.0387` | `0.0438 m` | `3.1077 deg` | `2.5876 deg` | `0.2069 m` | `1.10 s` |",
+        "",
+        "These old results are useful as context, but not as a strict like-for-like comparison with the current distance pathway. The old models solved a three-output localisation task over the previous small space; the current pathway is deliberately distance-only and uses a newer hand-structured front end.",
+        "",
+        "## Full Test",
+        "",
+        f"The full test asks whether the current distance-only pathway still works when the acoustic scene varies over 3D position. It uses `{full_test['num_samples']}` targets sampled uniformly over distance `{full_test['distance_range_m'][0]:.2f} -> {full_test['distance_range_m'][1]:.2f} m`, azimuth `{full_test['azimuth_range_deg'][0]:.0f} -> {full_test['azimuth_range_deg'][1]:.0f} deg`, and elevation `{full_test['elevation_range_deg'][0]:.0f} -> {full_test['elevation_range_deg'][1]:.0f} deg`. Only distance error is measured.",
+        "",
+        f"The signal setup is the matched-human call: `{config.sample_rate_hz} Hz` sample rate, `{config.chirp_duration_s * 1_000.0:.1f} ms` chirp, `{config.chirp_start_hz / 1_000.0:.1f} -> {config.chirp_end_hz / 1_000.0:.1f} kHz` sweep, and transmit gain `{full_test['transmit_gain']}`. Under the project convention, amplitude `1.0` is treated as `{full_test['reference_db_spl']:.0f} dB` and the `1000x` call gain is treated as `{full_test['call_db_spl']:.0f} dB`.",
+        "",
+        "The 3D simulation includes binaural path-length differences, ITD, ILD/head-shadow gain, inverse-square attenuation, and the elevation spectral notch/slope filter. The previously rejected azimuth spectral-notch cue is not enabled; azimuth affects this distance test through binaural geometry and head-shadow rather than an extra spectral notch.",
+        "",
+        "Noise floors are fixed receiver noise levels, not re-normalised per target distance. This means farther echoes have lower effective SNR, which is the intended stress test.",
+        "",
+        "![Full test accuracy](../outputs/full_distance_pathway/figures/full_test_accuracy.png)",
+        "",
+        "| Condition | Noise floor | Noise std | MAE | RMSE | Max abs error | Bias |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        *full_test_rows,
+        "",
+        "The clean and 50 dB ambient-noise results are almost identical, which means the low fixed ambient floor is not the limiting factor here. The larger error is already present in the clean 3D expanded-space condition, so the current distance pathway is being stressed mainly by the wider 10 m support and angular/binaural cue variation. The 100 dB fixed noise floor is severe and collapses many predictions toward short distances, which is visible as a large negative bias.",
+        "",
         "## Causality Update",
         "",
         "The previous prototype subtracted the latency vector from echo onsets, which could make VCN/VNLL and DNLL spikes appear before the cochlea output. This version fixes that: VCN/VNLL and DNLL stay causal, and the latency vector is added to the corollary-discharge expectation inside the CD/IC comparison.",
@@ -1530,6 +1815,7 @@ def main() -> dict[str, object]:
             }
         )
     noise_summaries = _run_noise_robustness(noisy_config, distances, variants)
+    full_test = _run_full_space_test(primary_variant)
 
     artifacts = {
         "stage_rasters": _plot_stage_rasters(example, config, primary_variant, FIGURE_DIR / "stage_rasters.png"),
@@ -1541,6 +1827,7 @@ def main() -> dict[str, object]:
         ),
         "mexican_hat_matrix": _plot_mexican_hat_matrix(FIGURE_DIR / "mexican_hat_matrix.png"),
         "accuracy": _plot_accuracy(predictions, FIGURE_DIR / "accuracy.png"),
+        "full_test_accuracy": _plot_full_test_accuracy(full_test, FIGURE_DIR / "full_test_accuracy.png"),
     }
     elapsed_s = time.perf_counter() - start
     metric_values = _metrics(predictions)
@@ -1574,6 +1861,7 @@ def main() -> dict[str, object]:
         "latency_samples": primary_variant.latency_samples.tolist(),
         "metrics": metric_values,
         "variant_summaries": variant_summaries,
+        "full_test": full_test,
         "example": {
             "true_distance_m": example.distance_m,
             "predicted_distance_m": example.predicted_distance_m,
@@ -1589,6 +1877,7 @@ def main() -> dict[str, object]:
         predictions,
         variant_summaries,
         noise_summaries,
+        full_test,
         artifacts,
         elapsed_s,
     )
