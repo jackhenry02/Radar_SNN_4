@@ -1,7 +1,8 @@
 {
   "experiment": "distance_noise_diagnostics",
-  "elapsed_seconds": 10.647349041886628,
+  "elapsed_seconds": 10.784093291964382,
   "distance_m": 3.0,
+  "noise_reference_distance_m": 3.0,
   "target_snr_db": 10.0,
   "jitter_std_s": 0.00025,
   "noise_std": 2.9644242015988462,

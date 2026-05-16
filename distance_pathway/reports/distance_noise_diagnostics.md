@@ -152,6 +152,36 @@ The following plots compare the same noisy call/echo condition at `1, 2, 3, 4, 5
 - Dynamic thresholding/beta is a better match to distance-dependent volume: it suppresses early noise strongly, then gradually becomes more sensitive to later weak echoes.
 - The next fix should be a more robust VCN onset rule, such as multi-channel agreement, matched sweep gating, higher/refractory adaptive thresholds, or a pre-onset denoising/gain-control stage.
 
+## Noise Definition Details
+
+The noise in this diagnostic is a fixed additive receiver noise floor, but that fixed value is calibrated from a reference condition.
+
+Reference condition used to set the noise floor:
+
+- Distance: `3.00 m`
+- Azimuth: `0 deg`
+- Elevation: `0 deg`
+- Clean binaural echo, no elevation cue
+- Active echo window: samples where the clean left-ear received waveform exceeds `2%` of its own maximum absolute amplitude
+- Target reference SNR: `10.0 dB`
+
+The noise standard deviation is calculated as:
+
+```text
+signal_rms = RMS(clean_reference_echo over active echo window)
+noise_std = signal_rms / 10^(target_snr_db / 20)
+```
+
+For these diagnostics this gives `noise_std = 2.96442`.
+
+That same `noise_std` is then reused for all tested distances:
+
+```text
+receive_noisy[d] = receive_clean[d] + Normal(0, noise_std)
+```
+
+Therefore the actual received SNR is not fixed across distance. It is highest for near/loud echoes and lower for far/weak echoes. So this should be described as a fixed receiver noise floor calibrated to 10 dB SNR at the reference condition, not as 10 dB SNR at every distance and not as 10 dB SNR at call emission.
+
 ## Generated Files
 
 - `noisy_cochleagram`: `distance_pathway/outputs/distance_noise_diagnostics/figures/noisy_cochleagram.png`
@@ -172,4 +202,4 @@ The following plots compare the same noisy call/echo condition at `1, 2, 3, 4, 5
 - `distance_comparison_5m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_5m.png`
 - `results`: `distance_pathway/outputs/distance_noise_diagnostics/results.json`
 
-Runtime: `10.65 s`.
+Runtime: `10.78 s`.

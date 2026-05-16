@@ -55,6 +55,7 @@ BETA_SWEEP_THRESHOLD_MULTIPLIER = 16.0
 BETA_SWEEP_VALUES = [0.0, 0.5, 0.75, 0.88, 0.95, 0.98]
 DYNAMIC_TEST_DISTANCES_M = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0])
 COMPARISON_DISTANCES_M = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+VCN_MIN_RESPONSIVE_KHZ = 4.0
 DYNAMIC_ECHO_MARGIN_SAMPLES = 32
 DYNAMIC_ECHO_TAIL_SAMPLES = 128
 DYNAMIC_SCHEDULES = [
@@ -210,8 +211,10 @@ def _plot_spike_raster(cochlea, config, path: Path) -> str:
     ax.set_xlabel("time (ms)")
     ax.set_ylabel("channel centre frequency (kHz)")
     ax.set_title("Noisy cochlear spike raster")
+    ax.axhline(VCN_MIN_RESPONSIVE_KHZ, color="#111827", linestyle=":", linewidth=1.1, alpha=0.65, label="4 kHz")
     ax.set_xlim(0.0, combined.shape[1] / config.sample_rate_hz * 1_000.0)
     ax.grid(True, axis="x", alpha=0.2)
+    ax.legend(loc="upper right")
     return save_figure(fig, path)
 
 
@@ -242,6 +245,7 @@ def _plot_threshold_spike_rasters(threshold_outputs: list[dict[str, object]], co
             f"threshold x{output['threshold_multiplier']:.0f} "
             f"(threshold={output['spike_threshold']:.3g}, spikes={output['spike_count']})"
         )
+        ax.axhline(VCN_MIN_RESPONSIVE_KHZ, color="#111827", linestyle=":", linewidth=1.0, alpha=0.65)
         ax.grid(True, axis="x", alpha=0.2)
     axes[-1].set_xlabel("time (ms)")
     axes[-1].set_xlim(0.0, threshold_outputs[0]["combined_spikes"].shape[1] / config.sample_rate_hz * 1_000.0)
@@ -309,6 +313,7 @@ def _plot_beta_spike_rasters(beta_outputs: list[dict[str, object]], config, path
             f"threshold x{BETA_SWEEP_THRESHOLD_MULTIPLIER:.0f}, beta={output['spike_beta']:.2f} "
             f"(spikes={output['spike_count']})"
         )
+        ax.axhline(VCN_MIN_RESPONSIVE_KHZ, color="#111827", linestyle=":", linewidth=1.0, alpha=0.65)
         ax.grid(True, axis="x", alpha=0.2)
     axes[-1].set_xlabel("time (ms)")
     axes[-1].set_xlim(0.0, beta_outputs[0]["combined_spikes"].shape[1] / config.sample_rate_hz * 1_000.0)
@@ -369,6 +374,26 @@ def _dynamic_threshold_beta(config, schedule: dict[str, float], num_samples: int
         1.0 - np.exp(-time_samples / beta_tau)
     )
     return float(config.spike_threshold) * threshold_mult, np.clip(beta, 0.0, 0.999)
+
+
+def _dynamic_value_summary(config, schedule: dict[str, float], sample_indices: list[int]) -> str:
+    """Format threshold/beta values at selected time samples.
+
+    Args:
+        config: Acoustic configuration.
+        schedule: Dynamic threshold/beta schedule.
+        sample_indices: Time samples to summarise.
+
+    Returns:
+        Human-readable summary string.
+    """
+    threshold_t, beta_t = _dynamic_threshold_beta(config, schedule, config.signal_samples)
+    parts = []
+    for sample_index in sample_indices:
+        sample_index = int(np.clip(sample_index, 0, config.signal_samples - 1))
+        time_ms = sample_index / config.sample_rate_hz * 1_000.0
+        parts.append(f"{time_ms:.1f} ms: thr={threshold_t[sample_index]:.2f}, beta={beta_t[sample_index]:.2f}")
+    return " | ".join(parts)
 
 
 def _dynamic_lif_encode(cochleagram: np.ndarray, config, schedule: dict[str, float]) -> np.ndarray:
@@ -506,12 +531,29 @@ def _plot_dynamic_chosen_raster(chosen: dict[str, object], config, path: Path) -
         event_times = np.flatnonzero(spikes[channel] > 0.0) / config.sample_rate_hz * 1_000.0
         if event_times.size:
             ax.vlines(event_times, frequency_khz * 0.985, frequency_khz * 1.015, color="#0f766e", linewidth=0.8)
+    summary = _dynamic_value_summary(
+        config,
+        chosen["schedule"],
+        [0, int(EXAMPLE_DISTANCE_M * 2.0 / config.speed_of_sound_m_s * config.sample_rate_hz), config.signal_samples - 1],
+    )
+    ax.axhline(VCN_MIN_RESPONSIVE_KHZ, color="#111827", linestyle=":", linewidth=1.1, alpha=0.65, label="4 kHz")
+    ax.text(
+        0.01,
+        0.98,
+        summary,
+        transform=ax.transAxes,
+        va="top",
+        ha="left",
+        fontsize=8,
+        bbox={"facecolor": "white", "alpha": 0.82, "edgecolor": "none"},
+    )
     ax.set_yscale("log")
     ax.set_xlabel("time (ms)")
     ax.set_ylabel("channel centre frequency (kHz)")
     ax.set_title(f"Chosen dynamic threshold/beta spike raster at {EXAMPLE_DISTANCE_M:.1f} m")
     ax.set_xlim(0.0, spikes.shape[1] / config.sample_rate_hz * 1_000.0)
     ax.grid(True, axis="x", alpha=0.2)
+    ax.legend(loc="upper right")
     return save_figure(fig, path)
 
 
@@ -632,7 +674,27 @@ def _plot_distance_comparison(
         ax.set_yscale("log")
         ax.set_ylabel("kHz")
         ax.set_title(title)
+        ax.axhline(VCN_MIN_RESPONSIVE_KHZ, color="#111827", linestyle=":", linewidth=1.0, alpha=0.65)
         ax.grid(True, axis="x", alpha=0.2)
+    dynamic_summary = _dynamic_value_summary(
+        noisy_config,
+        schedule,
+        [
+            0,
+            int(distance_m * 2.0 / noisy_config.speed_of_sound_m_s * noisy_config.sample_rate_hz),
+            noisy_config.signal_samples - 1,
+        ],
+    )
+    axes[2].text(
+        0.01,
+        0.98,
+        dynamic_summary,
+        transform=axes[2].transAxes,
+        va="top",
+        ha="left",
+        fontsize=8,
+        bbox={"facecolor": "white", "alpha": 0.82, "edgecolor": "none"},
+    )
     axes[-1].set_xlabel("time (ms)")
     axes[-1].set_xlim(0.0, time_ms[-1])
     return save_figure(fig, path)
@@ -990,6 +1052,36 @@ def _write_report(results: dict[str, object]) -> None:
             "- Dynamic thresholding/beta is a better match to distance-dependent volume: it suppresses early noise strongly, then gradually becomes more sensitive to later weak echoes.",
             "- The next fix should be a more robust VCN onset rule, such as multi-channel agreement, matched sweep gating, higher/refractory adaptive thresholds, or a pre-onset denoising/gain-control stage.",
             "",
+            "## Noise Definition Details",
+            "",
+            "The noise in this diagnostic is a fixed additive receiver noise floor, but that fixed value is calibrated from a reference condition.",
+            "",
+            "Reference condition used to set the noise floor:",
+            "",
+            f"- Distance: `{results['noise_reference_distance_m']:.2f} m`",
+            "- Azimuth: `0 deg`",
+            "- Elevation: `0 deg`",
+            "- Clean binaural echo, no elevation cue",
+            "- Active echo window: samples where the clean left-ear received waveform exceeds `2%` of its own maximum absolute amplitude",
+            f"- Target reference SNR: `{NOISE_ROBUSTNESS_SNR_DB:.1f} dB`",
+            "",
+            "The noise standard deviation is calculated as:",
+            "",
+            "```text",
+            "signal_rms = RMS(clean_reference_echo over active echo window)",
+            "noise_std = signal_rms / 10^(target_snr_db / 20)",
+            "```",
+            "",
+            f"For these diagnostics this gives `noise_std = {results['noise_std']:.6g}`.",
+            "",
+            "That same `noise_std` is then reused for all tested distances:",
+            "",
+            "```text",
+            "receive_noisy[d] = receive_clean[d] + Normal(0, noise_std)",
+            "```",
+            "",
+            "Therefore the actual received SNR is not fixed across distance. It is highest for near/loud echoes and lower for far/weak echoes. So this should be described as a fixed receiver noise floor calibrated to 10 dB SNR at the reference condition, not as 10 dB SNR at every distance and not as 10 dB SNR at call emission.",
+            "",
             "## Generated Files",
             "",
         ]
@@ -1069,6 +1161,7 @@ def main() -> dict[str, object]:
         "experiment": "distance_noise_diagnostics",
         "elapsed_seconds": elapsed_s,
         "distance_m": EXAMPLE_DISTANCE_M,
+        "noise_reference_distance_m": 3.0,
         "target_snr_db": NOISE_ROBUSTNESS_SNR_DB,
         "jitter_std_s": NOISE_ROBUSTNESS_JITTER_S,
         "noise_std": noisy_config.noise_std,
