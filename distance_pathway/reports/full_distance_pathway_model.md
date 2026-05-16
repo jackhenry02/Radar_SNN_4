@@ -207,17 +207,20 @@ The signal setup is the matched-human call: `64000 Hz` sample rate, `3.0 ms` chi
 
 The 3D simulation includes binaural path-length differences, ITD, ILD/head-shadow gain, inverse-square attenuation, and the elevation spectral notch/slope filter. The previously rejected azimuth spectral-notch cue is not enabled; azimuth affects this distance test through binaural geometry and head-shadow rather than an extra spectral notch.
 
-Noise floors are fixed receiver noise levels, not re-normalised per target distance. This means farther echoes have lower effective SNR, which is the intended stress test.
+Noise floors are fixed receiver noise levels, not re-normalised per target distance. This means farther echoes have lower effective SNR, which is the intended stress test. The 100 dB stress case has been removed from this table so the comparison focuses on clean behaviour and a realistic low ambient floor.
+
+Full-test prediction runtime was `8.72 s` for `160` predictions, or `54.49 ms/sample`. Including the one-off latency calibration for this 10 m setup, the full-test block took `9.30 s`, or `58.13 ms/sample`.
 
 ![Full test accuracy](../outputs/full_distance_pathway/figures/full_test_accuracy.png)
 
-| Condition | Noise floor | Noise std | MAE | RMSE | Max abs error | Bias |
-|---|---:|---:|---:|---:|---:|---:|
-| Clean | clean | `0` | `34.041 cm` | `110.014 cm` | `464.131 cm` | `-30.829 cm` |
-| Ambient noise floor 50 dB | 50 dB | `0.0316228` | `34.040 cm` | `110.014 cm` | `464.131 cm` | `-30.828 cm` |
-| Heavy noise floor 100 dB | 100 dB | `10` | `442.394 cm` | `510.774 cm` | `935.522 cm` | `-436.324 cm` |
+| Condition | Range subset | N | Noise floor | Noise std | MAE | RMSE | Max abs error | Bias | Runtime/sample |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Clean | <=5 m | `33` | clean | `0` | `2.831 cm` | `4.167 cm` | `11.500 cm` | `-1.611 cm` | `36.44 ms` |
+| Clean | <=10 m | `80` | clean | `0` | `34.041 cm` | `110.014 cm` | `464.131 cm` | `-30.829 cm` | `36.44 ms` |
+| Ambient noise floor 50 dB | <=5 m | `33` | 50 dB | `0.0316228` | `2.826 cm` | `4.164 cm` | `11.500 cm` | `-1.612 cm` | `72.53 ms` |
+| Ambient noise floor 50 dB | <=10 m | `80` | 50 dB | `0.0316228` | `34.040 cm` | `110.014 cm` | `464.131 cm` | `-30.828 cm` | `72.53 ms` |
 
-The clean and 50 dB ambient-noise results are almost identical, which means the low fixed ambient floor is not the limiting factor here. The larger error is already present in the clean 3D expanded-space condition, so the current distance pathway is being stressed mainly by the wider 10 m support and angular/binaural cue variation. The 100 dB fixed noise floor is severe and collapses many predictions toward short distances, which is visible as a large negative bias.
+The clean and 50 dB ambient-noise results are almost identical, which means the low fixed ambient floor is not the limiting factor here. The gap between the `<=5 m` and `<=10 m` rows shows that the current distance pathway is being stressed mainly by the wider 10 m support and angular/binaural cue variation.
 
 ## Causality Update
 
@@ -241,4 +244,4 @@ The previous prototype subtracted the latency vector from echo onsets, which cou
 - `full_test_accuracy`: `distance_pathway/outputs/full_distance_pathway/figures/full_test_accuracy.png`
 - `results`: `distance_pathway/outputs/full_distance_pathway/results.json`
 
-Runtime: `40.51 s`.
+Runtime: `31.68 s`.

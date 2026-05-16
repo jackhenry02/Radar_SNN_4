@@ -56,7 +56,6 @@ FULL_TEST_ELEVATION_LIMIT_DEG = 45.0
 REFERENCE_DB_SPL = 80.0
 CALL_DB_SPL = 140.0
 AMBIENT_NOISE_DB_SPL = 50.0
-HEAVY_NOISE_DB_SPL = 100.0
 REFERENCE_DISTANCE_M = 2.5
 RNG_SEED = 44
 LATENCY_CALIBRATION_DISTANCES_M = np.linspace(MIN_DISTANCE_M, MAX_DISTANCE_M, 12)
@@ -1211,6 +1210,25 @@ def _metrics(predictions: list[PathwayPrediction]) -> dict[str, float]:
     }
 
 
+def _distance_metrics_from_arrays(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
+    """Calculate distance metrics from true and predicted distance arrays.
+
+    Args:
+        true: True distances in metres.
+        pred: Predicted distances in metres.
+
+    Returns:
+        Scalar error metrics in metres.
+    """
+    error = pred - true
+    return {
+        "mae_m": float(np.mean(np.abs(error))),
+        "rmse_m": float(np.sqrt(np.mean(error**2))),
+        "max_abs_error_m": float(np.max(np.abs(error))),
+        "bias_m": float(np.mean(error)),
+    }
+
+
 def _noise_std_from_db(noise_db_spl: float) -> float:
     """Convert an effective dB SPL value to waveform noise standard deviation.
 
@@ -1287,6 +1305,7 @@ def _run_full_space_test(base_variant: PathwayVariant) -> dict[str, object]:
     Returns:
         Full-test metrics and predictions for clean and fixed-noise conditions.
     """
+    full_test_start = time.perf_counter()
     rng = np.random.default_rng(RNG_SEED + 50_000)
     distances = rng.uniform(MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M, size=FULL_TEST_SAMPLES)
     azimuths = rng.uniform(-FULL_TEST_AZIMUTH_LIMIT_DEG, FULL_TEST_AZIMUTH_LIMIT_DEG, size=FULL_TEST_SAMPLES)
@@ -1304,12 +1323,13 @@ def _run_full_space_test(base_variant: PathwayVariant) -> dict[str, object]:
     condition_specs = [
         ("Clean", None, 0.0),
         ("Ambient noise floor 50 dB", AMBIENT_NOISE_DB_SPL, _noise_std_from_db(AMBIENT_NOISE_DB_SPL)),
-        ("Heavy noise floor 100 dB", HEAVY_NOISE_DB_SPL, _noise_std_from_db(HEAVY_NOISE_DB_SPL)),
     ]
     conditions = []
+    condition_prediction_seconds = 0.0
     for condition_index, (name, noise_db, noise_std) in enumerate(condition_specs):
         config = _make_full_test_config(noise_std=noise_std)
         torch.manual_seed(RNG_SEED + 60_000 + condition_index)
+        condition_start = time.perf_counter()
         predictions = [
             _predict_one_3d(
                 config,
@@ -1321,19 +1341,39 @@ def _run_full_space_test(base_variant: PathwayVariant) -> dict[str, object]:
             )
             for distance, azimuth, elevation in zip(distances, azimuths, elevations)
         ]
-        metrics = _metrics(predictions)
+        condition_seconds = time.perf_counter() - condition_start
+        condition_prediction_seconds += condition_seconds
+        true = np.array([prediction.distance_m for prediction in predictions], dtype=np.float64)
+        pred = np.array([prediction.predicted_distance_m for prediction in predictions], dtype=np.float64)
+        subset_metrics = {
+            "up_to_5m": {
+                "num_samples": int(np.count_nonzero(true <= MAX_DISTANCE_M)),
+                "metrics": _distance_metrics_from_arrays(true[true <= MAX_DISTANCE_M], pred[true <= MAX_DISTANCE_M]),
+            },
+            "up_to_10m": {
+                "num_samples": int(true.size),
+                "metrics": _distance_metrics_from_arrays(true, pred),
+            },
+        }
         conditions.append(
             {
                 "name": name,
                 "noise_db_spl": noise_db,
                 "noise_std": noise_std,
-                "metrics": metrics,
-                "true_distance_m": [float(prediction.distance_m) for prediction in predictions],
-                "predicted_distance_m": [float(prediction.predicted_distance_m) for prediction in predictions],
+                "prediction_seconds": condition_seconds,
+                "seconds_per_sample": condition_seconds / max(1, len(predictions)),
+                "metrics": subset_metrics["up_to_10m"]["metrics"],
+                "subset_metrics": subset_metrics,
+                "true_distance_m": true.tolist(),
+                "predicted_distance_m": pred.tolist(),
             }
         )
+    total_predictions = FULL_TEST_SAMPLES * len(condition_specs)
+    full_test_seconds = time.perf_counter() - full_test_start
     return {
         "num_samples": FULL_TEST_SAMPLES,
+        "num_conditions": len(condition_specs),
+        "total_predictions": total_predictions,
         "distance_range_m": [MIN_DISTANCE_M, FULL_TEST_MAX_DISTANCE_M],
         "azimuth_range_deg": [-FULL_TEST_AZIMUTH_LIMIT_DEG, FULL_TEST_AZIMUTH_LIMIT_DEG],
         "elevation_range_deg": [-FULL_TEST_ELEVATION_LIMIT_DEG, FULL_TEST_ELEVATION_LIMIT_DEG],
@@ -1344,6 +1384,10 @@ def _run_full_space_test(base_variant: PathwayVariant) -> dict[str, object]:
         "reference_db_spl": REFERENCE_DB_SPL,
         "latency_min_samples": int(full_latency.min()),
         "latency_max_samples": int(full_latency.max()),
+        "full_test_seconds": full_test_seconds,
+        "prediction_seconds": condition_prediction_seconds,
+        "prediction_seconds_per_sample": condition_prediction_seconds / max(1, total_predictions),
+        "full_test_seconds_per_sample_including_calibration": full_test_seconds / max(1, total_predictions),
         "conditions": conditions,
     }
 
@@ -1492,16 +1536,22 @@ def _write_report(
     full_test_rows = []
     for condition in full_test["conditions"]:
         noise_label = "clean" if condition["noise_db_spl"] is None else f"{condition['noise_db_spl']:.0f} dB"
-        full_test_rows.append(
-            "| "
-            f"{condition['name']} | "
-            f"{noise_label} | "
-            f"`{condition['noise_std']:.6g}` | "
-            f"`{condition['metrics']['mae_m'] * 100.0:.3f} cm` | "
-            f"`{condition['metrics']['rmse_m'] * 100.0:.3f} cm` | "
-            f"`{condition['metrics']['max_abs_error_m'] * 100.0:.3f} cm` | "
-            f"`{condition['metrics']['bias_m'] * 100.0:.3f} cm` |"
-        )
+        for range_key, range_label in [("up_to_5m", "<=5 m"), ("up_to_10m", "<=10 m")]:
+            subset = condition["subset_metrics"][range_key]
+            metrics = subset["metrics"]
+            full_test_rows.append(
+                "| "
+                f"{condition['name']} | "
+                f"{range_label} | "
+                f"`{subset['num_samples']}` | "
+                f"{noise_label} | "
+                f"`{condition['noise_std']:.6g}` | "
+                f"`{metrics['mae_m'] * 100.0:.3f} cm` | "
+                f"`{metrics['rmse_m'] * 100.0:.3f} cm` | "
+                f"`{metrics['max_abs_error_m'] * 100.0:.3f} cm` | "
+                f"`{metrics['bias_m'] * 100.0:.3f} cm` | "
+                f"`{condition['seconds_per_sample'] * 1_000.0:.2f} ms` |"
+            )
     lines = [
         "# Full Distance Pathway Model",
         "",
@@ -1741,15 +1791,17 @@ def _write_report(
         "",
         "The 3D simulation includes binaural path-length differences, ITD, ILD/head-shadow gain, inverse-square attenuation, and the elevation spectral notch/slope filter. The previously rejected azimuth spectral-notch cue is not enabled; azimuth affects this distance test through binaural geometry and head-shadow rather than an extra spectral notch.",
         "",
-        "Noise floors are fixed receiver noise levels, not re-normalised per target distance. This means farther echoes have lower effective SNR, which is the intended stress test.",
+        "Noise floors are fixed receiver noise levels, not re-normalised per target distance. This means farther echoes have lower effective SNR, which is the intended stress test. The 100 dB stress case has been removed from this table so the comparison focuses on clean behaviour and a realistic low ambient floor.",
+        "",
+        f"Full-test prediction runtime was `{full_test['prediction_seconds']:.2f} s` for `{full_test['total_predictions']}` predictions, or `{full_test['prediction_seconds_per_sample'] * 1_000.0:.2f} ms/sample`. Including the one-off latency calibration for this 10 m setup, the full-test block took `{full_test['full_test_seconds']:.2f} s`, or `{full_test['full_test_seconds_per_sample_including_calibration'] * 1_000.0:.2f} ms/sample`.",
         "",
         "![Full test accuracy](../outputs/full_distance_pathway/figures/full_test_accuracy.png)",
         "",
-        "| Condition | Noise floor | Noise std | MAE | RMSE | Max abs error | Bias |",
-        "|---|---:|---:|---:|---:|---:|---:|",
+        "| Condition | Range subset | N | Noise floor | Noise std | MAE | RMSE | Max abs error | Bias | Runtime/sample |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         *full_test_rows,
         "",
-        "The clean and 50 dB ambient-noise results are almost identical, which means the low fixed ambient floor is not the limiting factor here. The larger error is already present in the clean 3D expanded-space condition, so the current distance pathway is being stressed mainly by the wider 10 m support and angular/binaural cue variation. The 100 dB fixed noise floor is severe and collapses many predictions toward short distances, which is visible as a large negative bias.",
+        "The clean and 50 dB ambient-noise results are almost identical, which means the low fixed ambient floor is not the limiting factor here. The gap between the `<=5 m` and `<=10 m` rows shows that the current distance pathway is being stressed mainly by the wider 10 m support and angular/binaural cue variation.",
         "",
         "## Causality Update",
         "",
