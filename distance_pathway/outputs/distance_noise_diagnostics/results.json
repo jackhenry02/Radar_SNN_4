@@ -1,6 +1,6 @@
 {
   "experiment": "distance_noise_diagnostics",
-  "elapsed_seconds": 8.28445874992758,
+  "elapsed_seconds": 10.647349041886628,
   "distance_m": 3.0,
   "target_snr_db": 10.0,
   "jitter_std_s": 0.00025,
@@ -270,6 +270,11 @@
     "beta_summary": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/beta_summary.png",
     "dynamic_chosen_raster": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_chosen_raster.png",
     "dynamic_snr_across_distance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_snr_across_distance.png",
-    "dynamic_schedule": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_schedule.png"
+    "dynamic_schedule": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_schedule.png",
+    "distance_comparison_1m": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_1m.png",
+    "distance_comparison_2m": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_2m.png",
+    "distance_comparison_3m": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_3m.png",
+    "distance_comparison_4m": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_4m.png",
+    "distance_comparison_5m": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_5m.png"
   }
 }

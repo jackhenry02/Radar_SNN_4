@@ -116,6 +116,31 @@ Chosen schedule: `dyn_E_x16_to_x2_beta0p2_to_0p88` with threshold `x16 -> x2` an
 | `4.00 m` | `954` | `135` | `4.28 dB` |
 | `5.00 m` | `1495` | `319` | `4.40 dB` |
 
+## Per-Distance Call Comparisons
+
+The following plots compare the same noisy call/echo condition at `1, 2, 3, 4, 5 m`. Each figure shows the noisy binaural waveform, the fixed robust cochlea raster (`threshold x16`, `beta=0.5`), and the chosen dynamic threshold/beta raster.
+
+### 1 m
+
+![1 m comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_1m.png)
+
+### 2 m
+
+![2 m comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_2m.png)
+
+### 3 m
+
+![3 m comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_3m.png)
+
+### 4 m
+
+![4 m comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_4m.png)
+
+### 5 m
+
+![5 m comparison](../outputs/distance_noise_diagnostics/figures/distance_comparison_5m.png)
+
+
 ## Interpretation
 
 - The cochleagram-driven VCN is very sensitive because it uses a low adaptive threshold on continuous cochleagram activity.
@@ -140,6 +165,11 @@ Chosen schedule: `dyn_E_x16_to_x2_beta0p2_to_0p88` with threshold `x16 -> x2` an
 - `dynamic_chosen_raster`: `distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_chosen_raster.png`
 - `dynamic_snr_across_distance`: `distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_snr_across_distance.png`
 - `dynamic_schedule`: `distance_pathway/outputs/distance_noise_diagnostics/figures/dynamic_schedule.png`
+- `distance_comparison_1m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_1m.png`
+- `distance_comparison_2m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_2m.png`
+- `distance_comparison_3m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_3m.png`
+- `distance_comparison_4m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_4m.png`
+- `distance_comparison_5m`: `distance_pathway/outputs/distance_noise_diagnostics/figures/distance_comparison_5m.png`
 - `results`: `distance_pathway/outputs/distance_noise_diagnostics/results.json`
 
-Runtime: `8.28 s`.
+Runtime: `10.65 s`.

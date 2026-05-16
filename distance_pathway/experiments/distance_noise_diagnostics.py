@@ -54,6 +54,7 @@ THRESHOLD_MULTIPLIERS = [1.0, 2.0, 4.0, 8.0, 16.0]
 BETA_SWEEP_THRESHOLD_MULTIPLIER = 16.0
 BETA_SWEEP_VALUES = [0.0, 0.5, 0.75, 0.88, 0.95, 0.98]
 DYNAMIC_TEST_DISTANCES_M = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0])
+COMPARISON_DISTANCES_M = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
 DYNAMIC_ECHO_MARGIN_SAMPLES = 32
 DYNAMIC_ECHO_TAIL_SAMPLES = 128
 DYNAMIC_SCHEDULES = [
@@ -551,6 +552,114 @@ def _plot_dynamic_schedule(chosen: dict[str, object], config, path: Path) -> str
     return save_figure(fig, path)
 
 
+def _plot_distance_comparison(
+    noisy_config,
+    distance_m: float,
+    schedule: dict[str, float],
+    path: Path,
+) -> str:
+    """Plot waveform and spike-raster comparisons for one distance.
+
+    Args:
+        noisy_config: Acoustic config for noisy simulation.
+        distance_m: Target distance in metres.
+        schedule: Chosen dynamic threshold/beta schedule.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    torch.manual_seed(RNG_SEED + 60_000 + int(distance_m * 100))
+    receive = _simulate_scene(noisy_config, float(distance_m), add_noise=True)
+    static_config = replace(
+        noisy_config,
+        spike_threshold=float(noisy_config.spike_threshold) * BETA_SWEEP_THRESHOLD_MULTIPLIER,
+        spike_beta=0.50,
+    )
+    static_cochlea = _run_cochlea_binaural(static_config, receive)
+    dynamic_cochlea = _run_cochlea_binaural(noisy_config, receive)
+    cochleagram = torch.maximum(
+        dynamic_cochlea.left_cochleagram,
+        dynamic_cochlea.right_cochleagram,
+    ).detach().cpu().numpy()
+    dynamic_spikes = _dynamic_lif_encode(cochleagram, noisy_config, schedule)
+    static_spikes = torch.maximum(static_cochlea.left_spikes, static_cochlea.right_spikes).detach().cpu().numpy()
+    centers_khz = _log_spaced_centers(noisy_config).detach().cpu().numpy() / 1_000.0
+    time_ms = np.arange(receive.shape[-1]) / noisy_config.sample_rate_hz * 1_000.0
+    echo_window, noise_window = _echo_and_noise_windows(noisy_config, float(distance_m), receive.shape[-1])
+
+    fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+    axes[0].plot(time_ms, receive[0].detach().cpu().numpy(), color="#111827", linewidth=0.8, label="left ear")
+    axes[0].plot(time_ms, receive[1].detach().cpu().numpy(), color="#64748b", linewidth=0.8, alpha=0.8, label="right ear")
+    axes[0].axvspan(
+        echo_window.start / noisy_config.sample_rate_hz * 1_000.0,
+        echo_window.stop / noisy_config.sample_rate_hz * 1_000.0,
+        color="#16a34a",
+        alpha=0.15,
+        label="expected echo window",
+    )
+    axes[0].axvspan(
+        noise_window.start / noisy_config.sample_rate_hz * 1_000.0,
+        noise_window.stop / noisy_config.sample_rate_hz * 1_000.0,
+        color="#dc2626",
+        alpha=0.12,
+        label="pre-echo noise window",
+    )
+    axes[0].set_ylabel("amplitude")
+    axes[0].set_title(f"Noisy received call/echo at {distance_m:.1f} m")
+    axes[0].legend(loc="upper right", ncols=2, fontsize=8)
+
+    for ax, raster, title, color in [
+        (axes[1], static_spikes, "Static robust cochlea: threshold x16, beta 0.50", "#7c3aed"),
+        (axes[2], dynamic_spikes, "Dynamic cochlea: chosen threshold/beta schedule", "#0f766e"),
+    ]:
+        for channel, frequency_khz in enumerate(centers_khz):
+            event_times = np.flatnonzero(raster[channel] > 0.0) / noisy_config.sample_rate_hz * 1_000.0
+            if event_times.size:
+                ax.vlines(event_times, frequency_khz * 0.985, frequency_khz * 1.015, color=color, linewidth=0.75)
+        ax.axvspan(
+            echo_window.start / noisy_config.sample_rate_hz * 1_000.0,
+            echo_window.stop / noisy_config.sample_rate_hz * 1_000.0,
+            color="#16a34a",
+            alpha=0.10,
+        )
+        ax.axvspan(
+            noise_window.start / noisy_config.sample_rate_hz * 1_000.0,
+            noise_window.stop / noisy_config.sample_rate_hz * 1_000.0,
+            color="#dc2626",
+            alpha=0.08,
+        )
+        ax.set_yscale("log")
+        ax.set_ylabel("kHz")
+        ax.set_title(title)
+        ax.grid(True, axis="x", alpha=0.2)
+    axes[-1].set_xlabel("time (ms)")
+    axes[-1].set_xlim(0.0, time_ms[-1])
+    return save_figure(fig, path)
+
+
+def _plot_distance_comparisons(noisy_config, schedule: dict[str, float]) -> dict[str, str]:
+    """Create comparison plots for the requested distances.
+
+    Args:
+        noisy_config: Acoustic config for noisy simulation.
+        schedule: Chosen dynamic threshold/beta schedule.
+
+    Returns:
+        Mapping of artifact names to saved paths.
+    """
+    artifacts = {}
+    for distance_m in COMPARISON_DISTANCES_M:
+        key = f"distance_comparison_{int(distance_m)}m"
+        artifacts[key] = _plot_distance_comparison(
+            noisy_config,
+            float(distance_m),
+            schedule,
+            FIGURE_DIR / f"{key}.png",
+        )
+    return artifacts
+
+
 def _plot_vcn_outputs(outputs: list[DiagnosticModelOutput], config, path: Path) -> str:
     """Plot VCN outputs for both noisy variants."""
     centers_khz = _log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
@@ -851,6 +960,25 @@ def _write_report(results: dict[str, object]) -> None:
     lines.extend(
         [
             "",
+            "## Per-Distance Call Comparisons",
+            "",
+            "The following plots compare the same noisy call/echo condition at `1, 2, 3, 4, 5 m`. Each figure shows the noisy binaural waveform, the fixed robust cochlea raster (`threshold x16`, `beta=0.5`), and the chosen dynamic threshold/beta raster.",
+            "",
+        ]
+    )
+    for distance_m in COMPARISON_DISTANCES_M:
+        key = f"distance_comparison_{int(distance_m)}m"
+        lines.extend(
+            [
+                f"### {distance_m:.0f} m",
+                "",
+                f"![{distance_m:.0f} m comparison](../outputs/distance_noise_diagnostics/figures/{key}.png)",
+                "",
+            ]
+        )
+    lines.extend(
+        [
+            "",
             "## Interpretation",
             "",
             "- The cochleagram-driven VCN is very sensitive because it uses a low adaptive threshold on continuous cochleagram activity.",
@@ -935,6 +1063,7 @@ def main() -> dict[str, object]:
             FIGURE_DIR / "dynamic_schedule.png",
         ),
     }
+    artifacts.update(_plot_distance_comparisons(noisy_config, dynamic_chosen["schedule"]))
     elapsed_s = time.perf_counter() - start
     results = {
         "experiment": "distance_noise_diagnostics",
