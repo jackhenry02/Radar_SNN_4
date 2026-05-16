@@ -55,6 +55,9 @@ class ReadoutResult:
         attractor_distance_m: Balanced line-attractor prediction at 5 ms.
         attractor_trajectory_m: Attractor decoded distance through time.
         seconds_per_sample: Runtime per sample for the attractor readout only.
+        ac_activations: Upstream AC population activations.
+        azimuth_deg: Optional target azimuths for full-3D diagnostics.
+        elevation_deg: Optional target elevations for full-3D diagnostics.
     """
 
     condition: str
@@ -63,6 +66,9 @@ class ReadoutResult:
     attractor_distance_m: np.ndarray
     attractor_trajectory_m: np.ndarray
     seconds_per_sample: float
+    ac_activations: np.ndarray
+    azimuth_deg: np.ndarray | None = None
+    elevation_deg: np.ndarray | None = None
 
 
 def gaussian(distance: np.ndarray, sigma: float) -> np.ndarray:
@@ -215,6 +221,44 @@ def run_attractor_readout(
     return trajectory[readout_index], trajectory.T, seconds_per_sample
 
 
+def run_attractor_state_history(
+    ac_activation: np.ndarray,
+    positions_m: np.ndarray,
+    alpha_prime: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Run one AC population through the attractor and keep state history.
+
+    Args:
+        ac_activation: One AC activation vector `[bins]`.
+        positions_m: Distance grid.
+        alpha_prime: Balanced E/I recurrent gain.
+
+    Returns:
+        Tuple `(times_s, excitatory_history, decoded_trajectory)`.
+    """
+    num_bins = ac_activation.shape[0]
+    bin_width_m = float(np.mean(np.diff(positions_m)))
+    input_sigma_m = INPUT_TUNING_SIGMA_BINS * bin_width_m
+    input_gains, _, _ = fisher_balanced_input_gains(positions_m, input_sigma_m)
+    recurrent = build_balanced_ei_matrix(positions_m, alpha_prime)
+
+    state = np.zeros(2 * num_bins, dtype=np.float64)
+    normalised = ac_activation / max(float(np.max(ac_activation)), 1e-12)
+    state[:num_bins] = normalised * input_gains
+
+    num_steps = int(round(SIM_TIME_S / DT_S))
+    times = np.arange(num_steps + 1) * DT_S
+    excitatory = np.empty((num_steps + 1, num_bins), dtype=np.float64)
+    decoded = np.empty(num_steps + 1, dtype=np.float64)
+    excitatory[0] = state[:num_bins]
+    decoded[0] = decode_center_of_mass(state[None, :num_bins], positions_m)[0]
+    for step in range(1, num_steps + 1):
+        state = state + DT_S / TAU_S * (-state + recurrent @ state)
+        excitatory[step] = state[:num_bins]
+        decoded[step] = decode_center_of_mass(state[None, :num_bins], positions_m)[0]
+    return times, excitatory, decoded
+
+
 def metrics(true_m: np.ndarray, pred_m: np.ndarray) -> dict[str, float]:
     """Calculate scalar distance error metrics."""
     error = pred_m - true_m
@@ -241,6 +285,9 @@ def run_readout_condition(
     predictions: list[fdm.PathwayPrediction],
     positions_m: np.ndarray,
     alpha_prime: float,
+    *,
+    azimuth_deg: np.ndarray | None = None,
+    elevation_deg: np.ndarray | None = None,
 ) -> ReadoutResult:
     """Compare baseline and attractor readouts for one condition."""
     true, baseline, ac = collect_ac_predictions(predictions)
@@ -252,6 +299,9 @@ def run_readout_condition(
         attractor_distance_m=attractor,
         attractor_trajectory_m=trajectory,
         seconds_per_sample=seconds_per_sample,
+        ac_activations=ac,
+        azimuth_deg=azimuth_deg,
+        elevation_deg=elevation_deg,
     )
 
 
@@ -277,7 +327,7 @@ def run_small_space_predictions() -> tuple[fdm.GlobalConfig, fdm.PathwayVariant,
 
 def run_full_space_predictions(
     base_variant: fdm.PathwayVariant,
-) -> tuple[fdm.GlobalConfig, list[fdm.PathwayPrediction], list[fdm.PathwayPrediction]]:
+) -> tuple[fdm.GlobalConfig, list[fdm.PathwayPrediction], list[fdm.PathwayPrediction], dict[str, np.ndarray]]:
     """Run current pathway predictions for the clean and 50 dB full 3D tests."""
     rng = np.random.default_rng(fdm.RNG_SEED + 50_000)
     distances = rng.uniform(fdm.MIN_DISTANCE_M, fdm.FULL_TEST_MAX_DISTANCE_M, size=fdm.FULL_TEST_SAMPLES)
@@ -317,7 +367,12 @@ def run_full_space_predictions(
         )
         for distance, azimuth, elevation in zip(distances, azimuths, elevations)
     ]
-    return full_config, clean_predictions, ambient_predictions
+    coordinates = {
+        "distance_m": distances,
+        "azimuth_deg": azimuths,
+        "elevation_deg": elevations,
+    }
+    return full_config, clean_predictions, ambient_predictions, coordinates
 
 
 def sweep_alpha(
@@ -414,6 +469,59 @@ def plot_timing(result: ReadoutResult, path: Path) -> str:
     return save_figure(fig, path)
 
 
+def plot_bump_dynamics(
+    result: ReadoutResult,
+    positions_m: np.ndarray,
+    alpha_prime: float,
+    path: Path,
+) -> str:
+    """Plot AC input and line-attractor bump dynamics for example cases.
+
+    Args:
+        result: Readout condition to sample examples from.
+        positions_m: Distance grid for the attractor.
+        alpha_prime: Balanced E/I recurrent gain.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    baseline_error = np.abs(result.baseline_distance_m - result.true_distance_m)
+    good_index = int(np.argmin(baseline_error))
+    failure_index = int(np.argmax(baseline_error))
+    examples = [("good case", good_index), ("failure case", failure_index)]
+    snapshot_times_s = [0.0, READOUT_TIME_S, 0.020, 0.060]
+    fig, axes = plt.subplots(len(examples), len(snapshot_times_s), figsize=(14.0, 6.6), sharex=True)
+    for row, (label, index) in enumerate(examples):
+        times, excitatory, decoded = run_attractor_state_history(
+            result.ac_activations[index],
+            positions_m,
+            alpha_prime,
+        )
+        ac_norm = result.ac_activations[index] / max(float(np.max(result.ac_activations[index])), 1e-12)
+        for col, time_s in enumerate(snapshot_times_s):
+            time_index = int(np.argmin(np.abs(times - time_s)))
+            activity = excitatory[time_index]
+            activity = activity / max(float(np.max(activity)), 1e-12)
+            ax = axes[row, col]
+            ax.plot(positions_m, ac_norm, color="#6b7280", linestyle="--", linewidth=1.5, label="AC input")
+            ax.plot(positions_m, activity, color="#2563eb", linewidth=2.0, label="attractor E")
+            ax.axvline(result.true_distance_m[index], color="#111827", linestyle=":", linewidth=1.2, label="true")
+            ax.axvline(decoded[time_index], color="#dc2626", linestyle="--", linewidth=1.2, label="decoded")
+            if row == 0:
+                ax.set_title(f"{time_s * 1_000:.0f} ms")
+            if col == 0:
+                ax.set_ylabel(
+                    f"{label}\ntrue {result.true_distance_m[index]:.2f} m\n"
+                    f"read {result.attractor_distance_m[index]:.2f} m"
+                )
+            ax.grid(True, alpha=0.25)
+    for ax in axes[-1, :]:
+        ax.set_xlabel("distance represented by SC neuron (m)")
+    axes[0, 0].legend(frameon=False, fontsize=8)
+    return save_figure(fig, path)
+
+
 def plot_prediction_scatter(results: list[ReadoutResult], path: Path) -> str:
     """Plot baseline and attractor prediction scatters."""
     fig, axes = plt.subplots(2, 2, figsize=(11.5, 9.0), sharex=False, sharey=False)
@@ -429,6 +537,61 @@ def plot_prediction_scatter(results: list[ReadoutResult], path: Path) -> str:
         ax.grid(True, alpha=0.25)
     axes.flat[0].legend(frameon=False, fontsize=8)
     return save_figure(fig, path)
+
+
+def explain_failure(distance_m: float, azimuth_deg: float, elevation_deg: float, predicted_m: float) -> str:
+    """Return a heuristic explanation for a full-3D distance failure.
+
+    Args:
+        distance_m: True target distance.
+        azimuth_deg: True target azimuth.
+        elevation_deg: True target elevation.
+        predicted_m: Readout distance.
+
+    Returns:
+        Short diagnostic explanation.
+    """
+    reasons = []
+    if distance_m > fdm.MAX_DISTANCE_M:
+        reasons.append("true range is outside the 5 m range where the pathway is strongest")
+    if predicted_m < 0.75 * distance_m:
+        reasons.append("readout is biased short, suggesting the AC peak is already pulled to an earlier delay")
+    if abs(azimuth_deg) > 70.0:
+        reasons.append("extreme azimuth increases binaural path/head-shadow asymmetry")
+    if abs(elevation_deg) > 35.0:
+        reasons.append("large elevation applies stronger spectral reshaping to the active channels")
+    if not reasons:
+        reasons.append("likely local ambiguity or broad AC activity rather than an obvious geometric extreme")
+    return "; ".join(reasons)
+
+
+def failure_cases(result: ReadoutResult, *, count: int = 10) -> list[dict[str, object]]:
+    """Return worst full-3D failure cases by baseline absolute error."""
+    if result.azimuth_deg is None or result.elevation_deg is None:
+        return []
+    abs_error = np.abs(result.baseline_distance_m - result.true_distance_m)
+    indices = np.argsort(abs_error)[::-1][:count]
+    cases = []
+    for rank, index in enumerate(indices, start=1):
+        cases.append(
+            {
+                "rank": rank,
+                "true_distance_m": float(result.true_distance_m[index]),
+                "azimuth_deg": float(result.azimuth_deg[index]),
+                "elevation_deg": float(result.elevation_deg[index]),
+                "baseline_readout_m": float(result.baseline_distance_m[index]),
+                "attractor_readout_m": float(result.attractor_distance_m[index]),
+                "baseline_error_m": float(result.baseline_distance_m[index] - result.true_distance_m[index]),
+                "attractor_error_m": float(result.attractor_distance_m[index] - result.true_distance_m[index]),
+                "estimated_reason": explain_failure(
+                    float(result.true_distance_m[index]),
+                    float(result.azimuth_deg[index]),
+                    float(result.elevation_deg[index]),
+                    float(result.baseline_distance_m[index]),
+                ),
+            }
+        )
+    return cases
 
 
 def comparison_rows(results: list[ReadoutResult]) -> list[dict[str, object]]:
@@ -459,6 +622,7 @@ def write_report(
     alpha_rows: list[dict[str, float]],
     selected_alpha: float,
     rows: list[dict[str, object]],
+    failures: list[dict[str, object]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -490,6 +654,17 @@ def write_report(
             f"`{attractor['max_abs_error_m'] * 100.0:.3f} cm` | "
             f"`{row['attractor_seconds_per_sample'] * 1_000.0:.2f} ms` |"
         )
+    failure_table = [
+        "| "
+        f"{case['rank']} | "
+        f"`({case['true_distance_m']:.2f} m, {case['azimuth_deg']:.1f} deg, {case['elevation_deg']:.1f} deg)` | "
+        f"`{case['baseline_readout_m']:.2f} m` | "
+        f"`{case['attractor_readout_m']:.2f} m` | "
+        f"`{case['baseline_error_m']:.2f} m` | "
+        f"`{case['attractor_error_m']:.2f} m` | "
+        f"{case['estimated_reason']} |"
+        for case in failures
+    ]
     lines = [
         "# SC Line Attractor Integration",
         "",
@@ -568,6 +743,12 @@ def write_report(
         "",
         "![Readout timing](../outputs/sc_line_attractor_integration/figures/readout_timing.png)",
         "",
+        "## Bump Dynamics",
+        "",
+        "The plot below shows the upstream AC population and the attractor excitatory population at several times. It includes one good full-3D clean case and one failure case. The dashed grey curve is the original AC input, the blue curve is the attractor excitatory bump, the black dotted line is the true distance, and the red dashed line is the decoded distance at that time.",
+        "",
+        "![Bump dynamics](../outputs/sc_line_attractor_integration/figures/bump_dynamics.png)",
+        "",
         "## Controlled Comparisons",
         "",
         "The comparison uses the same upstream AC activations for both readouts, so any difference is caused by the SC readout only.",
@@ -577,6 +758,14 @@ def write_report(
         "| Condition | Subset | N | Baseline MAE | Attractor MAE | Baseline RMSE | Attractor RMSE | Baseline max error | Attractor max error | Attractor runtime/sample |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         *comparison_table,
+        "",
+        "## Full-3D Failure Cases",
+        "",
+        "The table below lists the worst clean full-3D cases by the original simple-readout absolute distance error. The target coordinate is shown as `(distance, azimuth, elevation)`, while the readouts are one-dimensional distance estimates. The estimated reason is a heuristic diagnostic, not a proven causal attribution.",
+        "",
+        "| Rank | True coordinate | Simple readout | Attractor readout | Simple error | Attractor error | Estimated reason |",
+        "|---:|---|---:|---:|---:|---:|---|",
+        *failure_table,
         "",
         "## Interpretation",
         "",
@@ -615,17 +804,33 @@ def main() -> dict[str, object]:
     clean_small_result = run_readout_condition("Small clean 0.25-5m", clean_small, small_positions, selected_alpha)
     noisy_small_result = run_readout_condition("Small noisy 10dB+jitter", noisy_small, small_positions, selected_alpha)
 
-    full_config, clean_full, ambient_full = run_full_space_predictions(variant)
+    full_config, clean_full, ambient_full, full_coordinates = run_full_space_predictions(variant)
     full_positions = fdm._candidate_distances(full_config)
-    clean_full_result = run_readout_condition("Full 3D clean 0.25-10m", clean_full, full_positions, selected_alpha)
-    ambient_full_result = run_readout_condition("Full 3D 50dB floor", ambient_full, full_positions, selected_alpha)
+    clean_full_result = run_readout_condition(
+        "Full 3D clean 0.25-10m",
+        clean_full,
+        full_positions,
+        selected_alpha,
+        azimuth_deg=full_coordinates["azimuth_deg"],
+        elevation_deg=full_coordinates["elevation_deg"],
+    )
+    ambient_full_result = run_readout_condition(
+        "Full 3D 50dB floor",
+        ambient_full,
+        full_positions,
+        selected_alpha,
+        azimuth_deg=full_coordinates["azimuth_deg"],
+        elevation_deg=full_coordinates["elevation_deg"],
+    )
 
     results = [clean_small_result, noisy_small_result, clean_full_result, ambient_full_result]
     rows = comparison_rows(results)
+    failures = failure_cases(clean_full_result, count=10)
     artifacts = {
         "fisher_input_gains": plot_fisher_gains(small_positions, FIGURE_DIR / "fisher_input_gains.png"),
         "alpha_sweep": plot_alpha_sweep(alpha_rows, FIGURE_DIR / "alpha_sweep.png"),
         "readout_timing": plot_timing(clean_small_result, FIGURE_DIR / "readout_timing.png"),
+        "bump_dynamics": plot_bump_dynamics(clean_full_result, full_positions, selected_alpha, FIGURE_DIR / "bump_dynamics.png"),
         "prediction_scatter": plot_prediction_scatter(results, FIGURE_DIR / "prediction_scatter.png"),
     }
 
@@ -642,10 +847,11 @@ def main() -> dict[str, object]:
         "alpha_sweep": alpha_rows,
         "selected_alpha_prime": selected_alpha,
         "comparison_rows": rows,
+        "full_3d_failure_cases": failures,
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(alpha_rows, selected_alpha, rows, artifacts, elapsed_s)
+    write_report(alpha_rows, selected_alpha, rows, failures, artifacts, elapsed_s)
     return payload
 
 

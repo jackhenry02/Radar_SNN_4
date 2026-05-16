@@ -1,6 +1,6 @@
 {
   "experiment": "sc_line_attractor_integration",
-  "elapsed_seconds": 18.0545563751366,
+  "elapsed_seconds": 18.59708470897749,
   "readout_time_s": 0.005,
   "tau_s": 0.02,
   "dt_s": 0.001,
@@ -13,49 +13,49 @@
       "clean_mae_m": 0.040569894763294936,
       "noisy_mae_m": 0.07144740818034905,
       "selection_score_m": 0.05600865147182199,
-      "seconds_per_sample": 0.0004753906250698492
+      "seconds_per_sample": 0.0007809562550392002
     },
     {
       "alpha_prime": 0.5,
       "clean_mae_m": 0.039838482945413214,
       "noisy_mae_m": 0.07140980999454641,
       "selection_score_m": 0.05562414646997981,
-      "seconds_per_sample": 0.0016165596316568553
+      "seconds_per_sample": 0.0016525143320905043
     },
     {
       "alpha_prime": 1.0,
       "clean_mae_m": 0.03956826167053925,
       "noisy_mae_m": 0.07138035177948884,
       "selection_score_m": 0.05547430672501405,
-      "seconds_per_sample": 0.0012281802133657037
+      "seconds_per_sample": 0.0011256713565671816
     },
     {
       "alpha_prime": 2.0,
       "clean_mae_m": 0.039669461360628246,
       "noisy_mae_m": 0.0713371687448354,
       "selection_score_m": 0.055503315052731816,
-      "seconds_per_sample": 0.0012056239633238875
+      "seconds_per_sample": 0.0012927921867230906
     },
     {
       "alpha_prime": 4.0,
       "clean_mae_m": 0.04021669513518603,
       "noisy_mae_m": 0.07175880124128824,
       "selection_score_m": 0.05598774818823714,
-      "seconds_per_sample": 0.001513153906853404
+      "seconds_per_sample": 0.0014439903694437816
     },
     {
       "alpha_prime": 6.0,
       "clean_mae_m": 0.04053900316188648,
       "noisy_mae_m": 0.07203672668784529,
       "selection_score_m": 0.056287864924865885,
-      "seconds_per_sample": 0.0005988112010527403
+      "seconds_per_sample": 0.0015560510451905428
     },
     {
       "alpha_prime": 8.0,
       "clean_mae_m": 0.040751417623139274,
       "noisy_mae_m": 0.07222020285881159,
       "selection_score_m": 0.05648581024097543,
-      "seconds_per_sample": 0.0010463312501087785
+      "seconds_per_sample": 0.0007295898423762992
     }
   ],
   "selected_alpha_prime": 1.0,
@@ -76,7 +76,7 @@
         "max_abs_error_m": 0.11349684562149986,
         "bias_m": -0.0087982946730443
       },
-      "attractor_seconds_per_sample": 0.000976781250210479
+      "attractor_seconds_per_sample": 0.0010990895883878694
     },
     {
       "condition": "Small noisy 10dB+jitter",
@@ -94,7 +94,7 @@
         "max_abs_error_m": 1.0485408040417954,
         "bias_m": -0.059993408250368564
       },
-      "attractor_seconds_per_sample": 0.0009154286497505381
+      "attractor_seconds_per_sample": 0.0011822510394267737
     },
     {
       "condition": "Full 3D clean 0.25-10m",
@@ -112,7 +112,7 @@
         "max_abs_error_m": 0.09780491114944834,
         "bias_m": -0.0071010740595923855
       },
-      "attractor_seconds_per_sample": 0.0018032432271866128
+      "attractor_seconds_per_sample": 0.0005030609376262873
     },
     {
       "condition": "Full 3D clean 0.25-10m",
@@ -130,7 +130,7 @@
         "max_abs_error_m": 4.668542191453941,
         "bias_m": -0.310180964621485
       },
-      "attractor_seconds_per_sample": 0.0018032432271866128
+      "attractor_seconds_per_sample": 0.0005030609376262873
     },
     {
       "condition": "Full 3D 50dB floor",
@@ -148,7 +148,7 @@
         "max_abs_error_m": 0.09787999700103356,
         "bias_m": -0.0071791785502521785
       },
-      "attractor_seconds_per_sample": 0.001305111451074481
+      "attractor_seconds_per_sample": 0.0006208255101228133
     },
     {
       "condition": "Full 3D 50dB floor",
@@ -166,13 +166,126 @@
         "max_abs_error_m": 4.668542191453941,
         "bias_m": -0.3101938605649862
       },
-      "attractor_seconds_per_sample": 0.001305111451074481
+      "attractor_seconds_per_sample": 0.0006208255101228133
+    }
+  ],
+  "full_3d_failure_cases": [
+    {
+      "rank": 1,
+      "true_distance_m": 9.793542191453941,
+      "azimuth_deg": 38.38422886767867,
+      "elevation_deg": -28.29051551841323,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -4.641307554582433,
+      "attractor_error_m": -4.668542191453941,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 2,
+      "true_distance_m": 9.694171081649024,
+      "azimuth_deg": 37.676430421293105,
+      "elevation_deg": -23.211706751687856,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -4.541936444777516,
+      "attractor_error_m": -4.569171081649024,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 3,
+      "true_distance_m": 9.417435138330777,
+      "azimuth_deg": 6.2478846339110845,
+      "elevation_deg": -5.324183628523812,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -4.265200501459269,
+      "attractor_error_m": -4.292435138330777,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 4,
+      "true_distance_m": 9.131856548425366,
+      "azimuth_deg": -57.99277423970203,
+      "elevation_deg": -21.03267658137454,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -3.979621911553858,
+      "attractor_error_m": -4.006856548425366,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 5,
+      "true_distance_m": 8.2112014943414,
+      "azimuth_deg": 13.501332692269429,
+      "elevation_deg": -19.209677013683176,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -3.0589668574698923,
+      "attractor_error_m": -3.0862014943414007,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 6,
+      "true_distance_m": 7.52054021336971,
+      "azimuth_deg": 2.9015439001564545,
+      "elevation_deg": -26.373482207920727,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -2.3683055764982015,
+      "attractor_error_m": -2.39554021336971,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 7,
+      "true_distance_m": 7.512127429271835,
+      "azimuth_deg": 42.140941660421504,
+      "elevation_deg": -21.819617383518313,
+      "baseline_readout_m": 5.152234636871508,
+      "attractor_readout_m": 5.125,
+      "baseline_error_m": -2.359892792400327,
+      "attractor_error_m": -2.3871274292718354,
+      "estimated_reason": "true range is outside the 5 m range where the pathway is strongest; readout is biased short, suggesting the AC peak is already pulled to an earlier delay"
+    },
+    {
+      "rank": 8,
+      "true_distance_m": 0.6338748780547248,
+      "azimuth_deg": -20.318928275991453,
+      "elevation_deg": 3.3520465494914475,
+      "baseline_readout_m": 0.5188780819449391,
+      "attractor_readout_m": 0.5480436227946357,
+      "baseline_error_m": -0.11499679610978564,
+      "attractor_error_m": -0.08583125526008906,
+      "estimated_reason": "likely local ambiguity or broad AC activity rather than an obvious geometric extreme"
+    },
+    {
+      "rank": 9,
+      "true_distance_m": 0.6301887491410959,
+      "azimuth_deg": -57.508080126297486,
+      "elevation_deg": -18.158464788594046,
+      "baseline_readout_m": 0.5233586764123999,
+      "attractor_readout_m": 0.5526335887877598,
+      "baseline_error_m": -0.10683007272869605,
+      "attractor_error_m": -0.0775551603533361,
+      "estimated_reason": "likely local ambiguity or broad AC activity rather than an obvious geometric extreme"
+    },
+    {
+      "rank": 10,
+      "true_distance_m": 0.6158396902859543,
+      "azimuth_deg": 66.79229254025864,
+      "elevation_deg": -10.610747106611981,
+      "baseline_readout_m": 0.5209570716148928,
+      "attractor_readout_m": 0.55012206292763,
+      "baseline_error_m": -0.09488261867106151,
+      "attractor_error_m": -0.06571762735832432,
+      "estimated_reason": "likely local ambiguity or broad AC activity rather than an obvious geometric extreme"
     }
   ],
   "artifacts": {
     "fisher_input_gains": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/fisher_input_gains.png",
     "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/alpha_sweep.png",
     "readout_timing": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/readout_timing.png",
+    "bump_dynamics": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/bump_dynamics.png",
     "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/sc_line_attractor_integration/figures/prediction_scatter.png"
   }
 }
