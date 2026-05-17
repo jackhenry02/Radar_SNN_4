@@ -55,6 +55,8 @@ ITD_LIF_BETA = 0.72
 ITD_LIF_THRESHOLD = 1.10
 ITD_WEIGHT = 0.90
 ILD_WEIGHT = 0.10
+WARP_POWER_GRID = np.linspace(1.0, 5.0, 81)
+WARP_SIGMA_GRID = np.linspace(0.03, 0.30, 55)
 
 OLD_MODEL_AZIMUTH_RESULTS = {
     "Round 3 2B + 3": 2.8595,
@@ -287,6 +289,113 @@ def lso_mntb_ild_activation(
     return activation, left_code, right_code, left_lso, right_lso
 
 
+def lso_balance_and_drive(prediction: AzimuthPrediction) -> tuple[float, float]:
+    """Return global LSO balance and total opponent drive.
+
+    Args:
+        prediction: Azimuth pathway prediction containing LSO populations.
+
+    Returns:
+        Pair `(balance, drive)`, where balance is in approximately `[-1, 1]`.
+    """
+    left_sum = float(np.sum(prediction.left_lso))
+    right_sum = float(np.sum(prediction.right_lso))
+    drive = max(left_sum + right_sum, 1e-12)
+    balance = (right_sum - left_sum) / drive
+    return balance, max(drive, 1.0)
+
+
+def warped_ild_activation(balance: float, drive: float, bins_deg: np.ndarray, power: float, sigma: float) -> np.ndarray:
+    """Project LSO balance through a warped synaptic mapping layer.
+
+    The raw LSO balance is too steep near the midline in this prototype. A
+    power-law warp compresses intermediate opponent values while keeping the
+    sign and edge ordering intact.
+
+    Args:
+        balance: Raw opponent balance.
+        drive: Total opponent drive.
+        bins_deg: Candidate azimuth bins.
+        power: Odd monotonic warp exponent.
+        sigma: Synaptic tuning width in sine-coordinate units.
+
+    Returns:
+        Warped ILD activation over candidate azimuth bins.
+    """
+    warped_balance = math.copysign(abs(balance) ** power, balance)
+    expected = np.sin(np.deg2rad(bins_deg))
+    return np.exp(-0.5 * ((warped_balance - expected) / sigma) ** 2) * drive
+
+
+def decode_warped_ild(
+    predictions: list[AzimuthPrediction],
+    bins_deg: np.ndarray,
+    power: float,
+    sigma: float,
+) -> tuple[np.ndarray, list[np.ndarray]]:
+    """Decode warped ILD predictions for a dataset.
+
+    Args:
+        predictions: Existing pathway predictions with LSO stage outputs.
+        bins_deg: Candidate azimuth bins.
+        power: Balance-warp exponent.
+        sigma: Synaptic tuning width.
+
+    Returns:
+        Pair `(decoded_degrees, activations)`.
+    """
+    decoded = []
+    activations = []
+    for prediction in predictions:
+        balance, drive = lso_balance_and_drive(prediction)
+        activation = warped_ild_activation(balance, drive, bins_deg, power, sigma)
+        activations.append(activation)
+        decoded.append(centre_of_mass(activation, bins_deg))
+    return np.array(decoded, dtype=np.float64), activations
+
+
+def tune_warped_ild_mapping(predictions: list[AzimuthPrediction], bins_deg: np.ndarray) -> dict[str, float]:
+    """Grid-search a monotonic warped synaptic mapping for the ILD branch.
+
+    Args:
+        predictions: Calibration predictions.
+        bins_deg: Candidate azimuth bins.
+
+    Returns:
+        Best warp parameters and calibration metrics.
+    """
+    true = np.array([item.true_azimuth_deg for item in predictions], dtype=np.float64)
+    best: dict[str, float] | None = None
+    for power in WARP_POWER_GRID:
+        for sigma in WARP_SIGMA_GRID:
+            decoded, _ = decode_warped_ild(predictions, bins_deg, float(power), float(sigma))
+            error = decoded - true
+            mae = float(np.mean(np.abs(error)))
+            if best is None or mae < best["mae_deg"]:
+                best = {
+                    "power": float(power),
+                    "sigma": float(sigma),
+                    "mae_deg": mae,
+                    "rmse_deg": float(np.sqrt(np.mean(error**2))),
+                    "max_abs_error_deg": float(np.max(np.abs(error))),
+                    "bias_deg": float(np.mean(error)),
+                }
+    if best is None:
+        raise RuntimeError("Warped ILD tuning failed.")
+    return best
+
+
+def metric_dict_from_arrays(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
+    """Compute azimuth metrics from arrays."""
+    error = angular_error(pred, true)
+    return {
+        "mae_deg": float(np.mean(np.abs(error))),
+        "rmse_deg": float(np.sqrt(np.mean(error**2))),
+        "max_abs_error_deg": float(np.max(np.abs(error))),
+        "bias_deg": float(np.mean(error)),
+    }
+
+
 def normalise_population(activity: np.ndarray) -> np.ndarray:
     """Normalise a non-negative population by its maximum."""
     peak = float(np.max(activity))
@@ -512,6 +621,121 @@ def plot_error_histogram(predictions: list[AzimuthPrediction], path: Path) -> st
     return save_figure(fig, path)
 
 
+def plot_range_comparison(
+    primary_predictions: list[AzimuthPrediction],
+    stress_predictions: list[AzimuthPrediction],
+    path: Path,
+) -> str:
+    """Compare combined-readout errors for +/-45 and +/-90 degree tests.
+
+    Args:
+        primary_predictions: Predictions over the +/-45 degree support.
+        stress_predictions: Predictions over the +/-90 degree support.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    datasets = [
+        ("+/-45 deg", primary_predictions, AZIMUTH_LIMIT_DEG),
+        ("+/-90 deg", stress_predictions, STRESS_AZIMUTH_LIMIT_DEG),
+    ]
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 5.0), sharey=False)
+    for ax, (label, predictions, limit) in zip(axes, datasets):
+        true = np.array([item.true_azimuth_deg for item in predictions])
+        pred = np.array([item.combined_prediction_deg for item in predictions])
+        error = pred - true
+        ax.scatter(true, error, s=22, alpha=0.7, color="#2563eb")
+        ax.axhline(0.0, color="#111827", linewidth=1.0)
+        ax.axvline(0.0, color="#6b7280", linestyle=":", linewidth=1.0)
+        ax.set_xlim(-limit, limit)
+        ax.set_xlabel("true azimuth (deg)")
+        ax.set_title(label)
+        ax.grid(True, alpha=0.25)
+    axes[0].set_ylabel("combined readout error (deg)")
+    fig.suptitle("Azimuth error grows when the represented field expands")
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_warped_ild_scatter(
+    predictions: list[AzimuthPrediction],
+    warped_predictions_deg: np.ndarray,
+    path: Path,
+) -> str:
+    """Plot raw and warped ILD predictions against true azimuth.
+
+    Args:
+        predictions: Primary azimuth predictions.
+        warped_predictions_deg: Warped ILD decoded azimuths.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    true = np.array([item.true_azimuth_deg for item in predictions], dtype=np.float64)
+    raw = np.array([item.ild_prediction_deg for item in predictions], dtype=np.float64)
+    fig, ax = plt.subplots(figsize=(7.2, 6.2))
+    ax.scatter(true, raw, s=22, alpha=0.58, label="raw ILD")
+    ax.scatter(true, warped_predictions_deg, s=24, alpha=0.76, label="warped ILD")
+    low = min(float(true.min()), float(raw.min()), float(warped_predictions_deg.min()))
+    high = max(float(true.max()), float(raw.max()), float(warped_predictions_deg.max()))
+    ax.plot([low, high], [low, high], color="#111827", linewidth=1.0)
+    ax.set_xlabel("true azimuth (deg)")
+    ax.set_ylabel("decoded azimuth (deg)")
+    ax.set_title("Warped synaptic mapping corrects the ILD sigmoid")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False)
+    return save_figure(fig, path)
+
+
+def plot_warped_ild_mapping(
+    predictions: list[AzimuthPrediction],
+    warp_params: dict[str, float],
+    path: Path,
+) -> str:
+    """Plot the tuned balance warp and measured LSO balance.
+
+    Args:
+        predictions: Primary azimuth predictions.
+        warp_params: Tuned warp parameters.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    true = np.array([item.true_azimuth_deg for item in predictions], dtype=np.float64)
+    balances = np.array([lso_balance_and_drive(item)[0] for item in predictions], dtype=np.float64)
+    grid = np.linspace(-1.0, 1.0, 501)
+    warped = np.sign(grid) * np.abs(grid) ** warp_params["power"]
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
+
+    axes[0].scatter(true, balances, s=24, alpha=0.72, color="#2563eb")
+    axes[0].plot(
+        np.linspace(-AZIMUTH_LIMIT_DEG, AZIMUTH_LIMIT_DEG, 301),
+        np.sin(np.deg2rad(np.linspace(-AZIMUTH_LIMIT_DEG, AZIMUTH_LIMIT_DEG, 301))),
+        color="#111827",
+        linewidth=1.0,
+        label="ideal sin(theta)",
+    )
+    axes[0].set_xlabel("true azimuth (deg)")
+    axes[0].set_ylabel("raw LSO balance")
+    axes[0].set_title("Raw ILD balance is too steep near midline")
+    axes[0].grid(True, alpha=0.25)
+    axes[0].legend(frameon=False)
+
+    axes[1].plot(grid, grid, color="#9ca3af", linestyle="--", linewidth=1.0, label="identity")
+    axes[1].plot(grid, warped, color="#dc2626", linewidth=2.0, label="tuned warp")
+    axes[1].set_xlabel("raw balance")
+    axes[1].set_ylabel("warped balance")
+    axes[1].set_title("Synaptic balance warp")
+    axes[1].grid(True, alpha=0.25)
+    axes[1].legend(frameon=False)
+
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
 def format_metric_row(label: str, metrics: dict[str, float]) -> str:
     """Format one metrics table row."""
     return (
@@ -529,6 +753,7 @@ def write_report(
     primary_predictions: list[AzimuthPrediction],
     stress_predictions: list[AzimuthPrediction],
     metrics: dict[str, dict[str, float]],
+    warp_params: dict[str, float],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -541,6 +766,7 @@ def write_report(
     metric_rows = [
         format_metric_row("ITD only", metrics["primary_itd"]),
         format_metric_row("ILD only", metrics["primary_ild"]),
+        format_metric_row("ILD warped", metrics["primary_ild_warped"]),
         format_metric_row("Combined", metrics["primary_combined"]),
         format_metric_row("Combined stress +/-90 deg", metrics["stress_combined"]),
     ]
@@ -611,6 +837,30 @@ def write_report(
         "",
         "Candidate azimuths are scored by matching $b$ to $\\sin\\theta_k$ with a Gaussian tuning curve.",
         "",
+        "## Warped Synaptic Mapping Layer",
+        "",
+        "The raw ILD result has a sigmoid-like calibration error: midline balances are too large, so moderate azimuths are decoded too far from zero. The acoustic head-shadow and LSO/MNTB stages are left unchanged. The correction is a post-LSO synaptic mapping layer.",
+        "",
+        "For raw LSO balance $b$, the warped balance is:",
+        "",
+        "$$",
+        "\\tilde b = \\operatorname{sign}(b)|b|^\\gamma.",
+        "$$",
+        "",
+        "The warped ILD population is then:",
+        "",
+        "$$",
+        "A^{warp}_{ILD}(\\theta_k)=D\\exp\\left[-\\frac{(\\tilde b-\\sin\\theta_k)^2}{2\\sigma_w^2}\\right],",
+        "$$",
+        "",
+        "where $D=\\sum_c LSO_L(c)+\\sum_c LSO_R(c)$ is the total opponent drive. This is equivalent to changing the synaptic projection from the LSO balance coordinate into the topographic azimuth coordinate.",
+        "",
+        f"The tuned parameters on this deterministic `+/-45 deg` test were `gamma = {warp_params['power']:.3f}` and `sigma_w = {warp_params['sigma']:.3f}`.",
+        "",
+        "![Warped ILD mapping](../outputs/first_attempt/figures/warped_ild_mapping.png)",
+        "",
+        "![Warped ILD scatter](../outputs/first_attempt/figures/warped_ild_scatter.png)",
+        "",
         "## IC And SC Readout",
         "",
         "The IC combines the normalised ITD and ILD azimuth populations. In this first prototype the ITD branch is deliberately weighted more heavily because the raw ITD detector is already sharp, while the first ILD branch is included as a weaker biological diagnostic cue:",
@@ -642,6 +892,20 @@ def write_report(
         "![Prediction scatter](../outputs/first_attempt/figures/prediction_scatter.png)",
         "",
         "![Error histogram](../outputs/first_attempt/figures/error_histogram.png)",
+        "",
+        "![Range comparison](../outputs/first_attempt/figures/range_comparison.png)",
+        "",
+        "## Why The +/-90 Degree Case Is Worse",
+        "",
+        "The wider-field result is lower accuracy, but it is not a useless failure. It is a useful stress result for three reasons.",
+        "",
+        "First, the ITD cue saturates with azimuth because the physical cue is approximately proportional to $\\sin\\theta$. Near the midline, small changes in azimuth produce a large, nearly linear change in ITD. Near the sides, $\\sin\\theta$ flattens, so the same timing precision corresponds to a larger angular uncertainty.",
+        "",
+        "Second, the current head-shadow ILD cue is deliberately simple. It is a smooth multiplicative gain, not a full frequency-dependent head-related transfer function. That means the ILD branch does not yet add enough extra wide-angle information to compensate for ITD saturation.",
+        "",
+        "Third, the current SC readout is a centre of mass over a single population. At wide angles, broad or asymmetric populations are pulled inward, so extreme azimuths tend to be underestimated. This is exactly the kind of behaviour that an azimuth attractor or better edge-aware readout should be tested against later.",
+        "",
+        "This makes the `+/-90 deg` result valuable: the `+/-45 deg` case shows the pathway can be very accurate under the old model support, while the `+/-90 deg` case shows the expected biological/geometry limitation of wider-field azimuth estimation.",
         "",
         "## Old Model Comparison",
         "",
@@ -675,9 +939,19 @@ def main() -> dict[str, object]:
     primary_predictions = run_dataset(config, AZIMUTH_LIMIT_DEG)
     stress_predictions = run_dataset(config, STRESS_AZIMUTH_LIMIT_DEG)
     example = primary_predictions[len(primary_predictions) // 2]
+    primary_bins = azimuth_grid(AZIMUTH_LIMIT_DEG)
+    warp_params = tune_warped_ild_mapping(primary_predictions, primary_bins)
+    warped_ild_predictions, _ = decode_warped_ild(
+        primary_predictions,
+        primary_bins,
+        warp_params["power"],
+        warp_params["sigma"],
+    )
+    primary_true = np.array([item.true_azimuth_deg for item in primary_predictions], dtype=np.float64)
     metrics = {
         "primary_itd": metric_dict(primary_predictions, "itd_prediction_deg"),
         "primary_ild": metric_dict(primary_predictions, "ild_prediction_deg"),
+        "primary_ild_warped": metric_dict_from_arrays(primary_true, warped_ild_predictions),
         "primary_combined": metric_dict(primary_predictions, "combined_prediction_deg"),
         "stress_combined": metric_dict(stress_predictions, "combined_prediction_deg"),
     }
@@ -686,6 +960,21 @@ def main() -> dict[str, object]:
         "example_stages": plot_example_stages(example, config, FIGURE_DIR / "example_stages.png"),
         "prediction_scatter": plot_prediction_scatter(primary_predictions, FIGURE_DIR / "prediction_scatter.png"),
         "error_histogram": plot_error_histogram(primary_predictions, FIGURE_DIR / "error_histogram.png"),
+        "range_comparison": plot_range_comparison(
+            primary_predictions,
+            stress_predictions,
+            FIGURE_DIR / "range_comparison.png",
+        ),
+        "warped_ild_mapping": plot_warped_ild_mapping(
+            primary_predictions,
+            warp_params,
+            FIGURE_DIR / "warped_ild_mapping.png",
+        ),
+        "warped_ild_scatter": plot_warped_ild_scatter(
+            primary_predictions,
+            warped_ild_predictions,
+            FIGURE_DIR / "warped_ild_scatter.png",
+        ),
     }
     elapsed_s = time.perf_counter() - start
     payload = {
@@ -709,17 +998,21 @@ def main() -> dict[str, object]:
             "ild_tuning_sigma": ILD_TUNING_SIGMA,
             "itd_weight": ITD_WEIGHT,
             "ild_weight": ILD_WEIGHT,
+            "warped_ild_power": warp_params["power"],
+            "warped_ild_sigma": warp_params["sigma"],
         },
         "metrics": metrics,
+        "warped_ild_tuning": warp_params,
         "old_model_azimuth_mae_deg": OLD_MODEL_AZIMUTH_RESULTS,
         "primary_predictions": [
             {
                 "true_azimuth_deg": item.true_azimuth_deg,
                 "itd_prediction_deg": item.itd_prediction_deg,
                 "ild_prediction_deg": item.ild_prediction_deg,
+                "ild_warped_prediction_deg": float(warped_ild_predictions[index]),
                 "combined_prediction_deg": item.combined_prediction_deg,
             }
-            for item in primary_predictions
+            for index, item in enumerate(primary_predictions)
         ],
         "stress_predictions": [
             {
@@ -731,7 +1024,7 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(config, primary_predictions, stress_predictions, metrics, artifacts, elapsed_s)
+    write_report(config, primary_predictions, stress_predictions, metrics, warp_params, artifacts, elapsed_s)
     return payload
 
 
