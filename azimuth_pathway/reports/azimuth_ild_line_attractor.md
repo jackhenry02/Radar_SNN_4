@@ -58,10 +58,32 @@ The example below shows the inverse-sigmoid ILD population being injected into t
 | +/-45 SC CANN | `1.019 deg` | `1.535 deg` | `6.981 deg` | `-0.038 deg` |
 | +/-90 direct inverse-sigmoid ILD | `7.733 deg` | `10.699 deg` | `26.658 deg` | `1.110 deg` |
 | +/-90 SC CANN | `7.658 deg` | `10.547 deg` | `25.789 deg` | `1.037 deg` |
+| Full 3D +/-45 clean direct COM | `9.757 deg` | `13.622 deg` | `42.980 deg` | `0.102 deg` |
+| Full 3D +/-45 clean SC CANN | `9.729 deg` | `13.567 deg` | `42.980 deg` | `0.152 deg` |
+| Full 3D +/-45 50 dB noise direct COM | `9.658 deg` | `13.645 deg` | `42.980 deg` | `-0.031 deg` |
+| Full 3D +/-45 50 dB noise SC CANN | `9.627 deg` | `13.583 deg` | `42.980 deg` | `0.023 deg` |
+| Full 3D +/-90 clean direct COM | `21.061 deg` | `27.965 deg` | `88.042 deg` | `0.293 deg` |
+| Full 3D +/-90 clean SC CANN | `20.845 deg` | `27.606 deg` | `88.042 deg` | `0.254 deg` |
+| Full 3D +/-90 50 dB noise direct COM | `21.101 deg` | `27.966 deg` | `88.042 deg` | `0.340 deg` |
+| Full 3D +/-90 50 dB noise SC CANN | `20.885 deg` | `27.607 deg` | `88.042 deg` | `0.301 deg` |
 
 ![Prediction scatter](../outputs/ild_line_attractor/figures/prediction_scatter.png)
 
 ![Error over time](../outputs/ild_line_attractor/figures/error_over_time.png)
+
+## Full 3D And Noise Tests
+
+The full test samples `80` targets per azimuth support. Both tests vary distance `0.25 -> 10.00 m` and elevation `-45 -> 45 deg`. Two azimuth ranges are tested: `+/-45 deg`, matching the current inverse-sigmoid calibration support, and `+/-90 deg`, the wide-field stress case. The acoustic simulator includes binaural head shadow, path-length ITD, and elevation spectral filtering. Only azimuth error is measured.
+
+The noisy condition uses a fixed receiver noise floor of `50 dB`, corresponding to `noise_std = 0.0316228` under the project convention where amplitude `1.0` is `80 dB` and the `1000x` call is `140 dB`. This noise is not re-normalised per target, so farther echoes have lower effective SNR.
+
+![Full 3D +/-45 results](../outputs/ild_line_attractor/figures/full_3d_results_pm45.png)
+
+![Full 3D +/-90 results](../outputs/ild_line_attractor/figures/full_3d_results_pm90.png)
+
+The full-3D error is much larger than the controlled fixed-distance result. The most likely reason is that the inverse-sigmoid mapping was calibrated at one distance and zero elevation, so it assumes one stable relationship between LSO balance and azimuth. In the full scene, distance changes the echo level, elevation filtering changes spectral energy across channels, and the current ILD code collapses the LSO output into one global balance. Those extra variables can shift the balance even when azimuth is unchanged, so the calibrated map no longer represents azimuth alone.
+
+The 50 dB noise floor barely changes the result, which supports this interpretation: the dominant failure is not random receiver noise, but systematic cue confounding from range/elevation and spectral filtering. A stronger next ILD model should either normalise level/spectrum before the balance calculation, use frequency-dependent LSO populations instead of one global balance, or learn/tune a multidimensional mapping conditioned on distance/elevation-sensitive context.
 
 ## Interpretation
 
@@ -73,9 +95,13 @@ This distinction matters biologically: the CANN is not a replacement for the LSO
 
 | Quantity | Value |
 |---|---:|
-| full experiment runtime | `18.33 s` |
-| CANN seconds per sample, +/-45 | `0.001187` |
-| CANN seconds per sample, +/-90 | `0.001437` |
+| full experiment runtime | `38.72 s` |
+| CANN seconds per sample, +/-45 | `0.001238` |
+| CANN seconds per sample, +/-90 | `0.002097` |
+| full 3D +/-45 clean seconds per sample | `0.047664` |
+| full 3D +/-45 noisy seconds per sample | `0.083248` |
+| full 3D +/-90 clean seconds per sample | `0.048074` |
+| full 3D +/-90 noisy seconds per sample | `0.079567` |
 
 ## Generated Files
 
@@ -84,4 +110,6 @@ This distinction matters biologically: the CANN is not a replacement for the LSO
 - `prediction_scatter`: `azimuth_pathway/outputs/ild_line_attractor/figures/prediction_scatter.png`
 - `error_over_time`: `azimuth_pathway/outputs/ild_line_attractor/figures/error_over_time.png`
 - `example_dynamics`: `azimuth_pathway/outputs/ild_line_attractor/figures/example_dynamics.png`
+- `full_3d_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_results_pm45.png`
+- `full_3d_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_results_pm90.png`
 - `results`: `azimuth_pathway/outputs/ild_line_attractor/results.json`

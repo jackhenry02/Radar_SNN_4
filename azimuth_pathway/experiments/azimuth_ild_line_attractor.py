@@ -11,6 +11,7 @@ attractor used in the final distance pathway.
 import json
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import matplotlib
@@ -18,6 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -34,6 +36,13 @@ REPORT_PATH = ROOT / "azimuth_pathway" / "reports" / "azimuth_ild_line_attractor
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 
 ATTRACTOR_VARIANT = distance_cann.SC_ATTRACTOR_VARIANTS[1]
+FULL_3D_SAMPLES = 80
+FULL_3D_MIN_DISTANCE_M = 0.25
+FULL_3D_MAX_DISTANCE_M = 10.0
+FULL_3D_AZIMUTH_LIMIT_DEG = 90.0
+FULL_3D_AZIMUTH_LIMITS_DEG = (45.0, 90.0)
+FULL_3D_ELEVATION_LIMIT_DEG = 45.0
+FULL_3D_RNG_SEED = 91_000
 
 
 def metric_dict(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
@@ -121,6 +130,200 @@ def run_cann_example(population: np.ndarray, bins_deg: np.ndarray) -> tuple[np.n
     excitatory = history[:, 0, : bins_deg.size]
     spikes = distance_cann.state_history_to_output_spikes(excitatory)
     return trajectory[0], excitatory, spikes
+
+
+def make_full_3d_config(noise_std: float = 0.0) -> object:
+    """Create a full-3D azimuth test configuration.
+
+    Args:
+        noise_std: Fixed receiver noise standard deviation.
+
+    Returns:
+        Acoustic configuration covering echoes out to 10 m.
+    """
+    return replace(
+        az.make_config(),
+        max_range_m=FULL_3D_MAX_DISTANCE_M,
+        signal_duration_s=0.070,
+        jitter_std_s=0.0,
+        noise_std=float(noise_std),
+    )
+
+
+def predict_one_3d(
+    config: object,
+    distance_m: float,
+    azimuth_deg: float,
+    elevation_deg: float,
+    *,
+    add_noise: bool,
+    limit_deg: float = FULL_3D_AZIMUTH_LIMIT_DEG,
+) -> az.AzimuthPrediction:
+    """Run the azimuth ILD pathway for one full-3D target.
+
+    Args:
+        config: Acoustic configuration.
+        distance_m: Target distance in metres.
+        azimuth_deg: Target azimuth in degrees.
+        elevation_deg: Target elevation in degrees.
+        add_noise: Whether to add receiver noise from `config.noise_std`.
+        limit_deg: Represented azimuth range.
+
+    Returns:
+        Azimuth pathway prediction object.
+    """
+    bins = az.azimuth_grid(limit_deg)
+    scene = az.simulate_echo_batch(
+        config,
+        radii_m=torch.tensor([distance_m], dtype=torch.float32),
+        azimuth_deg=torch.tensor([azimuth_deg], dtype=torch.float32),
+        elevation_deg=torch.tensor([elevation_deg], dtype=torch.float32),
+        binaural=True,
+        add_noise=add_noise,
+        include_elevation_cues=True,
+        transmit_gain=config.transmit_gain,
+    )
+    cochlea = distance_cann.fdm._run_cochlea_binaural(config, scene.receive[0].detach())
+    left_spikes, right_spikes = az.run_dynamic_cochlea_spikes(cochlea, config)
+    vcn_left = az.vcn_consensus_single_ear(left_spikes, config)
+    vcn_right = az.vcn_consensus_single_ear(right_spikes, config)
+    itd = az.jeffress_lif_itd_activation(vcn_left, vcn_right, config, bins)
+    ild, left_code, right_code, left_lso, right_lso = az.lso_mntb_ild_activation(left_spikes, right_spikes, bins)
+    combined = az.ITD_WEIGHT * az.normalise_population(itd) + az.ILD_WEIGHT * az.normalise_population(ild)
+    return az.AzimuthPrediction(
+        true_azimuth_deg=float(azimuth_deg),
+        itd_prediction_deg=az.centre_of_mass(itd, bins),
+        ild_prediction_deg=az.centre_of_mass(ild, bins),
+        combined_prediction_deg=az.centre_of_mass(combined, bins),
+        itd_activation=itd,
+        ild_activation=ild,
+        combined_activation=combined,
+        cochlea=cochlea,
+        vcn_left=vcn_left,
+        vcn_right=vcn_right,
+        left_level_code=left_code,
+        right_level_code=right_code,
+        left_lso=left_lso,
+        right_lso=right_lso,
+    )
+
+
+def run_full_3d_condition(
+    config: object,
+    distances_m: np.ndarray,
+    azimuths_deg: np.ndarray,
+    elevations_deg: np.ndarray,
+    inverse_params: dict[str, float],
+    *,
+    add_noise: bool,
+    limit_deg: float,
+) -> dict[str, object]:
+    """Run one clean or noisy full-3D azimuth condition.
+
+    Args:
+        config: Acoustic configuration.
+        distances_m: Target distances.
+        azimuths_deg: Target azimuths.
+        elevations_deg: Target elevations.
+        inverse_params: Tuned inverse-sigmoid mapping parameters.
+        add_noise: Whether receiver noise is enabled.
+        limit_deg: Symmetric represented azimuth range.
+
+    Returns:
+        Condition results with direct and CANN predictions.
+    """
+    bins = az.azimuth_grid(limit_deg)
+    start = time.perf_counter()
+    predictions = [
+        predict_one_3d(
+            config,
+            float(distance),
+            float(azimuth_value),
+            float(elevation),
+            add_noise=add_noise,
+            limit_deg=limit_deg,
+        )
+        for distance, azimuth_value, elevation in zip(distances_m, azimuths_deg, elevations_deg)
+    ]
+    direct, population = inverse_ild_population_dataset(
+        predictions,
+        bins,
+        inverse_params,
+        limit_deg,
+    )
+    cann, trajectory, cann_seconds_per_sample, _ = run_cann_readout(population, bins)
+    elapsed = time.perf_counter() - start
+    return {
+        "predictions": predictions,
+        "direct": direct,
+        "population": population,
+        "cann": cann,
+        "trajectory": trajectory,
+        "condition_seconds": elapsed,
+        "seconds_per_sample": elapsed / max(1, len(predictions)),
+        "cann_seconds_per_sample": cann_seconds_per_sample,
+    }
+
+
+def run_full_3d_suite(inverse_params: dict[str, float]) -> dict[str, object]:
+    """Run clean and noisy full-3D tests for +/-45 and +/-90 azimuth supports.
+
+    Args:
+        inverse_params: Tuned inverse-sigmoid mapping parameters.
+
+    Returns:
+        Nested full-3D test results.
+    """
+    noise_std = distance_cann.fdm._noise_std_from_db(distance_cann.fdm.AMBIENT_NOISE_DB_SPL)
+    clean_config = make_full_3d_config(noise_std=0.0)
+    noisy_config = make_full_3d_config(noise_std=noise_std)
+    supports: dict[str, object] = {}
+    for support_index, limit_deg in enumerate(FULL_3D_AZIMUTH_LIMITS_DEG):
+        rng = np.random.default_rng(FULL_3D_RNG_SEED + int(limit_deg))
+        distances = rng.uniform(FULL_3D_MIN_DISTANCE_M, FULL_3D_MAX_DISTANCE_M, size=FULL_3D_SAMPLES)
+        azimuths = rng.uniform(-limit_deg, limit_deg, size=FULL_3D_SAMPLES)
+        elevations = rng.uniform(-FULL_3D_ELEVATION_LIMIT_DEG, FULL_3D_ELEVATION_LIMIT_DEG, size=FULL_3D_SAMPLES)
+
+        torch.manual_seed(FULL_3D_RNG_SEED + 1000 + support_index)
+        clean = run_full_3d_condition(
+            clean_config,
+            distances,
+            azimuths,
+            elevations,
+            inverse_params,
+            add_noise=False,
+            limit_deg=limit_deg,
+        )
+        torch.manual_seed(FULL_3D_RNG_SEED + 2000 + support_index)
+        noisy = run_full_3d_condition(
+            noisy_config,
+            distances,
+            azimuths,
+            elevations,
+            inverse_params,
+            add_noise=True,
+            limit_deg=limit_deg,
+        )
+        key = f"azimuth_pm{int(limit_deg)}"
+        supports[key] = {
+            "limit_deg": limit_deg,
+            "distance_m": distances,
+            "azimuth_deg": azimuths,
+            "elevation_deg": elevations,
+            "clean": clean,
+            "noisy": noisy,
+        }
+    return {
+        "num_samples_per_support": FULL_3D_SAMPLES,
+        "distance_range_m": [FULL_3D_MIN_DISTANCE_M, FULL_3D_MAX_DISTANCE_M],
+        "azimuth_limits_deg": list(FULL_3D_AZIMUTH_LIMITS_DEG),
+        "elevation_range_deg": [-FULL_3D_ELEVATION_LIMIT_DEG, FULL_3D_ELEVATION_LIMIT_DEG],
+        "noise_db_spl": distance_cann.fdm.AMBIENT_NOISE_DB_SPL,
+        "noise_std": noise_std,
+        "reference_db_spl": distance_cann.fdm.REFERENCE_DB_SPL,
+        "call_db_spl": distance_cann.fdm.CALL_DB_SPL,
+        "supports": supports,
+    }
 
 
 def plot_pipeline(path: Path) -> str:
@@ -242,6 +445,54 @@ def plot_error_over_time(
     return save_figure(fig, path)
 
 
+def plot_full_3d_results(
+    azimuths_deg: np.ndarray,
+    distances_m: np.ndarray,
+    clean_direct: np.ndarray,
+    clean_cann: np.ndarray,
+    noisy_direct: np.ndarray,
+    noisy_cann: np.ndarray,
+    limit_deg: float,
+    path: Path,
+) -> str:
+    """Plot clean/noisy full-3D true-vs-predicted azimuth.
+
+    Args:
+        azimuths_deg: True target azimuths.
+        distances_m: True target distances.
+        clean_direct: Clean direct predictions.
+        clean_cann: Clean CANN predictions.
+        noisy_direct: Noisy direct predictions.
+        noisy_cann: Noisy CANN predictions.
+        limit_deg: Symmetric azimuth support.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(12.0, 9.0), sharex="col", sharey="row")
+    scatter_specs = [
+        (axes[0, 0], "Clean direct COM", clean_direct),
+        (axes[0, 1], "Clean SC CANN", clean_cann),
+        (axes[1, 0], "50 dB noise direct COM", noisy_direct),
+        (axes[1, 1], "50 dB noise SC CANN", noisy_cann),
+    ]
+    for ax, title, pred in scatter_specs:
+        sc = ax.scatter(azimuths_deg, pred, c=distances_m, s=24, alpha=0.78, cmap="viridis")
+        ax.plot([-limit_deg, limit_deg], [-limit_deg, limit_deg], color="#111827", linewidth=1.0)
+        ax.axvline(0.0, color="#6b7280", linestyle=":", linewidth=1.0)
+        ax.set_xlim(-limit_deg, limit_deg)
+        ax.set_ylim(-limit_deg, limit_deg)
+        ax.set_xlabel("true azimuth (deg)")
+        ax.set_ylabel("predicted azimuth (deg)")
+        ax.set_title(title)
+        ax.grid(True, alpha=0.25)
+    colorbar = fig.colorbar(sc, ax=axes.ravel().tolist(), fraction=0.025, pad=0.02)
+    colorbar.set_label("distance (m)")
+    fig.suptitle(f"Full 3D azimuth test +/-{limit_deg:.0f} deg: distance/elevation varied")
+    return save_figure(fig, path)
+
+
 def plot_example_dynamics(
     bins_deg: np.ndarray,
     true_azimuth: float,
@@ -300,6 +551,7 @@ def write_report(
     config: object,
     inverse_params: dict[str, float],
     metrics: dict[str, dict[str, float]],
+    full_3d: dict[str, object],
     runtime: dict[str, float],
     artifacts: dict[str, str],
     elapsed_s: float,
@@ -311,6 +563,14 @@ def write_report(
         ("+/-45 SC CANN", metrics["primary_cann"]),
         ("+/-90 direct inverse-sigmoid ILD", metrics["stress_direct"]),
         ("+/-90 SC CANN", metrics["stress_cann"]),
+        ("Full 3D +/-45 clean direct COM", metrics["full_3d_pm45_clean_direct"]),
+        ("Full 3D +/-45 clean SC CANN", metrics["full_3d_pm45_clean_cann"]),
+        ("Full 3D +/-45 50 dB noise direct COM", metrics["full_3d_pm45_noisy_direct"]),
+        ("Full 3D +/-45 50 dB noise SC CANN", metrics["full_3d_pm45_noisy_cann"]),
+        ("Full 3D +/-90 clean direct COM", metrics["full_3d_pm90_clean_direct"]),
+        ("Full 3D +/-90 clean SC CANN", metrics["full_3d_pm90_clean_cann"]),
+        ("Full 3D +/-90 50 dB noise direct COM", metrics["full_3d_pm90_noisy_direct"]),
+        ("Full 3D +/-90 50 dB noise SC CANN", metrics["full_3d_pm90_noisy_cann"]),
     ]
     lines = [
         "# Azimuth ILD Pathway With SC Line Attractor",
@@ -382,6 +642,20 @@ def write_report(
             "",
             "![Error over time](../outputs/ild_line_attractor/figures/error_over_time.png)",
             "",
+            "## Full 3D And Noise Tests",
+            "",
+            f"The full test samples `{full_3d['num_samples_per_support']}` targets per azimuth support. Both tests vary distance `{full_3d['distance_range_m'][0]:.2f} -> {full_3d['distance_range_m'][1]:.2f} m` and elevation `{full_3d['elevation_range_deg'][0]:.0f} -> {full_3d['elevation_range_deg'][1]:.0f} deg`. Two azimuth ranges are tested: `+/-45 deg`, matching the current inverse-sigmoid calibration support, and `+/-90 deg`, the wide-field stress case. The acoustic simulator includes binaural head shadow, path-length ITD, and elevation spectral filtering. Only azimuth error is measured.",
+            "",
+            f"The noisy condition uses a fixed receiver noise floor of `{full_3d['noise_db_spl']:.0f} dB`, corresponding to `noise_std = {full_3d['noise_std']:.6g}` under the project convention where amplitude `1.0` is `{full_3d['reference_db_spl']:.0f} dB` and the `1000x` call is `{full_3d['call_db_spl']:.0f} dB`. This noise is not re-normalised per target, so farther echoes have lower effective SNR.",
+            "",
+            "![Full 3D +/-45 results](../outputs/ild_line_attractor/figures/full_3d_results_pm45.png)",
+            "",
+            "![Full 3D +/-90 results](../outputs/ild_line_attractor/figures/full_3d_results_pm90.png)",
+            "",
+            "The full-3D error is much larger than the controlled fixed-distance result. The most likely reason is that the inverse-sigmoid mapping was calibrated at one distance and zero elevation, so it assumes one stable relationship between LSO balance and azimuth. In the full scene, distance changes the echo level, elevation filtering changes spectral energy across channels, and the current ILD code collapses the LSO output into one global balance. Those extra variables can shift the balance even when azimuth is unchanged, so the calibrated map no longer represents azimuth alone.",
+            "",
+            "The 50 dB noise floor barely changes the result, which supports this interpretation: the dominant failure is not random receiver noise, but systematic cue confounding from range/elevation and spectral filtering. A stronger next ILD model should either normalise level/spectrum before the balance calculation, use frequency-dependent LSO populations instead of one global balance, or learn/tune a multidimensional mapping conditioned on distance/elevation-sensitive context.",
+            "",
             "## Interpretation",
             "",
             "The attractor is tested as a reversible SC readout module: it receives exactly the same inverse-sigmoid ILD population as the direct COM baseline. If the CANN improves accuracy, it is sharpening or stabilising the population readout. If it does not, then the calibrated ILD population is already close to the useful decoded statistic and recurrence mainly adds smoothing/bias.",
@@ -395,6 +669,10 @@ def write_report(
             f"| full experiment runtime | `{elapsed_s:.2f} s` |",
             f"| CANN seconds per sample, +/-45 | `{runtime['primary_cann_seconds_per_sample']:.6f}` |",
             f"| CANN seconds per sample, +/-90 | `{runtime['stress_cann_seconds_per_sample']:.6f}` |",
+            f"| full 3D +/-45 clean seconds per sample | `{runtime['full_3d_pm45_clean_seconds_per_sample']:.6f}` |",
+            f"| full 3D +/-45 noisy seconds per sample | `{runtime['full_3d_pm45_noisy_seconds_per_sample']:.6f}` |",
+            f"| full 3D +/-90 clean seconds per sample | `{runtime['full_3d_pm90_clean_seconds_per_sample']:.6f}` |",
+            f"| full 3D +/-90 noisy seconds per sample | `{runtime['full_3d_pm90_noisy_seconds_per_sample']:.6f}` |",
             "",
             "## Generated Files",
             "",
@@ -438,6 +716,7 @@ def main() -> dict[str, object]:
 
     primary_cann, primary_trajectory, primary_seconds_per_sample, _ = run_cann_readout(primary_population, primary_bins)
     stress_cann, stress_trajectory, stress_seconds_per_sample, _ = run_cann_readout(stress_population, stress_bins)
+    full_3d = run_full_3d_suite(inverse_params)
 
     example_index = len(primary_predictions) // 2
     example_trajectory, example_excitatory, example_spikes = run_cann_example(primary_population[example_index], primary_bins)
@@ -452,6 +731,21 @@ def main() -> dict[str, object]:
         "primary_cann_seconds_per_sample": primary_seconds_per_sample,
         "stress_cann_seconds_per_sample": stress_seconds_per_sample,
     }
+    for limit_deg in FULL_3D_AZIMUTH_LIMITS_DEG:
+        support_key = f"azimuth_pm{int(limit_deg)}"
+        metric_key = f"full_3d_pm{int(limit_deg)}"
+        support = full_3d["supports"][support_key]
+        true_azimuth = support["azimuth_deg"]
+        clean = support["clean"]
+        noisy = support["noisy"]
+        metrics[f"{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean["direct"])
+        metrics[f"{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean["cann"])
+        metrics[f"{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy["direct"])
+        metrics[f"{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy["cann"])
+        runtime[f"{metric_key}_clean_seconds_per_sample"] = clean["seconds_per_sample"]
+        runtime[f"{metric_key}_noisy_seconds_per_sample"] = noisy["seconds_per_sample"]
+        runtime[f"{metric_key}_clean_cann_seconds_per_sample"] = clean["cann_seconds_per_sample"]
+        runtime[f"{metric_key}_noisy_cann_seconds_per_sample"] = noisy["cann_seconds_per_sample"]
     artifacts = {
         "pipeline_diagram": plot_pipeline(FIGURE_DIR / "pipeline_diagram.png"),
         "attractor_matrices": plot_matrices(primary_bins, FIGURE_DIR / "attractor_matrices.png"),
@@ -482,6 +776,26 @@ def main() -> dict[str, object]:
             example_spikes,
             FIGURE_DIR / "example_dynamics.png",
         ),
+        "full_3d_results_pm45": plot_full_3d_results(
+            full_3d["supports"]["azimuth_pm45"]["azimuth_deg"],
+            full_3d["supports"]["azimuth_pm45"]["distance_m"],
+            full_3d["supports"]["azimuth_pm45"]["clean"]["direct"],
+            full_3d["supports"]["azimuth_pm45"]["clean"]["cann"],
+            full_3d["supports"]["azimuth_pm45"]["noisy"]["direct"],
+            full_3d["supports"]["azimuth_pm45"]["noisy"]["cann"],
+            45.0,
+            FIGURE_DIR / "full_3d_results_pm45.png",
+        ),
+        "full_3d_results_pm90": plot_full_3d_results(
+            full_3d["supports"]["azimuth_pm90"]["azimuth_deg"],
+            full_3d["supports"]["azimuth_pm90"]["distance_m"],
+            full_3d["supports"]["azimuth_pm90"]["clean"]["direct"],
+            full_3d["supports"]["azimuth_pm90"]["clean"]["cann"],
+            full_3d["supports"]["azimuth_pm90"]["noisy"]["direct"],
+            full_3d["supports"]["azimuth_pm90"]["noisy"]["cann"],
+            90.0,
+            FIGURE_DIR / "full_3d_results_pm90.png",
+        ),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -501,6 +815,29 @@ def main() -> dict[str, object]:
         },
         "metrics": metrics,
         "runtime": runtime,
+        "full_3d": {
+            "num_samples_per_support": full_3d["num_samples_per_support"],
+            "distance_range_m": full_3d["distance_range_m"],
+            "azimuth_limits_deg": full_3d["azimuth_limits_deg"],
+            "elevation_range_deg": full_3d["elevation_range_deg"],
+            "noise_db_spl": full_3d["noise_db_spl"],
+            "noise_std": full_3d["noise_std"],
+            "reference_db_spl": full_3d["reference_db_spl"],
+            "call_db_spl": full_3d["call_db_spl"],
+            "supports": {
+                key: {
+                    "limit_deg": value["limit_deg"],
+                    "distance_m": value["distance_m"].tolist(),
+                    "azimuth_deg": value["azimuth_deg"].tolist(),
+                    "elevation_deg": value["elevation_deg"].tolist(),
+                    "clean_direct_deg": value["clean"]["direct"].tolist(),
+                    "clean_cann_deg": value["clean"]["cann"].tolist(),
+                    "noisy_direct_deg": value["noisy"]["direct"].tolist(),
+                    "noisy_cann_deg": value["noisy"]["cann"].tolist(),
+                }
+                for key, value in full_3d["supports"].items()
+            },
+        },
         "primary_predictions": [
             {
                 "true_azimuth_deg": float(primary_true[idx]),
@@ -520,7 +857,7 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(config, inverse_params, metrics, runtime, artifacts, elapsed_s)
+    write_report(config, inverse_params, metrics, full_3d, runtime, artifacts, elapsed_s)
     return payload
 
 
