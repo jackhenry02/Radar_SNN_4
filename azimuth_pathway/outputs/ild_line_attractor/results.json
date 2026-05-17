@@ -1,0 +1,1023 @@
+{
+  "experiment": "azimuth_ild_line_attractor",
+  "elapsed_seconds": 18.328939041122794,
+  "inverse_sigmoid_params": {
+    "gain": 3.75,
+    "sigma": 0.12,
+    "mae_deg": 0.9820735921065644,
+    "rmse_deg": 1.4796898949888242,
+    "max_abs_error_deg": 6.577198406286286,
+    "bias_deg": -0.039118737079356425
+  },
+  "attractor_variant": {
+    "key": "reflected",
+    "label": "FI reflected Gaussian 2-block",
+    "input_family": "reflected",
+    "input_width_bins": 3.0,
+    "beta": 0.8965377489071944,
+    "alpha_prime": 4.0,
+    "recurrent_width_bins": 4.0,
+    "readout_time_s": 0.001
+  },
+  "metrics": {
+    "primary_direct": {
+      "mae_deg": 0.9820735921065644,
+      "rmse_deg": 1.4796898949888242,
+      "max_abs_error_deg": 6.577198406286286,
+      "bias_deg": -0.039118737079356425
+    },
+    "primary_cann": {
+      "mae_deg": 1.0185442789359263,
+      "rmse_deg": 1.5351726742064846,
+      "max_abs_error_deg": 6.981116828781474,
+      "bias_deg": -0.03753585859957542
+    },
+    "stress_direct": {
+      "mae_deg": 7.733010314842424,
+      "rmse_deg": 10.69904663391761,
+      "max_abs_error_deg": 26.65798792642036,
+      "bias_deg": 1.1096536220352815
+    },
+    "stress_cann": {
+      "mae_deg": 7.65778363090918,
+      "rmse_deg": 10.546977644234108,
+      "max_abs_error_deg": 25.7892661769247,
+      "bias_deg": 1.0373114757547173
+    }
+  },
+  "runtime": {
+    "primary_cann_seconds_per_sample": 0.001187003906428193,
+    "stress_cann_seconds_per_sample": 0.0014370803013055895
+  },
+  "primary_predictions": [
+    {
+      "true_azimuth_deg": 32.03944355957354,
+      "direct_inverse_ild_deg": 33.0445124378968,
+      "cann_deg": 32.89000293252963
+    },
+    {
+      "true_azimuth_deg": 11.904763974260952,
+      "direct_inverse_ild_deg": 12.180193870479407,
+      "cann_deg": 12.197790017746014
+    },
+    {
+      "true_azimuth_deg": -34.38849987363233,
+      "direct_inverse_ild_deg": -33.82467218583033,
+      "cann_deg": -33.64509997467396
+    },
+    {
+      "true_azimuth_deg": -13.443058244087233,
+      "direct_inverse_ild_deg": -12.956324313281868,
+      "cann_deg": -12.974884672927839
+    },
+    {
+      "true_azimuth_deg": -23.390199861512237,
+      "direct_inverse_ild_deg": -22.19964896138834,
+      "cann_deg": -22.22493536283428
+    },
+    {
+      "true_azimuth_deg": -38.17480396379236,
+      "direct_inverse_ild_deg": -38.339432324955595,
+      "cann_deg": -37.9355139024604
+    },
+    {
+      "true_azimuth_deg": -2.1174284151799796,
+      "direct_inverse_ild_deg": -3.3221476449668224,
+      "cann_deg": -3.3266996878962014
+    },
+    {
+      "true_azimuth_deg": 35.442028560992654,
+      "direct_inverse_ild_deg": 36.38451768306322,
+      "cann_deg": 36.03994706582259
+    },
+    {
+      "true_azimuth_deg": -5.2862913727079075,
+      "direct_inverse_ild_deg": -5.926538045358117,
+      "cann_deg": -5.93461557404278
+    },
+    {
+      "true_azimuth_deg": 10.640977726492487,
+      "direct_inverse_ild_deg": 10.17965373615127,
+      "cann_deg": 10.19400301894342
+    },
+    {
+      "true_azimuth_deg": 2.944429410486059,
+      "direct_inverse_ild_deg": 3.0252155029663443,
+      "cann_deg": 3.029115369421
+    },
+    {
+      "true_azimuth_deg": 4.929951537627666,
+      "direct_inverse_ild_deg": 5.933931739103743,
+      "cann_deg": 5.942016633159123
+    },
+    {
+      "true_azimuth_deg": -8.096647365292235,
+      "direct_inverse_ild_deg": -9.779067083731574,
+      "cann_deg": -9.792579433215334
+    },
+    {
+      "true_azimuth_deg": -33.99426449124016,
+      "direct_inverse_ild_deg": -35.46093179916915,
+      "cann_deg": -35.21447375156371
+    },
+    {
+      "true_azimuth_deg": 44.91663073124188,
+      "direct_inverse_ild_deg": 38.339432324955595,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": -28.135234660826015,
+      "direct_inverse_ild_deg": -26.688165782201178,
+      "cann_deg": -26.680514395058726
+    },
+    {
+      "true_azimuth_deg": -13.915193373577914,
+      "direct_inverse_ild_deg": -13.111020722757305,
+      "cann_deg": -13.130095685839978
+    },
+    {
+      "true_azimuth_deg": -24.941166501868206,
+      "direct_inverse_ild_deg": -22.61374504265455,
+      "cann_deg": -22.637942686526895
+    },
+    {
+      "true_azimuth_deg": 18.745333117536795,
+      "direct_inverse_ild_deg": 18.84576450762145,
+      "cann_deg": 18.87277160244117
+    },
+    {
+      "true_azimuth_deg": 31.46711762906257,
+      "direct_inverse_ild_deg": 33.01254207634018,
+      "cann_deg": 32.858989800992575
+    },
+    {
+      "true_azimuth_deg": -38.59095597420196,
+      "direct_inverse_ild_deg": -38.33943232495559,
+      "cann_deg": -37.9355139024604
+    },
+    {
+      "true_azimuth_deg": 9.05590454393355,
+      "direct_inverse_ild_deg": 9.068968896053542,
+      "cann_deg": 9.081761651830432
+    },
+    {
+      "true_azimuth_deg": -35.70586376868486,
+      "direct_inverse_ild_deg": -37.35170363943329,
+      "cann_deg": -36.920920562965875
+    },
+    {
+      "true_azimuth_deg": 36.22174395918837,
+      "direct_inverse_ild_deg": 36.38451768306322,
+      "cann_deg": 36.03994706582259
+    },
+    {
+      "true_azimuth_deg": -11.708497464282331,
+      "direct_inverse_ild_deg": -11.603543533201215,
+      "cann_deg": -11.620202050966585
+    },
+    {
+      "true_azimuth_deg": 22.7781823241954,
+      "direct_inverse_ild_deg": 21.45602451957816,
+      "cann_deg": 21.48264334386425
+    },
+    {
+      "true_azimuth_deg": 12.55430738882805,
+      "direct_inverse_ild_deg": 13.259494870548844,
+      "cann_deg": 13.278834085806954
+    },
+    {
+      "true_azimuth_deg": 34.9881009449191,
+      "direct_inverse_ild_deg": 35.486058993630635,
+      "cann_deg": 35.23848293235782
+    },
+    {
+      "true_azimuth_deg": 2.829978677028926,
+      "direct_inverse_ild_deg": 3.2820912233665154,
+      "cann_deg": 3.286616680470647
+    },
+    {
+      "true_azimuth_deg": -18.322852816417154,
+      "direct_inverse_ild_deg": -19.08249177850833,
+      "cann_deg": -19.109346946568774
+    },
+    {
+      "true_azimuth_deg": 28.570873742147228,
+      "direct_inverse_ild_deg": 26.235444976030976,
+      "cann_deg": 26.234619055451116
+    },
+    {
+      "true_azimuth_deg": -13.354707744863312,
+      "direct_inverse_ild_deg": -12.503311192847578,
+      "cann_deg": -12.521280893948893
+    },
+    {
+      "true_azimuth_deg": -12.025529583343818,
+      "direct_inverse_ild_deg": -12.180193870479407,
+      "cann_deg": -12.197790017746017
+    },
+    {
+      "true_azimuth_deg": -31.804907934299663,
+      "direct_inverse_ild_deg": -33.044512437896806,
+      "cann_deg": -32.890002932529626
+    },
+    {
+      "true_azimuth_deg": -24.41964830827021,
+      "direct_inverse_ild_deg": -22.564976256953727,
+      "cann_deg": -22.589277351217735
+    },
+    {
+      "true_azimuth_deg": -12.779496671164651,
+      "direct_inverse_ild_deg": -12.687636514496035,
+      "cann_deg": -12.706077521019617
+    },
+    {
+      "true_azimuth_deg": 39.01575113922982,
+      "direct_inverse_ild_deg": 38.339432324955595,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": 39.240344951449174,
+      "direct_inverse_ild_deg": 38.339432324955595,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": -12.726471227277237,
+      "direct_inverse_ild_deg": -12.687636514496035,
+      "cann_deg": -12.706077521019617
+    },
+    {
+      "true_azimuth_deg": -34.92257704196663,
+      "direct_inverse_ild_deg": -35.48605899363062,
+      "cann_deg": -35.23848293235781
+    },
+    {
+      "true_azimuth_deg": -21.800380170332694,
+      "direct_inverse_ild_deg": -18.948492452368516,
+      "cann_deg": -18.9754313073665
+    },
+    {
+      "true_azimuth_deg": 11.056299217263287,
+      "direct_inverse_ild_deg": 10.55166160502127,
+      "cann_deg": 10.566701385738432
+    },
+    {
+      "true_azimuth_deg": -39.05421770052915,
+      "direct_inverse_ild_deg": -38.33943232495559,
+      "cann_deg": -37.9355139024604
+    },
+    {
+      "true_azimuth_deg": 3.663133860474524,
+      "direct_inverse_ild_deg": 3.9305836496869815,
+      "cann_deg": 3.9358631791342717
+    },
+    {
+      "true_azimuth_deg": -4.966276740485576,
+      "direct_inverse_ild_deg": -5.933931739103741,
+      "cann_deg": -5.942016633159121
+    },
+    {
+      "true_azimuth_deg": 8.281922180867042,
+      "direct_inverse_ild_deg": 9.00678314129406,
+      "cann_deg": 9.01943925398057
+    },
+    {
+      "true_azimuth_deg": -33.5897298700008,
+      "direct_inverse_ild_deg": -33.854300015390535,
+      "cann_deg": -33.67348215654757
+    },
+    {
+      "true_azimuth_deg": 39.37244595579287,
+      "direct_inverse_ild_deg": 38.33943232495559,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": 37.673760007901365,
+      "direct_inverse_ild_deg": 37.42789377898136,
+      "cann_deg": 36.99471395901656
+    },
+    {
+      "true_azimuth_deg": -34.15039798416468,
+      "direct_inverse_ild_deg": -34.617671910983574,
+      "cann_deg": -34.4080045505531
+    },
+    {
+      "true_azimuth_deg": 38.4755023385069,
+      "direct_inverse_ild_deg": 38.33943232495559,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": -6.544373294946482,
+      "direct_inverse_ild_deg": -7.1881680801455206,
+      "cann_deg": -7.198033610717173
+    },
+    {
+      "true_azimuth_deg": -36.29573105406576,
+      "direct_inverse_ild_deg": -36.40678700764244,
+      "cann_deg": -36.05927622968518
+    },
+    {
+      "true_azimuth_deg": 29.215000972931037,
+      "direct_inverse_ild_deg": 26.733454834134207,
+      "cann_deg": 26.724755678901204
+    },
+    {
+      "true_azimuth_deg": 15.332028672736556,
+      "direct_inverse_ild_deg": 13.631699074900423,
+      "cann_deg": 13.65164410939804
+    },
+    {
+      "true_azimuth_deg": -19.112756451166714,
+      "direct_inverse_ild_deg": -19.698787700942486,
+      "cann_deg": -19.72623209992871
+    },
+    {
+      "true_azimuth_deg": -37.173967903948,
+      "direct_inverse_ild_deg": -37.42789377898135,
+      "cann_deg": -36.99471395901656
+    },
+    {
+      "true_azimuth_deg": -11.671162600110478,
+      "direct_inverse_ild_deg": -11.749323299469143,
+      "cann_deg": -11.766054100028843
+    },
+    {
+      "true_azimuth_deg": -34.34693745817626,
+      "direct_inverse_ild_deg": -33.82467218583033,
+      "cann_deg": -33.64509997467396
+    },
+    {
+      "true_azimuth_deg": 16.827207359556944,
+      "direct_inverse_ild_deg": 16.189422470975206,
+      "cann_deg": 16.213370582040465
+    },
+    {
+      "true_azimuth_deg": 12.028718387891224,
+      "direct_inverse_ild_deg": 12.180193870479407,
+      "cann_deg": 12.197790017746014
+    },
+    {
+      "true_azimuth_deg": 5.498222944143187,
+      "direct_inverse_ild_deg": 5.820165953052085,
+      "cann_deg": 5.828106723442205
+    },
+    {
+      "true_azimuth_deg": -17.06030984405888,
+      "direct_inverse_ild_deg": -17.50147733661756,
+      "cann_deg": -17.526876564169832
+    },
+    {
+      "true_azimuth_deg": -17.3066584353384,
+      "direct_inverse_ild_deg": -16.241645564571925,
+      "cann_deg": -16.265745426997455
+    },
+    {
+      "true_azimuth_deg": -13.877195984065331,
+      "direct_inverse_ild_deg": -13.111020722757305,
+      "cann_deg": -13.130095685839978
+    },
+    {
+      "true_azimuth_deg": -21.27907857816657,
+      "direct_inverse_ild_deg": -18.845764507621446,
+      "cann_deg": -18.872771602441166
+    },
+    {
+      "true_azimuth_deg": -36.39483684119113,
+      "direct_inverse_ild_deg": -36.42888295649982,
+      "cann_deg": -36.07842734890795
+    },
+    {
+      "true_azimuth_deg": -6.480628589644283,
+      "direct_inverse_ild_deg": -7.1881680801455206,
+      "cann_deg": -7.198033610717173
+    },
+    {
+      "true_azimuth_deg": -42.153952806096946,
+      "direct_inverse_ild_deg": -38.33943232495559,
+      "cann_deg": -37.9355139024604
+    },
+    {
+      "true_azimuth_deg": -2.374225598682827,
+      "direct_inverse_ild_deg": -3.5936619849381817,
+      "cann_deg": -3.598496316320363
+    },
+    {
+      "true_azimuth_deg": -10.756356824351755,
+      "direct_inverse_ild_deg": -10.179653736151275,
+      "cann_deg": -10.19400301894342
+    },
+    {
+      "true_azimuth_deg": 28.98131411809922,
+      "direct_inverse_ild_deg": 26.733454834134207,
+      "cann_deg": 26.724755678901204
+    },
+    {
+      "true_azimuth_deg": 38.587998948637036,
+      "direct_inverse_ild_deg": 38.339432324955595,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": 13.58547251124078,
+      "direct_inverse_ild_deg": 12.956324313281872,
+      "cann_deg": 12.974884672927839
+    },
+    {
+      "true_azimuth_deg": 1.9708072644381218,
+      "direct_inverse_ild_deg": 2.935141894028756,
+      "cann_deg": 2.9390479473014928
+    },
+    {
+      "true_azimuth_deg": -38.01928280922689,
+      "direct_inverse_ild_deg": -38.3394323249556,
+      "cann_deg": -37.9355139024604
+    },
+    {
+      "true_azimuth_deg": -1.5118342140448178,
+      "direct_inverse_ild_deg": -2.0271704728346838,
+      "cann_deg": -2.0298006902082815
+    },
+    {
+      "true_azimuth_deg": -23.014621266539603,
+      "direct_inverse_ild_deg": -21.40664945039728,
+      "cann_deg": -21.433364263000612
+    },
+    {
+      "true_azimuth_deg": -35.00773636310729,
+      "direct_inverse_ild_deg": -35.48605899363062,
+      "cann_deg": -35.23848293235781
+    },
+    {
+      "true_azimuth_deg": 9.736935283693704,
+      "direct_inverse_ild_deg": 9.626936774067184,
+      "cann_deg": 9.640490364394886
+    },
+    {
+      "true_azimuth_deg": -17.443980530628444,
+      "direct_inverse_ild_deg": -15.090649697639952,
+      "cann_deg": -15.112797667401486
+    },
+    {
+      "true_azimuth_deg": 38.61443813999355,
+      "direct_inverse_ild_deg": 38.339432324955595,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": -39.081615348754184,
+      "direct_inverse_ild_deg": -38.33943232495559,
+      "cann_deg": -37.9355139024604
+    },
+    {
+      "true_azimuth_deg": 6.538021218065474,
+      "direct_inverse_ild_deg": 7.18816808014552,
+      "cann_deg": 7.1980336107171725
+    },
+    {
+      "true_azimuth_deg": 15.59587955724946,
+      "direct_inverse_ild_deg": 14.707765256218211,
+      "cann_deg": 14.729593767109764
+    },
+    {
+      "true_azimuth_deg": 10.5034662302158,
+      "direct_inverse_ild_deg": 10.55166160502127,
+      "cann_deg": 10.566701385738432
+    },
+    {
+      "true_azimuth_deg": 39.33549113999105,
+      "direct_inverse_ild_deg": 38.339432324955595,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": 44.442314921083636,
+      "direct_inverse_ild_deg": 38.33943232495559,
+      "cann_deg": 37.93551390246041
+    },
+    {
+      "true_azimuth_deg": -16.372668101559498,
+      "direct_inverse_ild_deg": -16.272334898033805,
+      "cann_deg": -16.296446024693473
+    },
+    {
+      "true_azimuth_deg": -30.136050311922492,
+      "direct_inverse_ild_deg": -28.689763575866458,
+      "cann_deg": -28.640005681602467
+    },
+    {
+      "true_azimuth_deg": 12.03717458505853,
+      "direct_inverse_ild_deg": 12.180193870479407,
+      "cann_deg": 12.197790017746014
+    },
+    {
+      "true_azimuth_deg": 4.718095537531141,
+      "direct_inverse_ild_deg": 5.384282526614907,
+      "cann_deg": 5.391615278319106
+    },
+    {
+      "true_azimuth_deg": 2.320005401597868,
+      "direct_inverse_ild_deg": 3.851724205466123,
+      "cann_deg": 3.856969453383543
+    },
+    {
+      "true_azimuth_deg": 20.271767770401425,
+      "direct_inverse_ild_deg": 18.97907115287407,
+      "cann_deg": 19.00599009279807
+    },
+    {
+      "true_azimuth_deg": -25.796279255189084,
+      "direct_inverse_ild_deg": -21.796269891420522,
+      "cann_deg": -21.822450037480596
+    },
+    {
+      "true_azimuth_deg": -8.402847007897044,
+      "direct_inverse_ild_deg": -9.006783141294056,
+      "cann_deg": -9.019439253980567
+    }
+  ],
+  "stress_predictions": [
+    {
+      "true_azimuth_deg": 78.3321794647772,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 7.928724873729095,
+      "direct_inverse_ild_deg": 8.35365173426609,
+      "cann_deg": 8.361160834059225
+    },
+    {
+      "true_azimuth_deg": -70.02337036449666,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 64.18747373017362,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -21.211701451590542,
+      "direct_inverse_ild_deg": -18.079960215706592,
+      "cann_deg": -18.098864762794406
+    },
+    {
+      "true_azimuth_deg": 80.98270737004543,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -20.600872064420543,
+      "direct_inverse_ild_deg": -19.000791254902566,
+      "cann_deg": -19.021138738918435
+    },
+    {
+      "true_azimuth_deg": 14.608455009135511,
+      "direct_inverse_ild_deg": 13.855810059077037,
+      "cann_deg": 13.869314942263035
+    },
+    {
+      "true_azimuth_deg": 75.6747820741908,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -88.52351061320631,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 85.08121265742164,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -47.96496158900474,
+      "direct_inverse_ild_deg": -65.04789859828348,
+      "cann_deg": -64.95232425613246
+    },
+    {
+      "true_azimuth_deg": -75.66109609997125,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 61.143660879732494,
+      "direct_inverse_ild_deg": 73.6459595278719,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -21.73629611511025,
+      "direct_inverse_ild_deg": -20.787784101607475,
+      "cann_deg": -20.811823080971426
+    },
+    {
+      "true_azimuth_deg": 61.64320073238912,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -21.132899356905142,
+      "direct_inverse_ild_deg": -18.81394433877964,
+      "cann_deg": -18.834599271583624
+    },
+    {
+      "true_azimuth_deg": -74.05035917486094,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 69.17132764517791,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 65.15405811925388,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 71.38179216909572,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -47.2594533902752,
+      "direct_inverse_ild_deg": -65.04789859828348,
+      "cann_deg": -64.95232425613246
+    },
+    {
+      "true_azimuth_deg": 15.753480850270279,
+      "direct_inverse_ild_deg": 14.881227220101975,
+      "cann_deg": 14.896032207283728
+    },
+    {
+      "true_azimuth_deg": -17.861214127103395,
+      "direct_inverse_ild_deg": -15.653215080199354,
+      "cann_deg": -15.66886575344019
+    },
+    {
+      "true_azimuth_deg": 51.551612314613834,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -12.137349261917137,
+      "direct_inverse_ild_deg": -12.630470648151181,
+      "cann_deg": -12.641980910179992
+    },
+    {
+      "true_azimuth_deg": -19.078935748312915,
+      "direct_inverse_ild_deg": -18.866241625354935,
+      "cann_deg": -18.8867969305079
+    },
+    {
+      "true_azimuth_deg": 17.87019342073171,
+      "direct_inverse_ild_deg": 15.653215080199345,
+      "cann_deg": 15.668865753440189
+    },
+    {
+      "true_azimuth_deg": 27.93917844311501,
+      "direct_inverse_ild_deg": 26.56945378850487,
+      "cann_deg": 26.606623740359478
+    },
+    {
+      "true_azimuth_deg": 41.80847284186868,
+      "direct_inverse_ild_deg": 64.67854432055766,
+      "cann_deg": 64.59293126198877
+    },
+    {
+      "true_azimuth_deg": -69.96171960326814,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 60.70866507990448,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -34.82474208898378,
+      "direct_inverse_ild_deg": -40.062454740264776,
+      "cann_deg": -40.1823326338994
+    },
+    {
+      "true_azimuth_deg": -80.97112010560902,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 63.69485605335086,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -46.67574734437918,
+      "direct_inverse_ild_deg": -65.09924161335695,
+      "cann_deg": -65.00230491517823
+    },
+    {
+      "true_azimuth_deg": -76.56672072974283,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -28.02514648081864,
+      "direct_inverse_ild_deg": -27.073922776246913,
+      "cann_deg": -27.112215188004665
+    },
+    {
+      "true_azimuth_deg": 14.36286142663701,
+      "direct_inverse_ild_deg": 13.8085462894758,
+      "cann_deg": 13.821852736599496
+    },
+    {
+      "true_azimuth_deg": 64.86892266381551,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -17.29634809067177,
+      "direct_inverse_ild_deg": -16.19529613393326,
+      "cann_deg": -16.211908446685886
+    },
+    {
+      "true_azimuth_deg": -28.251664042780526,
+      "direct_inverse_ild_deg": -27.073922776246913,
+      "cann_deg": -27.112215188004665
+    },
+    {
+      "true_azimuth_deg": -11.456391776961937,
+      "direct_inverse_ild_deg": -11.749846196803775,
+      "cann_deg": -11.760740895918975
+    },
+    {
+      "true_azimuth_deg": -45.558786661753395,
+      "direct_inverse_ild_deg": -64.89176525804247,
+      "cann_deg": -64.800570207296
+    },
+    {
+      "true_azimuth_deg": -82.98963195701741,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 79.00216471776096,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -49.6700377441339,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -18.43705269870972,
+      "direct_inverse_ild_deg": -18.302049542585397,
+      "cann_deg": -18.32160069029869
+    },
+    {
+      "true_azimuth_deg": 78.18121083320963,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 28.55388212094101,
+      "direct_inverse_ild_deg": 26.56945378850487,
+      "cann_deg": 26.606623740359478
+    },
+    {
+      "true_azimuth_deg": -85.8279730598705,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -45.37714418889869,
+      "direct_inverse_ild_deg": -64.8390076066926,
+      "cann_deg": -64.74923007071627
+    },
+    {
+      "true_azimuth_deg": 59.22605962979674,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -1.485480172751636,
+      "direct_inverse_ild_deg": -1.7835802965292213,
+      "cann_deg": -1.7854042281824116
+    },
+    {
+      "true_azimuth_deg": 45.767907547590426,
+      "direct_inverse_ild_deg": 64.89176525804248,
+      "cann_deg": 64.80057020729599
+    },
+    {
+      "true_azimuth_deg": -18.43416943214082,
+      "direct_inverse_ild_deg": -18.302049542585397,
+      "cann_deg": -18.32160069029869
+    },
+    {
+      "true_azimuth_deg": -6.965087680635094,
+      "direct_inverse_ild_deg": -7.513118628373082,
+      "cann_deg": -7.5197737141256615
+    },
+    {
+      "true_azimuth_deg": 14.542449216527558,
+      "direct_inverse_ild_deg": 13.855810059077037,
+      "cann_deg": 13.869314942263035
+    },
+    {
+      "true_azimuth_deg": -18.192317341310144,
+      "direct_inverse_ild_deg": -18.302049542585397,
+      "cann_deg": -18.32160069029869
+    },
+    {
+      "true_azimuth_deg": -57.32387104223491,
+      "direct_inverse_ild_deg": -73.6459595278719,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -16.357496795569745,
+      "direct_inverse_ild_deg": -16.278455439278318,
+      "cann_deg": -16.29516510412639
+    },
+    {
+      "true_azimuth_deg": -54.50113888198924,
+      "direct_inverse_ild_deg": -65.3011980682097,
+      "cann_deg": -65.20047226846866
+    },
+    {
+      "true_azimuth_deg": 33.404927695484645,
+      "direct_inverse_ild_deg": 35.592193728555245,
+      "cann_deg": 35.67175742230136
+    },
+    {
+      "true_azimuth_deg": -51.95235121089263,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -72.10200046670623,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 77.82884861193509,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -73.17281224691894,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 29.012308404527886,
+      "direct_inverse_ild_deg": 27.12475674951634,
+      "cann_deg": 27.163305695831195
+    },
+    {
+      "true_azimuth_deg": 24.63361412612886,
+      "direct_inverse_ild_deg": 22.65849543139189,
+      "cann_deg": 22.68593090624438
+    },
+    {
+      "true_azimuth_deg": 23.51112171978744,
+      "direct_inverse_ild_deg": 22.33201476923786,
+      "cann_deg": 22.358437638829248
+    },
+    {
+      "true_azimuth_deg": -25.28848446092975,
+      "direct_inverse_ild_deg": -22.172650816436974,
+      "cann_deg": -22.1991530244135
+    },
+    {
+      "true_azimuth_deg": 40.90787084740006,
+      "direct_inverse_ild_deg": 64.5147169943862,
+      "cann_deg": 64.43277162826827
+    },
+    {
+      "true_azimuth_deg": 56.63757059414806,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 46.987971601451534,
+      "direct_inverse_ild_deg": 73.6459595278719,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 56.575132977539624,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -32.38607664289289,
+      "direct_inverse_ild_deg": -36.668711175171914,
+      "cann_deg": -36.75665151459201
+    },
+    {
+      "true_azimuth_deg": 27.33562618498688,
+      "direct_inverse_ild_deg": 24.360945980126733,
+      "cann_deg": 24.39202880311072
+    },
+    {
+      "true_azimuth_deg": 86.29590944093519,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -78.96462077008837,
+      "direct_inverse_ild_deg": -73.64595952787188,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -26.46026255744595,
+      "direct_inverse_ild_deg": -22.994849355008746,
+      "cann_deg": -23.02328043586212
+    },
+    {
+      "true_azimuth_deg": -65.25371980165204,
+      "direct_inverse_ild_deg": -73.6459595278719,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": 38.88950257450816,
+      "direct_inverse_ild_deg": 49.30820491855612,
+      "cann_deg": 49.52874506913142
+    },
+    {
+      "true_azimuth_deg": 49.93456259043873,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": 89.87493839500334,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -55.57686840801658,
+      "direct_inverse_ild_deg": -65.35084996786536,
+      "cann_deg": -65.24912284527232
+    },
+    {
+      "true_azimuth_deg": 68.67238280667621,
+      "direct_inverse_ild_deg": 73.64595952787187,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -19.475171101176528,
+      "direct_inverse_ild_deg": -17.356696712350807,
+      "cann_deg": -17.374913132634088
+    },
+    {
+      "true_azimuth_deg": 48.331591613342226,
+      "direct_inverse_ild_deg": 65.04789859828348,
+      "cann_deg": 64.95232425613247
+    },
+    {
+      "true_azimuth_deg": -4.38025081477133,
+      "direct_inverse_ild_deg": -4.547394636236188,
+      "cann_deg": -4.551617053725071
+    },
+    {
+      "true_azimuth_deg": -20.471242368337997,
+      "direct_inverse_ild_deg": -18.197565380878103,
+      "cann_deg": -18.216811532746764
+    },
+    {
+      "true_azimuth_deg": 61.84951820841985,
+      "direct_inverse_ild_deg": 73.64595952787188,
+      "cann_deg": 72.77723777837623
+    },
+    {
+      "true_azimuth_deg": -85.59456925050185,
+      "direct_inverse_ild_deg": -73.64595952787187,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -22.983452298253937,
+      "direct_inverse_ild_deg": -21.517066990154856,
+      "cann_deg": -21.542325218184192
+    },
+    {
+      "true_azimuth_deg": -57.1177847346812,
+      "direct_inverse_ild_deg": -73.6459595278719,
+      "cann_deg": -72.77723777837625
+    },
+    {
+      "true_azimuth_deg": -42.76200555132679,
+      "direct_inverse_ild_deg": -55.459709417890906,
+      "cann_deg": -55.603314148120724
+    },
+    {
+      "true_azimuth_deg": 47.31246448276488,
+      "direct_inverse_ild_deg": 65.04789859828348,
+      "cann_deg": 64.95232425613247
+    }
+  ],
+  "artifacts": {
+    "pipeline_diagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/azimuth_pathway/outputs/ild_line_attractor/figures/pipeline_diagram.png",
+    "attractor_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/azimuth_pathway/outputs/ild_line_attractor/figures/attractor_matrices.png",
+    "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/azimuth_pathway/outputs/ild_line_attractor/figures/prediction_scatter.png",
+    "error_over_time": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/azimuth_pathway/outputs/ild_line_attractor/figures/error_over_time.png",
+    "example_dynamics": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/azimuth_pathway/outputs/ild_line_attractor/figures/example_dynamics.png"
+  }
+}

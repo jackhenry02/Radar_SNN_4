@@ -124,7 +124,7 @@ The example target has azimuth `37.67 deg`.
 
 ## Accuracy
 
-The primary test uses the same azimuth support as the old Round 3/4 training setup, `-45 deg` to `+45 deg`, at fixed range. The stress test expands to `-90 deg` to `+90 deg`.
+The primary test uses the same azimuth support as the old Round 3/4 training setup, `-45 deg` to `+45 deg`, at fixed range. The stress test expands to `-90 deg` to `+90 deg`. Since the inverse-sigmoid ILD branch is now the strongest branch, the wide-field error plot and stress row use that readout rather than the older raw combined readout.
 
 | Readout | MAE | RMSE | Max error | Bias |
 |---|---:|---:|---:|---:|
@@ -133,7 +133,7 @@ The primary test uses the same azimuth support as the old Round 3/4 training set
 | ILD power warp | `2.745 deg` | `3.384 deg` | `9.345 deg` | `-0.699 deg` |
 | ILD inverse sigmoid | `0.982 deg` | `1.480 deg` | `6.577 deg` | `-0.039 deg` |
 | Combined | `1.860 deg` | `2.848 deg` | `17.537 deg` | `-0.054 deg` |
-| Combined stress +/-90 deg | `17.749 deg` | `20.211 deg` | `37.004 deg` | `-2.030 deg` |
+| ILD inverse sigmoid stress +/-90 deg | `7.733 deg` | `10.699 deg` | `26.658 deg` | `1.110 deg` |
 
 ![Prediction scatter](../outputs/first_attempt/figures/prediction_scatter.png)
 
@@ -145,7 +145,7 @@ The primary test uses the same azimuth support as the old Round 3/4 training set
 
 The wider-field result is lower accuracy, but it is not a useless failure. It is a useful stress result for three reasons.
 
-First, the ITD cue saturates with azimuth because the physical cue is approximately proportional to $\sin\theta$. Near the midline, small changes in azimuth produce a large, nearly linear change in ITD. Near the sides, $\sin\theta$ flattens, so the same timing precision corresponds to a larger angular uncertainty.
+First, both major binaural cues are nonlinear at the edges. ITD is approximately proportional to $\sin\theta$, so it flattens near the sides. The improved ILD branch also depends on a saturated LSO balance; the inverse-sigmoid mapping recovers much of this, but edge clipping and finite population width still reduce precision.
 
 Second, the current head-shadow ILD cue is deliberately simple. It is a smooth multiplicative gain, not a full frequency-dependent head-related transfer function. That means the ILD branch does not yet add enough extra wide-angle information to compensate for ITD saturation.
 
@@ -176,4 +176,4 @@ This first standalone pathway is not yet a full replacement for the old trained 
 - `warped_ild_scatter`: `azimuth_pathway/outputs/first_attempt/figures/warped_ild_scatter.png`
 - `results`: `azimuth_pathway/outputs/first_attempt/results.json`
 
-Runtime: `21.08 s`.
+Runtime: `21.39 s`.

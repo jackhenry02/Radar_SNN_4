@@ -1,6 +1,6 @@
 {
   "experiment": "azimuth_pathway_first_attempt",
-  "elapsed_seconds": 21.075113207800314,
+  "elapsed_seconds": 21.38522108295001,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,
@@ -60,6 +60,12 @@
       "rmse_deg": 20.21059691678278,
       "max_abs_error_deg": 37.00359411703363,
       "bias_deg": -2.029513704272087
+    },
+    "stress_ild_inverse_sigmoid": {
+      "mae_deg": 7.733010314842424,
+      "rmse_deg": 10.69904663391761,
+      "max_abs_error_deg": 26.65798792642036,
+      "bias_deg": 1.1096536220352815
     }
   },
   "warped_ild_tuning": {
@@ -856,387 +862,483 @@
   "stress_predictions": [
     {
       "true_azimuth_deg": 78.3321794647772,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": 7.928724873729095,
-      "combined_prediction_deg": 25.263784498399755
+      "combined_prediction_deg": 25.263784498399755,
+      "ild_inverse_sigmoid_prediction_deg": 8.35365173426609
     },
     {
       "true_azimuth_deg": -70.02337036449666,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": 64.18747373017362,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -21.211701451590542,
-      "combined_prediction_deg": -45.03946053590928
+      "combined_prediction_deg": -45.03946053590928,
+      "ild_inverse_sigmoid_prediction_deg": -18.079960215706592
     },
     {
       "true_azimuth_deg": 80.98270737004543,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -20.600872064420543,
-      "combined_prediction_deg": -43.74165138675114
+      "combined_prediction_deg": -43.74165138675114,
+      "ild_inverse_sigmoid_prediction_deg": -19.000791254902566
     },
     {
       "true_azimuth_deg": 14.608455009135511,
-      "combined_prediction_deg": 30.943878826937752
+      "combined_prediction_deg": 30.943878826937752,
+      "ild_inverse_sigmoid_prediction_deg": 13.855810059077037
     },
     {
       "true_azimuth_deg": 75.6747820741908,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -88.52351061320631,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": 85.08121265742164,
-      "combined_prediction_deg": 68.5179245659567
+      "combined_prediction_deg": 68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -47.96496158900474,
-      "combined_prediction_deg": -67.16779647465158
+      "combined_prediction_deg": -67.16779647465158,
+      "ild_inverse_sigmoid_prediction_deg": -65.04789859828348
     },
     {
       "true_azimuth_deg": -75.66109609997125,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": 61.143660879732494,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.6459595278719
     },
     {
       "true_azimuth_deg": -21.73629611511025,
-      "combined_prediction_deg": -45.21877937422846
+      "combined_prediction_deg": -45.21877937422846,
+      "ild_inverse_sigmoid_prediction_deg": -20.787784101607475
     },
     {
       "true_azimuth_deg": 61.64320073238912,
-      "combined_prediction_deg": 68.5179245659567
+      "combined_prediction_deg": 68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -21.132899356905142,
-      "combined_prediction_deg": -42.711570299163355
+      "combined_prediction_deg": -42.711570299163355,
+      "ild_inverse_sigmoid_prediction_deg": -18.81394433877964
     },
     {
       "true_azimuth_deg": -74.05035917486094,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": 69.17132764517791,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": 65.15405811925388,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": 71.38179216909572,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -47.2594533902752,
-      "combined_prediction_deg": -67.50068291500028
+      "combined_prediction_deg": -67.50068291500028,
+      "ild_inverse_sigmoid_prediction_deg": -65.04789859828348
     },
     {
       "true_azimuth_deg": 15.753480850270279,
-      "combined_prediction_deg": 38.87586694373607
+      "combined_prediction_deg": 38.87586694373607,
+      "ild_inverse_sigmoid_prediction_deg": 14.881227220101975
     },
     {
       "true_azimuth_deg": -17.861214127103395,
-      "combined_prediction_deg": -43.5739433438314
+      "combined_prediction_deg": -43.5739433438314,
+      "ild_inverse_sigmoid_prediction_deg": -15.653215080199354
     },
     {
       "true_azimuth_deg": 51.551612314613834,
-      "combined_prediction_deg": 67.17800677621102
+      "combined_prediction_deg": 67.17800677621102,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -12.137349261917137,
-      "combined_prediction_deg": -31.28692065079022
+      "combined_prediction_deg": -31.28692065079022,
+      "ild_inverse_sigmoid_prediction_deg": -12.630470648151181
     },
     {
       "true_azimuth_deg": -19.078935748312915,
-      "combined_prediction_deg": -48.09255124844219
+      "combined_prediction_deg": -48.09255124844219,
+      "ild_inverse_sigmoid_prediction_deg": -18.866241625354935
     },
     {
       "true_azimuth_deg": 17.87019342073171,
-      "combined_prediction_deg": 43.57394334383141
+      "combined_prediction_deg": 43.57394334383141,
+      "ild_inverse_sigmoid_prediction_deg": 15.653215080199345
     },
     {
       "true_azimuth_deg": 27.93917844311501,
-      "combined_prediction_deg": 64.67972022912753
+      "combined_prediction_deg": 64.67972022912753,
+      "ild_inverse_sigmoid_prediction_deg": 26.56945378850487
     },
     {
       "true_azimuth_deg": 41.80847284186868,
-      "combined_prediction_deg": 67.3180322169033
+      "combined_prediction_deg": 67.3180322169033,
+      "ild_inverse_sigmoid_prediction_deg": 64.67854432055766
     },
     {
       "true_azimuth_deg": -69.96171960326814,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": 60.70866507990448,
-      "combined_prediction_deg": 73.51644167188905
+      "combined_prediction_deg": 73.51644167188905,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -34.82474208898378,
-      "combined_prediction_deg": -66.4605180127492
+      "combined_prediction_deg": -66.4605180127492,
+      "ild_inverse_sigmoid_prediction_deg": -40.062454740264776
     },
     {
       "true_azimuth_deg": -80.97112010560902,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": 63.69485605335086,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -46.67574734437918,
-      "combined_prediction_deg": -67.78611720004952
+      "combined_prediction_deg": -67.78611720004952,
+      "ild_inverse_sigmoid_prediction_deg": -65.09924161335695
     },
     {
       "true_azimuth_deg": -76.56672072974283,
-      "combined_prediction_deg": -68.51792456595669
+      "combined_prediction_deg": -68.51792456595669,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": -28.02514648081864,
-      "combined_prediction_deg": -64.69832963907989
+      "combined_prediction_deg": -64.69832963907989,
+      "ild_inverse_sigmoid_prediction_deg": -27.073922776246913
     },
     {
       "true_azimuth_deg": 14.36286142663701,
-      "combined_prediction_deg": 30.93456803151945
+      "combined_prediction_deg": 30.93456803151945,
+      "ild_inverse_sigmoid_prediction_deg": 13.8085462894758
     },
     {
       "true_azimuth_deg": 64.86892266381551,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -17.29634809067177,
-      "combined_prediction_deg": -43.97056220513575
+      "combined_prediction_deg": -43.97056220513575,
+      "ild_inverse_sigmoid_prediction_deg": -16.19529613393326
     },
     {
       "true_azimuth_deg": -28.251664042780526,
-      "combined_prediction_deg": -64.69832963907989
+      "combined_prediction_deg": -64.69832963907989,
+      "ild_inverse_sigmoid_prediction_deg": -27.073922776246913
     },
     {
       "true_azimuth_deg": -11.456391776961937,
-      "combined_prediction_deg": -29.0017139406076
+      "combined_prediction_deg": -29.0017139406076,
+      "ild_inverse_sigmoid_prediction_deg": -11.749846196803775
     },
     {
       "true_azimuth_deg": -45.558786661753395,
-      "combined_prediction_deg": -67.78591532904306
+      "combined_prediction_deg": -67.78591532904306,
+      "ild_inverse_sigmoid_prediction_deg": -64.89176525804247
     },
     {
       "true_azimuth_deg": -82.98963195701741,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": 79.00216471776096,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -49.6700377441339,
-      "combined_prediction_deg": -67.178006776211
+      "combined_prediction_deg": -67.178006776211,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": -18.43705269870972,
-      "combined_prediction_deg": -45.18055445291724
+      "combined_prediction_deg": -45.18055445291724,
+      "ild_inverse_sigmoid_prediction_deg": -18.302049542585397
     },
     {
       "true_azimuth_deg": 78.18121083320963,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": 28.55388212094101,
-      "combined_prediction_deg": 64.69873860021346
+      "combined_prediction_deg": 64.69873860021346,
+      "ild_inverse_sigmoid_prediction_deg": 26.56945378850487
     },
     {
       "true_azimuth_deg": -85.8279730598705,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": -45.37714418889869,
-      "combined_prediction_deg": -67.78586369286388
+      "combined_prediction_deg": -67.78586369286388,
+      "ild_inverse_sigmoid_prediction_deg": -64.8390076066926
     },
     {
       "true_azimuth_deg": 59.22605962979674,
-      "combined_prediction_deg": 73.51644167188905
+      "combined_prediction_deg": 73.51644167188905,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -1.485480172751636,
-      "combined_prediction_deg": -4.527488536588637
+      "combined_prediction_deg": -4.527488536588637,
+      "ild_inverse_sigmoid_prediction_deg": -1.7835802965292213
     },
     {
       "true_azimuth_deg": 45.767907547590426,
-      "combined_prediction_deg": 67.78591532904305
+      "combined_prediction_deg": 67.78591532904305,
+      "ild_inverse_sigmoid_prediction_deg": 64.89176525804248
     },
     {
       "true_azimuth_deg": -18.43416943214082,
-      "combined_prediction_deg": -45.18055445291724
+      "combined_prediction_deg": -45.18055445291724,
+      "ild_inverse_sigmoid_prediction_deg": -18.302049542585397
     },
     {
       "true_azimuth_deg": -6.965087680635094,
-      "combined_prediction_deg": -22.84555562038894
+      "combined_prediction_deg": -22.84555562038894,
+      "ild_inverse_sigmoid_prediction_deg": -7.513118628373082
     },
     {
       "true_azimuth_deg": 14.542449216527558,
-      "combined_prediction_deg": 30.943878826937752
+      "combined_prediction_deg": 30.943878826937752,
+      "ild_inverse_sigmoid_prediction_deg": 13.855810059077037
     },
     {
       "true_azimuth_deg": -18.192317341310144,
-      "combined_prediction_deg": -45.39551175940163
+      "combined_prediction_deg": -45.39551175940163,
+      "ild_inverse_sigmoid_prediction_deg": -18.302049542585397
     },
     {
       "true_azimuth_deg": -57.32387104223491,
-      "combined_prediction_deg": -73.51644167188903
+      "combined_prediction_deg": -73.51644167188903,
+      "ild_inverse_sigmoid_prediction_deg": -73.6459595278719
     },
     {
       "true_azimuth_deg": -16.357496795569745,
-      "combined_prediction_deg": -39.78088734409995
+      "combined_prediction_deg": -39.78088734409995,
+      "ild_inverse_sigmoid_prediction_deg": -16.278455439278318
     },
     {
       "true_azimuth_deg": -54.50113888198924,
-      "combined_prediction_deg": -67.16802368171949
+      "combined_prediction_deg": -67.16802368171949,
+      "ild_inverse_sigmoid_prediction_deg": -65.3011980682097
     },
     {
       "true_azimuth_deg": 33.404927695484645,
-      "combined_prediction_deg": 67.05207572404353
+      "combined_prediction_deg": 67.05207572404353,
+      "ild_inverse_sigmoid_prediction_deg": 35.592193728555245
     },
     {
       "true_azimuth_deg": -51.95235121089263,
-      "combined_prediction_deg": -67.178006776211
+      "combined_prediction_deg": -67.178006776211,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": -72.10200046670623,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": 77.82884861193509,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -73.17281224691894,
-      "combined_prediction_deg": -68.51792456595669
+      "combined_prediction_deg": -68.51792456595669,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": 29.012308404527886,
-      "combined_prediction_deg": 64.6654343688897
+      "combined_prediction_deg": 64.6654343688897,
+      "ild_inverse_sigmoid_prediction_deg": 27.12475674951634
     },
     {
       "true_azimuth_deg": 24.63361412612886,
-      "combined_prediction_deg": 52.90903643109171
+      "combined_prediction_deg": 52.90903643109171,
+      "ild_inverse_sigmoid_prediction_deg": 22.65849543139189
     },
     {
       "true_azimuth_deg": 23.51112171978744,
-      "combined_prediction_deg": 49.410922407882126
+      "combined_prediction_deg": 49.410922407882126,
+      "ild_inverse_sigmoid_prediction_deg": 22.33201476923786
     },
     {
       "true_azimuth_deg": -25.28848446092975,
-      "combined_prediction_deg": -55.22673290821724
+      "combined_prediction_deg": -55.22673290821724,
+      "ild_inverse_sigmoid_prediction_deg": -22.172650816436974
     },
     {
       "true_azimuth_deg": 40.90787084740006,
-      "combined_prediction_deg": 67.0631130196645
+      "combined_prediction_deg": 67.0631130196645,
+      "ild_inverse_sigmoid_prediction_deg": 64.5147169943862
     },
     {
       "true_azimuth_deg": 56.63757059414806,
-      "combined_prediction_deg": 68.34795695760376
+      "combined_prediction_deg": 68.34795695760376,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": 46.987971601451534,
-      "combined_prediction_deg": 67.51129136696086
+      "combined_prediction_deg": 67.51129136696086,
+      "ild_inverse_sigmoid_prediction_deg": 73.6459595278719
     },
     {
       "true_azimuth_deg": 56.575132977539624,
-      "combined_prediction_deg": 68.34795695760376
+      "combined_prediction_deg": 68.34795695760376,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -32.38607664289289,
-      "combined_prediction_deg": -66.54836076281806
+      "combined_prediction_deg": -66.54836076281806,
+      "ild_inverse_sigmoid_prediction_deg": -36.668711175171914
     },
     {
       "true_azimuth_deg": 27.33562618498688,
-      "combined_prediction_deg": 64.33922030202051
+      "combined_prediction_deg": 64.33922030202051,
+      "ild_inverse_sigmoid_prediction_deg": 24.360945980126733
     },
     {
       "true_azimuth_deg": 86.29590944093519,
-      "combined_prediction_deg": 68.5179245659567
+      "combined_prediction_deg": 68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -78.96462077008837,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787188
     },
     {
       "true_azimuth_deg": -26.46026255744595,
-      "combined_prediction_deg": -54.83001450902306
+      "combined_prediction_deg": -54.83001450902306,
+      "ild_inverse_sigmoid_prediction_deg": -22.994849355008746
     },
     {
       "true_azimuth_deg": -65.25371980165204,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.6459595278719
     },
     {
       "true_azimuth_deg": 38.88950257450816,
-      "combined_prediction_deg": 67.12589182299571
+      "combined_prediction_deg": 67.12589182299571,
+      "ild_inverse_sigmoid_prediction_deg": 49.30820491855612
     },
     {
       "true_azimuth_deg": 49.93456259043873,
-      "combined_prediction_deg": 67.17800677621102
+      "combined_prediction_deg": 67.17800677621102,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": 89.87493839500334,
-      "combined_prediction_deg": 68.51792456595672
+      "combined_prediction_deg": 68.51792456595672,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -55.57686840801658,
-      "combined_prediction_deg": -68.3364776798595
+      "combined_prediction_deg": -68.3364776798595,
+      "ild_inverse_sigmoid_prediction_deg": -65.35084996786536
     },
     {
       "true_azimuth_deg": 68.67238280667621,
-      "combined_prediction_deg": 68.5179245659567
+      "combined_prediction_deg": 68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787187
     },
     {
       "true_azimuth_deg": -19.475171101176528,
-      "combined_prediction_deg": -47.9444802753061
+      "combined_prediction_deg": -47.9444802753061,
+      "ild_inverse_sigmoid_prediction_deg": -17.356696712350807
     },
     {
       "true_azimuth_deg": 48.331591613342226,
-      "combined_prediction_deg": 67.16779647465158
+      "combined_prediction_deg": 67.16779647465158,
+      "ild_inverse_sigmoid_prediction_deg": 65.04789859828348
     },
     {
       "true_azimuth_deg": -4.38025081477133,
-      "combined_prediction_deg": -17.479856840329543
+      "combined_prediction_deg": -17.479856840329543,
+      "ild_inverse_sigmoid_prediction_deg": -4.547394636236188
     },
     {
       "true_azimuth_deg": -20.471242368337997,
-      "combined_prediction_deg": -46.325379579996735
+      "combined_prediction_deg": -46.325379579996735,
+      "ild_inverse_sigmoid_prediction_deg": -18.197565380878103
     },
     {
       "true_azimuth_deg": 61.84951820841985,
-      "combined_prediction_deg": 68.5179245659567
+      "combined_prediction_deg": 68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": 73.64595952787188
     },
     {
       "true_azimuth_deg": -85.59456925050185,
-      "combined_prediction_deg": -68.5179245659567
+      "combined_prediction_deg": -68.5179245659567,
+      "ild_inverse_sigmoid_prediction_deg": -73.64595952787187
     },
     {
       "true_azimuth_deg": -22.983452298253937,
-      "combined_prediction_deg": -48.802804469148015
+      "combined_prediction_deg": -48.802804469148015,
+      "ild_inverse_sigmoid_prediction_deg": -21.517066990154856
     },
     {
       "true_azimuth_deg": -57.1177847346812,
-      "combined_prediction_deg": -68.34795695760373
+      "combined_prediction_deg": -68.34795695760373,
+      "ild_inverse_sigmoid_prediction_deg": -73.6459595278719
     },
     {
       "true_azimuth_deg": -42.76200555132679,
-      "combined_prediction_deg": -56.17386519040321
+      "combined_prediction_deg": -56.17386519040321,
+      "ild_inverse_sigmoid_prediction_deg": -55.459709417890906
     },
     {
       "true_azimuth_deg": 47.31246448276488,
-      "combined_prediction_deg": 67.50068291500025
+      "combined_prediction_deg": 67.50068291500025,
+      "ild_inverse_sigmoid_prediction_deg": 65.04789859828348
     }
   ],
   "artifacts": {

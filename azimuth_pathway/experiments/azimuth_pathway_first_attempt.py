@@ -634,11 +634,36 @@ def plot_pipeline_diagram(path: Path) -> str:
     return save_figure(fig, path)
 
 
-def plot_example_stages(prediction: AzimuthPrediction, config: GlobalConfig, path: Path) -> str:
-    """Plot waveform, VCN rasters, LSO codes, and azimuth populations."""
+def plot_example_stages(
+    prediction: AzimuthPrediction,
+    config: GlobalConfig,
+    inverse_params: dict[str, float],
+    path: Path,
+) -> str:
+    """Plot VCN rasters, ILD coding, and azimuth populations.
+
+    Args:
+        prediction: Example prediction to visualise.
+        config: Acoustic configuration.
+        inverse_params: Tuned inverse-sigmoid ILD parameters.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
     centers_khz = fdm._log_spaced_centers(config).detach().cpu().numpy() / 1_000.0
     time_ms = np.arange(prediction.cochlea.left_spikes.shape[1]) / config.sample_rate_hz * 1_000.0
     bins = azimuth_grid(AZIMUTH_LIMIT_DEG)
+    balance, drive = lso_balance_and_drive(prediction)
+    inverse_activation = inverse_sigmoid_ild_activation(
+        balance,
+        drive,
+        bins,
+        inverse_params["gain"],
+        inverse_params["sigma"],
+        AZIMUTH_LIMIT_DEG,
+    )
+    inverse_prediction = centre_of_mass(inverse_activation, bins)
     fig, axes = plt.subplots(4, 1, figsize=(12.0, 12.0))
 
     for channel, freq in enumerate(centers_khz):
@@ -650,34 +675,37 @@ def plot_example_stages(prediction: AzimuthPrediction, config: GlobalConfig, pat
             axes[0].vlines(right_times, freq * 0.985, freq * 1.015, color="#dc2626", linewidth=0.9)
     axes[0].axhline(VCN_MIN_RESPONSIVE_HZ / 1_000.0, color="#6b7280", linestyle=":", linewidth=1.0)
     axes[0].set_yscale("log")
+    axes[0].set_xlabel("time after emission (ms)")
     axes[0].set_ylabel("frequency (kHz)")
-    axes[0].set_title("Separate-ear VCN onset rasters: left blue, right red")
+    axes[0].set_title("VCN onset raster after cochlea: left ear blue, right ear red")
     axes[0].grid(True, axis="x", alpha=0.2)
 
     axes[1].plot(centers_khz, prediction.left_level_code, color="#2563eb", linewidth=1.8, label="left level code")
     axes[1].plot(centers_khz, prediction.right_level_code, color="#dc2626", linewidth=1.8, label="right level code")
     axes[1].set_xscale("log")
+    axes[1].set_xlabel("cochlear centre frequency (kHz)")
     axes[1].set_ylabel("threshold count")
-    axes[1].set_title("Multi-threshold ILD VCN level code")
+    axes[1].set_title("ILD level code: number of crossed loudness thresholds per channel")
     axes[1].grid(True, alpha=0.25)
     axes[1].legend(frameon=False)
 
     axes[2].plot(centers_khz, prediction.left_lso, color="#2563eb", linewidth=1.8, label="left LSO")
     axes[2].plot(centers_khz, prediction.right_lso, color="#dc2626", linewidth=1.8, label="right LSO")
     axes[2].set_xscale("log")
-    axes[2].set_ylabel("opponent response")
-    axes[2].set_title("LSO/MNTB opponent output")
+    axes[2].set_xlabel("cochlear centre frequency (kHz)")
+    axes[2].set_ylabel("rectified E/I response")
+    axes[2].set_title("MNTB/LSO opponent output: same-ear excitation minus opposite-ear inhibition")
     axes[2].grid(True, alpha=0.25)
     axes[2].legend(frameon=False)
 
     axes[3].plot(bins, normalise_population(prediction.itd_activation), linewidth=2.0, label="ITD")
-    axes[3].plot(bins, normalise_population(prediction.ild_activation), linewidth=2.0, label="ILD")
-    axes[3].plot(bins, normalise_population(prediction.combined_activation), linewidth=2.0, label="combined")
+    axes[3].plot(bins, normalise_population(prediction.ild_activation), linewidth=2.0, label="raw ILD")
+    axes[3].plot(bins, normalise_population(inverse_activation), linewidth=2.2, label="inverse-sigmoid ILD")
     axes[3].axvline(prediction.true_azimuth_deg, color="#111827", linestyle="--", linewidth=1.2, label="true")
-    axes[3].axvline(prediction.combined_prediction_deg, color="#f59e0b", linestyle=":", linewidth=1.4, label="decoded")
+    axes[3].axvline(inverse_prediction, color="#059669", linestyle=":", linewidth=1.6, label="inverse-sigmoid decoded")
     axes[3].set_xlabel("represented azimuth (deg)")
     axes[3].set_ylabel("normalised activity")
-    axes[3].set_title("IC/SC azimuth populations")
+    axes[3].set_title("Topographic azimuth populations before SC centre-of-mass readout")
     axes[3].grid(True, alpha=0.25)
     axes[3].legend(frameon=False)
 
@@ -685,75 +713,99 @@ def plot_example_stages(prediction: AzimuthPrediction, config: GlobalConfig, pat
     return save_figure(fig, path)
 
 
-def plot_prediction_scatter(predictions: list[AzimuthPrediction], path: Path) -> str:
-    """Plot predicted versus true azimuth for ITD, ILD, and combined readouts."""
+def plot_prediction_scatter(
+    predictions: list[AzimuthPrediction],
+    inverse_predictions_deg: np.ndarray,
+    path: Path,
+) -> str:
+    """Plot predicted versus true azimuth for raw and calibrated readouts.
+
+    Args:
+        predictions: Primary azimuth predictions.
+        inverse_predictions_deg: Inverse-sigmoid ILD predictions.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
     true = np.array([item.true_azimuth_deg for item in predictions])
     itd = np.array([item.itd_prediction_deg for item in predictions])
     ild = np.array([item.ild_prediction_deg for item in predictions])
     combined = np.array([item.combined_prediction_deg for item in predictions])
     fig, ax = plt.subplots(figsize=(7.2, 6.2))
     ax.scatter(true, itd, s=20, alpha=0.55, label="ITD")
-    ax.scatter(true, ild, s=20, alpha=0.55, label="ILD")
-    ax.scatter(true, combined, s=22, alpha=0.72, label="combined")
-    low = min(float(true.min()), float(itd.min()), float(ild.min()), float(combined.min()))
-    high = max(float(true.max()), float(itd.max()), float(ild.max()), float(combined.max()))
+    ax.scatter(true, ild, s=20, alpha=0.45, label="raw ILD")
+    ax.scatter(true, combined, s=22, alpha=0.55, label="old combined")
+    ax.scatter(true, inverse_predictions_deg, s=26, alpha=0.78, label="inverse-sigmoid ILD")
+    low = min(float(true.min()), float(itd.min()), float(ild.min()), float(combined.min()), float(inverse_predictions_deg.min()))
+    high = max(float(true.max()), float(itd.max()), float(ild.max()), float(combined.max()), float(inverse_predictions_deg.max()))
     ax.plot([low, high], [low, high], color="#111827", linewidth=1.0)
     ax.set_xlabel("true azimuth (deg)")
     ax.set_ylabel("predicted azimuth (deg)")
-    ax.set_title("First azimuth pathway predictions")
+    ax.set_title("Azimuth predictions after ILD inverse-sigmoid calibration")
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
     return save_figure(fig, path)
 
 
-def plot_error_histogram(predictions: list[AzimuthPrediction], path: Path) -> str:
-    """Plot signed combined-readout azimuth error histogram."""
-    true = np.array([item.true_azimuth_deg for item in predictions])
-    pred = np.array([item.combined_prediction_deg for item in predictions])
+def plot_error_histogram(true: np.ndarray, pred: np.ndarray, label: str, path: Path) -> str:
+    """Plot signed azimuth error histogram.
+
+    Args:
+        true: True azimuths in degrees.
+        pred: Predicted azimuths in degrees.
+        label: Readout label for axes and title.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
     error = pred - true
     fig, ax = plt.subplots(figsize=(7.2, 4.6))
-    ax.hist(error, bins=24, color="#2563eb", alpha=0.82)
+    ax.hist(error, bins=24, color="#059669", alpha=0.82)
     ax.axvline(0.0, color="#111827", linewidth=1.0)
-    ax.set_xlabel("combined readout error (deg)")
+    ax.set_xlabel(f"{label} error (deg)")
     ax.set_ylabel("count")
-    ax.set_title("Combined azimuth error distribution")
+    ax.set_title(f"{label} azimuth error distribution")
     ax.grid(True, axis="y", alpha=0.25)
     return save_figure(fig, path)
 
 
 def plot_range_comparison(
-    primary_predictions: list[AzimuthPrediction],
-    stress_predictions: list[AzimuthPrediction],
+    primary_true: np.ndarray,
+    primary_pred: np.ndarray,
+    stress_true: np.ndarray,
+    stress_pred: np.ndarray,
     path: Path,
 ) -> str:
-    """Compare combined-readout errors for +/-45 and +/-90 degree tests.
+    """Compare inverse-sigmoid ILD errors for +/-45 and +/-90 degree tests.
 
     Args:
-        primary_predictions: Predictions over the +/-45 degree support.
-        stress_predictions: Predictions over the +/-90 degree support.
+        primary_true: True azimuths for the +/-45 degree support.
+        primary_pred: Predicted azimuths for the +/-45 degree support.
+        stress_true: True azimuths for the +/-90 degree support.
+        stress_pred: Predicted azimuths for the +/-90 degree support.
         path: Figure path.
 
     Returns:
         Saved figure path.
     """
     datasets = [
-        ("+/-45 deg", primary_predictions, AZIMUTH_LIMIT_DEG),
-        ("+/-90 deg", stress_predictions, STRESS_AZIMUTH_LIMIT_DEG),
+        ("+/-45 deg", primary_true, primary_pred, AZIMUTH_LIMIT_DEG),
+        ("+/-90 deg", stress_true, stress_pred, STRESS_AZIMUTH_LIMIT_DEG),
     ]
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 5.0), sharey=False)
-    for ax, (label, predictions, limit) in zip(axes, datasets):
-        true = np.array([item.true_azimuth_deg for item in predictions])
-        pred = np.array([item.combined_prediction_deg for item in predictions])
+    for ax, (label, true, pred, limit) in zip(axes, datasets):
         error = pred - true
-        ax.scatter(true, error, s=22, alpha=0.7, color="#2563eb")
+        ax.scatter(true, error, s=22, alpha=0.7, color="#059669")
         ax.axhline(0.0, color="#111827", linewidth=1.0)
         ax.axvline(0.0, color="#6b7280", linestyle=":", linewidth=1.0)
         ax.set_xlim(-limit, limit)
         ax.set_xlabel("true azimuth (deg)")
         ax.set_title(label)
         ax.grid(True, alpha=0.25)
-    axes[0].set_ylabel("combined readout error (deg)")
-    fig.suptitle("Azimuth error grows when the represented field expands")
+    axes[0].set_ylabel("inverse-sigmoid ILD error (deg)")
+    fig.suptitle("Wide-field azimuth error for the improved ILD readout")
     fig.tight_layout()
     return save_figure(fig, path)
 
@@ -879,7 +931,7 @@ def write_report(
         format_metric_row("ILD power warp", metrics["primary_ild_warped"]),
         format_metric_row("ILD inverse sigmoid", metrics["primary_ild_inverse_sigmoid"]),
         format_metric_row("Combined", metrics["primary_combined"]),
-        format_metric_row("Combined stress +/-90 deg", metrics["stress_combined"]),
+        format_metric_row("ILD inverse sigmoid stress +/-90 deg", metrics["stress_ild_inverse_sigmoid"]),
     ]
     lines = [
         "# Azimuth Pathway First Attempt",
@@ -1008,7 +1060,7 @@ def write_report(
         "",
         "## Accuracy",
         "",
-        "The primary test uses the same azimuth support as the old Round 3/4 training setup, `-45 deg` to `+45 deg`, at fixed range. The stress test expands to `-90 deg` to `+90 deg`.",
+        "The primary test uses the same azimuth support as the old Round 3/4 training setup, `-45 deg` to `+45 deg`, at fixed range. The stress test expands to `-90 deg` to `+90 deg`. Since the inverse-sigmoid ILD branch is now the strongest branch, the wide-field error plot and stress row use that readout rather than the older raw combined readout.",
         "",
         "| Readout | MAE | RMSE | Max error | Bias |",
         "|---|---:|---:|---:|---:|",
@@ -1024,7 +1076,7 @@ def write_report(
         "",
         "The wider-field result is lower accuracy, but it is not a useless failure. It is a useful stress result for three reasons.",
         "",
-        "First, the ITD cue saturates with azimuth because the physical cue is approximately proportional to $\\sin\\theta$. Near the midline, small changes in azimuth produce a large, nearly linear change in ITD. Near the sides, $\\sin\\theta$ flattens, so the same timing precision corresponds to a larger angular uncertainty.",
+        "First, both major binaural cues are nonlinear at the edges. ITD is approximately proportional to $\\sin\\theta$, so it flattens near the sides. The improved ILD branch also depends on a saturated LSO balance; the inverse-sigmoid mapping recovers much of this, but edge clipping and finite population width still reduce precision.",
         "",
         "Second, the current head-shadow ILD cue is deliberately simple. It is a smooth multiplicative gain, not a full frequency-dependent head-related transfer function. That means the ILD branch does not yet add enough extra wide-angle information to compensate for ITD saturation.",
         "",
@@ -1080,7 +1132,16 @@ def main() -> dict[str, object]:
         inverse_params["sigma"],
         AZIMUTH_LIMIT_DEG,
     )
+    stress_bins = azimuth_grid(STRESS_AZIMUTH_LIMIT_DEG)
+    stress_inverse_ild_predictions, _ = decode_inverse_sigmoid_ild(
+        stress_predictions,
+        stress_bins,
+        inverse_params["gain"],
+        inverse_params["sigma"],
+        STRESS_AZIMUTH_LIMIT_DEG,
+    )
     primary_true = np.array([item.true_azimuth_deg for item in primary_predictions], dtype=np.float64)
+    stress_true = np.array([item.true_azimuth_deg for item in stress_predictions], dtype=np.float64)
     metrics = {
         "primary_itd": metric_dict(primary_predictions, "itd_prediction_deg"),
         "primary_ild": metric_dict(primary_predictions, "ild_prediction_deg"),
@@ -1088,15 +1149,32 @@ def main() -> dict[str, object]:
         "primary_ild_inverse_sigmoid": metric_dict_from_arrays(primary_true, inverse_ild_predictions),
         "primary_combined": metric_dict(primary_predictions, "combined_prediction_deg"),
         "stress_combined": metric_dict(stress_predictions, "combined_prediction_deg"),
+        "stress_ild_inverse_sigmoid": metric_dict_from_arrays(stress_true, stress_inverse_ild_predictions),
     }
     artifacts = {
         "pipeline_diagram": plot_pipeline_diagram(FIGURE_DIR / "pipeline_diagram.png"),
-        "example_stages": plot_example_stages(example, config, FIGURE_DIR / "example_stages.png"),
-        "prediction_scatter": plot_prediction_scatter(primary_predictions, FIGURE_DIR / "prediction_scatter.png"),
-        "error_histogram": plot_error_histogram(primary_predictions, FIGURE_DIR / "error_histogram.png"),
-        "range_comparison": plot_range_comparison(
+        "example_stages": plot_example_stages(
+            example,
+            config,
+            inverse_params,
+            FIGURE_DIR / "example_stages.png",
+        ),
+        "prediction_scatter": plot_prediction_scatter(
             primary_predictions,
-            stress_predictions,
+            inverse_ild_predictions,
+            FIGURE_DIR / "prediction_scatter.png",
+        ),
+        "error_histogram": plot_error_histogram(
+            stress_true,
+            stress_inverse_ild_predictions,
+            "inverse-sigmoid ILD stress +/-90 deg",
+            FIGURE_DIR / "error_histogram.png",
+        ),
+        "range_comparison": plot_range_comparison(
+            primary_true,
+            inverse_ild_predictions,
+            stress_true,
+            stress_inverse_ild_predictions,
             FIGURE_DIR / "range_comparison.png",
         ),
         "warped_ild_mapping": plot_warped_ild_mapping(
@@ -1158,8 +1236,9 @@ def main() -> dict[str, object]:
             {
                 "true_azimuth_deg": item.true_azimuth_deg,
                 "combined_prediction_deg": item.combined_prediction_deg,
+                "ild_inverse_sigmoid_prediction_deg": float(stress_inverse_ild_predictions[index]),
             }
-            for item in stress_predictions
+            for index, item in enumerate(stress_predictions)
         ],
         "artifacts": artifacts,
     }
