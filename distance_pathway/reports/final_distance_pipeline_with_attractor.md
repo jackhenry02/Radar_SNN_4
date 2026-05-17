@@ -1,11 +1,12 @@
 # Final Distance Pipeline With SC Line Attractor
 
-This report is the final distance-pipeline summary before separate failure-case analysis. It keeps the current primary distance pathway unchanged through the AC distance map, then compares two SC readouts:
+This report is the final distance-pipeline summary before separate failure-case analysis. It keeps the current primary distance pathway unchanged through the AC distance map, then compares three SC readouts:
 
 - `simple COM`: the existing centre-of-mass readout directly from the AC map.
-- `SC line attractor`: a balanced E/I continuous-attractor readout added after AC.
+- `reflected/opponent SC line attractor`: the finite-line input-theory attractor added after AC.
+- `local population-vector SC attractor`: a nonlinear local AC peak readout converted into a smooth SC bump before the same recurrence.
 
-The comparison is controlled because both readouts receive the same AC activity. Any difference is caused by the final SC readout only.
+The comparison is controlled because all three readouts receive the same AC activity. Any difference is caused by the final SC readout only.
 
 ![Pipeline diagram](../outputs/final_distance_pipeline_with_attractor/figures/pipeline_diagram.png)
 
@@ -95,7 +96,7 @@ The baseline SC readout is the original centre of mass:
 d_hat_COM = sum_k AC[k] d[k] / sum_k AC[k]
 ```
 
-The upgraded SC readout is the finite-line balanced E/I attractor:
+The main upgraded SC readout is the finite-line balanced E/I attractor:
 
 ```text
 r = [r_E, r_I]
@@ -105,6 +106,8 @@ tau dr/dt = -r + W r
 ```
 
 The final decoded distance is centre of mass over the rectified excitatory population at `60 ms`.
+
+The additional local population-vector readout first finds the AC peak neighbourhood, estimates a local centre of mass, and injects a smooth Gaussian bump into the SC excitatory population. It is useful as a comparison because it often creates a cleaner attractor bump, but it also discards global AC confidence and asymmetry information.
 
 ## Selected SC Attractor Parameters
 
@@ -122,6 +125,8 @@ These parameters come from the finite-line input theory work. The model uses the
 | simulation step | `1.0 ms` |
 | readout time | `60.0 ms` |
 | rate cap | `55.0 Hz` |
+| local population-vector sigma | `6.0` bins |
+| local population-vector peak radius | `±5` bins |
 
 ## Example Spike Processing Path
 
@@ -129,17 +134,21 @@ The example below uses a target at `2.51 m`. Frequency is shown on a log axis; t
 
 ![Frequency-time rasters](../outputs/final_distance_pipeline_with_attractor/figures/frequency_time_rasters.png)
 
-The next figure shows the conversion from IC coincidence scores to AC topographic activity, then into the final horizontal SC attractor activity over represented distance.
+The next figure shows the conversion from IC coincidence scores to AC topographic activity, then into the final SC attractor activity over represented distance.
 
 ![Distance population stages](../outputs/final_distance_pipeline_with_attractor/figures/distance_population_stages.png)
 
-The attractor dynamics are shown as a horizontal distance activation through SC time. This is the key visualisation of the line attractor: the activity bump evolves over time but remains organised along the distance line.
+The attractor dynamics are shown with SC time on the x-axis and represented distance on the y-axis. This is the key visualisation of the line attractor: the activity bump evolves over time but remains organised along the distance line.
 
 ![Line attractor dynamics](../outputs/final_distance_pipeline_with_attractor/figures/line_attractor_dynamics.png)
 
 The line attractor itself is simulated as a rate model. The spike raster below is an illustrative deterministic spike conversion from the excitatory rate state, included so the final SC output can be visualised as spikes.
 
 ![Line attractor output spikes](../outputs/final_distance_pipeline_with_attractor/figures/line_attractor_output_spikes.png)
+
+The figure below compares the illustrative SC excitatory rates for the reflected/opponent input and the local population-vector input on the same example.
+
+![SC excitatory rate comparison](../outputs/final_distance_pipeline_with_attractor/figures/sc_excitatory_rate_comparison.png)
 
 ## Readout Comparison
 
@@ -149,20 +158,21 @@ The simple readout and attractor readout are compared on the same AC activations
 
 ![Readout scatter](../outputs/final_distance_pipeline_with_attractor/figures/readout_scatter.png)
 
-| Condition | Subset | N | Simple MAE | Attractor MAE | Simple RMSE | Attractor RMSE | Simple max error | Attractor max error | Attractor runtime/sample |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Small clean 0.25-5m | all | `80` | `3.571 cm` | `3.818 cm` | `4.364 cm` | `4.717 cm` | `11.710 cm` | `13.864 cm` | `1.496 ms` |
-| Small noisy 10dB+jitter | all | `80` | `7.127 cm` | `7.965 cm` | `13.797 cm` | `14.927 cm` | `104.423 cm` | `104.465 cm` | `1.866 ms` |
-| Full 3D clean 0.25-10m | <=5 m | `33` | `2.831 cm` | `2.080 cm` | `4.167 cm` | `2.758 cm` | `11.500 cm` | `7.233 cm` | `1.202 ms` |
-| Full 3D clean 0.25-10m | <=10 m | `80` | `34.041 cm` | `33.963 cm` | `110.014 cm` | `110.776 cm` | `464.131 cm` | `466.854 cm` | `1.202 ms` |
-| Full 3D 50dB floor | <=5 m | `33` | `2.826 cm` | `2.075 cm` | `4.164 cm` | `2.753 cm` | `11.500 cm` | `7.233 cm` | `1.678 ms` |
-| Full 3D 50dB floor | <=10 m | `80` | `34.040 cm` | `33.962 cm` | `110.014 cm` | `110.776 cm` | `464.131 cm` | `466.854 cm` | `1.678 ms` |
+| Condition | Subset | N | Simple MAE | Reflected attractor MAE | Local-vector attractor MAE | Simple RMSE | Reflected RMSE | Local-vector RMSE | Simple max error | Reflected max error | Local-vector max error | Reflected runtime/sample | Local-vector runtime/sample |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Small clean 0.25-5m | all | `80` | `3.571 cm` | `3.818 cm` | `3.941 cm` | `4.364 cm` | `4.717 cm` | `4.939 cm` | `11.710 cm` | `13.864 cm` | `15.615 cm` | `1.090 ms` | `1.062 ms` |
+| Small noisy 10dB+jitter | all | `80` | `7.127 cm` | `7.965 cm` | `6.807 cm` | `13.797 cm` | `14.927 cm` | `13.448 cm` | `104.423 cm` | `104.465 cm` | `104.184 cm` | `1.829 ms` | `1.148 ms` |
+| Full 3D clean 0.25-10m | <=5 m | `33` | `2.831 cm` | `2.080 cm` | `2.408 cm` | `4.167 cm` | `2.758 cm` | `3.227 cm` | `11.500 cm` | `7.233 cm` | `7.474 cm` | `1.150 ms` | `0.976 ms` |
+| Full 3D clean 0.25-10m | <=10 m | `80` | `34.041 cm` | `33.963 cm` | `74.009 cm` | `110.014 cm` | `110.776 cm` | `243.806 cm` | `464.131 cm` | `466.854 cm` | `922.935 cm` | `1.150 ms` | `0.976 ms` |
+| Full 3D 50dB floor | <=5 m | `33` | `2.826 cm` | `2.075 cm` | `2.403 cm` | `4.164 cm` | `2.753 cm` | `3.224 cm` | `11.500 cm` | `7.233 cm` | `7.474 cm` | `1.234 ms` | `1.242 ms` |
+| Full 3D 50dB floor | <=10 m | `80` | `34.040 cm` | `33.962 cm` | `74.009 cm` | `110.014 cm` | `110.776 cm` | `243.806 cm` | `464.131 cm` | `466.854 cm` | `922.935 cm` | `1.234 ms` | `1.242 ms` |
 
 ## Interpretation
 
 - The final SC line attractor is now attached as a reversible readout module after AC.
-- The comparison is controlled: cochlea, VCN/VNLL, DNLL, IC, and AC are identical for both readouts.
+- The comparison is controlled: cochlea, VCN/VNLL, DNLL, IC, and AC are identical for all readouts.
 - The line attractor gives a biologically motivated recurrent readout and a clear population-bump visualisation.
+- The local population-vector variant is a useful comparator, but it is less faithful to the full AC population because it compresses the AC map to a local peak before SC recurrence.
 - If the attractor does not improve a condition, that means the AC map already contains the relevant bias or ambiguity; the SC cannot recover information that was lost upstream.
 - Failure-case analysis is intentionally deferred to the next report.
 
@@ -173,8 +183,9 @@ The simple readout and attractor readout are compared on the same AC activations
 - `distance_population_stages`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/distance_population_stages.png`
 - `line_attractor_dynamics`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/line_attractor_dynamics.png`
 - `line_attractor_output_spikes`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/line_attractor_output_spikes.png`
+- `sc_excitatory_rate_comparison`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/sc_excitatory_rate_comparison.png`
 - `readout_mae_comparison`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/readout_mae_comparison.png`
 - `readout_scatter`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/readout_scatter.png`
 - `results`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/results.json`
 
-Runtime: `18.03 s`.
+Runtime: `18.41 s`.

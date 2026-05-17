@@ -615,7 +615,9 @@ def _make_cd_raster(
     if latency_samples is not None:
         cd_times = cd_times + latency_samples.astype(np.int64)
     cd = np.zeros((NUM_CHANNELS, total_time), dtype=np.float32)
-    valid = (cd_times >= 0) & (cd_times < total_time)
+    centers = _log_spaced_centers(config).detach().cpu().numpy()
+    responsive = centers >= VCN_MIN_RESPONSIVE_HZ
+    valid = (cd_times >= 0) & (cd_times < total_time) & responsive
     cd[np.arange(NUM_CHANNELS)[valid], cd_times[valid]] = 1.0
     return cd
 

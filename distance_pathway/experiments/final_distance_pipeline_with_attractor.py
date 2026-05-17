@@ -47,6 +47,9 @@ ATTRACTOR_BASELINE_RATE_HZ = 5.0
 ATTRACTOR_STATE_RATE_SCALE_HZ = 20.0
 ATTRACTOR_RATE_CAP_HZ = 55.0
 SC_SPIKE_BIN_MS = 1.0
+SC_INPUT_REFLECTED_OPPONENT = "reflected_opponent"
+LOCAL_POPULATION_SIGMA_BINS = 6.0
+LOCAL_POPULATION_RADIUS_BINS = 5
 
 
 @dataclass(frozen=True)
@@ -59,8 +62,11 @@ class AttractorPredictionSet:
         simple_distance_m: Original simple centre-of-mass predictions.
         attractor_distance_m: Final line-attractor predictions.
         attractor_trajectory_m: Decoded distance through attractor time.
+        local_distance_m: Local population-vector attractor predictions.
+        local_trajectory_m: Local population-vector decoded trajectory.
         ac_activations: Upstream AC activity used as input.
         seconds_per_sample: Attractor-only runtime per sample.
+        local_seconds_per_sample: Local-vector attractor runtime per sample.
     """
 
     condition: str
@@ -68,8 +74,11 @@ class AttractorPredictionSet:
     simple_distance_m: np.ndarray
     attractor_distance_m: np.ndarray
     attractor_trajectory_m: np.ndarray
+    local_distance_m: np.ndarray
+    local_trajectory_m: np.ndarray
     ac_activations: np.ndarray
     seconds_per_sample: float
+    local_seconds_per_sample: float
 
 
 @dataclass(frozen=True)
@@ -216,6 +225,77 @@ def decode_center_of_mass(activity: np.ndarray, positions_m: np.ndarray) -> np.n
     return np.where(total > 1e-12, decoded, fallback)
 
 
+def decode_local_population_vector(activity: np.ndarray, positions_m: np.ndarray) -> np.ndarray:
+    """Decode attractor activity from a local peak neighbourhood.
+
+    This readout is applied to the **output of the SC attractor**, not to the
+    AC input. It finds the peak excitatory neuron, keeps a small neighbourhood
+    around that peak, and computes a local centre of mass.
+
+    Args:
+        activity: Attractor excitatory/readout activity `[samples, bins]`.
+        positions_m: Shared SC distance grid.
+
+    Returns:
+        Local population-vector decoded distance for each sample.
+    """
+    positive = np.maximum(activity, 0.0)
+    decoded = np.empty(positive.shape[0], dtype=np.float64)
+    radius = int(LOCAL_POPULATION_RADIUS_BINS)
+    fallback = 0.5 * (positions_m[0] + positions_m[-1])
+    for sample_idx, row in enumerate(positive):
+        if float(np.sum(row)) <= 1e-12:
+            decoded[sample_idx] = fallback
+            continue
+        peak_idx = int(np.argmax(row))
+        lo = max(0, peak_idx - radius)
+        hi = min(row.size, peak_idx + radius + 1)
+        local = row[lo:hi]
+        total = float(np.sum(local))
+        if total <= 1e-12:
+            decoded[sample_idx] = float(positions_m[peak_idx])
+        else:
+            decoded[sample_idx] = float(np.sum(local * positions_m[lo:hi]) / total)
+    return decoded
+
+
+def local_population_window_mask(activity: np.ndarray) -> np.ndarray:
+    """Return a mask showing the local-vector readout neighbourhood.
+
+    Args:
+        activity: One attractor activity vector `[bins]`.
+
+    Returns:
+        Boolean mask over bins used by the local population-vector readout.
+    """
+    row = np.maximum(activity, 0.0)
+    mask = np.zeros(row.shape[0], dtype=bool)
+    if float(np.sum(row)) <= 1e-12:
+        return mask
+    peak_idx = int(np.argmax(row))
+    radius = int(LOCAL_POPULATION_RADIUS_BINS)
+    lo = max(0, peak_idx - radius)
+    hi = min(row.size, peak_idx + radius + 1)
+    mask[lo:hi] = True
+    return mask
+
+
+def initialise_sc_state(ac_activations: np.ndarray, positions_m: np.ndarray) -> np.ndarray:
+    """Initialise SC E/I state from the AC map.
+
+    Args:
+        ac_activations: AC activations `[samples, distance_bins]`.
+        positions_m: Shared AC/SC distance grid.
+
+    Returns:
+        Initial relative-rate SC state `[samples, 2 * distance_bins]`.
+    """
+    _, input_to_state, _, _ = build_line_attractor_matrices(positions_m)
+    ac_input = normalise_ac(ac_activations)
+    state = ATTRACTOR_STATE_RATE_SCALE_HZ * (ac_input @ input_to_state.T)
+    return clip_state_to_rate_cap(state)
+
+
 def clip_state_to_rate_cap(state: np.ndarray) -> np.ndarray:
     """Apply the relative-rate cap used by the final SC model.
 
@@ -235,7 +315,7 @@ def run_line_attractor(
     positions_m: np.ndarray,
     *,
     keep_history: bool = False,
-) -> tuple[np.ndarray, np.ndarray, float, np.ndarray | None]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, float, np.ndarray | None]:
     """Run the final balanced E/I line attractor on AC activations.
 
     Args:
@@ -244,22 +324,23 @@ def run_line_attractor(
         keep_history: Whether to retain full state history.
 
     Returns:
-        Tuple `(final_prediction, trajectory, seconds_per_sample, history)`.
-        `history` is `None` unless `keep_history=True`.
+        Tuple `(final_com_prediction, com_trajectory, final_local_prediction,
+        local_trajectory, seconds_per_sample, history)`. `history` is `None`
+        unless `keep_history=True`.
     """
     start = time.perf_counter()
-    _, input_to_state, _, recurrent = build_line_attractor_matrices(positions_m)
-    ac_input = normalise_ac(ac_activations)
-    state = ATTRACTOR_STATE_RATE_SCALE_HZ * (ac_input @ input_to_state.T)
-    state = clip_state_to_rate_cap(state)
+    _, _, _, recurrent = build_line_attractor_matrices(positions_m)
+    state = initialise_sc_state(ac_activations, positions_m)
     num_samples, state_size = state.shape
     num_bins = ac_activations.shape[1]
     num_steps = int(round(ATTRACTOR_SIM_TIME_S / ATTRACTOR_DT_S))
     readout_index = int(round(ATTRACTOR_READOUT_TIME_S / ATTRACTOR_DT_S))
     trajectory = np.empty((num_samples, num_steps + 1), dtype=np.float64)
+    local_trajectory = np.empty((num_samples, num_steps + 1), dtype=np.float64)
     history = np.empty((num_steps + 1, num_samples, state_size), dtype=np.float64) if keep_history else None
     readout = np.maximum(state[:, :num_bins], 0.0)
     trajectory[:, 0] = decode_center_of_mass(readout, positions_m)
+    local_trajectory[:, 0] = decode_local_population_vector(readout, positions_m)
     if history is not None:
         history[0] = state
     for step in range(1, num_steps + 1):
@@ -267,10 +348,18 @@ def run_line_attractor(
         state = clip_state_to_rate_cap(state)
         readout = np.maximum(state[:, :num_bins], 0.0)
         trajectory[:, step] = decode_center_of_mass(readout, positions_m)
+        local_trajectory[:, step] = decode_local_population_vector(readout, positions_m)
         if history is not None:
             history[step] = state
     seconds_per_sample = (time.perf_counter() - start) / max(1, num_samples)
-    return trajectory[:, readout_index], trajectory, seconds_per_sample, history
+    return (
+        trajectory[:, readout_index],
+        trajectory,
+        local_trajectory[:, readout_index],
+        local_trajectory,
+        seconds_per_sample,
+        history,
+    )
 
 
 def state_history_to_output_spikes(excitatory_history: np.ndarray) -> np.ndarray:
@@ -430,18 +519,25 @@ def run_condition(
         positions_m: Distance grid for the AC/SC map.
 
     Returns:
-        Prediction set with both readouts.
+        Prediction set with all readouts.
     """
     true, simple, ac = collect_prediction_arrays(predictions)
-    attractor, trajectory, seconds_per_sample, _ = run_line_attractor(ac, positions_m, keep_history=False)
+    attractor, trajectory, local, local_trajectory, seconds_per_sample, _ = run_line_attractor(
+        ac,
+        positions_m,
+        keep_history=False,
+    )
     return AttractorPredictionSet(
         condition=condition,
         true_distance_m=true,
         simple_distance_m=simple,
         attractor_distance_m=attractor,
         attractor_trajectory_m=trajectory,
+        local_distance_m=local,
+        local_trajectory_m=local_trajectory,
         ac_activations=ac,
         seconds_per_sample=seconds_per_sample,
+        local_seconds_per_sample=seconds_per_sample,
     )
 
 
@@ -472,7 +568,7 @@ def run_example_history(
     Returns:
         Attractor history for plotting.
     """
-    _, trajectory, _, state_history = run_line_attractor(
+    _, trajectory, _, _, _, state_history = run_line_attractor(
         prediction.ac_activation[None, :].astype(np.float64),
         positions_m,
         keep_history=True,
@@ -658,16 +754,17 @@ def plot_line_attractor_dynamics(
     activation = activation / max(float(np.max(activation)), 1e-12)
     fig, axes = plt.subplots(2, 1, figsize=(12.0, 7.0), sharex=False)
     image = axes[0].imshow(
-        activation,
+        activation.T,
         aspect="auto",
         origin="lower",
         cmap="magma",
-        extent=[positions_m[0], positions_m[-1], time_ms[0], time_ms[-1]],
+        extent=[time_ms[0], time_ms[-1], positions_m[0], positions_m[-1]],
     )
-    axes[0].axvline(prediction.distance_m, color="#e5e7eb", linestyle="--", linewidth=1.2)
-    axes[0].set_xlabel("represented distance (m)")
-    axes[0].set_ylabel("SC time (ms)")
-    axes[0].set_title("Horizontal line-attractor activation over distance")
+    axes[0].axhline(prediction.distance_m, color="#e5e7eb", linestyle="--", linewidth=1.2)
+    axes[0].axvline(ATTRACTOR_READOUT_TIME_S * 1_000.0, color="#9ca3af", linestyle=":", linewidth=1.2)
+    axes[0].set_xlabel("SC time (ms)")
+    axes[0].set_ylabel("represented distance (m)")
+    axes[0].set_title("Line-attractor activation over time")
     fig.colorbar(image, ax=axes[0], label="normalised E activity")
 
     axes[1].plot(time_ms, history.decoded_trajectory_m, color="#dc2626", linewidth=2.0, label="attractor readout")
@@ -713,6 +810,68 @@ def plot_line_attractor_output_spikes(
     return save_figure(fig, path)
 
 
+def plot_excitatory_rate_comparison(
+    prediction: fdm.PathwayPrediction,
+    positions_m: np.ndarray,
+    history: ExampleAttractorHistory,
+    path: Path,
+) -> str:
+    """Show global and local readouts on the same SC attractor activity.
+
+    Args:
+        prediction: Example pathway prediction.
+        positions_m: Distance grid.
+        history: History for the fixed reflected/opponent attractor.
+        path: Figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    final_index = int(round(ATTRACTOR_READOUT_TIME_S / ATTRACTOR_DT_S))
+    activity = np.maximum(history.excitatory_history, 0.0)
+    activity = activity / max(float(np.max(activity)), 1e-12)
+    final_rate = activity[final_index]
+    final_rate_2d = final_rate[None, :]
+    global_readout = float(decode_center_of_mass(final_rate_2d, positions_m)[0])
+    local_readout = float(decode_local_population_vector(final_rate_2d, positions_m)[0])
+    local_mask = local_population_window_mask(final_rate)
+    fig, axes = plt.subplots(1, 2, figsize=(13.0, 4.8))
+    image = axes[0].imshow(
+        activity.T,
+        aspect="auto",
+        origin="lower",
+        cmap="magma",
+        extent=[history.times_s[0] * 1_000.0, history.times_s[-1] * 1_000.0, positions_m[0], positions_m[-1]],
+    )
+    axes[0].axhline(prediction.distance_m, color="#e5e7eb", linestyle="--", linewidth=1.0)
+    axes[0].axvline(ATTRACTOR_READOUT_TIME_S * 1_000.0, color="#9ca3af", linestyle=":", linewidth=1.0)
+    axes[0].set_xlabel("SC time (ms)")
+    axes[0].set_ylabel("represented distance (m)")
+    axes[0].set_title("Same SC attractor activity")
+    fig.colorbar(image, ax=axes[0], label="normalised E")
+
+    axes[1].plot(positions_m, final_rate, color="#dc2626", linewidth=2.0, label="final E profile")
+    if np.any(local_mask):
+        axes[1].fill_between(
+            positions_m,
+            0.0,
+            final_rate,
+            where=local_mask,
+            color="#f59e0b",
+            alpha=0.32,
+            label="local-vector window",
+        )
+    axes[1].axvline(prediction.distance_m, color="#111827", linestyle="--", linewidth=1.0, label="true")
+    axes[1].axvline(global_readout, color="#2563eb", linestyle=":", linewidth=1.4, label="global COM")
+    axes[1].axvline(local_readout, color="#f59e0b", linestyle="-.", linewidth=1.4, label="local vector")
+    axes[1].set_xlabel("represented distance (m)")
+    axes[1].set_ylabel("normalised E")
+    axes[1].set_title("Two readouts on one attractor bump")
+    axes[1].grid(True, alpha=0.25)
+    axes[1].legend(frameon=False)
+    return save_figure(fig, path)
+
+
 def plot_comparison_scatter(results: list[AttractorPredictionSet], path: Path) -> str:
     """Plot simple and attractor prediction scatter comparisons.
 
@@ -726,9 +885,20 @@ def plot_comparison_scatter(results: list[AttractorPredictionSet], path: Path) -
     fig, axes = plt.subplots(2, 2, figsize=(11.5, 9.0))
     for ax, result in zip(axes.flat, results):
         ax.scatter(result.true_distance_m, result.simple_distance_m, s=18, alpha=0.58, label="simple COM")
-        ax.scatter(result.true_distance_m, result.attractor_distance_m, s=18, alpha=0.58, label="SC attractor")
-        low = min(result.true_distance_m.min(), result.simple_distance_m.min(), result.attractor_distance_m.min())
-        high = max(result.true_distance_m.max(), result.simple_distance_m.max(), result.attractor_distance_m.max())
+        ax.scatter(result.true_distance_m, result.attractor_distance_m, s=18, alpha=0.58, label="reflected attractor")
+        ax.scatter(result.true_distance_m, result.local_distance_m, s=18, alpha=0.58, label="attractor local-vector")
+        low = min(
+            result.true_distance_m.min(),
+            result.simple_distance_m.min(),
+            result.attractor_distance_m.min(),
+            result.local_distance_m.min(),
+        )
+        high = max(
+            result.true_distance_m.max(),
+            result.simple_distance_m.max(),
+            result.attractor_distance_m.max(),
+            result.local_distance_m.max(),
+        )
         ax.plot([low, high], [low, high], color="#111827", linewidth=1.0)
         ax.set_title(result.condition)
         ax.set_xlabel("true distance (m)")
@@ -751,11 +921,13 @@ def plot_error_bars(results: list[AttractorPredictionSet], path: Path) -> str:
     labels = [result.condition for result in results]
     simple = [metric_dict(result.true_distance_m, result.simple_distance_m)["mae_m"] * 100.0 for result in results]
     attractor = [metric_dict(result.true_distance_m, result.attractor_distance_m)["mae_m"] * 100.0 for result in results]
+    local = [metric_dict(result.true_distance_m, result.local_distance_m)["mae_m"] * 100.0 for result in results]
     x = np.arange(len(results))
-    width = 0.35
+    width = 0.26
     fig, ax = plt.subplots(figsize=(10.5, 4.8))
-    ax.bar(x - width / 2, simple, width=width, label="simple COM", color="#6b7280")
-    ax.bar(x + width / 2, attractor, width=width, label="SC attractor", color="#2563eb")
+    ax.bar(x - width, simple, width=width, label="simple COM", color="#6b7280")
+    ax.bar(x, attractor, width=width, label="reflected attractor", color="#2563eb")
+    ax.bar(x + width, local, width=width, label="attractor local-vector", color="#f59e0b")
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=10)
     ax.set_ylabel("MAE (cm)")
@@ -790,7 +962,9 @@ def comparison_rows(results: list[AttractorPredictionSet]) -> list[dict[str, obj
                     "num_samples": int(np.count_nonzero(mask)),
                     "simple_metrics": metric_dict(result.true_distance_m[mask], result.simple_distance_m[mask]),
                     "attractor_metrics": metric_dict(result.true_distance_m[mask], result.attractor_distance_m[mask]),
+                    "local_metrics": metric_dict(result.true_distance_m[mask], result.local_distance_m[mask]),
                     "attractor_seconds_per_sample": result.seconds_per_sample,
+                    "local_seconds_per_sample": result.local_seconds_per_sample,
                 }
             )
     return rows
@@ -823,6 +997,7 @@ def write_report(
     for row in rows:
         simple = row["simple_metrics"]
         attractor = row["attractor_metrics"]
+        local = row["local_metrics"]
         table_rows.append(
             "| "
             f"{row['condition']} | "
@@ -830,22 +1005,27 @@ def write_report(
             f"`{row['num_samples']}` | "
             f"`{simple['mae_m'] * 100.0:.3f} cm` | "
             f"`{attractor['mae_m'] * 100.0:.3f} cm` | "
+            f"`{local['mae_m'] * 100.0:.3f} cm` | "
             f"`{simple['rmse_m'] * 100.0:.3f} cm` | "
             f"`{attractor['rmse_m'] * 100.0:.3f} cm` | "
+            f"`{local['rmse_m'] * 100.0:.3f} cm` | "
             f"`{simple['max_abs_error_m'] * 100.0:.3f} cm` | "
             f"`{attractor['max_abs_error_m'] * 100.0:.3f} cm` | "
-            f"`{row['attractor_seconds_per_sample'] * 1_000.0:.3f} ms` |"
+            f"`{local['max_abs_error_m'] * 100.0:.3f} cm` | "
+            f"`{row['attractor_seconds_per_sample'] * 1_000.0:.3f} ms` | "
+            f"`{row['local_seconds_per_sample'] * 1_000.0:.3f} ms` |"
         )
 
     lines = [
         "# Final Distance Pipeline With SC Line Attractor",
         "",
-        "This report is the final distance-pipeline summary before separate failure-case analysis. It keeps the current primary distance pathway unchanged through the AC distance map, then compares two SC readouts:",
+        "This report is the final distance-pipeline summary before separate failure-case analysis. It keeps the current primary distance pathway unchanged through the AC distance map, then compares three SC readouts:",
         "",
         "- `simple COM`: the existing centre-of-mass readout directly from the AC map.",
-        "- `SC line attractor`: a balanced E/I continuous-attractor readout added after AC.",
+        "- `reflected/opponent SC line attractor`: the finite-line input-theory attractor added after AC.",
+        "- `local population-vector readout`: a peak-neighbourhood readout applied to the final SC attractor excitatory activity.",
         "",
-        "The comparison is controlled because both readouts receive the same AC activity. Any difference is caused by the final SC readout only.",
+        "The comparison is controlled because all three readouts receive the same AC activity. Any difference is caused by the final SC readout only.",
         "",
         "![Pipeline diagram](../outputs/final_distance_pipeline_with_attractor/figures/pipeline_diagram.png)",
         "",
@@ -935,7 +1115,7 @@ def write_report(
         "d_hat_COM = sum_k AC[k] d[k] / sum_k AC[k]",
         "```",
         "",
-        "The upgraded SC readout is the finite-line balanced E/I attractor:",
+        "The main upgraded SC readout is the finite-line balanced E/I attractor:",
         "",
         "```text",
         "r = [r_E, r_I]",
@@ -945,6 +1125,8 @@ def write_report(
         "```",
         "",
         "The final decoded distance is centre of mass over the rectified excitatory population at `60 ms`.",
+        "",
+        "The additional local population-vector readout is applied after the same SC attractor dynamics. It finds the peak neighbourhood in the final excitatory SC bump and computes a local centre of mass. This tests whether a local readout of the attractor bump is better than a global centre of mass over the whole SC population.",
         "",
         "## Selected SC Attractor Parameters",
         "",
@@ -962,6 +1144,8 @@ def write_report(
         f"| simulation step | `{ATTRACTOR_DT_S * 1_000.0:.1f} ms` |",
         f"| readout time | `{ATTRACTOR_READOUT_TIME_S * 1_000.0:.1f} ms` |",
         f"| rate cap | `{ATTRACTOR_RATE_CAP_HZ:.1f} Hz` |",
+        f"| local population-vector sigma | `{LOCAL_POPULATION_SIGMA_BINS:.1f}` bins |",
+        f"| local population-vector peak radius | `±{LOCAL_POPULATION_RADIUS_BINS}` bins |",
         "",
         "## Example Spike Processing Path",
         "",
@@ -969,17 +1153,21 @@ def write_report(
         "",
         "![Frequency-time rasters](../outputs/final_distance_pipeline_with_attractor/figures/frequency_time_rasters.png)",
         "",
-        "The next figure shows the conversion from IC coincidence scores to AC topographic activity, then into the final horizontal SC attractor activity over represented distance.",
+        "The next figure shows the conversion from IC coincidence scores to AC topographic activity, then into the final SC attractor activity over represented distance.",
         "",
         "![Distance population stages](../outputs/final_distance_pipeline_with_attractor/figures/distance_population_stages.png)",
         "",
-        "The attractor dynamics are shown as a horizontal distance activation through SC time. This is the key visualisation of the line attractor: the activity bump evolves over time but remains organised along the distance line.",
+        "The attractor dynamics are shown with SC time on the x-axis and represented distance on the y-axis. This is the key visualisation of the line attractor: the activity bump evolves over time but remains organised along the distance line.",
         "",
         "![Line attractor dynamics](../outputs/final_distance_pipeline_with_attractor/figures/line_attractor_dynamics.png)",
         "",
         "The line attractor itself is simulated as a rate model. The spike raster below is an illustrative deterministic spike conversion from the excitatory rate state, included so the final SC output can be visualised as spikes.",
         "",
         "![Line attractor output spikes](../outputs/final_distance_pipeline_with_attractor/figures/line_attractor_output_spikes.png)",
+        "",
+        "The figure below shows the same SC excitatory activity with both the global COM readout and the local population-vector readout marked on the final bump.",
+        "",
+        "![SC excitatory rate comparison](../outputs/final_distance_pipeline_with_attractor/figures/sc_excitatory_rate_comparison.png)",
         "",
         "## Readout Comparison",
         "",
@@ -989,15 +1177,16 @@ def write_report(
         "",
         "![Readout scatter](../outputs/final_distance_pipeline_with_attractor/figures/readout_scatter.png)",
         "",
-        "| Condition | Subset | N | Simple MAE | Attractor MAE | Simple RMSE | Attractor RMSE | Simple max error | Attractor max error | Attractor runtime/sample |",
-        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Condition | Subset | N | Simple MAE | Attractor global-COM MAE | Attractor local-vector MAE | Simple RMSE | Global-COM RMSE | Local-vector RMSE | Simple max error | Global-COM max error | Local-vector max error | Attractor runtime/sample | Attractor + local readout runtime/sample |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
         *table_rows,
         "",
         "## Interpretation",
         "",
         "- The final SC line attractor is now attached as a reversible readout module after AC.",
-        "- The comparison is controlled: cochlea, VCN/VNLL, DNLL, IC, and AC are identical for both readouts.",
+        "- The comparison is controlled: cochlea, VCN/VNLL, DNLL, IC, and AC are identical for all readouts.",
         "- The line attractor gives a biologically motivated recurrent readout and a clear population-bump visualisation.",
+        "- The local population-vector variant is a readout comparator on the same attractor activity; it is useful when distant low-level tails bias the global COM, but it can fail if the attractor peak itself is wrong.",
         "- If the attractor does not improve a condition, that means the AC map already contains the relevant bias or ambiguity; the SC cannot recover information that was lost upstream.",
         "- Failure-case analysis is intentionally deferred to the next report.",
         "",
@@ -1065,6 +1254,12 @@ def main() -> dict[str, object]:
             example_history,
             FIGURE_DIR / "line_attractor_output_spikes.png",
         ),
+        "sc_excitatory_rate_comparison": plot_excitatory_rate_comparison(
+            example,
+            small_positions,
+            example_history,
+            FIGURE_DIR / "sc_excitatory_rate_comparison.png",
+        ),
         "readout_mae_comparison": plot_error_bars(results, FIGURE_DIR / "readout_mae_comparison.png"),
         "readout_scatter": plot_comparison_scatter(results, FIGURE_DIR / "readout_scatter.png"),
     }
@@ -1083,6 +1278,8 @@ def main() -> dict[str, object]:
             "sim_time_s": ATTRACTOR_SIM_TIME_S,
             "readout_time_s": ATTRACTOR_READOUT_TIME_S,
             "rate_cap_hz": ATTRACTOR_RATE_CAP_HZ,
+            "local_population_sigma_bins": LOCAL_POPULATION_SIGMA_BINS,
+            "local_population_radius_bins": LOCAL_POPULATION_RADIUS_BINS,
         },
         "conditions": [
             {
@@ -1090,7 +1287,9 @@ def main() -> dict[str, object]:
                 "true_distance_m": result.true_distance_m.tolist(),
                 "simple_distance_m": result.simple_distance_m.tolist(),
                 "attractor_distance_m": result.attractor_distance_m.tolist(),
+                "local_distance_m": result.local_distance_m.tolist(),
                 "attractor_seconds_per_sample": result.seconds_per_sample,
+                "local_seconds_per_sample": result.local_seconds_per_sample,
             }
             for result in results
         ],
