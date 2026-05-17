@@ -127,6 +127,32 @@ This gives an analytic opponent gain for a fixed matrix family and objective, so
 
 ![B block matrices](../outputs/finite_line_input_theory/figures/block_input_matrices.png)
 
+## Chosen Matrix Diagnostics
+
+The selected candidate uses a reflected finite-line input matrix and a balanced two-block recurrent matrix. The heatmap below shows the chosen input matrix $M$, the two input blocks $B_E$ and $B_I$, and the full recurrent matrix $W$.
+
+![Chosen matrices](../outputs/finite_line_input_theory/figures/chosen_matrices.png)
+
+The input matrix can also be analysed as a finite-line spatial filter. Because a line is not periodic, the appropriate clean basis is a cosine basis rather than the ring Fourier basis. The gain curve below shows $\|M q_k\|/\|q_k\|$ for cosine spatial mode $q_k$.
+
+![Spatial frequency response](../outputs/finite_line_input_theory/figures/spatial_frequency_response.png)
+
+## Recurrent Spectrum And Pseudospectrum
+
+The balanced E/I recurrence is asymptotically stable in continuous time because the system matrix is:
+
+$$
+A = \frac{-I+W}{\tau}.
+$$
+
+For the ideal balanced block, eigenvalues alone can look deceptively simple because the block is highly non-normal. Therefore, the report shows both eigenvalue spectra and a pseudospectrum proxy.
+
+![Recurrent spectrum](../outputs/finite_line_input_theory/figures/recurrent_spectrum.png)
+
+The pseudospectrum plot shows $\log_{10}\sigma_{\min}(zI-A)$. Regions with small $\sigma_{\min}$ indicate where small perturbations could strongly change the apparent spectrum. This is useful for balanced E/I systems because transient amplification can occur even when all eigenvalues are stable.
+
+![Pseudospectrum](../outputs/finite_line_input_theory/figures/pseudospectrum.png)
+
 ## Candidate Comparison
 
 Parameters: `N=96`, `L=10 m`, `sigma_h=0.42 m`, `tau=20 ms`, final readout `T=60 ms`.
@@ -162,6 +188,26 @@ The beta scan uses the reflected input with width `6` and recurrent width `8`. I
 
 ![Beta scan](../outputs/finite_line_input_theory/figures/beta_scan.png)
 
+## Alpha Sweep
+
+The selected reflected/opponent family was re-tested across balanced $\alpha'$. For each $\alpha'$, the opponent $\beta$ was recomputed analytically from the final-time Fisher objective. This is still an analytical sweep, not a label fit.
+
+![Alpha sweep](../outputs/finite_line_input_theory/figures/alpha_sweep.png)
+
+| alpha prime | analytic beta | Final CRB RMSE | 5ms CRB RMSE | Mean COM bias | Edge COM bias | FI uniformity |
+|---:|---:|---:|---:|---:|---:|---:|
+| `0.0` | `0.000` | `10.316 cm` | `0.659 cm` | `1.761 cm` | `8.869 cm` | `0.137` |
+| `0.5` | `0.513` | `4.637 cm` | `0.660 cm` | `2.921 cm` | `14.096 cm` | `0.111` |
+| `1.0` | `0.681` | `2.863 cm` | `0.627 cm` | `3.156 cm` | `15.149 cm` | `0.106` |
+| `2.0` | `0.812` | `1.606 cm` | `0.533 cm` | `3.293 cm` | `15.758 cm` | `0.103` |
+| `4.0` | `0.897` | `0.851 cm` | `0.393 cm` | `3.363 cm` | `16.074 cm` | `0.101` |
+| `6.0` | `0.929` | `0.579 cm` | `0.308 cm` | `3.387 cm` | `16.179 cm` | `0.101` |
+| `8.0` | `0.946` | `0.438 cm` | `0.253 cm` | `3.399 cm` | `16.232 cm` | `0.101` |
+| `10.0` | `0.956` | `0.353 cm` | `0.214 cm` | `3.406 cm` | `16.263 cm` | `0.100` |
+| `12.0` | `0.963` | `0.295 cm` | `0.186 cm` | `3.411 cm` | `16.284 cm` | `0.100` |
+
+The best alpha in this sweep by final CRB RMSE was `12.0`, with analytic beta `0.963` and final CRB RMSE `0.295 cm`.
+
 ## Bump Dynamics
 
 The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
@@ -170,22 +216,28 @@ The snapshot plot shows the synthetic readout bump for selected one-population, 
 
 ## Interpretation
 
-Best analytical candidate by final Cramer-Rao RMSE: `balanced_opponent` with `reflected` input, input width `3`, recurrent width `4`, beta `0.897`.
+Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `balanced_opponent` with `reflected` input, input width `3`, recurrent width `4`, beta `0.897`.
 
 - The two-block opponent input is the closest finite-line transfer of the original ring-model FI theory.
 - The one-block and E-only versions are useful controls, but they do not exploit the balanced E/I transient as directly.
 - Edge correction matters. Raw Toeplitz input loses structure near the boundaries; reflected or amplitude-compensated input is more appropriate.
 - This report still does not prove the setup will improve the real distance pathway. It only identifies principled finite-line candidates to consider before integration.
+- The alpha sweep now behaves more like the original ring theory: stronger balanced recurrence improves the analytical FI metric over this tested range, although this should be capped by biological rate/stability constraints before integration.
 - The next step, if accepted, is to port the best reflected/opponent family into `sc_line_attractor_integration.py` and compare it against the current simple COM readout.
 
 ## Generated Files
 
 - `input_matrix_families`: `distance_pathway/outputs/finite_line_input_theory/figures/input_matrix_families.png`
+- `chosen_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/chosen_matrices.png`
+- `spatial_frequency_response`: `distance_pathway/outputs/finite_line_input_theory/figures/spatial_frequency_response.png`
+- `recurrent_spectrum`: `distance_pathway/outputs/finite_line_input_theory/figures/recurrent_spectrum.png`
+- `pseudospectrum`: `distance_pathway/outputs/finite_line_input_theory/figures/pseudospectrum.png`
 - `fisher_curves`: `distance_pathway/outputs/finite_line_input_theory/figures/fisher_curves.png`
 - `beta_scan`: `distance_pathway/outputs/finite_line_input_theory/figures/beta_scan.png`
 - `width_sensitivity`: `distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png`
+- `alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png`
 - `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `26.96 s`.
+Runtime: `34.27 s`.

@@ -1,6 +1,6 @@
 {
   "experiment": "finite_line_input_theory",
-  "elapsed_seconds": 26.96080179186538,
+  "elapsed_seconds": 34.27084254194051,
   "params": {
     "length_m": 10.0,
     "num_neurons": 96,
@@ -93,6 +93,89 @@
     "reflected_12_R12_final": 0.8889874823231451,
     "reflected_12_R12_window": 0.6737999551579544
   },
+  "alpha_sweep": [
+    {
+      "alpha_prime": 0.0,
+      "beta": 0.0,
+      "final_crb_rmse_m": 0.10315769963541978,
+      "early_crb_rmse_m": 0.006594651104696344,
+      "mean_abs_bias_m": 0.01761389841717689,
+      "edge_mean_abs_bias_m": 0.08868770643886001,
+      "fi_uniformity": 0.1366624742180248
+    },
+    {
+      "alpha_prime": 0.5,
+      "beta": 0.5125090760633567,
+      "final_crb_rmse_m": 0.046369596172936754,
+      "early_crb_rmse_m": 0.006602383807793022,
+      "mean_abs_bias_m": 0.02920625532506087,
+      "edge_mean_abs_bias_m": 0.1409572889283165,
+      "fi_uniformity": 0.11146492051878393
+    },
+    {
+      "alpha_prime": 1.0,
+      "beta": 0.6809787554524349,
+      "final_crb_rmse_m": 0.02863245129419518,
+      "early_crb_rmse_m": 0.006266334010474085,
+      "mean_abs_bias_m": 0.031564509028274186,
+      "edge_mean_abs_bias_m": 0.15149187693450858,
+      "fi_uniformity": 0.1059852984462838
+    },
+    {
+      "alpha_prime": 2.0,
+      "beta": 0.8116805462539473,
+      "final_crb_rmse_m": 0.016055370031146328,
+      "early_crb_rmse_m": 0.005331933685840598,
+      "mean_abs_bias_m": 0.0329274505299082,
+      "edge_mean_abs_bias_m": 0.1575790121176897,
+      "fi_uniformity": 0.10289690319886895
+    },
+    {
+      "alpha_prime": 4.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.008513839653930409,
+      "early_crb_rmse_m": 0.003934028982233277,
+      "mean_abs_bias_m": 0.03363437053890399,
+      "edge_mean_abs_bias_m": 0.16073587086019067,
+      "fi_uniformity": 0.10133930244899558
+    },
+    {
+      "alpha_prime": 6.0,
+      "beta": 0.9286799260288627,
+      "final_crb_rmse_m": 0.005788839870179742,
+      "early_crb_rmse_m": 0.0030849689519159857,
+      "mean_abs_bias_m": 0.03387063275691939,
+      "edge_mean_abs_bias_m": 0.16179087936636544,
+      "fi_uniformity": 0.10082751098156559
+    },
+    {
+      "alpha_prime": 8.0,
+      "beta": 0.9455852419461065,
+      "final_crb_rmse_m": 0.004384645685079669,
+      "early_crb_rmse_m": 0.002530915518103214,
+      "mean_abs_bias_m": 0.033988512747994006,
+      "edge_mean_abs_bias_m": 0.16231725171661787,
+      "fi_uniformity": 0.10057399549908824
+    },
+    {
+      "alpha_prime": 10.0,
+      "beta": 0.9560120167439151,
+      "final_crb_rmse_m": 0.003528528988032133,
+      "early_crb_rmse_m": 0.0021435484138769686,
+      "mean_abs_bias_m": 0.034059106172919976,
+      "edge_mean_abs_bias_m": 0.16263247086429816,
+      "fi_uniformity": 0.10042278626387013
+    },
+    {
+      "alpha_prime": 12.0,
+      "beta": 0.9630854851167066,
+      "final_crb_rmse_m": 0.00295205959904946,
+      "early_crb_rmse_m": 0.0018582091408724858,
+      "mean_abs_bias_m": 0.03410609909298442,
+      "edge_mean_abs_bias_m": 0.16284230583871656,
+      "fi_uniformity": 0.1003223882340695
+    }
+  ],
   "top_rows": [
     {
       "name": "balanced_opponent | reflected w=3 | R=4 | beta=0.897",
@@ -4599,9 +4682,14 @@
   ],
   "artifacts": {
     "input_matrix_families": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/input_matrix_families.png",
+    "chosen_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/chosen_matrices.png",
+    "spatial_frequency_response": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/spatial_frequency_response.png",
+    "recurrent_spectrum": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/recurrent_spectrum.png",
+    "pseudospectrum": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/pseudospectrum.png",
     "fisher_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fisher_curves.png",
     "beta_scan": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/beta_scan.png",
     "width_sensitivity": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png",
+    "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png",
     "block_input_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png",
     "response_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png"
   }

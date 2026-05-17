@@ -16,7 +16,7 @@ tests how the original ring-model input theory transfers to a finite line:
 import json
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import matplotlib
@@ -24,7 +24,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.linalg import expm
+from scipy.linalg import expm, svdvals
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -635,6 +635,202 @@ def plot_response_snapshots(params: TheoryParams, selected: list[Candidate], pat
     return save_figure(fig, path)
 
 
+def plot_chosen_matrices(params: TheoryParams, candidate: Candidate, path: Path) -> str:
+    """Plot selected candidate input and recurrence matrices."""
+    x = positions(params)
+    extent = [x[0], x[-1], x[-1], x[0]]
+    if candidate.B.shape[0] == params.num_neurons:
+        b_exc = candidate.B
+        b_inh = np.zeros_like(candidate.B)
+    else:
+        b_exc = candidate.B[: params.num_neurons]
+        b_inh = candidate.B[params.num_neurons :]
+    matrices = [
+        (candidate.M, "Chosen finite-line input M", "viridis", extent),
+        (b_exc, "Excitatory input block B_E", "coolwarm", extent),
+        (b_inh, "Inhibitory input block B_I", "coolwarm", extent),
+        (candidate.W, "Full recurrent matrix W", "coolwarm", None),
+    ]
+    fig, axes = plt.subplots(2, 2, figsize=(11.2, 9.0))
+    for ax, (matrix, title, cmap, matrix_extent) in zip(axes.flat, matrices):
+        if cmap == "coolwarm":
+            max_abs = max(float(np.max(np.abs(matrix))), 1e-12)
+            im = ax.imshow(matrix, aspect="auto", cmap=cmap, vmin=-max_abs, vmax=max_abs, extent=matrix_extent)
+        else:
+            im = ax.imshow(matrix, aspect="auto", cmap=cmap, extent=matrix_extent)
+        ax.set_title(title)
+        if matrix_extent is None:
+            ax.set_xlabel("source state index")
+            ax.set_ylabel("target state index")
+        else:
+            ax.set_xlabel("source distance bin (m)")
+            ax.set_ylabel("target neuron (m)")
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def cosine_basis(params: TheoryParams) -> np.ndarray:
+    """Return orthonormal finite-line cosine basis vectors."""
+    m = params.num_neurons
+    index = np.arange(m)
+    basis = []
+    for mode in range(m):
+        vector = np.cos(np.pi * mode * (index + 0.5) / m)
+        vector = vector / max(float(np.linalg.norm(vector)), 1e-12)
+        basis.append(vector)
+    return np.stack(basis, axis=0)
+
+
+def spatial_frequency_gain(matrix: np.ndarray, basis: np.ndarray) -> np.ndarray:
+    """Return gain of a matrix on finite-line cosine spatial modes."""
+    values = []
+    for vector in basis:
+        values.append(float(np.linalg.norm(matrix @ vector) / max(float(np.linalg.norm(vector)), 1e-12)))
+    return np.array(values)
+
+
+def plot_spatial_frequency_response(params: TheoryParams, candidate: Candidate, path: Path) -> str:
+    """Plot spatial frequency response curves for input matrices."""
+    basis = cosine_basis(params)
+    modes = np.arange(params.num_neurons)
+    comparison_specs = [
+        InputSpec("identity", 0.0),
+        InputSpec("toeplitz_raw", candidate.input_spec.width_bins),
+        InputSpec("toeplitz_amplitude", candidate.input_spec.width_bins),
+        InputSpec("reflected", candidate.input_spec.width_bins),
+    ]
+    fig, ax = plt.subplots(figsize=(8.0, 4.8))
+    for spec in comparison_specs:
+        matrix = build_input_matrix(params, spec)
+        gain = spatial_frequency_gain(matrix, basis)
+        gain = gain / max(float(gain[0]), 1e-12)
+        ax.plot(modes[:40], gain[:40], linewidth=2.0, label=f"{spec.family} w={spec.width_bins:g}")
+    ax.set_xlabel("finite-line cosine spatial mode")
+    ax.set_ylabel("normalised gain")
+    ax.set_title("Input matrix spatial frequency response")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False, fontsize=8)
+    return save_figure(fig, path)
+
+
+def system_matrix(params: TheoryParams, candidate: Candidate) -> np.ndarray:
+    """Return continuous-time system matrix `A=(-I+W)/tau`."""
+    return (-np.eye(candidate.W.shape[0]) + candidate.W) / params.tau_s
+
+
+def plot_recurrent_spectrum(params: TheoryParams, candidate: Candidate, path: Path) -> str:
+    """Plot recurrence eigenvalues and singular values."""
+    W = candidate.W
+    A = system_matrix(params, candidate)
+    eig_w = np.linalg.eigvals(W)
+    eig_a = np.linalg.eigvals(A)
+    singular_w = svdvals(W)
+    singular_a = svdvals(A)
+    fig, axes = plt.subplots(1, 3, figsize=(14.0, 4.2))
+    axes[0].scatter(np.real(eig_w), np.imag(eig_w), s=14, alpha=0.65)
+    axes[0].axvline(0.0, color="#111827", linewidth=1.0)
+    axes[0].axhline(0.0, color="#111827", linewidth=1.0)
+    axes[0].set_title("Eigenvalues of W")
+    axes[0].set_xlabel("real")
+    axes[0].set_ylabel("imaginary")
+    axes[1].scatter(np.real(eig_a), np.imag(eig_a), s=14, alpha=0.65, color="#dc2626")
+    axes[1].axvline(0.0, color="#111827", linewidth=1.0)
+    axes[1].axhline(0.0, color="#111827", linewidth=1.0)
+    axes[1].set_title("Eigenvalues of A=(-I+W)/tau")
+    axes[1].set_xlabel("real (s^-1)")
+    axes[1].set_ylabel("imaginary (s^-1)")
+    axes[2].semilogy(singular_w, linewidth=2.0, label="W")
+    axes[2].semilogy(singular_a, linewidth=2.0, label="A")
+    axes[2].set_title("Singular value spectra")
+    axes[2].set_xlabel("index")
+    axes[2].set_ylabel("singular value")
+    axes[2].legend(frameon=False)
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_pseudospectrum(params: TheoryParams, candidate: Candidate, path: Path) -> str:
+    """Plot epsilon-pseudospectrum proxy for the continuous-time matrix A."""
+    A = system_matrix(params, candidate)
+    eig_a = np.linalg.eigvals(A)
+    real_grid = np.linspace(-140.0, 40.0, 50)
+    imag_grid = np.linspace(-100.0, 100.0, 50)
+    sigma_min = np.empty((imag_grid.size, real_grid.size), dtype=np.float64)
+    identity = np.eye(A.shape[0])
+    for row, imag in enumerate(imag_grid):
+        for col, real in enumerate(real_grid):
+            z = real + 1j * imag
+            sigma_min[row, col] = float(svdvals(z * identity - A)[-1])
+    fig, ax = plt.subplots(figsize=(7.2, 5.8))
+    log_sigma = np.log10(np.maximum(sigma_min, 1e-12))
+    contour = ax.contourf(real_grid, imag_grid, log_sigma, levels=32, cmap="magma")
+    levels = [-3, -2, -1, 0, 1]
+    ax.contour(real_grid, imag_grid, log_sigma, levels=levels, colors="white", linewidths=0.8, alpha=0.75)
+    ax.scatter(np.real(eig_a), np.imag(eig_a), s=10, color="#38bdf8", label="eigenvalues")
+    ax.axvline(0.0, color="#f8fafc", linestyle="--", linewidth=1.0)
+    ax.set_title(r"$\epsilon$-pseudospectrum proxy: $\log_{10}\sigma_{min}(zI-A)$")
+    ax.set_xlabel("real z (s^-1)")
+    ax.set_ylabel("imaginary z (s^-1)")
+    ax.legend(frameon=False)
+    fig.colorbar(contour, ax=ax, label=r"$\log_{10}\sigma_{min}$")
+    return save_figure(fig, path)
+
+
+def alpha_sweep(params: TheoryParams, spec: InputSpec, recurrent_width_bins: float) -> list[dict[str, float]]:
+    """Sweep balanced alpha for the selected finite-line input family."""
+    stimulus_grid = np.linspace(0.1, params.length_m - 0.1, 101)
+    beta_grid = np.linspace(0.25, params.length_m - 0.25, 61)
+    rows = []
+    for alpha in [0.0, 0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]:
+        sweep_params = replace(params, balanced_alpha_prime=float(alpha))
+        local = recurrent_kernel(sweep_params, recurrent_width_bins)
+        high_gain = rescale_to_alpha(local, float(alpha)) if alpha > 0.0 else np.zeros_like(local)
+        matrix = build_input_matrix(sweep_params, spec)
+        beta = analytic_beta(sweep_params, matrix, high_gain, beta_grid, objective="final")
+        candidate = build_candidate(sweep_params, spec, recurrent_width_bins, "balanced_opponent", beta=beta)
+        metrics = evaluate_candidate(sweep_params, candidate, stimulus_grid)
+        rows.append(
+            {
+                "alpha_prime": float(alpha),
+                "beta": float(beta),
+                "final_crb_rmse_m": float(metrics["final_crb_rmse_m"]),
+                "early_crb_rmse_m": float(metrics["early_crb_rmse_m"]),
+                "mean_abs_bias_m": float(metrics["mean_abs_bias_m"]),
+                "edge_mean_abs_bias_m": float(metrics["edge_mean_abs_bias_m"]),
+                "fi_uniformity": float(metrics["final_fi_uniformity"]),
+            }
+        )
+    return rows
+
+
+def plot_alpha_sweep(rows: list[dict[str, float]], path: Path) -> str:
+    """Plot alpha sweep for the selected reflected/opponent family."""
+    alpha = np.array([row["alpha_prime"] for row in rows])
+    crb = np.array([row["final_crb_rmse_m"] for row in rows]) * 100.0
+    early = np.array([row["early_crb_rmse_m"] for row in rows]) * 100.0
+    bias = np.array([row["mean_abs_bias_m"] for row in rows]) * 100.0
+    beta = np.array([row["beta"] for row in rows])
+    fig, axes = plt.subplots(1, 2, figsize=(11.2, 4.4))
+    axes[0].plot(alpha, crb, marker="o", linewidth=2.0, label="60 ms CRB")
+    axes[0].plot(alpha, early, marker="s", linewidth=2.0, label="5 ms CRB")
+    axes[0].plot(alpha, bias, marker="^", linewidth=2.0, label="COM bias")
+    axes[0].set_xlabel(r"balanced $\alpha'$")
+    axes[0].set_ylabel("distance error proxy (cm)")
+    axes[0].set_title("Alpha sweep")
+    axes[0].legend(frameon=False)
+    axes[1].plot(alpha, beta, marker="o", linewidth=2.0, color="#059669")
+    axes[1].set_xlabel(r"balanced $\alpha'$")
+    axes[1].set_ylabel(r"analytic opponent $\beta$")
+    axes[1].set_title("Analytic beta changes with alpha")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
 def format_table(rows: list[dict[str, float | str]]) -> list[str]:
     """Format report table rows."""
     lines = []
@@ -655,10 +851,26 @@ def format_table(rows: list[dict[str, float | str]]) -> list[str]:
     return lines
 
 
+def format_alpha_table(rows: list[dict[str, float]]) -> list[str]:
+    """Format alpha-sweep table rows."""
+    return [
+        "| "
+        f"`{row['alpha_prime']:.1f}` | "
+        f"`{row['beta']:.3f}` | "
+        f"`{row['final_crb_rmse_m'] * 100.0:.3f} cm` | "
+        f"`{row['early_crb_rmse_m'] * 100.0:.3f} cm` | "
+        f"`{row['mean_abs_bias_m'] * 100.0:.3f} cm` | "
+        f"`{row['edge_mean_abs_bias_m'] * 100.0:.3f} cm` | "
+        f"`{row['fi_uniformity']:.3f}` |"
+        for row in rows
+    ]
+
+
 def write_report(
     params: TheoryParams,
     rows: list[dict[str, float | str]],
     top_rows: list[dict[str, float | str]],
+    alpha_rows: list[dict[str, float]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -666,6 +878,8 @@ def write_report(
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     best = top_rows[0]
     table_rows = format_table(top_rows)
+    alpha_table_rows = format_alpha_table(alpha_rows)
+    best_alpha = min(alpha_rows, key=lambda row: row["final_crb_rmse_m"])
     lines = [
         "# Finite-Line Input Theory For The SC Line Attractor",
         "",
@@ -796,6 +1010,32 @@ def write_report(
         "",
         "![B block matrices](../outputs/finite_line_input_theory/figures/block_input_matrices.png)",
         "",
+        "## Chosen Matrix Diagnostics",
+        "",
+        "The selected candidate uses a reflected finite-line input matrix and a balanced two-block recurrent matrix. The heatmap below shows the chosen input matrix $M$, the two input blocks $B_E$ and $B_I$, and the full recurrent matrix $W$.",
+        "",
+        "![Chosen matrices](../outputs/finite_line_input_theory/figures/chosen_matrices.png)",
+        "",
+        "The input matrix can also be analysed as a finite-line spatial filter. Because a line is not periodic, the appropriate clean basis is a cosine basis rather than the ring Fourier basis. The gain curve below shows $\\|M q_k\\|/\\|q_k\\|$ for cosine spatial mode $q_k$.",
+        "",
+        "![Spatial frequency response](../outputs/finite_line_input_theory/figures/spatial_frequency_response.png)",
+        "",
+        "## Recurrent Spectrum And Pseudospectrum",
+        "",
+        "The balanced E/I recurrence is asymptotically stable in continuous time because the system matrix is:",
+        "",
+        "$$",
+        "A = \\frac{-I+W}{\\tau}.",
+        "$$",
+        "",
+        "For the ideal balanced block, eigenvalues alone can look deceptively simple because the block is highly non-normal. Therefore, the report shows both eigenvalue spectra and a pseudospectrum proxy.",
+        "",
+        "![Recurrent spectrum](../outputs/finite_line_input_theory/figures/recurrent_spectrum.png)",
+        "",
+        "The pseudospectrum plot shows $\\log_{10}\\sigma_{\\min}(zI-A)$. Regions with small $\\sigma_{\\min}$ indicate where small perturbations could strongly change the apparent spectrum. This is useful for balanced E/I systems because transient amplification can occur even when all eigenvalues are stable.",
+        "",
+        "![Pseudospectrum](../outputs/finite_line_input_theory/figures/pseudospectrum.png)",
+        "",
         "## Candidate Comparison",
         "",
         f"Parameters: `N={params.num_neurons}`, `L={params.length_m:g} m`, `sigma_h={params.stimulus_sigma_m:g} m`, `tau={params.tau_s * 1000:g} ms`, final readout `T={params.readout_time_s * 1000:g} ms`.",
@@ -818,6 +1058,18 @@ def write_report(
         "",
         "![Beta scan](../outputs/finite_line_input_theory/figures/beta_scan.png)",
         "",
+        "## Alpha Sweep",
+        "",
+        "The selected reflected/opponent family was re-tested across balanced $\\alpha'$. For each $\\alpha'$, the opponent $\\beta$ was recomputed analytically from the final-time Fisher objective. This is still an analytical sweep, not a label fit.",
+        "",
+        "![Alpha sweep](../outputs/finite_line_input_theory/figures/alpha_sweep.png)",
+        "",
+        "| alpha prime | analytic beta | Final CRB RMSE | 5ms CRB RMSE | Mean COM bias | Edge COM bias | FI uniformity |",
+        "|---:|---:|---:|---:|---:|---:|---:|",
+        *alpha_table_rows,
+        "",
+        f"The best alpha in this sweep by final CRB RMSE was `{best_alpha['alpha_prime']:.1f}`, with analytic beta `{best_alpha['beta']:.3f}` and final CRB RMSE `{best_alpha['final_crb_rmse_m'] * 100.0:.3f} cm`.",
+        "",
         "## Bump Dynamics",
         "",
         "The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.",
@@ -826,12 +1078,13 @@ def write_report(
         "",
         "## Interpretation",
         "",
-        f"Best analytical candidate by final Cramer-Rao RMSE: `{best['block_kind']}` with `{best['family']}` input, input width `{float(best['input_width_bins']):.0f}`, recurrent width `{float(best['recurrent_width_bins']):.0f}`, beta `{float(best['beta']):.3f}`.",
+        f"Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `{best['block_kind']}` with `{best['family']}` input, input width `{float(best['input_width_bins']):.0f}`, recurrent width `{float(best['recurrent_width_bins']):.0f}`, beta `{float(best['beta']):.3f}`.",
         "",
         "- The two-block opponent input is the closest finite-line transfer of the original ring-model FI theory.",
         "- The one-block and E-only versions are useful controls, but they do not exploit the balanced E/I transient as directly.",
         "- Edge correction matters. Raw Toeplitz input loses structure near the boundaries; reflected or amplitude-compensated input is more appropriate.",
         "- This report still does not prove the setup will improve the real distance pathway. It only identifies principled finite-line candidates to consider before integration.",
+        "- The alpha sweep now behaves more like the original ring theory: stronger balanced recurrence improves the analytical FI metric over this tested range, although this should be capped by biological rate/stability constraints before integration.",
         "- The next step, if accepted, is to port the best reflected/opponent family into `sc_line_attractor_integration.py` and compare it against the current simple COM readout.",
         "",
         "## Generated Files",
@@ -860,12 +1113,23 @@ def main() -> dict[str, object]:
     candidate_by_name = {candidate.name: candidate for candidate in candidates}
     selected = [candidate_by_name[name] for name in best_names]
     selected_for_blocks = selected[:3]
+    best_candidate = selected[0]
+    alpha_rows = alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
 
     artifacts = {
         "input_matrix_families": plot_input_families(params, FIGURE_DIR / "input_matrix_families.png"),
+        "chosen_matrices": plot_chosen_matrices(params, best_candidate, FIGURE_DIR / "chosen_matrices.png"),
+        "spatial_frequency_response": plot_spatial_frequency_response(
+            params,
+            best_candidate,
+            FIGURE_DIR / "spatial_frequency_response.png",
+        ),
+        "recurrent_spectrum": plot_recurrent_spectrum(params, best_candidate, FIGURE_DIR / "recurrent_spectrum.png"),
+        "pseudospectrum": plot_pseudospectrum(params, best_candidate, FIGURE_DIR / "pseudospectrum.png"),
         "fisher_curves": plot_fisher_curves(params, selected, stimulus_grid, FIGURE_DIR / "fisher_curves.png"),
         "beta_scan": plot_beta_scan(rows, FIGURE_DIR / "beta_scan.png"),
         "width_sensitivity": plot_width_sweep(rows, FIGURE_DIR / "width_sensitivity.png"),
+        "alpha_sweep": plot_alpha_sweep(alpha_rows, FIGURE_DIR / "alpha_sweep.png"),
         "block_input_matrices": plot_block_matrices(params, selected_for_blocks, FIGURE_DIR / "block_input_matrices.png"),
         "response_snapshots": plot_response_snapshots(params, selected_for_blocks, FIGURE_DIR / "response_snapshots.png"),
     }
@@ -876,12 +1140,13 @@ def main() -> dict[str, object]:
         "elapsed_seconds": elapsed_s,
         "params": params.__dict__,
         "beta_summary": beta_summary,
+        "alpha_sweep": alpha_rows,
         "top_rows": top_rows,
         "all_rows": rows,
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(params, rows, top_rows, artifacts, elapsed_s)
+    write_report(params, rows, top_rows, alpha_rows, artifacts, elapsed_s)
     return payload
 
 
