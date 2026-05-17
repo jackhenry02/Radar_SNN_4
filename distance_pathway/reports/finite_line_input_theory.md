@@ -1,0 +1,191 @@
+# Finite-Line Input Theory For The SC Line Attractor
+
+This report is a standalone analytical study. It does not use the current distance pathway outputs and does not plug a new SC back into the model. The aim is to transfer the original ring-model input theory to a finite line in a controlled way.
+
+## Problem
+
+The ring model used circulant matrices. A circulant matrix is natural on a ring because every neuron has the same neighbourhood, only shifted. A distance line has boundaries, so a direct finite-line replacement must decide what happens near `0 m` and `L`.
+
+The finite-line state is either one population:
+
+$$
+\tau \dot r = -r + W r, \qquad y = C r
+$$
+
+or a balanced E/I two-block state:
+
+$$
+r = \begin{bmatrix} r_E \\ r_I \end{bmatrix}, \qquad
+W_{EI} = \begin{bmatrix} K & -K \\ K & -K \end{bmatrix}, \qquad
+y = \begin{bmatrix} I & 0 \end{bmatrix} r.
+$$
+
+The sensory input is a synthetic reflected Gaussian population code $h(d)$, not the real AC map:
+
+$$
+h_i(d) = \exp\left[-\frac{(x_i-d)^2}{2\sigma_h^2}\right]
++ \exp\left[-\frac{(x_i+d)^2}{2\sigma_h^2}\right]
++ \exp\left[-\frac{(x_i-(2L-d))^2}{2\sigma_h^2}\right].
+$$
+
+## Fisher Information Theory
+
+Fisher information measures local discriminability. If a small distance change produces a large reliable change in neural activity, distance can be estimated accurately. For independent Gaussian readout noise with variance $\sigma_n^2$:
+
+$$
+J(d,t) = \frac{1}{\sigma_n^2}\left\|\frac{\partial y(d,t)}{\partial d}\right\|_2^2.
+$$
+
+For linear dynamics with an impulse input:
+
+$$
+y(d,t) = C e^{At} B h(d), \qquad A = \frac{-I+W}{\tau}.
+$$
+
+Therefore:
+
+$$
+\frac{\partial y(d,t)}{\partial d} = C e^{At} B h'(d),
+$$
+
+and:
+
+$$
+J(d,t) = \frac{1}{\sigma_n^2}\left\|C e^{At} B h'(d)\right\|_2^2.
+$$
+
+The Cramer-Rao bound gives the local lower bound:
+
+$$
+\operatorname{Var}(\hat d) \geq \frac{1}{J(d,t)}.
+$$
+
+The ranking metric used here is the mean Cramer-Rao RMSE across the line at the final readout time:
+
+$$
+\operatorname{CRB}_{\rm RMSE} = \sqrt{\frac{1}{N}\sum_d \frac{1}{J(d,T)}}.
+$$
+
+This is not a fitted label error. It is an analytical sensitivity measure through the chosen input matrix, recurrent dynamics, and readout.
+
+## Finite-Line Input Matrices
+
+The tested finite-line analogues of the ring circulant input matrix are:
+
+- `identity`: direct topographic input.
+- `toeplitz_raw`: a banded symmetric Toeplitz Gaussian matrix, with no edge correction.
+- `toeplitz_amplitude`: the same matrix with column amplitude compensation so edge columns do not lose total drive.
+- `reflected`: a reflected-boundary Gaussian matrix, equivalent to no-flux boundary correction.
+
+All input matrices are normalised to the same Frobenius norm as the identity input, so differences are structural rather than caused by injecting more total power.
+
+![Input matrix families](../outputs/finite_line_input_theory/figures/input_matrix_families.png)
+
+## One-Block Versus Two-Block Input
+
+The original ring notebook did not only use $B=[I;0]$. For the balanced model, it used a two-block input matrix:
+
+$$
+B = \begin{bmatrix} B_E \\ B_I \end{bmatrix}.
+$$
+
+This report compares:
+
+$$
+B_{1pop}=M, \qquad B_{E-only}=\begin{bmatrix}M\\0\end{bmatrix}, \qquad
+B_{opp}=\frac{1}{\sqrt{1+\beta^2}}\begin{bmatrix}M\\-\beta M\end{bmatrix}.
+$$
+
+The opponent input is a signed current formulation. It is the direct finite-line analogue of the ring-model E/I input trick, not a literal claim that inhibitory firing rates are negative.
+
+For the balanced matrix, $W_{EI}^2=0$, so:
+
+$$
+e^{(-I+W_{EI})t/\tau}=e^{-t/\tau}\left(I+\frac{t}{\tau}W_{EI}\right).
+$$
+
+Let $A_d=Mh'(d)$ and $G_d=K M h'(d)$. For $B_{opp}$:
+
+$$
+\frac{\partial y}{\partial d}
+=\frac{e^{-t/\tau}}{\sqrt{1+\beta^2}}\left[A_d + \frac{t}{\tau}(1+\beta)G_d\right].
+$$
+
+The FI numerator is therefore a quadratic ratio:
+
+$$
+F(\beta)=\frac{U+2\beta V+\beta^2 Z}{1+\beta^2}.
+$$
+
+The stationary condition is:
+
+$$
+V\beta^2 + (U-Z)\beta - V = 0.
+$$
+
+This gives an analytic opponent gain for a fixed matrix family and objective, so no label fitting is used.
+
+![B block matrices](../outputs/finite_line_input_theory/figures/block_input_matrices.png)
+
+## Candidate Comparison
+
+Parameters: `N=96`, `L=10 m`, `sigma_h=0.42 m`, `tau=20 ms`, final readout `T=60 ms`.
+
+| Block | Input family | Input width | Recurrent width | beta | Final CRB RMSE | 5ms CRB RMSE | FI uniformity | Mean COM bias | Edge COM bias |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| balanced_opponent | reflected | `3` | `4` | `0.897` | `0.851 cm` | `0.393 cm` | `0.101` | `3.363 cm` | `16.074 cm` |
+| balanced_opponent | reflected | `3` | `4` | `1.000` | `0.853 cm` | `0.402 cm` | `0.101` | `3.367 cm` | `16.089 cm` |
+| balanced_opponent | reflected | `3` | `4` | `0.697` | `0.858 cm` | `0.379 cm` | `0.102` | `3.356 cm` | `16.038 cm` |
+| balanced_opponent | toeplitz_amplitude | `3` | `4` | `0.897` | `0.858 cm` | `0.397 cm` | `0.097` | `3.632 cm` | `17.293 cm` |
+| balanced_opponent | toeplitz_amplitude | `3` | `4` | `1.000` | `0.859 cm` | `0.405 cm` | `0.097` | `3.635 cm` | `17.307 cm` |
+| balanced_opponent | toeplitz_amplitude | `3` | `4` | `0.697` | `0.864 cm` | `0.383 cm` | `0.097` | `3.625 cm` | `17.262 cm` |
+| balanced_opponent | toeplitz_amplitude | `6` | `4` | `0.909` | `0.936 cm` | `0.461 cm` | `0.082` | `7.323 cm` | `31.960 cm` |
+| balanced_opponent | toeplitz_amplitude | `6` | `4` | `1.000` | `0.938 cm` | `0.469 cm` | `0.082` | `7.325 cm` | `31.970 cm` |
+| balanced_opponent | toeplitz_amplitude | `6` | `4` | `0.732` | `0.942 cm` | `0.448 cm` | `0.082` | `7.317 cm` | `31.938 cm` |
+| balanced_opponent | reflected | `6` | `4` | `0.909` | `0.946 cm` | `0.465 cm` | `0.073` | `5.948 cm` | `27.192 cm` |
+| balanced_opponent | reflected | `6` | `4` | `1.000` | `0.947 cm` | `0.473 cm` | `0.073` | `5.951 cm` | `27.204 cm` |
+| balanced_opponent | reflected | `6` | `4` | `0.733` | `0.951 cm` | `0.452 cm` | `0.073` | `5.941 cm` | `27.165 cm` |
+| balanced_opponent | toeplitz_raw | `3` | `4` | `0.896` | `0.952 cm` | `0.431 cm` | `0.050` | `4.159 cm` | `19.674 cm` |
+| balanced_opponent | toeplitz_raw | `3` | `4` | `1.000` | `0.954 cm` | `0.440 cm` | `0.050` | `4.162 cm` | `19.686 cm` |
+
+## Fisher And Width Sensitivity
+
+The best candidates have much flatter final-time Fisher information than uncorrected finite-line inputs. Amplitude compensation and reflection both reduce boundary loss, but reflection is the cleaner finite-line analogue of the ring because it preserves no-flux boundary structure.
+
+![Fisher curves](../outputs/finite_line_input_theory/figures/fisher_curves.png)
+
+The width sweep below compares the best two-block opponent candidate within each input family. Narrow reflected input generally preserves more position sensitivity; wider input becomes smoother but less discriminating.
+
+![Width sensitivity](../outputs/finite_line_input_theory/figures/width_sensitivity.png)
+
+The beta scan uses the reflected input with width `6` and recurrent width `8`. It shows why the two-block input matters: opponent E/I input can increase FI through the balanced transient, but too much opponent drive can increase bias or over-amplify the recurrent term.
+
+![Beta scan](../outputs/finite_line_input_theory/figures/beta_scan.png)
+
+## Bump Dynamics
+
+The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
+
+![Response snapshots](../outputs/finite_line_input_theory/figures/response_snapshots.png)
+
+## Interpretation
+
+Best analytical candidate by final Cramer-Rao RMSE: `balanced_opponent` with `reflected` input, input width `3`, recurrent width `4`, beta `0.897`.
+
+- The two-block opponent input is the closest finite-line transfer of the original ring-model FI theory.
+- The one-block and E-only versions are useful controls, but they do not exploit the balanced E/I transient as directly.
+- Edge correction matters. Raw Toeplitz input loses structure near the boundaries; reflected or amplitude-compensated input is more appropriate.
+- This report still does not prove the setup will improve the real distance pathway. It only identifies principled finite-line candidates to consider before integration.
+- The next step, if accepted, is to port the best reflected/opponent family into `sc_line_attractor_integration.py` and compare it against the current simple COM readout.
+
+## Generated Files
+
+- `input_matrix_families`: `distance_pathway/outputs/finite_line_input_theory/figures/input_matrix_families.png`
+- `fisher_curves`: `distance_pathway/outputs/finite_line_input_theory/figures/fisher_curves.png`
+- `beta_scan`: `distance_pathway/outputs/finite_line_input_theory/figures/beta_scan.png`
+- `width_sensitivity`: `distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png`
+- `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
+- `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
+- `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
+
+Runtime: `26.96 s`.
