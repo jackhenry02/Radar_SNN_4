@@ -43,6 +43,8 @@ FULL_3D_AZIMUTH_LIMIT_DEG = 90.0
 FULL_3D_AZIMUTH_LIMITS_DEG = (45.0, 90.0)
 FULL_3D_ELEVATION_LIMIT_DEG = 45.0
 FULL_3D_RNG_SEED = 91_000
+DISTANCE_TREND_DISTANCES_M = np.arange(1.0, 10.1, 1.0)
+DISTANCE_TREND_AZIMUTH_SAMPLES = 31
 
 
 def metric_dict(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
@@ -89,6 +91,24 @@ def inverse_ild_population_dataset(
         limit_deg,
     )
     return direct, np.stack(activations, axis=0)
+
+
+def itd_population_dataset(
+    predictions: list[az.AzimuthPrediction],
+    bins_deg: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build ITD populations and direct COM predictions.
+
+    Args:
+        predictions: Existing azimuth-pathway predictions.
+        bins_deg: Represented azimuth bins.
+
+    Returns:
+        Pair `(direct_predictions, populations)`.
+    """
+    populations = np.stack([prediction.itd_activation for prediction in predictions], axis=0)
+    direct = np.array([az.centre_of_mass(population, bins_deg) for population in populations], dtype=np.float64)
+    return direct, populations
 
 
 def run_cann_readout(populations: np.ndarray, bins_deg: np.ndarray) -> tuple[np.ndarray, np.ndarray, float, np.ndarray | None]:
@@ -326,6 +346,62 @@ def run_full_3d_suite(inverse_params: dict[str, float]) -> dict[str, object]:
     }
 
 
+def run_distance_trend_suite(inverse_params: dict[str, float]) -> dict[str, object]:
+    """Run fixed-distance, zero-elevation azimuth sweeps.
+
+    Args:
+        inverse_params: Tuned inverse-sigmoid mapping parameters.
+
+    Returns:
+        Per-distance sweeps for +/-45 and +/-90 azimuth supports.
+    """
+    config = make_full_3d_config(noise_std=0.0)
+    supports: dict[str, object] = {}
+    for limit_deg in FULL_3D_AZIMUTH_LIMITS_DEG:
+        azimuths = np.linspace(-limit_deg, limit_deg, DISTANCE_TREND_AZIMUTH_SAMPLES)
+        per_distance: dict[str, object] = {}
+        for distance_m in DISTANCE_TREND_DISTANCES_M:
+            distances = np.full_like(azimuths, float(distance_m), dtype=np.float64)
+            elevations = np.zeros_like(azimuths, dtype=np.float64)
+            result = run_full_3d_condition(
+                config,
+                distances,
+                azimuths,
+                elevations,
+                inverse_params,
+                add_noise=False,
+                limit_deg=limit_deg,
+            )
+            bins = az.azimuth_grid(limit_deg)
+            itd_direct, itd_population = itd_population_dataset(result["predictions"], bins)
+            itd_cann, _, itd_cann_seconds_per_sample, _ = run_cann_readout(itd_population, bins)
+            per_distance[f"{distance_m:.0f}m"] = {
+                "distance_m": float(distance_m),
+                "azimuth_deg": azimuths,
+                "direct": result["direct"],
+                "cann": result["cann"],
+                "itd_direct": itd_direct,
+                "itd_cann": itd_cann,
+                "direct_metrics": metric_dict(azimuths, result["direct"]),
+                "cann_metrics": metric_dict(azimuths, result["cann"]),
+                "itd_direct_metrics": metric_dict(azimuths, itd_direct),
+                "itd_cann_metrics": metric_dict(azimuths, itd_cann),
+                "seconds_per_sample": result["seconds_per_sample"],
+                "itd_cann_seconds_per_sample": itd_cann_seconds_per_sample,
+            }
+        supports[f"azimuth_pm{int(limit_deg)}"] = {
+            "limit_deg": float(limit_deg),
+            "azimuth_deg": azimuths,
+            "per_distance": per_distance,
+        }
+    return {
+        "distances_m": DISTANCE_TREND_DISTANCES_M,
+        "azimuth_samples": DISTANCE_TREND_AZIMUTH_SAMPLES,
+        "elevation_deg": 0.0,
+        "supports": supports,
+    }
+
+
 def plot_pipeline(path: Path) -> str:
     """Plot the azimuth CANN readout pipeline."""
     fig, ax = plt.subplots(figsize=(12.8, 3.8))
@@ -493,6 +569,65 @@ def plot_full_3d_results(
     return save_figure(fig, path)
 
 
+def plot_distance_trend(
+    distance_trend: dict[str, object],
+    path: Path,
+    *,
+    direct_key: str = "direct",
+    cann_key: str = "cann",
+    label: str = "inverse-sigmoid ILD",
+) -> str:
+    """Plot fixed-distance azimuth sweeps for all 1 m distance steps.
+
+    Args:
+        distance_trend: Output of `run_distance_trend_suite`.
+        path: Figure path.
+        direct_key: Key for direct-readout predictions in each row.
+        cann_key: Key for CANN-readout predictions in each row.
+        label: Population label for titles.
+
+    Returns:
+        Saved figure path.
+    """
+    fig, axes = plt.subplots(2, 2, figsize=(13.0, 10.0), sharex=False, sharey=False)
+    cmap = plt.get_cmap("viridis")
+    distance_values = np.asarray(distance_trend["distances_m"], dtype=np.float64)
+    norm = plt.Normalize(float(distance_values.min()), float(distance_values.max()))
+    panels = [
+        (axes[0, 0], "azimuth_pm45", direct_key, f"+/-45 {label} direct COM"),
+        (axes[0, 1], "azimuth_pm45", cann_key, f"+/-45 {label} SC CANN"),
+        (axes[1, 0], "azimuth_pm90", direct_key, f"+/-90 {label} direct COM"),
+        (axes[1, 1], "azimuth_pm90", cann_key, f"+/-90 {label} SC CANN"),
+    ]
+    for ax, support_key, readout_key, title in panels:
+        support = distance_trend["supports"][support_key]
+        limit_deg = float(support["limit_deg"])
+        ax.plot([-limit_deg, limit_deg], [-limit_deg, limit_deg], color="#111827", linewidth=1.0)
+        for distance_m in distance_values:
+            row = support["per_distance"][f"{distance_m:.0f}m"]
+            color = cmap(norm(distance_m))
+            ax.plot(
+                row["azimuth_deg"],
+                row[readout_key],
+                color=color,
+                linewidth=1.35,
+                alpha=0.9,
+            )
+        ax.axvline(0.0, color="#6b7280", linestyle=":", linewidth=1.0)
+        ax.set_xlim(-limit_deg, limit_deg)
+        ax.set_ylim(-limit_deg, limit_deg)
+        ax.set_xlabel("true azimuth (deg)")
+        ax.set_ylabel("predicted azimuth (deg)")
+        ax.set_title(title)
+        ax.grid(True, alpha=0.25)
+    sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array([])
+    colorbar = fig.colorbar(sm, ax=axes.ravel().tolist(), fraction=0.025, pad=0.02)
+    colorbar.set_label("fixed distance (m)")
+    fig.suptitle(f"{label} distance trend at elevation 0 deg: one curve per fixed target distance")
+    return save_figure(fig, path)
+
+
 def plot_example_dynamics(
     bins_deg: np.ndarray,
     true_azimuth: float,
@@ -552,6 +687,7 @@ def write_report(
     inverse_params: dict[str, float],
     metrics: dict[str, dict[str, float]],
     full_3d: dict[str, object],
+    distance_trend: dict[str, object],
     runtime: dict[str, float],
     artifacts: dict[str, str],
     elapsed_s: float,
@@ -571,6 +707,20 @@ def write_report(
         ("Full 3D +/-90 clean SC CANN", metrics["full_3d_pm90_clean_cann"]),
         ("Full 3D +/-90 50 dB noise direct COM", metrics["full_3d_pm90_noisy_direct"]),
         ("Full 3D +/-90 50 dB noise SC CANN", metrics["full_3d_pm90_noisy_cann"]),
+    ]
+    itd_metric_rows = [
+        ("+/-45 ITD direct COM", metrics["itd_primary_direct"]),
+        ("+/-45 ITD SC CANN", metrics["itd_primary_cann"]),
+        ("+/-90 ITD direct COM", metrics["itd_stress_direct"]),
+        ("+/-90 ITD SC CANN", metrics["itd_stress_cann"]),
+        ("Full 3D +/-45 clean ITD direct COM", metrics["itd_full_3d_pm45_clean_direct"]),
+        ("Full 3D +/-45 clean ITD SC CANN", metrics["itd_full_3d_pm45_clean_cann"]),
+        ("Full 3D +/-45 50 dB noise ITD direct COM", metrics["itd_full_3d_pm45_noisy_direct"]),
+        ("Full 3D +/-45 50 dB noise ITD SC CANN", metrics["itd_full_3d_pm45_noisy_cann"]),
+        ("Full 3D +/-90 clean ITD direct COM", metrics["itd_full_3d_pm90_clean_direct"]),
+        ("Full 3D +/-90 clean ITD SC CANN", metrics["itd_full_3d_pm90_clean_cann"]),
+        ("Full 3D +/-90 50 dB noise ITD direct COM", metrics["itd_full_3d_pm90_noisy_direct"]),
+        ("Full 3D +/-90 50 dB noise ITD SC CANN", metrics["itd_full_3d_pm90_noisy_cann"]),
     ]
     lines = [
         "# Azimuth ILD Pathway With SC Line Attractor",
@@ -656,6 +806,34 @@ def write_report(
             "",
             "The 50 dB noise floor barely changes the result, which supports this interpretation: the dominant failure is not random receiver noise, but systematic cue confounding from range/elevation and spectral filtering. A stronger next ILD model should either normalise level/spectrum before the balance calculation, use frequency-dependent LSO populations instead of one global balance, or learn/tune a multidimensional mapping conditioned on distance/elevation-sensitive context.",
             "",
+            "## Fixed-Distance Trend Test",
+            "",
+            f"To isolate the distance effect, the next test fixes elevation at `{distance_trend['elevation_deg']:.0f} deg` and sweeps azimuth at constant distances from `{float(distance_trend['distances_m'][0]):.0f}` to `{float(distance_trend['distances_m'][-1]):.0f} m` in `1 m` steps. The curves are plotted on the same axes so distance-dependent compression, expansion, or saturation can be seen directly.",
+            "",
+            "![Distance trend](../outputs/ild_line_attractor/figures/distance_trend.png)",
+            "",
+            "## ITD Swap Test",
+            "",
+            "The same diagnostics were repeated with the ILD population swapped out for the ITD population from the Jeffress/LIF branch. This tests whether the timing cue is more stable across distance/elevation than the calibrated ILD cue. The readout comparison is kept the same: direct COM over the ITD population versus the same SC CANN.",
+            "",
+            "| Readout | MAE | RMSE | Max error | Bias |",
+            "|---|---:|---:|---:|---:|",
+        ]
+    )
+    for label, metric in itd_metric_rows:
+        lines.append(
+            f"| {label} | `{metric['mae_deg']:.3f} deg` | `{metric['rmse_deg']:.3f} deg` | "
+            f"`{metric['max_abs_error_deg']:.3f} deg` | `{metric['bias_deg']:.3f} deg` |"
+        )
+    lines.extend(
+        [
+            "",
+            "![ITD full 3D +/-45 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm45.png)",
+            "",
+            "![ITD full 3D +/-90 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm90.png)",
+            "",
+            "![ITD distance trend](../outputs/ild_line_attractor/figures/itd_distance_trend.png)",
+            "",
             "## Interpretation",
             "",
             "The attractor is tested as a reversible SC readout module: it receives exactly the same inverse-sigmoid ILD population as the direct COM baseline. If the CANN improves accuracy, it is sharpening or stabilising the population readout. If it does not, then the calibrated ILD population is already close to the useful decoded statistic and recurrence mainly adds smoothing/bias.",
@@ -669,10 +847,13 @@ def write_report(
             f"| full experiment runtime | `{elapsed_s:.2f} s` |",
             f"| CANN seconds per sample, +/-45 | `{runtime['primary_cann_seconds_per_sample']:.6f}` |",
             f"| CANN seconds per sample, +/-90 | `{runtime['stress_cann_seconds_per_sample']:.6f}` |",
+            f"| ITD CANN seconds per sample, +/-45 | `{runtime['itd_primary_cann_seconds_per_sample']:.6f}` |",
+            f"| ITD CANN seconds per sample, +/-90 | `{runtime['itd_stress_cann_seconds_per_sample']:.6f}` |",
             f"| full 3D +/-45 clean seconds per sample | `{runtime['full_3d_pm45_clean_seconds_per_sample']:.6f}` |",
             f"| full 3D +/-45 noisy seconds per sample | `{runtime['full_3d_pm45_noisy_seconds_per_sample']:.6f}` |",
             f"| full 3D +/-90 clean seconds per sample | `{runtime['full_3d_pm90_clean_seconds_per_sample']:.6f}` |",
             f"| full 3D +/-90 noisy seconds per sample | `{runtime['full_3d_pm90_noisy_seconds_per_sample']:.6f}` |",
+            f"| fixed-distance trend runtime | `{runtime['distance_trend_seconds']:.2f} s` |",
             "",
             "## Generated Files",
             "",
@@ -713,10 +894,17 @@ def main() -> dict[str, object]:
         inverse_params,
         az.STRESS_AZIMUTH_LIMIT_DEG,
     )
+    primary_itd_direct, primary_itd_population = itd_population_dataset(primary_predictions, primary_bins)
+    stress_itd_direct, stress_itd_population = itd_population_dataset(stress_predictions, stress_bins)
 
     primary_cann, primary_trajectory, primary_seconds_per_sample, _ = run_cann_readout(primary_population, primary_bins)
     stress_cann, stress_trajectory, stress_seconds_per_sample, _ = run_cann_readout(stress_population, stress_bins)
+    primary_itd_cann, _, primary_itd_seconds_per_sample, _ = run_cann_readout(primary_itd_population, primary_bins)
+    stress_itd_cann, _, stress_itd_seconds_per_sample, _ = run_cann_readout(stress_itd_population, stress_bins)
     full_3d = run_full_3d_suite(inverse_params)
+    distance_trend_start = time.perf_counter()
+    distance_trend = run_distance_trend_suite(inverse_params)
+    distance_trend_seconds = time.perf_counter() - distance_trend_start
 
     example_index = len(primary_predictions) // 2
     example_trajectory, example_excitatory, example_spikes = run_cann_example(primary_population[example_index], primary_bins)
@@ -726,10 +914,16 @@ def main() -> dict[str, object]:
         "primary_cann": metric_dict(primary_true, primary_cann),
         "stress_direct": metric_dict(stress_true, stress_direct),
         "stress_cann": metric_dict(stress_true, stress_cann),
+        "itd_primary_direct": metric_dict(primary_true, primary_itd_direct),
+        "itd_primary_cann": metric_dict(primary_true, primary_itd_cann),
+        "itd_stress_direct": metric_dict(stress_true, stress_itd_direct),
+        "itd_stress_cann": metric_dict(stress_true, stress_itd_cann),
     }
     runtime = {
         "primary_cann_seconds_per_sample": primary_seconds_per_sample,
         "stress_cann_seconds_per_sample": stress_seconds_per_sample,
+        "itd_primary_cann_seconds_per_sample": primary_itd_seconds_per_sample,
+        "itd_stress_cann_seconds_per_sample": stress_itd_seconds_per_sample,
     }
     for limit_deg in FULL_3D_AZIMUTH_LIMITS_DEG:
         support_key = f"azimuth_pm{int(limit_deg)}"
@@ -738,14 +932,30 @@ def main() -> dict[str, object]:
         true_azimuth = support["azimuth_deg"]
         clean = support["clean"]
         noisy = support["noisy"]
+        bins = az.azimuth_grid(limit_deg)
+        clean_itd_direct, clean_itd_population = itd_population_dataset(clean["predictions"], bins)
+        noisy_itd_direct, noisy_itd_population = itd_population_dataset(noisy["predictions"], bins)
+        clean_itd_cann, _, clean_itd_cann_seconds_per_sample, _ = run_cann_readout(clean_itd_population, bins)
+        noisy_itd_cann, _, noisy_itd_cann_seconds_per_sample, _ = run_cann_readout(noisy_itd_population, bins)
         metrics[f"{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean["direct"])
         metrics[f"{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean["cann"])
         metrics[f"{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy["direct"])
         metrics[f"{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy["cann"])
+        metrics[f"itd_{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean_itd_direct)
+        metrics[f"itd_{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean_itd_cann)
+        metrics[f"itd_{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy_itd_direct)
+        metrics[f"itd_{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy_itd_cann)
+        clean["itd_direct"] = clean_itd_direct
+        clean["itd_cann"] = clean_itd_cann
+        noisy["itd_direct"] = noisy_itd_direct
+        noisy["itd_cann"] = noisy_itd_cann
         runtime[f"{metric_key}_clean_seconds_per_sample"] = clean["seconds_per_sample"]
         runtime[f"{metric_key}_noisy_seconds_per_sample"] = noisy["seconds_per_sample"]
         runtime[f"{metric_key}_clean_cann_seconds_per_sample"] = clean["cann_seconds_per_sample"]
         runtime[f"{metric_key}_noisy_cann_seconds_per_sample"] = noisy["cann_seconds_per_sample"]
+        runtime[f"itd_{metric_key}_clean_cann_seconds_per_sample"] = clean_itd_cann_seconds_per_sample
+        runtime[f"itd_{metric_key}_noisy_cann_seconds_per_sample"] = noisy_itd_cann_seconds_per_sample
+    runtime["distance_trend_seconds"] = distance_trend_seconds
     artifacts = {
         "pipeline_diagram": plot_pipeline(FIGURE_DIR / "pipeline_diagram.png"),
         "attractor_matrices": plot_matrices(primary_bins, FIGURE_DIR / "attractor_matrices.png"),
@@ -796,6 +1006,34 @@ def main() -> dict[str, object]:
             90.0,
             FIGURE_DIR / "full_3d_results_pm90.png",
         ),
+        "distance_trend": plot_distance_trend(distance_trend, FIGURE_DIR / "distance_trend.png"),
+        "itd_full_3d_results_pm45": plot_full_3d_results(
+            full_3d["supports"]["azimuth_pm45"]["azimuth_deg"],
+            full_3d["supports"]["azimuth_pm45"]["distance_m"],
+            full_3d["supports"]["azimuth_pm45"]["clean"]["itd_direct"],
+            full_3d["supports"]["azimuth_pm45"]["clean"]["itd_cann"],
+            full_3d["supports"]["azimuth_pm45"]["noisy"]["itd_direct"],
+            full_3d["supports"]["azimuth_pm45"]["noisy"]["itd_cann"],
+            45.0,
+            FIGURE_DIR / "itd_full_3d_results_pm45.png",
+        ),
+        "itd_full_3d_results_pm90": plot_full_3d_results(
+            full_3d["supports"]["azimuth_pm90"]["azimuth_deg"],
+            full_3d["supports"]["azimuth_pm90"]["distance_m"],
+            full_3d["supports"]["azimuth_pm90"]["clean"]["itd_direct"],
+            full_3d["supports"]["azimuth_pm90"]["clean"]["itd_cann"],
+            full_3d["supports"]["azimuth_pm90"]["noisy"]["itd_direct"],
+            full_3d["supports"]["azimuth_pm90"]["noisy"]["itd_cann"],
+            90.0,
+            FIGURE_DIR / "itd_full_3d_results_pm90.png",
+        ),
+        "itd_distance_trend": plot_distance_trend(
+            distance_trend,
+            FIGURE_DIR / "itd_distance_trend.png",
+            direct_key="itd_direct",
+            cann_key="itd_cann",
+            label="ITD",
+        ),
     }
 
     elapsed_s = time.perf_counter() - start
@@ -832,10 +1070,42 @@ def main() -> dict[str, object]:
                     "elevation_deg": value["elevation_deg"].tolist(),
                     "clean_direct_deg": value["clean"]["direct"].tolist(),
                     "clean_cann_deg": value["clean"]["cann"].tolist(),
+                    "clean_itd_direct_deg": value["clean"]["itd_direct"].tolist(),
+                    "clean_itd_cann_deg": value["clean"]["itd_cann"].tolist(),
                     "noisy_direct_deg": value["noisy"]["direct"].tolist(),
                     "noisy_cann_deg": value["noisy"]["cann"].tolist(),
+                    "noisy_itd_direct_deg": value["noisy"]["itd_direct"].tolist(),
+                    "noisy_itd_cann_deg": value["noisy"]["itd_cann"].tolist(),
                 }
                 for key, value in full_3d["supports"].items()
+            },
+        },
+        "distance_trend": {
+            "distances_m": np.asarray(distance_trend["distances_m"]).tolist(),
+            "azimuth_samples": distance_trend["azimuth_samples"],
+            "elevation_deg": distance_trend["elevation_deg"],
+            "supports": {
+                support_key: {
+                    "limit_deg": support["limit_deg"],
+                    "azimuth_deg": support["azimuth_deg"].tolist(),
+                    "per_distance": {
+                        distance_key: {
+                            "distance_m": row["distance_m"],
+                            "direct_deg": row["direct"].tolist(),
+                            "cann_deg": row["cann"].tolist(),
+                            "itd_direct_deg": row["itd_direct"].tolist(),
+                            "itd_cann_deg": row["itd_cann"].tolist(),
+                            "direct_metrics": row["direct_metrics"],
+                            "cann_metrics": row["cann_metrics"],
+                            "itd_direct_metrics": row["itd_direct_metrics"],
+                            "itd_cann_metrics": row["itd_cann_metrics"],
+                            "seconds_per_sample": row["seconds_per_sample"],
+                            "itd_cann_seconds_per_sample": row["itd_cann_seconds_per_sample"],
+                        }
+                        for distance_key, row in support["per_distance"].items()
+                    },
+                }
+                for support_key, support in distance_trend["supports"].items()
             },
         },
         "primary_predictions": [
@@ -857,7 +1127,7 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(config, inverse_params, metrics, full_3d, runtime, artifacts, elapsed_s)
+    write_report(config, inverse_params, metrics, full_3d, distance_trend, runtime, artifacts, elapsed_s)
     return payload
 
 

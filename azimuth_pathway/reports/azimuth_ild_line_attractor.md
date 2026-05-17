@@ -85,6 +85,37 @@ The full-3D error is much larger than the controlled fixed-distance result. The 
 
 The 50 dB noise floor barely changes the result, which supports this interpretation: the dominant failure is not random receiver noise, but systematic cue confounding from range/elevation and spectral filtering. A stronger next ILD model should either normalise level/spectrum before the balance calculation, use frequency-dependent LSO populations instead of one global balance, or learn/tune a multidimensional mapping conditioned on distance/elevation-sensitive context.
 
+## Fixed-Distance Trend Test
+
+To isolate the distance effect, the next test fixes elevation at `0 deg` and sweeps azimuth at constant distances from `1` to `10 m` in `1 m` steps. The curves are plotted on the same axes so distance-dependent compression, expansion, or saturation can be seen directly.
+
+![Distance trend](../outputs/ild_line_attractor/figures/distance_trend.png)
+
+## ITD Swap Test
+
+The same diagnostics were repeated with the ILD population swapped out for the ITD population from the Jeffress/LIF branch. This tests whether the timing cue is more stable across distance/elevation than the calibrated ILD cue. The readout comparison is kept the same: direct COM over the ITD population versus the same SC CANN.
+
+| Readout | MAE | RMSE | Max error | Bias |
+|---|---:|---:|---:|---:|
+| +/-45 ITD direct COM | `1.891 deg` | `2.841 deg` | `18.012 deg` | `-0.018 deg` |
+| +/-45 ITD SC CANN | `2.090 deg` | `3.049 deg` | `18.787 deg` | `0.066 deg` |
+| +/-90 ITD direct COM | `40.173 deg` | `47.923 deg` | `89.875 deg` | `-5.482 deg` |
+| +/-90 ITD SC CANN | `39.496 deg` | `47.598 deg` | `89.875 deg` | `-5.311 deg` |
+| Full 3D +/-45 clean ITD direct COM | `10.634 deg` | `17.281 deg` | `43.149 deg` | `1.678 deg` |
+| Full 3D +/-45 clean ITD SC CANN | `10.784 deg` | `17.336 deg` | `43.149 deg` | `1.681 deg` |
+| Full 3D +/-45 50 dB noise ITD direct COM | `10.591 deg` | `17.280 deg` | `43.149 deg` | `1.658 deg` |
+| Full 3D +/-45 50 dB noise ITD SC CANN | `10.726 deg` | `17.334 deg` | `43.149 deg` | `1.662 deg` |
+| Full 3D +/-90 clean ITD direct COM | `37.030 deg` | `45.763 deg` | `89.577 deg` | `-1.698 deg` |
+| Full 3D +/-90 clean ITD SC CANN | `36.690 deg` | `45.589 deg` | `89.577 deg` | `-1.727 deg` |
+| Full 3D +/-90 50 dB noise ITD direct COM | `36.981 deg` | `45.767 deg` | `89.577 deg` | `-1.777 deg` |
+| Full 3D +/-90 50 dB noise ITD SC CANN | `36.644 deg` | `45.593 deg` | `89.577 deg` | `-1.805 deg` |
+
+![ITD full 3D +/-45 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm45.png)
+
+![ITD full 3D +/-90 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm90.png)
+
+![ITD distance trend](../outputs/ild_line_attractor/figures/itd_distance_trend.png)
+
 ## Interpretation
 
 The attractor is tested as a reversible SC readout module: it receives exactly the same inverse-sigmoid ILD population as the direct COM baseline. If the CANN improves accuracy, it is sharpening or stabilising the population readout. If it does not, then the calibrated ILD population is already close to the useful decoded statistic and recurrence mainly adds smoothing/bias.
@@ -95,13 +126,16 @@ This distinction matters biologically: the CANN is not a replacement for the LSO
 
 | Quantity | Value |
 |---|---:|
-| full experiment runtime | `38.72 s` |
-| CANN seconds per sample, +/-45 | `0.001238` |
-| CANN seconds per sample, +/-90 | `0.002097` |
-| full 3D +/-45 clean seconds per sample | `0.047664` |
-| full 3D +/-45 noisy seconds per sample | `0.083248` |
-| full 3D +/-90 clean seconds per sample | `0.048074` |
-| full 3D +/-90 noisy seconds per sample | `0.079567` |
+| full experiment runtime | `72.65 s` |
+| CANN seconds per sample, +/-45 | `0.001869` |
+| CANN seconds per sample, +/-90 | `0.000822` |
+| ITD CANN seconds per sample, +/-45 | `0.001534` |
+| ITD CANN seconds per sample, +/-90 | `0.001009` |
+| full 3D +/-45 clean seconds per sample | `0.045160` |
+| full 3D +/-45 noisy seconds per sample | `0.079955` |
+| full 3D +/-90 clean seconds per sample | `0.047161` |
+| full 3D +/-90 noisy seconds per sample | `0.086502` |
+| fixed-distance trend runtime | `33.08 s` |
 
 ## Generated Files
 
@@ -112,4 +146,8 @@ This distinction matters biologically: the CANN is not a replacement for the LSO
 - `example_dynamics`: `azimuth_pathway/outputs/ild_line_attractor/figures/example_dynamics.png`
 - `full_3d_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_results_pm45.png`
 - `full_3d_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_results_pm90.png`
+- `distance_trend`: `azimuth_pathway/outputs/ild_line_attractor/figures/distance_trend.png`
+- `itd_full_3d_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_full_3d_results_pm45.png`
+- `itd_full_3d_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_full_3d_results_pm90.png`
+- `itd_distance_trend`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_distance_trend.png`
 - `results`: `azimuth_pathway/outputs/ild_line_attractor/results.json`
