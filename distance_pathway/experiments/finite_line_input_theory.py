@@ -1069,6 +1069,75 @@ def notebook_style_alpha_error_sweep(
     return rows
 
 
+def capped_decoding_error_sweep(
+    params: TheoryParams,
+    spec: InputSpec,
+    recurrent_width_bins: float,
+    beta: float,
+) -> list[dict[str, float | str]]:
+    """Sweep alpha with firing-rate caps and noisy 60 ms decoding.
+
+    Args:
+        params: Theory parameters.
+        spec: Fixed input matrix family.
+        recurrent_width_bins: Fixed recurrent width.
+        beta: Fixed opponent beta.
+
+    Returns:
+        Rows containing noisy decoding error and peak firing rate for each
+        alpha/cap condition.
+    """
+    rng = np.random.default_rng(11)
+    x = positions(params)
+    stimulus_grid = np.linspace(0.2, params.length_m - 0.2, 45)
+    alpha_values = [0.5, 1.0, 1.5, 2.0, 3.0, 5.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0]
+    cap_scenarios = [("Uncapped", None), ("55 Hz cap", 55.0), ("100 Hz cap", 100.0)]
+    final_index = int(round(params.readout_time_s / 0.001))
+    num_trials = 96
+    readout_noise_hz = params.baseline_rate_hz
+    rows: list[dict[str, float | str]] = []
+    for alpha in alpha_values:
+        sweep_params = replace(params, balanced_alpha_prime=float(alpha))
+        candidate = build_candidate(sweep_params, spec, recurrent_width_bins, "balanced_opponent", beta=beta)
+        for cap_label, cap_hz in cap_scenarios:
+            errors: list[float] = []
+            clean_errors: list[float] = []
+            peak_rates: list[float] = []
+            saturated_fractions: list[float] = []
+            for stimulus_m in stimulus_grid:
+                stimulus = population_code(sweep_params, float(stimulus_m))
+                _, state, readout = simulate_state_history(sweep_params, candidate, stimulus, alpha_cap_hz=cap_hz)
+                final_readout = readout[final_index]
+                clean_errors.append(abs(decode_center_of_mass(final_readout, x) - stimulus_m))
+                peak_rates.append(float(np.max(state) + sweep_params.baseline_rate_hz))
+                if cap_hz is None:
+                    saturated_fractions.append(0.0)
+                else:
+                    upper = cap_hz - sweep_params.baseline_rate_hz
+                    lower = -sweep_params.baseline_rate_hz
+                    saturated = (state >= upper - 1e-9) | (state <= lower + 1e-9)
+                    saturated_fractions.append(float(np.mean(saturated)))
+                noise = rng.normal(0.0, readout_noise_hz, size=(num_trials, sweep_params.num_neurons))
+                for noisy_readout in final_readout[None, :] + noise:
+                    errors.append(abs(decode_center_of_mass(noisy_readout, x) - stimulus_m))
+            error_arr = np.array(errors)
+            rows.append(
+                {
+                    "alpha_prime": float(alpha),
+                    "cap": cap_label,
+                    "cap_hz": float(cap_hz) if cap_hz is not None else -1.0,
+                    "beta": float(beta),
+                    "mean_abs_error_m": float(np.mean(error_arr)),
+                    "sem_abs_error_m": float(np.std(error_arr, ddof=1) / np.sqrt(error_arr.size)),
+                    "clean_mean_abs_bias_m": float(np.mean(clean_errors)),
+                    "peak_rate_hz": float(np.max(peak_rates)),
+                    "saturated_fraction": float(np.mean(saturated_fractions)),
+                    "readout_noise_hz": float(readout_noise_hz),
+                }
+            )
+    return rows
+
+
 def plot_capped_alpha_sweep(rows: list[dict[str, float | str]], path: Path) -> str:
     """Plot alpha sweep under firing-rate caps."""
     labels = ["uncapped", "100 Hz cap", "55 Hz cap"]
@@ -1143,6 +1212,36 @@ def plot_notebook_style_alpha_error(rows: list[dict[str, float]], path: Path) ->
     ax.set_title("Notebook-style alpha sweep")
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_capped_decoding_error(rows: list[dict[str, float | str]], path: Path) -> str:
+    """Plot capped-vs-uncapped decoding error and peak rate against alpha."""
+    labels = ["Uncapped", "55 Hz cap", "100 Hz cap"]
+    colors = {"Uncapped": "#000000", "55 Hz cap": "#4c78a8", "100 Hz cap": "#f58518"}
+    fig, axes = plt.subplots(1, 2, figsize=(13.4, 4.8))
+    for label in labels:
+        subset = [row for row in rows if row["cap"] == label]
+        alpha = np.array([float(row["alpha_prime"]) for row in subset])
+        error = np.array([float(row["mean_abs_error_m"]) for row in subset]) * 100.0
+        sem = np.array([float(row["sem_abs_error_m"]) for row in subset]) * 100.0
+        peak = np.array([float(row["peak_rate_hz"]) for row in subset])
+        style = "-" if label == "Uncapped" else "--"
+        axes[0].plot(alpha, error, color=colors[label], linestyle=style, marker="o", linewidth=2.4, label=label)
+        axes[0].fill_between(alpha, error - sem, error + sem, color=colors[label], alpha=0.12)
+        axes[1].plot(alpha, peak, color=colors[label], linestyle=style, marker="o", linewidth=2.4, label=label)
+    for cap_hz, color in [(55.0, colors["55 Hz cap"]), (100.0, colors["100 Hz cap"])]:
+        axes[1].axhline(cap_hz, color=color, linestyle=":", linewidth=1.5)
+    axes[0].set_xlabel(r"balanced $\alpha'$")
+    axes[0].set_ylabel("mean error at 60 ms (cm)")
+    axes[0].set_title("Decoding error with firing-rate caps")
+    axes[1].set_xlabel(r"balanced $\alpha'$")
+    axes[1].set_ylabel("peak neural rate (Hz)")
+    axes[1].set_title("Biological caps bound the dynamics")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+        ax.legend(frameon=False)
     fig.tight_layout()
     return save_figure(fig, path)
 
@@ -1257,6 +1356,23 @@ def format_notebook_alpha_error_table(rows: list[dict[str, float]]) -> list[str]
     ]
 
 
+def format_capped_decoding_error_table(rows: list[dict[str, float | str]]) -> list[str]:
+    """Format selected capped decoding error rows."""
+    selected_alphas = {2.0, 5.0, 8.0, 12.0, 20.0}
+    return [
+        "| "
+        f"`{row['alpha_prime']:.1f}` | "
+        f"{row['cap']} | "
+        f"`{row['mean_abs_error_m'] * 100.0:.3f} cm` | "
+        f"`{row['sem_abs_error_m'] * 100.0:.3f} cm` | "
+        f"`{row['clean_mean_abs_bias_m'] * 100.0:.3f} cm` | "
+        f"`{row['peak_rate_hz']:.1f} Hz` | "
+        f"`{row['saturated_fraction'] * 100.0:.1f}%` |"
+        for row in rows
+        if float(row["alpha_prime"]) in selected_alphas
+    ]
+
+
 def write_report(
     params: TheoryParams,
     rows: list[dict[str, float | str]],
@@ -1265,6 +1381,7 @@ def write_report(
     capped_alpha_rows: list[dict[str, float | str]],
     fixed_alpha_rows: list[dict[str, float | str]],
     notebook_alpha_error_rows: list[dict[str, float]],
+    capped_decoding_error_rows: list[dict[str, float | str]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -1276,12 +1393,25 @@ def write_report(
     capped_alpha_table_rows = format_capped_alpha_table(capped_alpha_rows)
     fixed_alpha_table_rows = format_fixed_alpha_table(fixed_alpha_rows)
     notebook_alpha_error_table_rows = format_notebook_alpha_error_table(notebook_alpha_error_rows)
+    capped_decoding_error_table_rows = format_capped_decoding_error_table(capped_decoding_error_rows)
     best_alpha = min(alpha_rows, key=lambda row: row["final_crb_rmse_m"])
     best_fixed_uncapped = min(
         (row for row in fixed_alpha_rows if row["cap"] == "uncapped"),
         key=lambda row: float(row["final_crb_rmse_m"]),
     )
     best_notebook_alpha = min(notebook_alpha_error_rows, key=lambda row: row["mean_abs_error_m"])
+    best_uncapped_error = min(
+        (row for row in capped_decoding_error_rows if row["cap"] == "Uncapped"),
+        key=lambda row: float(row["mean_abs_error_m"]),
+    )
+    best_55hz_error = min(
+        (row for row in capped_decoding_error_rows if row["cap"] == "55 Hz cap"),
+        key=lambda row: float(row["mean_abs_error_m"]),
+    )
+    best_100hz_error = min(
+        (row for row in capped_decoding_error_rows if row["cap"] == "100 Hz cap"),
+        key=lambda row: float(row["mean_abs_error_m"]),
+    )
     lines = [
         "# Finite-Line Input Theory For The SC Line Attractor",
         "",
@@ -1529,6 +1659,22 @@ def write_report(
         "",
         f"The lowest noisy mean error in this diagnostic occurred at $\\alpha'={best_notebook_alpha['alpha_prime']:.1f}$ with mean absolute error `{best_notebook_alpha['mean_abs_error_m'] * 100.0:.3f} cm`. The dashed clean-bias curve is included because alpha can improve noise sensitivity without necessarily moving the deterministic centre-of-mass bias.",
         "",
+        "## Capped 60 ms Decoding Error",
+        "",
+        "The plot below is the finite-line version of the biophysical cap diagnostic from the original notebook. It keeps the selected setup fixed and compares uncapped dynamics with `55 Hz` and `100 Hz` firing-rate caps. The left panel shows noisy centre-of-mass decoding error at `60 ms`; the right panel shows the peak neural rate demanded by the same dynamics.",
+        "",
+        "This is the main motivation for not simply choosing the largest possible $\\alpha'$. In the uncapped mathematical model, increasing $\\alpha'$ keeps improving the noisy decoding error by increasing gain. With caps, high $\\alpha'$ asks for rates that the neurons cannot realise, causing clipping, distortion, and a worse biological tradeoff.",
+        "",
+        f"For this diagnostic, Gaussian readout noise has standard deviation `{float(capped_decoding_error_rows[0]['readout_noise_hz']):.1f} Hz`.",
+        "",
+        "![Capped decoding error](../outputs/finite_line_input_theory/figures/capped_decoding_error.png)",
+        "",
+        "| alpha prime | cap | Noisy mean absolute error | SEM | Clean COM bias | Peak rate | Saturated state fraction |",
+        "|---:|---|---:|---:|---:|---:|---:|",
+        *capped_decoding_error_table_rows,
+        "",
+        f"Best uncapped tested error: `{float(best_uncapped_error['mean_abs_error_m']) * 100.0:.3f} cm` at $\\alpha'={float(best_uncapped_error['alpha_prime']):.1f}$, but this requires a peak rate of `{float(best_uncapped_error['peak_rate_hz']):.1f} Hz`. With a `55 Hz` cap, the best tested error is `{float(best_55hz_error['mean_abs_error_m']) * 100.0:.3f} cm` at $\\alpha'={float(best_55hz_error['alpha_prime']):.1f}$. With a `100 Hz` cap, the best tested error is `{float(best_100hz_error['mean_abs_error_m']) * 100.0:.3f} cm` at $\\alpha'={float(best_100hz_error['alpha_prime']):.1f}$.",
+        "",
         "## Bump Dynamics",
         "",
         "The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.",
@@ -1588,6 +1734,12 @@ def main() -> dict[str, object]:
         best_candidate.recurrent_width_bins,
         best_candidate.beta,
     )
+    capped_decoding_error_rows = capped_decoding_error_sweep(
+        params,
+        best_candidate.input_spec,
+        best_candidate.recurrent_width_bins,
+        best_candidate.beta,
+    )
 
     artifacts = {
         "input_matrix_families": plot_input_families(params, FIGURE_DIR / "input_matrix_families.png"),
@@ -1612,6 +1764,10 @@ def main() -> dict[str, object]:
             notebook_alpha_error_rows,
             FIGURE_DIR / "notebook_style_alpha_error.png",
         ),
+        "capped_decoding_error": plot_capped_decoding_error(
+            capped_decoding_error_rows,
+            FIGURE_DIR / "capped_decoding_error.png",
+        ),
         "capped_rate_traces": plot_rate_traces(
             params,
             best_candidate.input_spec,
@@ -1632,6 +1788,7 @@ def main() -> dict[str, object]:
         "capped_alpha_sweep": capped_alpha_rows,
         "fixed_setup_alpha_sweep": fixed_alpha_rows,
         "notebook_style_alpha_error": notebook_alpha_error_rows,
+        "capped_decoding_error": capped_decoding_error_rows,
         "top_rows": top_rows,
         "all_rows": rows,
         "artifacts": artifacts,
@@ -1645,6 +1802,7 @@ def main() -> dict[str, object]:
         capped_alpha_rows,
         fixed_alpha_rows,
         notebook_alpha_error_rows,
+        capped_decoding_error_rows,
         artifacts,
         elapsed_s,
     )

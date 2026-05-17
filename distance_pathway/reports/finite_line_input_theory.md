@@ -286,6 +286,36 @@ The selected setup is still held fixed, so the only parameter changing is $\alph
 
 The lowest noisy mean error in this diagnostic occurred at $\alpha'=20.0$ with mean absolute error `5.999 cm`. The dashed clean-bias curve is included because alpha can improve noise sensitivity without necessarily moving the deterministic centre-of-mass bias.
 
+## Capped 60 ms Decoding Error
+
+The plot below is the finite-line version of the biophysical cap diagnostic from the original notebook. It keeps the selected setup fixed and compares uncapped dynamics with `55 Hz` and `100 Hz` firing-rate caps. The left panel shows noisy centre-of-mass decoding error at `60 ms`; the right panel shows the peak neural rate demanded by the same dynamics.
+
+This is the main motivation for not simply choosing the largest possible $\alpha'$. In the uncapped mathematical model, increasing $\alpha'$ keeps improving the noisy decoding error by increasing gain. With caps, high $\alpha'$ asks for rates that the neurons cannot realise, causing clipping, distortion, and a worse biological tradeoff.
+
+For this diagnostic, Gaussian readout noise has standard deviation `5.0 Hz`.
+
+![Capped decoding error](../outputs/finite_line_input_theory/figures/capped_decoding_error.png)
+
+| alpha prime | cap | Noisy mean absolute error | SEM | Clean COM bias | Peak rate | Saturated state fraction |
+|---:|---|---:|---:|---:|---:|---:|
+| `2.0` | Uncapped | `109.546 cm` | `0.975 cm` | `2.962 cm` | `122.0 Hz` | `0.0%` |
+| `2.0` | 55 Hz cap | `142.535 cm` | `1.313 cm` | `4.054 cm` | `55.0 Hz` | `0.2%` |
+| `2.0` | 100 Hz cap | `139.349 cm` | `1.252 cm` | `3.543 cm` | `89.9 Hz` | `0.2%` |
+| `5.0` | Uncapped | `59.291 cm` | `0.556 cm` | `3.033 cm` | `246.4 Hz` | `0.0%` |
+| `5.0` | 55 Hz cap | `112.882 cm` | `1.166 cm` | `6.673 cm` | `55.0 Hz` | `0.9%` |
+| `5.0` | 100 Hz cap | `85.616 cm` | `0.862 cm` | `4.382 cm` | `100.0 Hz` | `0.2%` |
+| `8.0` | Uncapped | `41.075 cm` | `0.397 cm` | `3.052 cm` | `373.2 Hz` | `0.0%` |
+| `8.0` | 55 Hz cap | `109.800 cm` | `1.171 cm` | `8.922 cm` | `55.0 Hz` | `1.1%` |
+| `8.0` | 100 Hz cap | `74.933 cm` | `0.839 cm` | `6.148 cm` | `100.0 Hz` | `0.6%` |
+| `12.0` | Uncapped | `29.582 cm` | `0.302 cm` | `3.063 cm` | `542.6 Hz` | `0.0%` |
+| `12.0` | 55 Hz cap | `111.697 cm` | `1.225 cm` | `11.506 cm` | `55.0 Hz` | `1.0%` |
+| `12.0` | 100 Hz cap | `73.581 cm` | `0.878 cm` | `8.357 cm` | `100.0 Hz` | `0.7%` |
+| `20.0` | Uncapped | `19.497 cm` | `0.220 cm` | `3.071 cm` | `882.3 Hz` | `0.0%` |
+| `20.0` | 55 Hz cap | `122.668 cm` | `1.397 cm` | `17.522 cm` | `55.0 Hz` | `1.0%` |
+| `20.0` | 100 Hz cap | `77.979 cm` | `1.000 cm` | `12.732 cm` | `100.0 Hz` | `0.8%` |
+
+Best uncapped tested error: `19.497 cm` at $\alpha'=20.0$, but this requires a peak rate of `882.3 Hz`. With a `55 Hz` cap, the best tested error is `109.800 cm` at $\alpha'=8.0$. With a `100 Hz` cap, the best tested error is `73.581 cm` at $\alpha'=12.0$.
+
 ## Bump Dynamics
 
 The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
@@ -318,9 +348,10 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `capped_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_alpha_sweep.png`
 - `fixed_setup_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png`
 - `notebook_style_alpha_error`: `distance_pathway/outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png`
+- `capped_decoding_error`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_decoding_error.png`
 - `capped_rate_traces`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png`
 - `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `77.32 s`.
+Runtime: `94.96 s`.
