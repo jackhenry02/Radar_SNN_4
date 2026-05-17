@@ -66,6 +66,14 @@ The example below shows the inverse-sigmoid ILD population being injected into t
 | Full 3D +/-90 clean SC CANN | `20.845 deg` | `27.606 deg` | `88.042 deg` | `0.254 deg` |
 | Full 3D +/-90 50 dB noise direct COM | `21.101 deg` | `27.966 deg` | `88.042 deg` | `0.340 deg` |
 | Full 3D +/-90 50 dB noise SC CANN | `20.885 deg` | `27.607 deg` | `88.042 deg` | `0.301 deg` |
+| Full 3D 5 m +/-45 clean direct COM | `6.175 deg` | `8.209 deg` | `26.708 deg` | `-0.392 deg` |
+| Full 3D 5 m +/-45 clean SC CANN | `6.127 deg` | `8.147 deg` | `26.700 deg` | `-0.406 deg` |
+| Full 3D 5 m +/-45 50 dB noise direct COM | `6.119 deg` | `8.154 deg` | `26.708 deg` | `-0.402 deg` |
+| Full 3D 5 m +/-45 50 dB noise SC CANN | `6.071 deg` | `8.092 deg` | `26.700 deg` | `-0.415 deg` |
+| Full 3D 5 m +/-90 clean direct COM | `15.469 deg` | `23.172 deg` | `73.374 deg` | `0.746 deg` |
+| Full 3D 5 m +/-90 clean SC CANN | `15.398 deg` | `23.080 deg` | `73.362 deg` | `0.753 deg` |
+| Full 3D 5 m +/-90 50 dB noise direct COM | `16.056 deg` | `23.875 deg` | `73.374 deg` | `1.278 deg` |
+| Full 3D 5 m +/-90 50 dB noise SC CANN | `15.975 deg` | `23.762 deg` | `73.362 deg` | `1.274 deg` |
 
 ![Prediction scatter](../outputs/ild_line_attractor/figures/prediction_scatter.png)
 
@@ -80,6 +88,14 @@ The noisy condition uses a fixed receiver noise floor of `50 dB`, corresponding 
 ![Full 3D +/-45 results](../outputs/ild_line_attractor/figures/full_3d_results_pm45.png)
 
 ![Full 3D +/-90 results](../outputs/ild_line_attractor/figures/full_3d_results_pm90.png)
+
+## Full 3D 5 m Test
+
+This repeats the full-3D test but draws distances directly from `0.25 -> 5.00 m`. This checks whether the large full-scene errors are mainly caused by the far-range part of the space or by systematic distance/elevation confounding that is already present within 5 m.
+
+![Full 3D 5 m +/-45 results](../outputs/ild_line_attractor/figures/full_3d_5m_results_pm45.png)
+
+![Full 3D 5 m +/-90 results](../outputs/ild_line_attractor/figures/full_3d_5m_results_pm90.png)
 
 The full-3D error is much larger than the controlled fixed-distance result. The most likely reason is that the inverse-sigmoid mapping was calibrated at one distance and zero elevation, so it assumes one stable relationship between LSO balance and azimuth. In the full scene, distance changes the echo level, elevation filtering changes spectral energy across channels, and the current ILD code collapses the LSO output into one global balance. Those extra variables can shift the balance even when azimuth is unchanged, so the calibrated map no longer represents azimuth alone.
 
@@ -109,10 +125,22 @@ The same diagnostics were repeated with the ILD population swapped out for the I
 | Full 3D +/-90 clean ITD SC CANN | `36.690 deg` | `45.589 deg` | `89.577 deg` | `-1.727 deg` |
 | Full 3D +/-90 50 dB noise ITD direct COM | `36.981 deg` | `45.767 deg` | `89.577 deg` | `-1.777 deg` |
 | Full 3D +/-90 50 dB noise ITD SC CANN | `36.644 deg` | `45.593 deg` | `89.577 deg` | `-1.805 deg` |
+| Full 3D 5 m +/-45 clean ITD direct COM | `3.351 deg` | `4.649 deg` | `13.118 deg` | `-0.375 deg` |
+| Full 3D 5 m +/-45 clean ITD SC CANN | `3.732 deg` | `4.991 deg` | `13.873 deg` | `-0.339 deg` |
+| Full 3D 5 m +/-45 50 dB noise ITD direct COM | `3.349 deg` | `4.646 deg` | `13.046 deg` | `-0.389 deg` |
+| Full 3D 5 m +/-45 50 dB noise ITD SC CANN | `3.718 deg` | `4.985 deg` | `13.804 deg` | `-0.362 deg` |
+| Full 3D 5 m +/-90 clean ITD direct COM | `29.020 deg` | `37.158 deg` | `89.750 deg` | `-4.022 deg` |
+| Full 3D 5 m +/-90 clean ITD SC CANN | `28.461 deg` | `36.787 deg` | `89.750 deg` | `-3.894 deg` |
+| Full 3D 5 m +/-90 50 dB noise ITD direct COM | `29.106 deg` | `37.195 deg` | `89.750 deg` | `-4.031 deg` |
+| Full 3D 5 m +/-90 50 dB noise ITD SC CANN | `28.528 deg` | `36.811 deg` | `89.750 deg` | `-3.920 deg` |
 
 ![ITD full 3D +/-45 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm45.png)
 
 ![ITD full 3D +/-90 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm90.png)
+
+![ITD full 3D 5 m +/-45 results](../outputs/ild_line_attractor/figures/itd_full_3d_5m_results_pm45.png)
+
+![ITD full 3D 5 m +/-90 results](../outputs/ild_line_attractor/figures/itd_full_3d_5m_results_pm90.png)
 
 ![ITD distance trend](../outputs/ild_line_attractor/figures/itd_distance_trend.png)
 
@@ -126,16 +154,20 @@ This distinction matters biologically: the CANN is not a replacement for the LSO
 
 | Quantity | Value |
 |---|---:|
-| full experiment runtime | `72.65 s` |
-| CANN seconds per sample, +/-45 | `0.001869` |
-| CANN seconds per sample, +/-90 | `0.000822` |
-| ITD CANN seconds per sample, +/-45 | `0.001534` |
-| ITD CANN seconds per sample, +/-90 | `0.001009` |
-| full 3D +/-45 clean seconds per sample | `0.045160` |
-| full 3D +/-45 noisy seconds per sample | `0.079955` |
-| full 3D +/-90 clean seconds per sample | `0.047161` |
-| full 3D +/-90 noisy seconds per sample | `0.086502` |
-| fixed-distance trend runtime | `33.08 s` |
+| full experiment runtime | `89.24 s` |
+| CANN seconds per sample, +/-45 | `0.000995` |
+| CANN seconds per sample, +/-90 | `0.001874` |
+| ITD CANN seconds per sample, +/-45 | `0.001902` |
+| ITD CANN seconds per sample, +/-90 | `0.001742` |
+| full 3D +/-45 clean seconds per sample | `0.048144` |
+| full 3D +/-45 noisy seconds per sample | `0.075093` |
+| full 3D +/-90 clean seconds per sample | `0.046196` |
+| full 3D +/-90 noisy seconds per sample | `0.079561` |
+| full 3D 5 m +/-45 clean seconds per sample | `0.046858` |
+| full 3D 5 m +/-45 noisy seconds per sample | `0.050011` |
+| full 3D 5 m +/-90 clean seconds per sample | `0.046854` |
+| full 3D 5 m +/-90 noisy seconds per sample | `0.050744` |
+| fixed-distance trend runtime | `33.01 s` |
 
 ## Generated Files
 
@@ -146,8 +178,12 @@ This distinction matters biologically: the CANN is not a replacement for the LSO
 - `example_dynamics`: `azimuth_pathway/outputs/ild_line_attractor/figures/example_dynamics.png`
 - `full_3d_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_results_pm45.png`
 - `full_3d_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_results_pm90.png`
+- `full_3d_5m_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_5m_results_pm45.png`
+- `full_3d_5m_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/full_3d_5m_results_pm90.png`
 - `distance_trend`: `azimuth_pathway/outputs/ild_line_attractor/figures/distance_trend.png`
 - `itd_full_3d_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_full_3d_results_pm45.png`
 - `itd_full_3d_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_full_3d_results_pm90.png`
+- `itd_full_3d_5m_results_pm45`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_full_3d_5m_results_pm45.png`
+- `itd_full_3d_5m_results_pm90`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_full_3d_5m_results_pm90.png`
 - `itd_distance_trend`: `azimuth_pathway/outputs/ild_line_attractor/figures/itd_distance_trend.png`
 - `results`: `azimuth_pathway/outputs/ild_line_attractor/results.json`

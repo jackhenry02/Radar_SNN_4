@@ -39,6 +39,7 @@ ATTRACTOR_VARIANT = distance_cann.SC_ATTRACTOR_VARIANTS[1]
 FULL_3D_SAMPLES = 80
 FULL_3D_MIN_DISTANCE_M = 0.25
 FULL_3D_MAX_DISTANCE_M = 10.0
+FULL_3D_SHORT_MAX_DISTANCE_M = 5.0
 FULL_3D_AZIMUTH_LIMIT_DEG = 90.0
 FULL_3D_AZIMUTH_LIMITS_DEG = (45.0, 90.0)
 FULL_3D_ELEVATION_LIMIT_DEG = 45.0
@@ -152,18 +153,19 @@ def run_cann_example(population: np.ndarray, bins_deg: np.ndarray) -> tuple[np.n
     return trajectory[0], excitatory, spikes
 
 
-def make_full_3d_config(noise_std: float = 0.0) -> object:
+def make_full_3d_config(noise_std: float = 0.0, max_distance_m: float = FULL_3D_MAX_DISTANCE_M) -> object:
     """Create a full-3D azimuth test configuration.
 
     Args:
         noise_std: Fixed receiver noise standard deviation.
+        max_distance_m: Maximum represented target range.
 
     Returns:
-        Acoustic configuration covering echoes out to 10 m.
+        Acoustic configuration covering echoes out to the requested range.
     """
     return replace(
         az.make_config(),
-        max_range_m=FULL_3D_MAX_DISTANCE_M,
+        max_range_m=float(max_distance_m),
         signal_duration_s=0.070,
         jitter_std_s=0.0,
         noise_std=float(noise_std),
@@ -285,26 +287,33 @@ def run_full_3d_condition(
     }
 
 
-def run_full_3d_suite(inverse_params: dict[str, float]) -> dict[str, object]:
+def run_full_3d_suite(
+    inverse_params: dict[str, float],
+    *,
+    max_distance_m: float = FULL_3D_MAX_DISTANCE_M,
+    seed_offset: int = 0,
+) -> dict[str, object]:
     """Run clean and noisy full-3D tests for +/-45 and +/-90 azimuth supports.
 
     Args:
         inverse_params: Tuned inverse-sigmoid mapping parameters.
+        max_distance_m: Maximum target distance for the uniform sample.
+        seed_offset: Offset used to make separate suites reproducible but distinct.
 
     Returns:
         Nested full-3D test results.
     """
     noise_std = distance_cann.fdm._noise_std_from_db(distance_cann.fdm.AMBIENT_NOISE_DB_SPL)
-    clean_config = make_full_3d_config(noise_std=0.0)
-    noisy_config = make_full_3d_config(noise_std=noise_std)
+    clean_config = make_full_3d_config(noise_std=0.0, max_distance_m=max_distance_m)
+    noisy_config = make_full_3d_config(noise_std=noise_std, max_distance_m=max_distance_m)
     supports: dict[str, object] = {}
     for support_index, limit_deg in enumerate(FULL_3D_AZIMUTH_LIMITS_DEG):
-        rng = np.random.default_rng(FULL_3D_RNG_SEED + int(limit_deg))
-        distances = rng.uniform(FULL_3D_MIN_DISTANCE_M, FULL_3D_MAX_DISTANCE_M, size=FULL_3D_SAMPLES)
+        rng = np.random.default_rng(FULL_3D_RNG_SEED + seed_offset + int(limit_deg))
+        distances = rng.uniform(FULL_3D_MIN_DISTANCE_M, max_distance_m, size=FULL_3D_SAMPLES)
         azimuths = rng.uniform(-limit_deg, limit_deg, size=FULL_3D_SAMPLES)
         elevations = rng.uniform(-FULL_3D_ELEVATION_LIMIT_DEG, FULL_3D_ELEVATION_LIMIT_DEG, size=FULL_3D_SAMPLES)
 
-        torch.manual_seed(FULL_3D_RNG_SEED + 1000 + support_index)
+        torch.manual_seed(FULL_3D_RNG_SEED + seed_offset + 1000 + support_index)
         clean = run_full_3d_condition(
             clean_config,
             distances,
@@ -314,7 +323,7 @@ def run_full_3d_suite(inverse_params: dict[str, float]) -> dict[str, object]:
             add_noise=False,
             limit_deg=limit_deg,
         )
-        torch.manual_seed(FULL_3D_RNG_SEED + 2000 + support_index)
+        torch.manual_seed(FULL_3D_RNG_SEED + seed_offset + 2000 + support_index)
         noisy = run_full_3d_condition(
             noisy_config,
             distances,
@@ -335,7 +344,7 @@ def run_full_3d_suite(inverse_params: dict[str, float]) -> dict[str, object]:
         }
     return {
         "num_samples_per_support": FULL_3D_SAMPLES,
-        "distance_range_m": [FULL_3D_MIN_DISTANCE_M, FULL_3D_MAX_DISTANCE_M],
+        "distance_range_m": [FULL_3D_MIN_DISTANCE_M, float(max_distance_m)],
         "azimuth_limits_deg": list(FULL_3D_AZIMUTH_LIMITS_DEG),
         "elevation_range_deg": [-FULL_3D_ELEVATION_LIMIT_DEG, FULL_3D_ELEVATION_LIMIT_DEG],
         "noise_db_spl": distance_cann.fdm.AMBIENT_NOISE_DB_SPL,
@@ -687,6 +696,7 @@ def write_report(
     inverse_params: dict[str, float],
     metrics: dict[str, dict[str, float]],
     full_3d: dict[str, object],
+    full_3d_5m: dict[str, object],
     distance_trend: dict[str, object],
     runtime: dict[str, float],
     artifacts: dict[str, str],
@@ -707,6 +717,14 @@ def write_report(
         ("Full 3D +/-90 clean SC CANN", metrics["full_3d_pm90_clean_cann"]),
         ("Full 3D +/-90 50 dB noise direct COM", metrics["full_3d_pm90_noisy_direct"]),
         ("Full 3D +/-90 50 dB noise SC CANN", metrics["full_3d_pm90_noisy_cann"]),
+        ("Full 3D 5 m +/-45 clean direct COM", metrics["full_3d_5m_pm45_clean_direct"]),
+        ("Full 3D 5 m +/-45 clean SC CANN", metrics["full_3d_5m_pm45_clean_cann"]),
+        ("Full 3D 5 m +/-45 50 dB noise direct COM", metrics["full_3d_5m_pm45_noisy_direct"]),
+        ("Full 3D 5 m +/-45 50 dB noise SC CANN", metrics["full_3d_5m_pm45_noisy_cann"]),
+        ("Full 3D 5 m +/-90 clean direct COM", metrics["full_3d_5m_pm90_clean_direct"]),
+        ("Full 3D 5 m +/-90 clean SC CANN", metrics["full_3d_5m_pm90_clean_cann"]),
+        ("Full 3D 5 m +/-90 50 dB noise direct COM", metrics["full_3d_5m_pm90_noisy_direct"]),
+        ("Full 3D 5 m +/-90 50 dB noise SC CANN", metrics["full_3d_5m_pm90_noisy_cann"]),
     ]
     itd_metric_rows = [
         ("+/-45 ITD direct COM", metrics["itd_primary_direct"]),
@@ -721,6 +739,14 @@ def write_report(
         ("Full 3D +/-90 clean ITD SC CANN", metrics["itd_full_3d_pm90_clean_cann"]),
         ("Full 3D +/-90 50 dB noise ITD direct COM", metrics["itd_full_3d_pm90_noisy_direct"]),
         ("Full 3D +/-90 50 dB noise ITD SC CANN", metrics["itd_full_3d_pm90_noisy_cann"]),
+        ("Full 3D 5 m +/-45 clean ITD direct COM", metrics["itd_full_3d_5m_pm45_clean_direct"]),
+        ("Full 3D 5 m +/-45 clean ITD SC CANN", metrics["itd_full_3d_5m_pm45_clean_cann"]),
+        ("Full 3D 5 m +/-45 50 dB noise ITD direct COM", metrics["itd_full_3d_5m_pm45_noisy_direct"]),
+        ("Full 3D 5 m +/-45 50 dB noise ITD SC CANN", metrics["itd_full_3d_5m_pm45_noisy_cann"]),
+        ("Full 3D 5 m +/-90 clean ITD direct COM", metrics["itd_full_3d_5m_pm90_clean_direct"]),
+        ("Full 3D 5 m +/-90 clean ITD SC CANN", metrics["itd_full_3d_5m_pm90_clean_cann"]),
+        ("Full 3D 5 m +/-90 50 dB noise ITD direct COM", metrics["itd_full_3d_5m_pm90_noisy_direct"]),
+        ("Full 3D 5 m +/-90 50 dB noise ITD SC CANN", metrics["itd_full_3d_5m_pm90_noisy_cann"]),
     ]
     lines = [
         "# Azimuth ILD Pathway With SC Line Attractor",
@@ -802,6 +828,14 @@ def write_report(
             "",
             "![Full 3D +/-90 results](../outputs/ild_line_attractor/figures/full_3d_results_pm90.png)",
             "",
+            "## Full 3D 5 m Test",
+            "",
+            f"This repeats the full-3D test but draws distances directly from `{full_3d_5m['distance_range_m'][0]:.2f} -> {full_3d_5m['distance_range_m'][1]:.2f} m`. This checks whether the large full-scene errors are mainly caused by the far-range part of the space or by systematic distance/elevation confounding that is already present within 5 m.",
+            "",
+            "![Full 3D 5 m +/-45 results](../outputs/ild_line_attractor/figures/full_3d_5m_results_pm45.png)",
+            "",
+            "![Full 3D 5 m +/-90 results](../outputs/ild_line_attractor/figures/full_3d_5m_results_pm90.png)",
+            "",
             "The full-3D error is much larger than the controlled fixed-distance result. The most likely reason is that the inverse-sigmoid mapping was calibrated at one distance and zero elevation, so it assumes one stable relationship between LSO balance and azimuth. In the full scene, distance changes the echo level, elevation filtering changes spectral energy across channels, and the current ILD code collapses the LSO output into one global balance. Those extra variables can shift the balance even when azimuth is unchanged, so the calibrated map no longer represents azimuth alone.",
             "",
             "The 50 dB noise floor barely changes the result, which supports this interpretation: the dominant failure is not random receiver noise, but systematic cue confounding from range/elevation and spectral filtering. A stronger next ILD model should either normalise level/spectrum before the balance calculation, use frequency-dependent LSO populations instead of one global balance, or learn/tune a multidimensional mapping conditioned on distance/elevation-sensitive context.",
@@ -832,6 +866,10 @@ def write_report(
             "",
             "![ITD full 3D +/-90 results](../outputs/ild_line_attractor/figures/itd_full_3d_results_pm90.png)",
             "",
+            "![ITD full 3D 5 m +/-45 results](../outputs/ild_line_attractor/figures/itd_full_3d_5m_results_pm45.png)",
+            "",
+            "![ITD full 3D 5 m +/-90 results](../outputs/ild_line_attractor/figures/itd_full_3d_5m_results_pm90.png)",
+            "",
             "![ITD distance trend](../outputs/ild_line_attractor/figures/itd_distance_trend.png)",
             "",
             "## Interpretation",
@@ -853,6 +891,10 @@ def write_report(
             f"| full 3D +/-45 noisy seconds per sample | `{runtime['full_3d_pm45_noisy_seconds_per_sample']:.6f}` |",
             f"| full 3D +/-90 clean seconds per sample | `{runtime['full_3d_pm90_clean_seconds_per_sample']:.6f}` |",
             f"| full 3D +/-90 noisy seconds per sample | `{runtime['full_3d_pm90_noisy_seconds_per_sample']:.6f}` |",
+            f"| full 3D 5 m +/-45 clean seconds per sample | `{runtime['full_3d_5m_pm45_clean_seconds_per_sample']:.6f}` |",
+            f"| full 3D 5 m +/-45 noisy seconds per sample | `{runtime['full_3d_5m_pm45_noisy_seconds_per_sample']:.6f}` |",
+            f"| full 3D 5 m +/-90 clean seconds per sample | `{runtime['full_3d_5m_pm90_clean_seconds_per_sample']:.6f}` |",
+            f"| full 3D 5 m +/-90 noisy seconds per sample | `{runtime['full_3d_5m_pm90_noisy_seconds_per_sample']:.6f}` |",
             f"| fixed-distance trend runtime | `{runtime['distance_trend_seconds']:.2f} s` |",
             "",
             "## Generated Files",
@@ -863,6 +905,94 @@ def write_report(
         lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.extend([f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`", ""])
     REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+
+
+def add_full_3d_metrics(
+    full_3d: dict[str, object],
+    metrics: dict[str, dict[str, float]],
+    runtime: dict[str, float],
+    metric_prefix: str,
+) -> None:
+    """Add ILD and ITD metrics for a full-3D suite.
+
+    Args:
+        full_3d: Full-3D suite returned by `run_full_3d_suite`.
+        metrics: Metrics dictionary to update in-place.
+        runtime: Runtime dictionary to update in-place.
+        metric_prefix: Prefix for metric keys, for example `full_3d`.
+    """
+    for limit_deg in FULL_3D_AZIMUTH_LIMITS_DEG:
+        support_key = f"azimuth_pm{int(limit_deg)}"
+        metric_key = f"{metric_prefix}_pm{int(limit_deg)}"
+        support = full_3d["supports"][support_key]
+        true_azimuth = support["azimuth_deg"]
+        clean = support["clean"]
+        noisy = support["noisy"]
+        bins = az.azimuth_grid(limit_deg)
+
+        clean_itd_direct, clean_itd_population = itd_population_dataset(clean["predictions"], bins)
+        noisy_itd_direct, noisy_itd_population = itd_population_dataset(noisy["predictions"], bins)
+        clean_itd_cann, _, clean_itd_cann_seconds_per_sample, _ = run_cann_readout(clean_itd_population, bins)
+        noisy_itd_cann, _, noisy_itd_cann_seconds_per_sample, _ = run_cann_readout(noisy_itd_population, bins)
+
+        metrics[f"{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean["direct"])
+        metrics[f"{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean["cann"])
+        metrics[f"{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy["direct"])
+        metrics[f"{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy["cann"])
+        metrics[f"itd_{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean_itd_direct)
+        metrics[f"itd_{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean_itd_cann)
+        metrics[f"itd_{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy_itd_direct)
+        metrics[f"itd_{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy_itd_cann)
+
+        clean["itd_direct"] = clean_itd_direct
+        clean["itd_cann"] = clean_itd_cann
+        noisy["itd_direct"] = noisy_itd_direct
+        noisy["itd_cann"] = noisy_itd_cann
+
+        runtime[f"{metric_key}_clean_seconds_per_sample"] = clean["seconds_per_sample"]
+        runtime[f"{metric_key}_noisy_seconds_per_sample"] = noisy["seconds_per_sample"]
+        runtime[f"{metric_key}_clean_cann_seconds_per_sample"] = clean["cann_seconds_per_sample"]
+        runtime[f"{metric_key}_noisy_cann_seconds_per_sample"] = noisy["cann_seconds_per_sample"]
+        runtime[f"itd_{metric_key}_clean_cann_seconds_per_sample"] = clean_itd_cann_seconds_per_sample
+        runtime[f"itd_{metric_key}_noisy_cann_seconds_per_sample"] = noisy_itd_cann_seconds_per_sample
+
+
+def serialise_full_3d_suite(full_3d: dict[str, object]) -> dict[str, object]:
+    """Convert a full-3D suite into JSON-serialisable arrays.
+
+    Args:
+        full_3d: Full-3D suite with ILD and ITD predictions.
+
+    Returns:
+        JSON-serialisable dictionary.
+    """
+    return {
+        "num_samples_per_support": full_3d["num_samples_per_support"],
+        "distance_range_m": full_3d["distance_range_m"],
+        "azimuth_limits_deg": full_3d["azimuth_limits_deg"],
+        "elevation_range_deg": full_3d["elevation_range_deg"],
+        "noise_db_spl": full_3d["noise_db_spl"],
+        "noise_std": full_3d["noise_std"],
+        "reference_db_spl": full_3d["reference_db_spl"],
+        "call_db_spl": full_3d["call_db_spl"],
+        "supports": {
+            key: {
+                "limit_deg": value["limit_deg"],
+                "distance_m": value["distance_m"].tolist(),
+                "azimuth_deg": value["azimuth_deg"].tolist(),
+                "elevation_deg": value["elevation_deg"].tolist(),
+                "clean_direct_deg": value["clean"]["direct"].tolist(),
+                "clean_cann_deg": value["clean"]["cann"].tolist(),
+                "clean_itd_direct_deg": value["clean"]["itd_direct"].tolist(),
+                "clean_itd_cann_deg": value["clean"]["itd_cann"].tolist(),
+                "noisy_direct_deg": value["noisy"]["direct"].tolist(),
+                "noisy_cann_deg": value["noisy"]["cann"].tolist(),
+                "noisy_itd_direct_deg": value["noisy"]["itd_direct"].tolist(),
+                "noisy_itd_cann_deg": value["noisy"]["itd_cann"].tolist(),
+            }
+            for key, value in full_3d["supports"].items()
+        },
+    }
 
 
 def main() -> dict[str, object]:
@@ -902,6 +1032,11 @@ def main() -> dict[str, object]:
     primary_itd_cann, _, primary_itd_seconds_per_sample, _ = run_cann_readout(primary_itd_population, primary_bins)
     stress_itd_cann, _, stress_itd_seconds_per_sample, _ = run_cann_readout(stress_itd_population, stress_bins)
     full_3d = run_full_3d_suite(inverse_params)
+    full_3d_5m = run_full_3d_suite(
+        inverse_params,
+        max_distance_m=FULL_3D_SHORT_MAX_DISTANCE_M,
+        seed_offset=5_000,
+    )
     distance_trend_start = time.perf_counter()
     distance_trend = run_distance_trend_suite(inverse_params)
     distance_trend_seconds = time.perf_counter() - distance_trend_start
@@ -925,36 +1060,8 @@ def main() -> dict[str, object]:
         "itd_primary_cann_seconds_per_sample": primary_itd_seconds_per_sample,
         "itd_stress_cann_seconds_per_sample": stress_itd_seconds_per_sample,
     }
-    for limit_deg in FULL_3D_AZIMUTH_LIMITS_DEG:
-        support_key = f"azimuth_pm{int(limit_deg)}"
-        metric_key = f"full_3d_pm{int(limit_deg)}"
-        support = full_3d["supports"][support_key]
-        true_azimuth = support["azimuth_deg"]
-        clean = support["clean"]
-        noisy = support["noisy"]
-        bins = az.azimuth_grid(limit_deg)
-        clean_itd_direct, clean_itd_population = itd_population_dataset(clean["predictions"], bins)
-        noisy_itd_direct, noisy_itd_population = itd_population_dataset(noisy["predictions"], bins)
-        clean_itd_cann, _, clean_itd_cann_seconds_per_sample, _ = run_cann_readout(clean_itd_population, bins)
-        noisy_itd_cann, _, noisy_itd_cann_seconds_per_sample, _ = run_cann_readout(noisy_itd_population, bins)
-        metrics[f"{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean["direct"])
-        metrics[f"{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean["cann"])
-        metrics[f"{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy["direct"])
-        metrics[f"{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy["cann"])
-        metrics[f"itd_{metric_key}_clean_direct"] = metric_dict(true_azimuth, clean_itd_direct)
-        metrics[f"itd_{metric_key}_clean_cann"] = metric_dict(true_azimuth, clean_itd_cann)
-        metrics[f"itd_{metric_key}_noisy_direct"] = metric_dict(true_azimuth, noisy_itd_direct)
-        metrics[f"itd_{metric_key}_noisy_cann"] = metric_dict(true_azimuth, noisy_itd_cann)
-        clean["itd_direct"] = clean_itd_direct
-        clean["itd_cann"] = clean_itd_cann
-        noisy["itd_direct"] = noisy_itd_direct
-        noisy["itd_cann"] = noisy_itd_cann
-        runtime[f"{metric_key}_clean_seconds_per_sample"] = clean["seconds_per_sample"]
-        runtime[f"{metric_key}_noisy_seconds_per_sample"] = noisy["seconds_per_sample"]
-        runtime[f"{metric_key}_clean_cann_seconds_per_sample"] = clean["cann_seconds_per_sample"]
-        runtime[f"{metric_key}_noisy_cann_seconds_per_sample"] = noisy["cann_seconds_per_sample"]
-        runtime[f"itd_{metric_key}_clean_cann_seconds_per_sample"] = clean_itd_cann_seconds_per_sample
-        runtime[f"itd_{metric_key}_noisy_cann_seconds_per_sample"] = noisy_itd_cann_seconds_per_sample
+    add_full_3d_metrics(full_3d, metrics, runtime, "full_3d")
+    add_full_3d_metrics(full_3d_5m, metrics, runtime, "full_3d_5m")
     runtime["distance_trend_seconds"] = distance_trend_seconds
     artifacts = {
         "pipeline_diagram": plot_pipeline(FIGURE_DIR / "pipeline_diagram.png"),
@@ -1006,6 +1113,26 @@ def main() -> dict[str, object]:
             90.0,
             FIGURE_DIR / "full_3d_results_pm90.png",
         ),
+        "full_3d_5m_results_pm45": plot_full_3d_results(
+            full_3d_5m["supports"]["azimuth_pm45"]["azimuth_deg"],
+            full_3d_5m["supports"]["azimuth_pm45"]["distance_m"],
+            full_3d_5m["supports"]["azimuth_pm45"]["clean"]["direct"],
+            full_3d_5m["supports"]["azimuth_pm45"]["clean"]["cann"],
+            full_3d_5m["supports"]["azimuth_pm45"]["noisy"]["direct"],
+            full_3d_5m["supports"]["azimuth_pm45"]["noisy"]["cann"],
+            45.0,
+            FIGURE_DIR / "full_3d_5m_results_pm45.png",
+        ),
+        "full_3d_5m_results_pm90": plot_full_3d_results(
+            full_3d_5m["supports"]["azimuth_pm90"]["azimuth_deg"],
+            full_3d_5m["supports"]["azimuth_pm90"]["distance_m"],
+            full_3d_5m["supports"]["azimuth_pm90"]["clean"]["direct"],
+            full_3d_5m["supports"]["azimuth_pm90"]["clean"]["cann"],
+            full_3d_5m["supports"]["azimuth_pm90"]["noisy"]["direct"],
+            full_3d_5m["supports"]["azimuth_pm90"]["noisy"]["cann"],
+            90.0,
+            FIGURE_DIR / "full_3d_5m_results_pm90.png",
+        ),
         "distance_trend": plot_distance_trend(distance_trend, FIGURE_DIR / "distance_trend.png"),
         "itd_full_3d_results_pm45": plot_full_3d_results(
             full_3d["supports"]["azimuth_pm45"]["azimuth_deg"],
@@ -1026,6 +1153,26 @@ def main() -> dict[str, object]:
             full_3d["supports"]["azimuth_pm90"]["noisy"]["itd_cann"],
             90.0,
             FIGURE_DIR / "itd_full_3d_results_pm90.png",
+        ),
+        "itd_full_3d_5m_results_pm45": plot_full_3d_results(
+            full_3d_5m["supports"]["azimuth_pm45"]["azimuth_deg"],
+            full_3d_5m["supports"]["azimuth_pm45"]["distance_m"],
+            full_3d_5m["supports"]["azimuth_pm45"]["clean"]["itd_direct"],
+            full_3d_5m["supports"]["azimuth_pm45"]["clean"]["itd_cann"],
+            full_3d_5m["supports"]["azimuth_pm45"]["noisy"]["itd_direct"],
+            full_3d_5m["supports"]["azimuth_pm45"]["noisy"]["itd_cann"],
+            45.0,
+            FIGURE_DIR / "itd_full_3d_5m_results_pm45.png",
+        ),
+        "itd_full_3d_5m_results_pm90": plot_full_3d_results(
+            full_3d_5m["supports"]["azimuth_pm90"]["azimuth_deg"],
+            full_3d_5m["supports"]["azimuth_pm90"]["distance_m"],
+            full_3d_5m["supports"]["azimuth_pm90"]["clean"]["itd_direct"],
+            full_3d_5m["supports"]["azimuth_pm90"]["clean"]["itd_cann"],
+            full_3d_5m["supports"]["azimuth_pm90"]["noisy"]["itd_direct"],
+            full_3d_5m["supports"]["azimuth_pm90"]["noisy"]["itd_cann"],
+            90.0,
+            FIGURE_DIR / "itd_full_3d_5m_results_pm90.png",
         ),
         "itd_distance_trend": plot_distance_trend(
             distance_trend,
@@ -1053,33 +1200,8 @@ def main() -> dict[str, object]:
         },
         "metrics": metrics,
         "runtime": runtime,
-        "full_3d": {
-            "num_samples_per_support": full_3d["num_samples_per_support"],
-            "distance_range_m": full_3d["distance_range_m"],
-            "azimuth_limits_deg": full_3d["azimuth_limits_deg"],
-            "elevation_range_deg": full_3d["elevation_range_deg"],
-            "noise_db_spl": full_3d["noise_db_spl"],
-            "noise_std": full_3d["noise_std"],
-            "reference_db_spl": full_3d["reference_db_spl"],
-            "call_db_spl": full_3d["call_db_spl"],
-            "supports": {
-                key: {
-                    "limit_deg": value["limit_deg"],
-                    "distance_m": value["distance_m"].tolist(),
-                    "azimuth_deg": value["azimuth_deg"].tolist(),
-                    "elevation_deg": value["elevation_deg"].tolist(),
-                    "clean_direct_deg": value["clean"]["direct"].tolist(),
-                    "clean_cann_deg": value["clean"]["cann"].tolist(),
-                    "clean_itd_direct_deg": value["clean"]["itd_direct"].tolist(),
-                    "clean_itd_cann_deg": value["clean"]["itd_cann"].tolist(),
-                    "noisy_direct_deg": value["noisy"]["direct"].tolist(),
-                    "noisy_cann_deg": value["noisy"]["cann"].tolist(),
-                    "noisy_itd_direct_deg": value["noisy"]["itd_direct"].tolist(),
-                    "noisy_itd_cann_deg": value["noisy"]["itd_cann"].tolist(),
-                }
-                for key, value in full_3d["supports"].items()
-            },
-        },
+        "full_3d": serialise_full_3d_suite(full_3d),
+        "full_3d_5m": serialise_full_3d_suite(full_3d_5m),
         "distance_trend": {
             "distances_m": np.asarray(distance_trend["distances_m"]).tolist(),
             "azimuth_samples": distance_trend["azimuth_samples"],
@@ -1127,7 +1249,7 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(config, inverse_params, metrics, full_3d, distance_trend, runtime, artifacts, elapsed_s)
+    write_report(config, inverse_params, metrics, full_3d, full_3d_5m, distance_trend, runtime, artifacts, elapsed_s)
     return payload
 
 
