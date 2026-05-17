@@ -1,6 +1,6 @@
 {
   "experiment": "finite_line_input_theory",
-  "elapsed_seconds": 95.89535379200242,
+  "elapsed_seconds": 99.24489179090597,
   "params": {
     "length_m": 10.0,
     "num_neurons": 96,
@@ -95,6 +95,46 @@
     "reflected_12_R12_final": 0.8889874823231451,
     "reflected_12_R12_window": 0.6737999551579544
   },
+  "fi_two_block_controls": [
+    {
+      "name": "balanced_opponent | identity w=0 | R=4 | beta=0.886",
+      "family": "identity",
+      "input_width_bins": 0.0,
+      "block_kind": "balanced_opponent",
+      "recurrent_width_bins": 4.0,
+      "beta": 0.8857483280024514,
+      "early_fi_mean": 12192.188244149147,
+      "final_fi_mean": 2401.0198528855667,
+      "final_fi_min": 285.60293716933415,
+      "final_fi_uniformity": 0.11895067707419997,
+      "final_crb_rmse_m": 0.022045581002600116,
+      "early_crb_rmse_m": 0.00962758458198762,
+      "mean_abs_bias_m": 0.025526095535723645,
+      "edge_mean_abs_bias_m": 0.12369360477562849,
+      "max_abs_bias_m": 0.34142736878947133,
+      "max_real_eig": -49.99999730796102,
+      "label": "FI-optimal diagonal 2-block"
+    },
+    {
+      "name": "balanced_opponent | reflected w=3 | R=4 | beta=0.897",
+      "family": "reflected",
+      "input_width_bins": 3.0,
+      "block_kind": "balanced_opponent",
+      "recurrent_width_bins": 4.0,
+      "beta": 0.8965377489071944,
+      "early_fi_mean": 76167.41503187612,
+      "final_fi_mean": 16638.076828005316,
+      "final_fi_min": 1686.0910998428558,
+      "final_fi_uniformity": 0.10133930244899558,
+      "final_crb_rmse_m": 0.008513839653930409,
+      "early_crb_rmse_m": 0.003934028982233277,
+      "mean_abs_bias_m": 0.03363437053890399,
+      "edge_mean_abs_bias_m": 0.16073587086019067,
+      "max_abs_bias_m": 0.3980133845654308,
+      "max_real_eig": -49.99999730796102,
+      "label": "FI-optimal reflected Gaussian 2-block"
+    }
+  ],
   "alpha_sweep": [
     {
       "alpha_prime": 0.0,
@@ -5898,6 +5938,9 @@
     "recurrent_spectrum": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/recurrent_spectrum.png",
     "pseudospectrum": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/pseudospectrum.png",
     "fisher_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fisher_curves.png",
+    "fi_diagonal_control_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fi_diagonal_control_matrices.png",
+    "fi_diagonal_control_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fi_diagonal_control_curves.png",
+    "fi_diagonal_control_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fi_diagonal_control_snapshots.png",
     "beta_scan": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/beta_scan.png",
     "width_sensitivity": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png",
     "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png",

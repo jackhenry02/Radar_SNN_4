@@ -1558,6 +1558,24 @@ def format_table(rows: list[dict[str, float | str]]) -> list[str]:
     return lines
 
 
+def format_fi_control_table(rows: list[dict[str, float | str]]) -> list[str]:
+    """Format the diagonal-vs-reflected two-block FI control table."""
+    return [
+        "| "
+        f"{row['label']} | "
+        f"{row['family']} | "
+        f"`{float(row['input_width_bins']):.0f}` | "
+        f"`{float(row['recurrent_width_bins']):.0f}` | "
+        f"`{float(row['beta']):.3f}` | "
+        f"`{float(row['final_crb_rmse_m']) * 100.0:.3f} cm` | "
+        f"`{float(row['early_crb_rmse_m']) * 100.0:.3f} cm` | "
+        f"`{float(row['final_fi_uniformity']):.3f}` | "
+        f"`{float(row['mean_abs_bias_m']) * 100.0:.3f} cm` | "
+        f"`{float(row['edge_mean_abs_bias_m']) * 100.0:.3f} cm` |"
+        for row in rows
+    ]
+
+
 def format_alpha_table(rows: list[dict[str, float]]) -> list[str]:
     """Format alpha-sweep table rows."""
     return [
@@ -1651,10 +1669,35 @@ def format_input_dynamics_table(rows: list[dict[str, float | str]]) -> list[str]
     ]
 
 
+def select_fi_two_block_controls(rows: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
+    """Select FI-optimal diagonal and reflected two-block controls.
+
+    The broad candidate grid already contains identity and reflected input
+    candidates. This helper extracts the best balanced-opponent version of each
+    family by final-time Cramer-Rao RMSE and labels them for the report.
+    """
+    controls: list[dict[str, float | str]] = []
+    labels = {
+        "identity": "FI-optimal diagonal 2-block",
+        "reflected": "FI-optimal reflected Gaussian 2-block",
+    }
+    for family, label in labels.items():
+        matching = [
+            row
+            for row in rows
+            if row["family"] == family and row["block_kind"] == "balanced_opponent"
+        ]
+        best = dict(min(matching, key=lambda row: float(row["final_crb_rmse_m"])))
+        best["label"] = label
+        controls.append(best)
+    return controls
+
+
 def write_report(
     params: TheoryParams,
     rows: list[dict[str, float | str]],
     top_rows: list[dict[str, float | str]],
+    fi_control_rows: list[dict[str, float | str]],
     alpha_rows: list[dict[str, float]],
     capped_alpha_rows: list[dict[str, float | str]],
     fixed_alpha_rows: list[dict[str, float | str]],
@@ -1668,6 +1711,7 @@ def write_report(
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     best = top_rows[0]
     table_rows = format_table(top_rows)
+    fi_control_table_rows = format_fi_control_table(fi_control_rows)
     alpha_table_rows = format_alpha_table(alpha_rows)
     capped_alpha_table_rows = format_capped_alpha_table(capped_alpha_rows)
     fixed_alpha_table_rows = format_fixed_alpha_table(fixed_alpha_rows)
@@ -1856,6 +1900,32 @@ def write_report(
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
         *table_rows,
         "",
+        "## FI-Optimal Diagonal Two-Block Control",
+        "",
+        "The diagonal input can also be put into the same two-block balanced E/I formulation as the reflected Gaussian model. This is the cleanest control for the question: is the benefit coming from the two-block FI-opponent construction itself, or from the reflected Gaussian finite-line input matrix?",
+        "",
+        "Both rows below use:",
+        "",
+        "$$",
+        "B_{opp}=\\frac{1}{\\sqrt{1+\\beta^2}}\\begin{bmatrix}M\\\\-\\beta M\\end{bmatrix},",
+        "\\qquad",
+        "W_{EI}=\\begin{bmatrix}K&-K\\\\K&-K\\end{bmatrix}.",
+        "$$",
+        "",
+        "The only structural difference is the input matrix $M$: identity/diagonal versus reflected Gaussian. The opponent gain $\\beta$ is recomputed analytically for each input family, so this is a fair FI-optimal two-block comparison.",
+        "",
+        "![FI diagonal control B matrices](../outputs/finite_line_input_theory/figures/fi_diagonal_control_matrices.png)",
+        "",
+        "![FI diagonal control curves](../outputs/finite_line_input_theory/figures/fi_diagonal_control_curves.png)",
+        "",
+        "![FI diagonal control snapshots](../outputs/finite_line_input_theory/figures/fi_diagonal_control_snapshots.png)",
+        "",
+        "| Control | Input family | Input width | Recurrent width | beta | Final CRB RMSE | 5ms CRB RMSE | FI uniformity | Mean COM bias | Edge COM bias |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        *fi_control_table_rows,
+        "",
+        "In this analytical FI test, the diagonal two-block model is valid but not competitive with the reflected Gaussian two-block model. The diagonal matrix preserves the population map directly, but it does not add the finite-line spatial smoothing/boundary correction that improves the derivative structure used by the Fisher objective.",
+        "",
         "## Fisher And Width Sensitivity",
         "",
         "The best candidates have much flatter final-time Fisher information than uncorrected finite-line inputs. Amplitude compensation and reflection both reduce boundary loss, but reflection is the cleaner finite-line analogue of the ring because it preserves no-flux boundary structure.",
@@ -2023,11 +2093,13 @@ def main() -> dict[str, object]:
     candidates, beta_summary = candidate_suite(params)
     rows = [evaluate_candidate(params, candidate, stimulus_grid) for candidate in candidates]
     top_rows = compact_rows(rows, top_n=14)
+    fi_control_rows = select_fi_two_block_controls(rows)
 
     best_names = [str(row["name"]) for row in top_rows[:4]]
     candidate_by_name = {candidate.name: candidate for candidate in candidates}
     selected = [candidate_by_name[name] for name in best_names]
     selected_for_blocks = selected[:3]
+    fi_control_candidates = [candidate_by_name[str(row["name"])] for row in fi_control_rows]
     best_candidate = selected[0]
     alpha_rows = alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
     capped_alpha_rows = capped_alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
@@ -2062,6 +2134,22 @@ def main() -> dict[str, object]:
         "recurrent_spectrum": plot_recurrent_spectrum(params, best_candidate, FIGURE_DIR / "recurrent_spectrum.png"),
         "pseudospectrum": plot_pseudospectrum(params, best_candidate, FIGURE_DIR / "pseudospectrum.png"),
         "fisher_curves": plot_fisher_curves(params, selected, stimulus_grid, FIGURE_DIR / "fisher_curves.png"),
+        "fi_diagonal_control_matrices": plot_block_matrices(
+            params,
+            fi_control_candidates,
+            FIGURE_DIR / "fi_diagonal_control_matrices.png",
+        ),
+        "fi_diagonal_control_curves": plot_fisher_curves(
+            params,
+            fi_control_candidates,
+            stimulus_grid,
+            FIGURE_DIR / "fi_diagonal_control_curves.png",
+        ),
+        "fi_diagonal_control_snapshots": plot_response_snapshots(
+            params,
+            fi_control_candidates,
+            FIGURE_DIR / "fi_diagonal_control_snapshots.png",
+        ),
         "beta_scan": plot_beta_scan(rows, FIGURE_DIR / "beta_scan.png"),
         "width_sensitivity": plot_width_sweep(rows, FIGURE_DIR / "width_sensitivity.png"),
         "alpha_sweep": plot_alpha_sweep(alpha_rows, FIGURE_DIR / "alpha_sweep.png"),
@@ -2110,6 +2198,7 @@ def main() -> dict[str, object]:
         "elapsed_seconds": elapsed_s,
         "params": params.__dict__,
         "beta_summary": beta_summary,
+        "fi_two_block_controls": fi_control_rows,
         "alpha_sweep": alpha_rows,
         "capped_alpha_sweep": capped_alpha_rows,
         "fixed_setup_alpha_sweep": fixed_alpha_rows,
@@ -2125,6 +2214,7 @@ def main() -> dict[str, object]:
         params,
         rows,
         top_rows,
+        fi_control_rows,
         alpha_rows,
         capped_alpha_rows,
         fixed_alpha_rows,

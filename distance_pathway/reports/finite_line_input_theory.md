@@ -174,6 +174,33 @@ Parameters: `N=96`, `L=10 m`, `sigma_h=0.42 m`, `tau=20 ms`, final readout `T=60
 | balanced_opponent | toeplitz_raw | `3` | `4` | `0.896` | `0.952 cm` | `0.431 cm` | `0.050` | `4.159 cm` | `19.674 cm` |
 | balanced_opponent | toeplitz_raw | `3` | `4` | `1.000` | `0.954 cm` | `0.440 cm` | `0.050` | `4.162 cm` | `19.686 cm` |
 
+## FI-Optimal Diagonal Two-Block Control
+
+The diagonal input can also be put into the same two-block balanced E/I formulation as the reflected Gaussian model. This is the cleanest control for the question: is the benefit coming from the two-block FI-opponent construction itself, or from the reflected Gaussian finite-line input matrix?
+
+Both rows below use:
+
+$$
+B_{opp}=\frac{1}{\sqrt{1+\beta^2}}\begin{bmatrix}M\\-\beta M\end{bmatrix},
+\qquad
+W_{EI}=\begin{bmatrix}K&-K\\K&-K\end{bmatrix}.
+$$
+
+The only structural difference is the input matrix $M$: identity/diagonal versus reflected Gaussian. The opponent gain $\beta$ is recomputed analytically for each input family, so this is a fair FI-optimal two-block comparison.
+
+![FI diagonal control B matrices](../outputs/finite_line_input_theory/figures/fi_diagonal_control_matrices.png)
+
+![FI diagonal control curves](../outputs/finite_line_input_theory/figures/fi_diagonal_control_curves.png)
+
+![FI diagonal control snapshots](../outputs/finite_line_input_theory/figures/fi_diagonal_control_snapshots.png)
+
+| Control | Input family | Input width | Recurrent width | beta | Final CRB RMSE | 5ms CRB RMSE | FI uniformity | Mean COM bias | Edge COM bias |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| FI-optimal diagonal 2-block | identity | `0` | `4` | `0.886` | `2.205 cm` | `0.963 cm` | `0.119` | `2.553 cm` | `12.369 cm` |
+| FI-optimal reflected Gaussian 2-block | reflected | `3` | `4` | `0.897` | `0.851 cm` | `0.393 cm` | `0.101` | `3.363 cm` | `16.074 cm` |
+
+In this analytical FI test, the diagonal two-block model is valid but not competitive with the reflected Gaussian two-block model. The diagonal matrix preserves the population map directly, but it does not add the finite-line spatial smoothing/boundary correction that improves the derivative structure used by the Fisher objective.
+
 ## Fisher And Width Sensitivity
 
 The best candidates have much flatter final-time Fisher information than uncorrected finite-line inputs. Amplitude compensation and reflection both reduce boundary loss, but reflection is the cleaner finite-line analogue of the ring because it preserves no-flux boundary structure.
@@ -373,6 +400,9 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `recurrent_spectrum`: `distance_pathway/outputs/finite_line_input_theory/figures/recurrent_spectrum.png`
 - `pseudospectrum`: `distance_pathway/outputs/finite_line_input_theory/figures/pseudospectrum.png`
 - `fisher_curves`: `distance_pathway/outputs/finite_line_input_theory/figures/fisher_curves.png`
+- `fi_diagonal_control_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/fi_diagonal_control_matrices.png`
+- `fi_diagonal_control_curves`: `distance_pathway/outputs/finite_line_input_theory/figures/fi_diagonal_control_curves.png`
+- `fi_diagonal_control_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/fi_diagonal_control_snapshots.png`
 - `beta_scan`: `distance_pathway/outputs/finite_line_input_theory/figures/beta_scan.png`
 - `width_sensitivity`: `distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png`
 - `alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png`
@@ -389,4 +419,4 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `95.90 s`.
+Runtime: `99.24 s`.
