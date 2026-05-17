@@ -3,8 +3,8 @@
 This report is the final distance-pipeline summary before separate failure-case analysis. It keeps the current primary distance pathway unchanged through the AC distance map, then compares three SC readouts:
 
 - `simple COM`: the existing centre-of-mass readout directly from the AC map.
-- `reflected/opponent SC line attractor`: the finite-line input-theory attractor added after AC.
-- `local population-vector SC attractor`: a nonlinear local AC peak readout converted into a smooth SC bump before the same recurrence.
+- `FI diagonal 2-block SC line attractor`: identity AC-to-SC input with analytic opponent beta.
+- `FI reflected Gaussian 2-block SC line attractor`: reflected Gaussian AC-to-SC input with analytic opponent beta.
 
 The comparison is controlled because all three readouts receive the same AC activity. Any difference is caused by the final SC readout only.
 
@@ -105,28 +105,23 @@ W = [[W0, -W0], [W0, -W0]]
 tau dr/dt = -r + W r
 ```
 
-The final decoded distance is centre of mass over the rectified excitatory population at `60 ms`.
-
-The additional local population-vector readout first finds the AC peak neighbourhood, estimates a local centre of mass, and injects a smooth Gaussian bump into the SC excitatory population. It is useful as a comparison because it often creates a cleaner attractor bump, but it also discards global AC confidence and asymmetry information.
+The final decoded distance is centre of mass over the rectified excitatory population at `1 ms`. The full trajectory is retained so the report can show error as a function of SC readout time.
 
 ## Selected SC Attractor Parameters
 
-These parameters come from the finite-line input theory work. The model uses the reflected finite-line input because it handles boundaries better than a raw Toeplitz matrix. The recurrent matrix is the balanced two-block E/I model. The alpha choice is deliberately lower than the uncapped mathematical optimum because the capped-alpha analysis showed that very large alpha requires unrealistic peak firing rates.
+These parameters come from the finite-line input theory work. Both attractor variants use the same balanced two-block E/I recurrence. They differ only in the AC-to-SC input matrix and the corresponding analytic opponent beta.
 
 | SC attractor parameter | Value |
 |---|---:|
-| input family | `reflected` |
-| input width | `3` bins |
+| diagonal input | `identity`, beta `0.886` |
+| reflected input | `reflected Gaussian`, width `3` bins, beta `0.897` |
 | recurrent width | `4` bins |
-| opponent beta | `0.897` |
-| alpha prime | `8.0` |
-| recurrent local max eigenvalue | `8.000` |
+| alpha prime | `4.0` |
+| recurrent local max eigenvalue | `4.000` |
 | tau | `20.0 ms` |
 | simulation step | `1.0 ms` |
-| readout time | `60.0 ms` |
+| readout time | `1.0 ms` |
 | rate cap | `55.0 Hz` |
-| local population-vector sigma | `6.0` bins |
-| local population-vector peak radius | `±5` bins |
 
 ## Example Spike Processing Path
 
@@ -134,7 +129,7 @@ The example below uses a target at `2.51 m`. Frequency is shown on a log axis; t
 
 ![Frequency-time rasters](../outputs/final_distance_pipeline_with_attractor/figures/frequency_time_rasters.png)
 
-The next figure shows the conversion from IC coincidence scores to AC topographic activity, then into the final SC attractor activity over represented distance.
+The next figure shows the conversion from IC coincidence scores to AC topographic activity, then into the selected reflected SC attractor activity over represented distance.
 
 ![Distance population stages](../outputs/final_distance_pipeline_with_attractor/figures/distance_population_stages.png)
 
@@ -146,7 +141,7 @@ The line attractor itself is simulated as a rate model. The spike raster below i
 
 ![Line attractor output spikes](../outputs/final_distance_pipeline_with_attractor/figures/line_attractor_output_spikes.png)
 
-The figure below compares the illustrative SC excitatory rates for the reflected/opponent input and the local population-vector input on the same example.
+The figure below compares the diagonal and reflected FI two-block excitatory profiles at the selected readout time.
 
 ![SC excitatory rate comparison](../outputs/final_distance_pipeline_with_attractor/figures/sc_excitatory_rate_comparison.png)
 
@@ -158,21 +153,25 @@ The simple readout and attractor readout are compared on the same AC activations
 
 ![Readout scatter](../outputs/final_distance_pipeline_with_attractor/figures/readout_scatter.png)
 
-| Condition | Subset | N | Simple MAE | Reflected attractor MAE | Local-vector attractor MAE | Simple RMSE | Reflected RMSE | Local-vector RMSE | Simple max error | Reflected max error | Local-vector max error | Reflected runtime/sample | Local-vector runtime/sample |
+The plot below shows how attractor error changes as the SC dynamics evolve. The dotted vertical line marks the selected `1 ms` readout time, and the dashed horizontal line is the no-attractor simple COM error.
+
+![Error over time](../outputs/final_distance_pipeline_with_attractor/figures/error_over_time.png)
+
+| Condition | Subset | N | Simple MAE | Diagonal MAE | Reflected MAE | Simple RMSE | Diagonal RMSE | Reflected RMSE | Simple max error | Diagonal max error | Reflected max error | Diagonal runtime/sample | Reflected runtime/sample |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Small clean 0.25-5m | all | `80` | `3.571 cm` | `3.818 cm` | `3.941 cm` | `4.364 cm` | `4.717 cm` | `4.939 cm` | `11.710 cm` | `13.864 cm` | `15.615 cm` | `1.090 ms` | `1.062 ms` |
-| Small noisy 10dB+jitter | all | `80` | `7.127 cm` | `7.965 cm` | `6.807 cm` | `13.797 cm` | `14.927 cm` | `13.448 cm` | `104.423 cm` | `104.465 cm` | `104.184 cm` | `1.829 ms` | `1.148 ms` |
-| Full 3D clean 0.25-10m | <=5 m | `33` | `2.831 cm` | `2.080 cm` | `2.408 cm` | `4.167 cm` | `2.758 cm` | `3.227 cm` | `11.500 cm` | `7.233 cm` | `7.474 cm` | `1.150 ms` | `0.976 ms` |
-| Full 3D clean 0.25-10m | <=10 m | `80` | `34.041 cm` | `33.963 cm` | `74.009 cm` | `110.014 cm` | `110.776 cm` | `243.806 cm` | `464.131 cm` | `466.854 cm` | `922.935 cm` | `1.150 ms` | `0.976 ms` |
-| Full 3D 50dB floor | <=5 m | `33` | `2.826 cm` | `2.075 cm` | `2.403 cm` | `4.164 cm` | `2.753 cm` | `3.224 cm` | `11.500 cm` | `7.233 cm` | `7.474 cm` | `1.234 ms` | `1.242 ms` |
-| Full 3D 50dB floor | <=10 m | `80` | `34.040 cm` | `33.962 cm` | `74.009 cm` | `110.014 cm` | `110.776 cm` | `243.806 cm` | `464.131 cm` | `466.854 cm` | `922.935 cm` | `1.234 ms` | `1.242 ms` |
+| Small clean 0.25-5m | all | `80` | `3.571 cm` | `3.530 cm` | `3.539 cm` | `4.364 cm` | `4.325 cm` | `4.307 cm` | `11.710 cm` | `11.643 cm` | `11.591 cm` | `1.282 ms` | `1.748 ms` |
+| Small noisy 10dB+jitter | all | `80` | `7.127 cm` | `7.144 cm` | `7.144 cm` | `13.797 cm` | `13.815 cm` | `13.827 cm` | `104.423 cm` | `104.425 cm` | `104.426 cm` | `1.249 ms` | `1.786 ms` |
+| Full 3D clean 0.25-10m | <=5 m | `33` | `2.831 cm` | `2.761 cm` | `2.662 cm` | `4.167 cm` | `4.007 cm` | `3.761 cm` | `11.500 cm` | `10.755 cm` | `9.527 cm` | `2.489 ms` | `0.877 ms` |
+| Full 3D clean 0.25-10m | <=10 m | `80` | `34.041 cm` | `34.251 cm` | `34.210 cm` | `110.014 cm` | `110.792 cm` | `110.788 cm` | `464.131 cm` | `466.854 cm` | `466.854 cm` | `2.489 ms` | `0.877 ms` |
+| Full 3D 50dB floor | <=5 m | `33` | `2.826 cm` | `2.756 cm` | `2.657 cm` | `4.164 cm` | `4.003 cm` | `3.757 cm` | `11.500 cm` | `10.755 cm` | `9.527 cm` | `2.246 ms` | `1.160 ms` |
+| Full 3D 50dB floor | <=10 m | `80` | `34.040 cm` | `34.250 cm` | `34.210 cm` | `110.014 cm` | `110.792 cm` | `110.788 cm` | `464.131 cm` | `466.854 cm` | `466.854 cm` | `2.246 ms` | `1.160 ms` |
 
 ## Interpretation
 
 - The final SC line attractor is now attached as a reversible readout module after AC.
 - The comparison is controlled: cochlea, VCN/VNLL, DNLL, IC, and AC are identical for all readouts.
-- The line attractor gives a biologically motivated recurrent readout and a clear population-bump visualisation.
-- The local population-vector variant is a useful comparator, but it is less faithful to the full AC population because it compresses the AC map to a local peak before SC recurrence.
+- The line attractors give biologically motivated recurrent readouts and clear population-bump visualisations.
+- The diagonal and reflected variants test whether the applied pathway agrees with the finite-line FI theory or with the transient rough-input diagnostic.
 - If the attractor does not improve a condition, that means the AC map already contains the relevant bias or ambiguity; the SC cannot recover information that was lost upstream.
 - Failure-case analysis is intentionally deferred to the next report.
 
@@ -186,6 +185,7 @@ The simple readout and attractor readout are compared on the same AC activations
 - `sc_excitatory_rate_comparison`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/sc_excitatory_rate_comparison.png`
 - `readout_mae_comparison`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/readout_mae_comparison.png`
 - `readout_scatter`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/readout_scatter.png`
+- `error_over_time`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/figures/error_over_time.png`
 - `results`: `distance_pathway/outputs/final_distance_pipeline_with_attractor/results.json`
 
-Runtime: `18.41 s`.
+Runtime: `18.31 s`.
