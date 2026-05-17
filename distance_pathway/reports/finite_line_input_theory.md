@@ -345,25 +345,25 @@ Best uncapped tested error: `19.497 cm` at $\alpha'=20.0$, but this requires a p
 
 ## Input Spread Dynamics
 
-This diagnostic compares a direct diagonal input matrix against the selected reflected Gaussian spread input. Everything else is fixed: balanced opponent block, recurrent width `4` bins, fixed beta from the selected setup, and $\alpha'=8$. A roughened synthetic input population is used to expose whether the input matrix passes high-frequency discontinuity/noise into the attractor.
+This diagnostic now compares the two FI-optimised two-block controls directly: diagonal $M=I$ versus reflected Gaussian $M$. Both use the same balanced opponent form, but each uses its own analytically selected $\beta$. A roughened synthetic input population is used to expose whether the input matrix passes high-frequency discontinuity/noise into the attractor.
 
 ![Input spread snapshots](../outputs/finite_line_input_theory/figures/input_spread_snapshots.png)
 
-The diagonal input preserves the rougher sample-to-sample shape more directly. The reflected Gaussian input smooths the injected population before the recurrence acts, so the initial bump is less jagged and the attractor has a cleaner state to stabilise.
+These bump plots are intentionally not normalised. The changing amplitude is part of the dynamics: it shows how much activity the input matrix and recurrence actually retain or amplify over time. The diagonal input preserves the rougher sample-to-sample shape more directly. The reflected Gaussian input smooths the injected population before the recurrence acts, so the initial bump is less jagged and the attractor has a cleaner state to stabilise.
 
 ![Input spread error over time](../outputs/finite_line_input_theory/figures/input_spread_error_time.png)
 
 | Input | Readout | Best time | Best MAE | MAE at 5 ms | MAE at 60 ms |
 |---|---|---:|---:|---:|---:|
-| diagonal | global COM | `0.0 ms` | `1.748 cm` | `2.583 cm` | `2.775 cm` |
-| reflected | global COM | `0.0 ms` | `2.133 cm` | `3.079 cm` | `3.292 cm` |
-| reflected | local population vector | `0.0 ms` | `3.997 cm` | `4.736 cm` | `5.199 cm` |
+| diagonal | global COM | `0.0 ms` | `1.748 cm` | `2.439 cm` | `2.754 cm` |
+| reflected | global COM | `0.0 ms` | `2.133 cm` | `2.921 cm` | `3.268 cm` |
+| reflected | local population vector | `0.0 ms` | `3.997 cm` | `4.632 cm` | `5.059 cm` |
 
 These curves are not a replacement for the Fisher analysis. They answer a different practical question: when the incoming population is imperfect, does the input spread make the transient bump easier to read out, and is there a useful readout time before the final state?
 
 ## Local Population-Vector Readout
 
-The local population-vector test is performed on the reflected Gaussian attractor output. It does **not** feed a different input into the attractor. Instead, the same attractor activity is decoded in two ways:
+The local population-vector test is performed on the FI-optimised reflected Gaussian two-block attractor output. It does **not** feed a different input into the attractor. Instead, the same attractor activity is decoded in two ways:
 
 - global centre of mass over the whole excitatory population;
 - local centre of mass over a `±5` bin neighbourhood around the activity peak.
@@ -419,4 +419,4 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `99.24 s`.
+Runtime: `115.21 s`.

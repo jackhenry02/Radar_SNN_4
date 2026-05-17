@@ -1,6 +1,6 @@
 {
   "experiment": "finite_line_input_theory",
-  "elapsed_seconds": 99.24489179090597,
+  "elapsed_seconds": 115.2060316670686,
   "params": {
     "length_m": 10.0,
     "num_neurons": 96,
@@ -1406,25 +1406,25 @@
       "input": "diagonal",
       "readout": "global COM",
       "best_time_ms": 0.0,
-      "best_mae_m": 0.017484033154643253,
-      "mae_5ms_m": 0.025827824143757293,
-      "mae_60ms_m": 0.027750070215147676
+      "best_mae_m": 0.01748403315464324,
+      "mae_5ms_m": 0.02439013953673091,
+      "mae_60ms_m": 0.027537969150506127
     },
     {
       "input": "reflected",
       "readout": "global COM",
       "best_time_ms": 0.0,
       "best_mae_m": 0.021331351471064387,
-      "mae_5ms_m": 0.03078964348716313,
-      "mae_60ms_m": 0.03291649874853109
+      "mae_5ms_m": 0.029211186380122704,
+      "mae_60ms_m": 0.03268442168503134
     },
     {
       "input": "reflected",
       "readout": "local population vector",
       "best_time_ms": 0.0,
       "best_mae_m": 0.03997382884107399,
-      "mae_5ms_m": 0.04735621294275148,
-      "mae_60ms_m": 0.05198980695442457
+      "mae_5ms_m": 0.046316921998900654,
+      "mae_60ms_m": 0.050591959238953994
     }
   ],
   "top_rows": [

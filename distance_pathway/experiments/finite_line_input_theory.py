@@ -723,7 +723,6 @@ def plot_response_snapshots(params: TheoryParams, selected: list[Candidate], pat
         snapshots = response_snapshots(params, candidate, stimulus_m, times)
         for col_idx, time_s in enumerate(times):
             activity = snapshots[time_s]
-            activity = activity / max(float(np.max(np.abs(activity))), 1e-12)
             ax = axes[row_idx, col_idx]
             ax.plot(x, activity, linewidth=2.0)
             ax.axvline(stimulus_m, color="#111827", linestyle=":", linewidth=1.2)
@@ -1320,52 +1319,27 @@ def rough_population_code(params: TheoryParams, stimulus_m: float, rng: np.rando
     return np.clip(rough, 0.0, None)
 
 
-def build_input_dynamics_candidates(
-    params: TheoryParams,
-    beta: float,
-) -> dict[str, Candidate]:
-    """Build controlled diagonal and reflected-input attractor candidates."""
-    sweep_params = replace(params, balanced_alpha_prime=INPUT_DYNAMICS_ALPHA_PRIME)
-    return {
-        "diagonal": build_candidate(
-            sweep_params,
-            InputSpec("identity", 0.0),
-            INPUT_DYNAMICS_RECURRENT_WIDTH_BINS,
-            "balanced_opponent",
-            beta=beta,
-        ),
-        "reflected": build_candidate(
-            sweep_params,
-            InputSpec("reflected", INPUT_DYNAMICS_INPUT_WIDTH_BINS),
-            INPUT_DYNAMICS_RECURRENT_WIDTH_BINS,
-            "balanced_opponent",
-            beta=beta,
-        ),
-    }
-
-
 def input_spread_dynamics(
     params: TheoryParams,
-    beta: float,
+    candidates: dict[str, Candidate],
 ) -> tuple[dict[str, object], list[dict[str, float | str]]]:
-    """Run diagonal-vs-reflected input dynamics diagnostics.
+    """Run FI-optimal diagonal-vs-reflected input dynamics diagnostics.
 
     Args:
         params: Base theory parameters.
-        beta: Fixed opponent beta.
+        candidates: FI-optimal two-block candidates keyed by `diagonal` and
+            `reflected`.
 
     Returns:
         Plot-ready dynamics dictionary and summary rows.
     """
-    sweep_params = replace(params, balanced_alpha_prime=INPUT_DYNAMICS_ALPHA_PRIME)
-    x = positions(sweep_params)
-    candidates = build_input_dynamics_candidates(sweep_params, beta)
+    x = positions(params)
     rng = np.random.default_rng(31)
-    example_stimulus = rough_population_code(sweep_params, INPUT_DYNAMICS_STIMULUS_M, rng)
-    stimulus_grid = np.linspace(0.4, sweep_params.length_m - 0.4, 37)
+    example_stimulus = rough_population_code(params, INPUT_DYNAMICS_STIMULUS_M, rng)
+    stimulus_grid = np.linspace(0.4, params.length_m - 0.4, 37)
     noisy_replicates = 5
     diagnostics: dict[str, object] = {
-        "params": sweep_params,
+        "params": params,
         "x": x,
         "example_stimulus": example_stimulus,
         "candidate_readouts": {},
@@ -1375,7 +1349,7 @@ def input_spread_dynamics(
     }
     rows: list[dict[str, float | str]] = []
     for label, candidate in candidates.items():
-        times, _, readout = simulate_state_history(sweep_params, candidate, example_stimulus)
+        times, _, readout = simulate_state_history(params, candidate, example_stimulus)
         decoded = decode_center_of_mass_batch(readout, x)
         diagnostics["candidate_readouts"][label] = readout
         diagnostics["candidate_decoded"][label] = decoded
@@ -1384,8 +1358,8 @@ def input_spread_dynamics(
         rng = np.random.default_rng(100 + len(label))
         for stimulus_m in stimulus_grid:
             for _ in range(noisy_replicates):
-                rough = rough_population_code(sweep_params, float(stimulus_m), rng)
-                _, _, candidate_readout = simulate_state_history(sweep_params, candidate, rough)
+                rough = rough_population_code(params, float(stimulus_m), rng)
+                _, _, candidate_readout = simulate_state_history(params, candidate, rough)
                 global_decoded = decode_center_of_mass_batch(candidate_readout, x)
                 local_decoded = decode_local_population_vector_batch(candidate_readout, x)
                 all_errors.append(np.abs(global_decoded - stimulus_m))
@@ -1422,7 +1396,7 @@ def input_spread_dynamics(
 
 
 def plot_input_spread_snapshots(diagnostics: dict[str, object], path: Path) -> str:
-    """Plot diagonal-vs-reflected bump snapshots through time."""
+    """Plot FI-optimal diagonal-vs-reflected bump snapshots through time."""
     x = diagnostics["x"]
     times = diagnostics["times"]
     readouts = diagnostics["candidate_readouts"]
@@ -1434,7 +1408,6 @@ def plot_input_spread_snapshots(diagnostics: dict[str, object], path: Path) -> s
         for col, ms in enumerate(snapshot_ms):
             idx = int(np.argmin(np.abs(times * 1_000.0 - ms)))
             activity = np.maximum(readouts[key][idx], 0.0)
-            activity = activity / max(float(np.max(activity)), 1e-12)
             ax = axes[row, col]
             ax.plot(x, activity, color="#2563eb", linewidth=2.0)
             ax.axvline(INPUT_DYNAMICS_STIMULUS_M, color="#111827", linestyle="--", linewidth=1.0)
@@ -1442,10 +1415,10 @@ def plot_input_spread_snapshots(diagnostics: dict[str, object], path: Path) -> s
             ax.set_title(f"{title}\n{ms} ms")
             ax.grid(True, alpha=0.22)
             if col == 0:
-                ax.set_ylabel("normalised activity")
+                ax.set_ylabel("activity")
     for ax in axes[-1]:
         ax.set_xlabel("represented distance (m)")
-    fig.suptitle("Bump snapshots for a roughened input population")
+    fig.suptitle("FI-optimal two-block bump snapshots for a roughened input population")
     return save_figure(fig, path)
 
 
@@ -1454,8 +1427,14 @@ def plot_input_spread_error_time(diagnostics: dict[str, object], path: Path) -> 
     times_ms = diagnostics["times"] * 1_000.0
     errors = diagnostics["candidate_errors"]
     fig, ax = plt.subplots(figsize=(8.0, 4.8))
-    ax.plot(times_ms, errors["diagonal"] * 100.0, color="#111827", linewidth=2.1, label="diagonal input, global COM")
-    ax.plot(times_ms, errors["reflected"] * 100.0, color="#2563eb", linewidth=2.1, label="reflected Gaussian input, global COM")
+    ax.plot(times_ms, errors["diagonal"] * 100.0, color="#111827", linewidth=2.1, label="FI diagonal 2-block, global COM")
+    ax.plot(
+        times_ms,
+        errors["reflected"] * 100.0,
+        color="#2563eb",
+        linewidth=2.1,
+        label="FI reflected Gaussian 2-block, global COM",
+    )
     ax.set_xlabel("attractor time (ms)")
     ax.set_ylabel("mean absolute error (cm)")
     ax.set_title("Readout error through time")
@@ -1465,7 +1444,7 @@ def plot_input_spread_error_time(diagnostics: dict[str, object], path: Path) -> 
 
 
 def plot_local_vector_snapshots(diagnostics: dict[str, object], path: Path) -> str:
-    """Plot local population-vector readout windows on reflected-input bumps."""
+    """Plot local population-vector readout windows on FI-optimal reflected bumps."""
     x = diagnostics["x"]
     times = diagnostics["times"]
     readout = diagnostics["candidate_readouts"]["reflected"]
@@ -1475,7 +1454,6 @@ def plot_local_vector_snapshots(diagnostics: dict[str, object], path: Path) -> s
     for ax, ms in zip(axes, snapshot_ms):
         idx = int(np.argmin(np.abs(times * 1_000.0 - ms)))
         activity = np.maximum(readout[idx], 0.0)
-        activity = activity / max(float(np.max(activity)), 1e-12)
         local_decoded = float(decode_local_population_vector_batch(activity, x))
         mask = local_vector_mask(activity)
         ax.plot(x, activity, color="#2563eb", linewidth=2.0)
@@ -1486,11 +1464,11 @@ def plot_local_vector_snapshots(diagnostics: dict[str, object], path: Path) -> s
         ax.axvline(local_decoded, color="#f59e0b", linestyle="-.", linewidth=1.2, label="local")
         ax.set_title(f"{ms} ms")
         ax.grid(True, alpha=0.22)
-    axes[0].set_ylabel("normalised activity")
+    axes[0].set_ylabel("activity")
     for ax in axes:
         ax.set_xlabel("distance (m)")
     axes[0].legend(frameon=False, fontsize=7)
-    fig.suptitle("Local population-vector readout on reflected Gaussian attractor output")
+    fig.suptitle("Local population-vector readout on FI-optimal reflected Gaussian attractor output")
     return save_figure(fig, path)
 
 
@@ -2027,11 +2005,11 @@ def write_report(
         "",
         "## Input Spread Dynamics",
         "",
-        "This diagnostic compares a direct diagonal input matrix against the selected reflected Gaussian spread input. Everything else is fixed: balanced opponent block, recurrent width `4` bins, fixed beta from the selected setup, and $\\alpha'=8$. A roughened synthetic input population is used to expose whether the input matrix passes high-frequency discontinuity/noise into the attractor.",
+        "This diagnostic now compares the two FI-optimised two-block controls directly: diagonal $M=I$ versus reflected Gaussian $M$. Both use the same balanced opponent form, but each uses its own analytically selected $\\beta$. A roughened synthetic input population is used to expose whether the input matrix passes high-frequency discontinuity/noise into the attractor.",
         "",
         "![Input spread snapshots](../outputs/finite_line_input_theory/figures/input_spread_snapshots.png)",
         "",
-        "The diagonal input preserves the rougher sample-to-sample shape more directly. The reflected Gaussian input smooths the injected population before the recurrence acts, so the initial bump is less jagged and the attractor has a cleaner state to stabilise.",
+        "These bump plots are intentionally not normalised. The changing amplitude is part of the dynamics: it shows how much activity the input matrix and recurrence actually retain or amplify over time. The diagonal input preserves the rougher sample-to-sample shape more directly. The reflected Gaussian input smooths the injected population before the recurrence acts, so the initial bump is less jagged and the attractor has a cleaner state to stabilise.",
         "",
         "![Input spread error over time](../outputs/finite_line_input_theory/figures/input_spread_error_time.png)",
         "",
@@ -2043,7 +2021,7 @@ def write_report(
         "",
         "## Local Population-Vector Readout",
         "",
-        "The local population-vector test is performed on the reflected Gaussian attractor output. It does **not** feed a different input into the attractor. Instead, the same attractor activity is decoded in two ways:",
+        "The local population-vector test is performed on the FI-optimised reflected Gaussian two-block attractor output. It does **not** feed a different input into the attractor. Instead, the same attractor activity is decoded in two ways:",
         "",
         "- global centre of mass over the whole excitatory population;",
         "- local centre of mass over a `±5` bin neighbourhood around the activity peak.",
@@ -2100,6 +2078,10 @@ def main() -> dict[str, object]:
     selected = [candidate_by_name[name] for name in best_names]
     selected_for_blocks = selected[:3]
     fi_control_candidates = [candidate_by_name[str(row["name"])] for row in fi_control_rows]
+    input_dynamics_candidates = {
+        "diagonal": fi_control_candidates[0],
+        "reflected": fi_control_candidates[1],
+    }
     best_candidate = selected[0]
     alpha_rows = alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
     capped_alpha_rows = capped_alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
@@ -2121,7 +2103,7 @@ def main() -> dict[str, object]:
         best_candidate.recurrent_width_bins,
         best_candidate.beta,
     )
-    input_dynamics, input_dynamics_rows = input_spread_dynamics(params, best_candidate.beta)
+    input_dynamics, input_dynamics_rows = input_spread_dynamics(params, input_dynamics_candidates)
 
     artifacts = {
         "input_matrix_families": plot_input_families(params, FIGURE_DIR / "input_matrix_families.png"),
