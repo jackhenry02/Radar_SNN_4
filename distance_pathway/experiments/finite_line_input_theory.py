@@ -1011,6 +1011,64 @@ def fixed_setup_alpha_sweep(
     return rows
 
 
+def notebook_style_alpha_error_sweep(
+    params: TheoryParams,
+    spec: InputSpec,
+    recurrent_width_bins: float,
+    beta: float,
+) -> list[dict[str, float]]:
+    """Measure noisy 60 ms decoding error while sweeping alpha.
+
+    This diagnostic is intentionally closer to the original ring-model
+    notebook than the CRB plots. It injects fixed independent readout noise,
+    decodes the population by centre of mass at 60 ms, and reports the mean
+    absolute decoding error.
+
+    Args:
+        params: Theory parameters.
+        spec: Fixed input matrix family.
+        recurrent_width_bins: Fixed recurrent width.
+        beta: Fixed opponent beta.
+
+    Returns:
+        Mean noisy decoding error rows for each alpha value.
+    """
+    rng = np.random.default_rng(7)
+    x = positions(params)
+    stimulus_grid = np.linspace(0.2, params.length_m - 0.2, 81)
+    num_trials = 160
+    alpha_values = np.linspace(0.0, 20.0, 41)
+    rows: list[dict[str, float]] = []
+    for alpha in alpha_values:
+        sweep_params = replace(params, balanced_alpha_prime=float(alpha))
+        candidate = build_candidate(sweep_params, spec, recurrent_width_bins, "balanced_opponent", beta=beta)
+        op_60ms = transition_operator(sweep_params, candidate, sweep_params.readout_time_s)
+        noisy_errors: list[float] = []
+        clean_errors: list[float] = []
+        for stimulus_m in stimulus_grid:
+            clean_readout = op_60ms @ population_code(sweep_params, float(stimulus_m))
+            clean_errors.append(abs(decode_center_of_mass(clean_readout, x) - stimulus_m))
+            noise = rng.normal(
+                loc=0.0,
+                scale=sweep_params.fisher_noise_sigma,
+                size=(num_trials, sweep_params.num_neurons),
+            )
+            noisy_readouts = clean_readout[None, :] + noise
+            for trial_readout in noisy_readouts:
+                noisy_errors.append(abs(decode_center_of_mass(trial_readout, x) - stimulus_m))
+        noisy_arr = np.array(noisy_errors)
+        rows.append(
+            {
+                "alpha_prime": float(alpha),
+                "beta": float(beta),
+                "mean_abs_error_m": float(np.mean(noisy_arr)),
+                "sem_abs_error_m": float(np.std(noisy_arr, ddof=1) / np.sqrt(noisy_arr.size)),
+                "clean_mean_abs_bias_m": float(np.mean(clean_errors)),
+            }
+        )
+    return rows
+
+
 def plot_capped_alpha_sweep(rows: list[dict[str, float | str]], path: Path) -> str:
     """Plot alpha sweep under firing-rate caps."""
     labels = ["uncapped", "100 Hz cap", "55 Hz cap"]
@@ -1065,6 +1123,26 @@ def plot_fixed_setup_alpha_sweep(rows: list[dict[str, float | str]], path: Path)
         ax.grid(True, alpha=0.25)
         ax.legend(frameon=False, fontsize=8)
     fig.suptitle(r"Fixed setup alpha sweep: input, recurrence width, and $\beta$ held constant")
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_notebook_style_alpha_error(rows: list[dict[str, float]], path: Path) -> str:
+    """Plot notebook-style mean decoding error at 60 ms against alpha."""
+    alpha = np.array([row["alpha_prime"] for row in rows])
+    mean_error = np.array([row["mean_abs_error_m"] for row in rows]) * 100.0
+    sem_error = np.array([row["sem_abs_error_m"] for row in rows]) * 100.0
+    clean_bias = np.array([row["clean_mean_abs_bias_m"] for row in rows]) * 100.0
+    fig, ax = plt.subplots(figsize=(7.6, 4.8))
+    ax.plot(alpha, mean_error, color="#111827", linewidth=2.2, marker="o", markersize=3.5, label="noisy mean error")
+    ax.fill_between(alpha, mean_error - sem_error, mean_error + sem_error, color="#111827", alpha=0.15, label="SEM")
+    ax.plot(alpha, clean_bias, color="#4c78a8", linewidth=1.8, linestyle="--", label="clean COM bias")
+    ax.axvline(4.0, color="#d62728", linestyle=":", linewidth=1.6, label="setup tuned at alpha'=4")
+    ax.set_xlabel(r"balanced $\alpha'$")
+    ax.set_ylabel("mean absolute distance error at 60 ms (cm)")
+    ax.set_title("Notebook-style alpha sweep")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False)
     fig.tight_layout()
     return save_figure(fig, path)
 
@@ -1165,6 +1243,20 @@ def format_fixed_alpha_table(rows: list[dict[str, float | str]]) -> list[str]:
     ]
 
 
+def format_notebook_alpha_error_table(rows: list[dict[str, float]]) -> list[str]:
+    """Format selected notebook-style alpha error rows."""
+    selected_alphas = {0.0, 4.0, 8.0, 12.0, 16.0, 20.0}
+    return [
+        "| "
+        f"`{row['alpha_prime']:.1f}` | "
+        f"`{row['mean_abs_error_m'] * 100.0:.3f} cm` | "
+        f"`{row['sem_abs_error_m'] * 100.0:.3f} cm` | "
+        f"`{row['clean_mean_abs_bias_m'] * 100.0:.3f} cm` |"
+        for row in rows
+        if float(row["alpha_prime"]) in selected_alphas
+    ]
+
+
 def write_report(
     params: TheoryParams,
     rows: list[dict[str, float | str]],
@@ -1172,6 +1264,7 @@ def write_report(
     alpha_rows: list[dict[str, float]],
     capped_alpha_rows: list[dict[str, float | str]],
     fixed_alpha_rows: list[dict[str, float | str]],
+    notebook_alpha_error_rows: list[dict[str, float]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -1182,11 +1275,13 @@ def write_report(
     alpha_table_rows = format_alpha_table(alpha_rows)
     capped_alpha_table_rows = format_capped_alpha_table(capped_alpha_rows)
     fixed_alpha_table_rows = format_fixed_alpha_table(fixed_alpha_rows)
+    notebook_alpha_error_table_rows = format_notebook_alpha_error_table(notebook_alpha_error_rows)
     best_alpha = min(alpha_rows, key=lambda row: row["final_crb_rmse_m"])
     best_fixed_uncapped = min(
         (row for row in fixed_alpha_rows if row["cap"] == "uncapped"),
         key=lambda row: float(row["final_crb_rmse_m"]),
     )
+    best_notebook_alpha = min(notebook_alpha_error_rows, key=lambda row: row["mean_abs_error_m"])
     lines = [
         "# Finite-Line Input Theory For The SC Line Attractor",
         "",
@@ -1420,6 +1515,20 @@ def write_report(
         "",
         f"With this fixed setup, the best uncapped tested value was $\\alpha'={float(best_fixed_uncapped['alpha_prime']):.1f}$, giving finite-difference CRB RMSE `{float(best_fixed_uncapped['final_crb_rmse_m']) * 100.0:.3f} cm`. If this curve improves with $\\alpha'$ even when $\\beta$ is fixed, the gain is coming from balanced recurrent amplification rather than from repeatedly retuning the input matrix.",
         "",
+        "## Notebook-Style 60 ms Error Sweep",
+        "",
+        "The final alpha diagnostic follows the original notebook style more closely: it plots actual mean decoding error at `60 ms` against $\\alpha'$. Unlike the CRB plots, this is not a Fisher-information lower bound. It adds independent Gaussian readout noise with the same `fisher_noise_sigma` used above, decodes by centre of mass, and averages absolute distance error over the finite line.",
+        "",
+        "The selected setup is still held fixed, so the only parameter changing is $\\alpha'$.",
+        "",
+        "![Notebook-style alpha error](../outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png)",
+        "",
+        "| alpha prime | Noisy mean absolute error | SEM | Clean COM bias |",
+        "|---:|---:|---:|---:|",
+        *notebook_alpha_error_table_rows,
+        "",
+        f"The lowest noisy mean error in this diagnostic occurred at $\\alpha'={best_notebook_alpha['alpha_prime']:.1f}$ with mean absolute error `{best_notebook_alpha['mean_abs_error_m'] * 100.0:.3f} cm`. The dashed clean-bias curve is included because alpha can improve noise sensitivity without necessarily moving the deterministic centre-of-mass bias.",
+        "",
         "## Bump Dynamics",
         "",
         "The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.",
@@ -1473,6 +1582,12 @@ def main() -> dict[str, object]:
         best_candidate.recurrent_width_bins,
         best_candidate.beta,
     )
+    notebook_alpha_error_rows = notebook_style_alpha_error_sweep(
+        params,
+        best_candidate.input_spec,
+        best_candidate.recurrent_width_bins,
+        best_candidate.beta,
+    )
 
     artifacts = {
         "input_matrix_families": plot_input_families(params, FIGURE_DIR / "input_matrix_families.png"),
@@ -1493,6 +1608,10 @@ def main() -> dict[str, object]:
             fixed_alpha_rows,
             FIGURE_DIR / "fixed_setup_alpha_sweep.png",
         ),
+        "notebook_style_alpha_error": plot_notebook_style_alpha_error(
+            notebook_alpha_error_rows,
+            FIGURE_DIR / "notebook_style_alpha_error.png",
+        ),
         "capped_rate_traces": plot_rate_traces(
             params,
             best_candidate.input_spec,
@@ -1512,12 +1631,23 @@ def main() -> dict[str, object]:
         "alpha_sweep": alpha_rows,
         "capped_alpha_sweep": capped_alpha_rows,
         "fixed_setup_alpha_sweep": fixed_alpha_rows,
+        "notebook_style_alpha_error": notebook_alpha_error_rows,
         "top_rows": top_rows,
         "all_rows": rows,
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(params, rows, top_rows, alpha_rows, capped_alpha_rows, fixed_alpha_rows, artifacts, elapsed_s)
+    write_report(
+        params,
+        rows,
+        top_rows,
+        alpha_rows,
+        capped_alpha_rows,
+        fixed_alpha_rows,
+        notebook_alpha_error_rows,
+        artifacts,
+        elapsed_s,
+    )
     return payload
 
 

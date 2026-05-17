@@ -1,6 +1,6 @@
 {
   "experiment": "finite_line_input_theory",
-  "elapsed_seconds": 65.93042845791206,
+  "elapsed_seconds": 77.32207466708496,
   "params": {
     "length_m": 10.0,
     "num_neurons": 96,
@@ -636,6 +636,295 @@
       "mean_abs_bias_m": 0.115056859865118,
       "peak_rate_hz": 55.0,
       "saturated_fraction": 0.010371129326047359
+    }
+  ],
+  "notebook_style_alpha_error": [
+    {
+      "alpha_prime": 0.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 1.6756121786138947,
+      "sem_abs_error_m": 0.00857578532059533,
+      "clean_mean_abs_bias_m": 0.012597024026056395
+    },
+    {
+      "alpha_prime": 0.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.7884483719261577,
+      "sem_abs_error_m": 0.0041538835783417275,
+      "clean_mean_abs_bias_m": 0.023594784438852517
+    },
+    {
+      "alpha_prime": 1.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.5166414194688136,
+      "sem_abs_error_m": 0.002775861008711879,
+      "clean_mean_abs_bias_m": 0.025249992208742657
+    },
+    {
+      "alpha_prime": 1.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.38663056323717193,
+      "sem_abs_error_m": 0.0021526762323847864,
+      "clean_mean_abs_bias_m": 0.025917147032345083
+    },
+    {
+      "alpha_prime": 2.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.3101286482899223,
+      "sem_abs_error_m": 0.0017875217806096729,
+      "clean_mean_abs_bias_m": 0.02627759535334792
+    },
+    {
+      "alpha_prime": 2.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.26107208832456236,
+      "sem_abs_error_m": 0.0015457714313926393,
+      "clean_mean_abs_bias_m": 0.026503307848612316
+    },
+    {
+      "alpha_prime": 3.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.22637257608886435,
+      "sem_abs_error_m": 0.0013833321894219323,
+      "clean_mean_abs_bias_m": 0.02665793478067773
+    },
+    {
+      "alpha_prime": 3.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.2005288300115949,
+      "sem_abs_error_m": 0.0012662616295524018,
+      "clean_mean_abs_bias_m": 0.026770488908018277
+    },
+    {
+      "alpha_prime": 4.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.18011940755538824,
+      "sem_abs_error_m": 0.001166156187064786,
+      "clean_mean_abs_bias_m": 0.0268560854021747
+    },
+    {
+      "alpha_prime": 4.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.1645869477323832,
+      "sem_abs_error_m": 0.0010995674011222453,
+      "clean_mean_abs_bias_m": 0.026923373358957368
+    },
+    {
+      "alpha_prime": 5.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.1515029102056798,
+      "sem_abs_error_m": 0.0010426248907513232,
+      "clean_mean_abs_bias_m": 0.026977659372286102
+    },
+    {
+      "alpha_prime": 5.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.1413387118925652,
+      "sem_abs_error_m": 0.000999178827435152,
+      "clean_mean_abs_bias_m": 0.027022379944331897
+    },
+    {
+      "alpha_prime": 6.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.13173837810163067,
+      "sem_abs_error_m": 0.0009622953071004192,
+      "clean_mean_abs_bias_m": 0.027059858579851652
+    },
+    {
+      "alpha_prime": 6.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.12435342419623577,
+      "sem_abs_error_m": 0.0009277050105420517,
+      "clean_mean_abs_bias_m": 0.02709172262651457
+    },
+    {
+      "alpha_prime": 7.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.11804124641682356,
+      "sem_abs_error_m": 0.0008994259760838619,
+      "clean_mean_abs_bias_m": 0.02711914582879032
+    },
+    {
+      "alpha_prime": 7.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.11222145615729316,
+      "sem_abs_error_m": 0.0008760165390461138,
+      "clean_mean_abs_bias_m": 0.027142996079288592
+    },
+    {
+      "alpha_prime": 8.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.10697794053631883,
+      "sem_abs_error_m": 0.0008554852177289223,
+      "clean_mean_abs_bias_m": 0.027163928947673364
+    },
+    {
+      "alpha_prime": 8.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.10244588969845903,
+      "sem_abs_error_m": 0.0008385709878947747,
+      "clean_mean_abs_bias_m": 0.027182448867367696
+    },
+    {
+      "alpha_prime": 9.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.09858534294602164,
+      "sem_abs_error_m": 0.0008216723775066211,
+      "clean_mean_abs_bias_m": 0.02719895031628758
+    },
+    {
+      "alpha_prime": 9.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.09467311683471424,
+      "sem_abs_error_m": 0.0008094832471534761,
+      "clean_mean_abs_bias_m": 0.02721374622845554
+    },
+    {
+      "alpha_prime": 10.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.09170179716675313,
+      "sem_abs_error_m": 0.0007990307169066524,
+      "clean_mean_abs_bias_m": 0.02722708802878912
+    },
+    {
+      "alpha_prime": 10.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.0886869106502966,
+      "sem_abs_error_m": 0.0007856182357765449,
+      "clean_mean_abs_bias_m": 0.02723918003790634
+    },
+    {
+      "alpha_prime": 11.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.08585500764969661,
+      "sem_abs_error_m": 0.0007742506783802442,
+      "clean_mean_abs_bias_m": 0.02725019001023539
+    },
+    {
+      "alpha_prime": 11.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.08340001207323522,
+      "sem_abs_error_m": 0.0007673701348624764,
+      "clean_mean_abs_bias_m": 0.027260256961446072
+    },
+    {
+      "alpha_prime": 12.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.08119363939023547,
+      "sem_abs_error_m": 0.000759044561747337,
+      "clean_mean_abs_bias_m": 0.027269497073632267
+    },
+    {
+      "alpha_prime": 12.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.07893796538209868,
+      "sem_abs_error_m": 0.0007459150645405887,
+      "clean_mean_abs_bias_m": 0.027278008196442285
+    },
+    {
+      "alpha_prime": 13.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.07721477671555271,
+      "sem_abs_error_m": 0.0007444307107797795,
+      "clean_mean_abs_bias_m": 0.02728587332429708
+    },
+    {
+      "alpha_prime": 13.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.07524244094855632,
+      "sem_abs_error_m": 0.0007355814048716278,
+      "clean_mean_abs_bias_m": 0.027293163315344735
+    },
+    {
+      "alpha_prime": 14.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.07363823841730716,
+      "sem_abs_error_m": 0.0007303185906101849,
+      "clean_mean_abs_bias_m": 0.027299939029008482
+    },
+    {
+      "alpha_prime": 14.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.07203151997829,
+      "sem_abs_error_m": 0.0007228516394223077,
+      "clean_mean_abs_bias_m": 0.027306253030272714
+    },
+    {
+      "alpha_prime": 15.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.07057054412450176,
+      "sem_abs_error_m": 0.000719473592940718,
+      "clean_mean_abs_bias_m": 0.027312150959699397
+    },
+    {
+      "alpha_prime": 15.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.069436676990058,
+      "sem_abs_error_m": 0.0007169024573779486,
+      "clean_mean_abs_bias_m": 0.027317672631052038
+    },
+    {
+      "alpha_prime": 16.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.06785999639020368,
+      "sem_abs_error_m": 0.0007107694836882067,
+      "clean_mean_abs_bias_m": 0.027322852936405427
+    },
+    {
+      "alpha_prime": 16.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.06664109764143562,
+      "sem_abs_error_m": 0.0007070477503392253,
+      "clean_mean_abs_bias_m": 0.02732772258294019
+    },
+    {
+      "alpha_prime": 17.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.06563910455798459,
+      "sem_abs_error_m": 0.0007030978416108566,
+      "clean_mean_abs_bias_m": 0.02733230870203392
+    },
+    {
+      "alpha_prime": 17.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.0645795524156007,
+      "sem_abs_error_m": 0.0007001316461779297,
+      "clean_mean_abs_bias_m": 0.02733663535520686
+    },
+    {
+      "alpha_prime": 18.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.06346957336392452,
+      "sem_abs_error_m": 0.0006955611249985031,
+      "clean_mean_abs_bias_m": 0.027340723956018106
+    },
+    {
+      "alpha_prime": 18.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.06259541386322402,
+      "sem_abs_error_m": 0.0006928365379699334,
+      "clean_mean_abs_bias_m": 0.027344593625071297
+    },
+    {
+      "alpha_prime": 19.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.061711585692862565,
+      "sem_abs_error_m": 0.0006897900482325106,
+      "clean_mean_abs_bias_m": 0.027348261488427613
+    },
+    {
+      "alpha_prime": 19.5,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.06083902651500355,
+      "sem_abs_error_m": 0.0006872232482908172,
+      "clean_mean_abs_bias_m": 0.027351742931322438
+    },
+    {
+      "alpha_prime": 20.0,
+      "beta": 0.8965377489071944,
+      "mean_abs_error_m": 0.05998902287541075,
+      "sem_abs_error_m": 0.0006846161578743656,
+      "clean_mean_abs_bias_m": 0.027355051813920596
     }
   ],
   "top_rows": [
@@ -5154,6 +5443,7 @@
     "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png",
     "capped_alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/capped_alpha_sweep.png",
     "fixed_setup_alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png",
+    "notebook_style_alpha_error": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png",
     "capped_rate_traces": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png",
     "block_input_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png",
     "response_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png"

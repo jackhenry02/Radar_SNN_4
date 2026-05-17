@@ -267,6 +267,25 @@ This isolates whether the balanced recurrence gain itself improves the line-attr
 
 With this fixed setup, the best uncapped tested value was $\alpha'=12.0$, giving finite-difference CRB RMSE `0.014 cm`. If this curve improves with $\alpha'$ even when $\beta$ is fixed, the gain is coming from balanced recurrent amplification rather than from repeatedly retuning the input matrix.
 
+## Notebook-Style 60 ms Error Sweep
+
+The final alpha diagnostic follows the original notebook style more closely: it plots actual mean decoding error at `60 ms` against $\alpha'$. Unlike the CRB plots, this is not a Fisher-information lower bound. It adds independent Gaussian readout noise with the same `fisher_noise_sigma` used above, decodes by centre of mass, and averages absolute distance error over the finite line.
+
+The selected setup is still held fixed, so the only parameter changing is $\alpha'$.
+
+![Notebook-style alpha error](../outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png)
+
+| alpha prime | Noisy mean absolute error | SEM | Clean COM bias |
+|---:|---:|---:|---:|
+| `0.0` | `167.561 cm` | `0.858 cm` | `1.260 cm` |
+| `4.0` | `18.012 cm` | `0.117 cm` | `2.686 cm` |
+| `8.0` | `10.698 cm` | `0.086 cm` | `2.716 cm` |
+| `12.0` | `8.119 cm` | `0.076 cm` | `2.727 cm` |
+| `16.0` | `6.786 cm` | `0.071 cm` | `2.732 cm` |
+| `20.0` | `5.999 cm` | `0.068 cm` | `2.736 cm` |
+
+The lowest noisy mean error in this diagnostic occurred at $\alpha'=20.0$ with mean absolute error `5.999 cm`. The dashed clean-bias curve is included because alpha can improve noise sensitivity without necessarily moving the deterministic centre-of-mass bias.
+
 ## Bump Dynamics
 
 The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
@@ -298,9 +317,10 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png`
 - `capped_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_alpha_sweep.png`
 - `fixed_setup_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png`
+- `notebook_style_alpha_error`: `distance_pathway/outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png`
 - `capped_rate_traces`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png`
 - `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `65.93 s`.
+Runtime: `77.32 s`.
