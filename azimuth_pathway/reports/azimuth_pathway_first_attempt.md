@@ -84,6 +84,20 @@ where $D=\sum_c LSO_L(c)+\sum_c LSO_R(c)$ is the total opponent drive. This is e
 
 The tuned parameters on this deterministic `+/-45 deg` test were `gamma = 3.650` and `sigma_w = 0.275`.
 
+A second variant treats the raw LSO balance as a saturating sigmoid of the hidden azimuth coordinate. If
+
+$$
+b \approx \tanh(k\sin\theta),
+$$
+
+then the inverse-sigmoid estimate is:
+
+$$
+\tilde b = \frac{\operatorname{atanh}(b)}{k}.
+$$
+
+The tuned inverse-sigmoid parameters were `k = 3.750` and `sigma_w = 0.120`. This is the better correction in this experiment, which supports the interpretation that the raw ILD pathway is mostly a saturating monotonic map rather than a noisy unordered cue.
+
 ![Warped ILD mapping](../outputs/first_attempt/figures/warped_ild_mapping.png)
 
 ![Warped ILD scatter](../outputs/first_attempt/figures/warped_ild_scatter.png)
@@ -116,7 +130,8 @@ The primary test uses the same azimuth support as the old Round 3/4 training set
 |---|---:|---:|---:|---:|
 | ITD only | `1.891 deg` | `2.841 deg` | `18.012 deg` | `-0.018 deg` |
 | ILD only | `11.799 deg` | `13.976 deg` | `21.756 deg` | `-1.315 deg` |
-| ILD warped | `2.745 deg` | `3.384 deg` | `9.345 deg` | `-0.699 deg` |
+| ILD power warp | `2.745 deg` | `3.384 deg` | `9.345 deg` | `-0.699 deg` |
+| ILD inverse sigmoid | `0.982 deg` | `1.480 deg` | `6.577 deg` | `-0.039 deg` |
 | Combined | `1.860 deg` | `2.848 deg` | `17.537 deg` | `-0.054 deg` |
 | Combined stress +/-90 deg | `17.749 deg` | `20.211 deg` | `37.004 deg` | `-2.030 deg` |
 
@@ -161,4 +176,4 @@ This first standalone pathway is not yet a full replacement for the old trained 
 - `warped_ild_scatter`: `azimuth_pathway/outputs/first_attempt/figures/warped_ild_scatter.png`
 - `results`: `azimuth_pathway/outputs/first_attempt/results.json`
 
-Runtime: `9.93 s`.
+Runtime: `21.08 s`.

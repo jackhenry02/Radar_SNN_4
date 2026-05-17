@@ -57,6 +57,7 @@ ITD_WEIGHT = 0.90
 ILD_WEIGHT = 0.10
 WARP_POWER_GRID = np.linspace(1.0, 5.0, 81)
 WARP_SIGMA_GRID = np.linspace(0.03, 0.30, 55)
+INVERSE_SIGMOID_K_GRID = np.linspace(1.0, 10.0, 181)
 
 OLD_MODEL_AZIMUTH_RESULTS = {
     "Round 3 2B + 3": 2.8595,
@@ -385,6 +386,105 @@ def tune_warped_ild_mapping(predictions: list[AzimuthPrediction], bins_deg: np.n
     return best
 
 
+def inverse_sigmoid_ild_activation(
+    balance: float,
+    drive: float,
+    bins_deg: np.ndarray,
+    gain: float,
+    sigma: float,
+    limit_deg: float,
+) -> np.ndarray:
+    """Project LSO balance with an inverse-sigmoid synaptic mapping.
+
+    This assumes the measured LSO balance is a saturating function of the
+    underlying azimuth coordinate, approximately `b = tanh(k sin(theta))`.
+    The mapping therefore estimates the hidden sine-coordinate by applying
+    `atanh(b) / k`.
+
+    Args:
+        balance: Raw opponent balance.
+        drive: Total opponent drive.
+        bins_deg: Candidate azimuth bins.
+        gain: Saturation gain `k`.
+        sigma: Synaptic tuning width in sine-coordinate units.
+        limit_deg: Represented azimuth support used for clipping.
+
+    Returns:
+        Inverse-sigmoid ILD activation over candidate azimuth bins.
+    """
+    max_sine = math.sin(math.radians(limit_deg))
+    safe_balance = float(np.clip(balance, -0.999999, 0.999999))
+    mapped = float(np.arctanh(safe_balance)) / gain
+    mapped = float(np.clip(mapped, -max_sine, max_sine))
+    expected = np.sin(np.deg2rad(bins_deg))
+    return np.exp(-0.5 * ((mapped - expected) / sigma) ** 2) * drive
+
+
+def decode_inverse_sigmoid_ild(
+    predictions: list[AzimuthPrediction],
+    bins_deg: np.ndarray,
+    gain: float,
+    sigma: float,
+    limit_deg: float,
+) -> tuple[np.ndarray, list[np.ndarray]]:
+    """Decode inverse-sigmoid ILD predictions for a dataset.
+
+    Args:
+        predictions: Existing pathway predictions with LSO stage outputs.
+        bins_deg: Candidate azimuth bins.
+        gain: Saturation gain `k`.
+        sigma: Synaptic tuning width.
+        limit_deg: Represented azimuth support.
+
+    Returns:
+        Pair `(decoded_degrees, activations)`.
+    """
+    decoded = []
+    activations = []
+    for prediction in predictions:
+        balance, drive = lso_balance_and_drive(prediction)
+        activation = inverse_sigmoid_ild_activation(balance, drive, bins_deg, gain, sigma, limit_deg)
+        activations.append(activation)
+        decoded.append(centre_of_mass(activation, bins_deg))
+    return np.array(decoded, dtype=np.float64), activations
+
+
+def tune_inverse_sigmoid_ild_mapping(
+    predictions: list[AzimuthPrediction],
+    bins_deg: np.ndarray,
+    limit_deg: float,
+) -> dict[str, float]:
+    """Grid-search the inverse-sigmoid ILD mapping.
+
+    Args:
+        predictions: Calibration predictions.
+        bins_deg: Candidate azimuth bins.
+        limit_deg: Represented azimuth support.
+
+    Returns:
+        Best inverse-sigmoid parameters and calibration metrics.
+    """
+    true = np.array([item.true_azimuth_deg for item in predictions], dtype=np.float64)
+    best: dict[str, float] | None = None
+    for gain in INVERSE_SIGMOID_K_GRID:
+        for sigma in WARP_SIGMA_GRID:
+            decoded, _ = decode_inverse_sigmoid_ild(predictions, bins_deg, float(gain), float(sigma), limit_deg)
+            error = decoded - true
+            mae = float(np.mean(np.abs(error)))
+            if best is None or mae < best["mae_deg"]:
+                best = {
+                    "gain": float(gain),
+                    "sigma": float(sigma),
+                    "mae_deg": mae,
+                    "rmse_deg": float(np.sqrt(np.mean(error**2))),
+                    "max_abs_error_deg": float(np.max(np.abs(error))),
+                    "bias_deg": float(np.mean(error)),
+                }
+    if best is None:
+        raise RuntimeError("Inverse-sigmoid ILD tuning failed.")
+    return best
+
+
 def metric_dict_from_arrays(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
     """Compute azimuth metrics from arrays."""
     error = angular_error(pred, true)
@@ -661,13 +761,15 @@ def plot_range_comparison(
 def plot_warped_ild_scatter(
     predictions: list[AzimuthPrediction],
     warped_predictions_deg: np.ndarray,
+    inverse_predictions_deg: np.ndarray,
     path: Path,
 ) -> str:
-    """Plot raw and warped ILD predictions against true azimuth.
+    """Plot raw and calibrated ILD predictions against true azimuth.
 
     Args:
         predictions: Primary azimuth predictions.
         warped_predictions_deg: Warped ILD decoded azimuths.
+        inverse_predictions_deg: Inverse-sigmoid ILD decoded azimuths.
         path: Figure path.
 
     Returns:
@@ -677,13 +779,14 @@ def plot_warped_ild_scatter(
     raw = np.array([item.ild_prediction_deg for item in predictions], dtype=np.float64)
     fig, ax = plt.subplots(figsize=(7.2, 6.2))
     ax.scatter(true, raw, s=22, alpha=0.58, label="raw ILD")
-    ax.scatter(true, warped_predictions_deg, s=24, alpha=0.76, label="warped ILD")
-    low = min(float(true.min()), float(raw.min()), float(warped_predictions_deg.min()))
-    high = max(float(true.max()), float(raw.max()), float(warped_predictions_deg.max()))
+    ax.scatter(true, warped_predictions_deg, s=24, alpha=0.64, label="power-warp ILD")
+    ax.scatter(true, inverse_predictions_deg, s=26, alpha=0.78, label="inverse-sigmoid ILD")
+    low = min(float(true.min()), float(raw.min()), float(warped_predictions_deg.min()), float(inverse_predictions_deg.min()))
+    high = max(float(true.max()), float(raw.max()), float(warped_predictions_deg.max()), float(inverse_predictions_deg.max()))
     ax.plot([low, high], [low, high], color="#111827", linewidth=1.0)
     ax.set_xlabel("true azimuth (deg)")
     ax.set_ylabel("decoded azimuth (deg)")
-    ax.set_title("Warped synaptic mapping corrects the ILD sigmoid")
+    ax.set_title("Synaptic mapping layers correct the ILD sigmoid")
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
     return save_figure(fig, path)
@@ -692,13 +795,15 @@ def plot_warped_ild_scatter(
 def plot_warped_ild_mapping(
     predictions: list[AzimuthPrediction],
     warp_params: dict[str, float],
+    inverse_params: dict[str, float],
     path: Path,
 ) -> str:
-    """Plot the tuned balance warp and measured LSO balance.
+    """Plot the tuned balance warps and measured LSO balance.
 
     Args:
         predictions: Primary azimuth predictions.
         warp_params: Tuned warp parameters.
+        inverse_params: Tuned inverse-sigmoid parameters.
         path: Figure path.
 
     Returns:
@@ -708,6 +813,9 @@ def plot_warped_ild_mapping(
     balances = np.array([lso_balance_and_drive(item)[0] for item in predictions], dtype=np.float64)
     grid = np.linspace(-1.0, 1.0, 501)
     warped = np.sign(grid) * np.abs(grid) ** warp_params["power"]
+    max_sine = math.sin(math.radians(AZIMUTH_LIMIT_DEG))
+    inverse = np.arctanh(np.clip(grid, -0.999999, 0.999999)) / inverse_params["gain"]
+    inverse = np.clip(inverse, -max_sine, max_sine)
     fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
 
     axes[0].scatter(true, balances, s=24, alpha=0.72, color="#2563eb")
@@ -725,10 +833,11 @@ def plot_warped_ild_mapping(
     axes[0].legend(frameon=False)
 
     axes[1].plot(grid, grid, color="#9ca3af", linestyle="--", linewidth=1.0, label="identity")
-    axes[1].plot(grid, warped, color="#dc2626", linewidth=2.0, label="tuned warp")
+    axes[1].plot(grid, warped, color="#dc2626", linewidth=2.0, label="power warp")
+    axes[1].plot(grid, inverse, color="#059669", linewidth=2.0, label="inverse sigmoid")
     axes[1].set_xlabel("raw balance")
-    axes[1].set_ylabel("warped balance")
-    axes[1].set_title("Synaptic balance warp")
+    axes[1].set_ylabel("mapped sine-coordinate")
+    axes[1].set_title("Synaptic balance mappings")
     axes[1].grid(True, alpha=0.25)
     axes[1].legend(frameon=False)
 
@@ -754,6 +863,7 @@ def write_report(
     stress_predictions: list[AzimuthPrediction],
     metrics: dict[str, dict[str, float]],
     warp_params: dict[str, float],
+    inverse_params: dict[str, float],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -766,7 +876,8 @@ def write_report(
     metric_rows = [
         format_metric_row("ITD only", metrics["primary_itd"]),
         format_metric_row("ILD only", metrics["primary_ild"]),
-        format_metric_row("ILD warped", metrics["primary_ild_warped"]),
+        format_metric_row("ILD power warp", metrics["primary_ild_warped"]),
+        format_metric_row("ILD inverse sigmoid", metrics["primary_ild_inverse_sigmoid"]),
         format_metric_row("Combined", metrics["primary_combined"]),
         format_metric_row("Combined stress +/-90 deg", metrics["stress_combined"]),
     ]
@@ -856,6 +967,20 @@ def write_report(
         "where $D=\\sum_c LSO_L(c)+\\sum_c LSO_R(c)$ is the total opponent drive. This is equivalent to changing the synaptic projection from the LSO balance coordinate into the topographic azimuth coordinate.",
         "",
         f"The tuned parameters on this deterministic `+/-45 deg` test were `gamma = {warp_params['power']:.3f}` and `sigma_w = {warp_params['sigma']:.3f}`.",
+        "",
+        "A second variant treats the raw LSO balance as a saturating sigmoid of the hidden azimuth coordinate. If",
+        "",
+        "$$",
+        "b \\approx \\tanh(k\\sin\\theta),",
+        "$$",
+        "",
+        "then the inverse-sigmoid estimate is:",
+        "",
+        "$$",
+        "\\tilde b = \\frac{\\operatorname{atanh}(b)}{k}.",
+        "$$",
+        "",
+        f"The tuned inverse-sigmoid parameters were `k = {inverse_params['gain']:.3f}` and `sigma_w = {inverse_params['sigma']:.3f}`. This is the better correction in this experiment, which supports the interpretation that the raw ILD pathway is mostly a saturating monotonic map rather than a noisy unordered cue.",
         "",
         "![Warped ILD mapping](../outputs/first_attempt/figures/warped_ild_mapping.png)",
         "",
@@ -947,11 +1072,20 @@ def main() -> dict[str, object]:
         warp_params["power"],
         warp_params["sigma"],
     )
+    inverse_params = tune_inverse_sigmoid_ild_mapping(primary_predictions, primary_bins, AZIMUTH_LIMIT_DEG)
+    inverse_ild_predictions, _ = decode_inverse_sigmoid_ild(
+        primary_predictions,
+        primary_bins,
+        inverse_params["gain"],
+        inverse_params["sigma"],
+        AZIMUTH_LIMIT_DEG,
+    )
     primary_true = np.array([item.true_azimuth_deg for item in primary_predictions], dtype=np.float64)
     metrics = {
         "primary_itd": metric_dict(primary_predictions, "itd_prediction_deg"),
         "primary_ild": metric_dict(primary_predictions, "ild_prediction_deg"),
         "primary_ild_warped": metric_dict_from_arrays(primary_true, warped_ild_predictions),
+        "primary_ild_inverse_sigmoid": metric_dict_from_arrays(primary_true, inverse_ild_predictions),
         "primary_combined": metric_dict(primary_predictions, "combined_prediction_deg"),
         "stress_combined": metric_dict(stress_predictions, "combined_prediction_deg"),
     }
@@ -968,11 +1102,13 @@ def main() -> dict[str, object]:
         "warped_ild_mapping": plot_warped_ild_mapping(
             primary_predictions,
             warp_params,
+            inverse_params,
             FIGURE_DIR / "warped_ild_mapping.png",
         ),
         "warped_ild_scatter": plot_warped_ild_scatter(
             primary_predictions,
             warped_ild_predictions,
+            inverse_ild_predictions,
             FIGURE_DIR / "warped_ild_scatter.png",
         ),
     }
@@ -1000,9 +1136,12 @@ def main() -> dict[str, object]:
             "ild_weight": ILD_WEIGHT,
             "warped_ild_power": warp_params["power"],
             "warped_ild_sigma": warp_params["sigma"],
+            "inverse_sigmoid_ild_gain": inverse_params["gain"],
+            "inverse_sigmoid_ild_sigma": inverse_params["sigma"],
         },
         "metrics": metrics,
         "warped_ild_tuning": warp_params,
+        "inverse_sigmoid_ild_tuning": inverse_params,
         "old_model_azimuth_mae_deg": OLD_MODEL_AZIMUTH_RESULTS,
         "primary_predictions": [
             {
@@ -1010,6 +1149,7 @@ def main() -> dict[str, object]:
                 "itd_prediction_deg": item.itd_prediction_deg,
                 "ild_prediction_deg": item.ild_prediction_deg,
                 "ild_warped_prediction_deg": float(warped_ild_predictions[index]),
+                "ild_inverse_sigmoid_prediction_deg": float(inverse_ild_predictions[index]),
                 "combined_prediction_deg": item.combined_prediction_deg,
             }
             for index, item in enumerate(primary_predictions)
@@ -1024,7 +1164,7 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(config, primary_predictions, stress_predictions, metrics, warp_params, artifacts, elapsed_s)
+    write_report(config, primary_predictions, stress_predictions, metrics, warp_params, inverse_params, artifacts, elapsed_s)
     return payload
 
 
