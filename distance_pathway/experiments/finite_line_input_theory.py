@@ -66,6 +66,8 @@ class TheoryParams:
     fisher_noise_sigma: float = 0.05
     one_pop_alpha: float = 0.985
     balanced_alpha_prime: float = 4.0
+    baseline_rate_hz: float = 5.0
+    state_rate_scale_hz: float = 20.0
 
 
 @dataclass(frozen=True)
@@ -431,6 +433,48 @@ def response_snapshots(
         time_s: transition_operator(params, candidate, time_s) @ h
         for time_s in times_s
     }
+
+
+def simulate_state_history(
+    params: TheoryParams,
+    candidate: Candidate,
+    stimulus: np.ndarray,
+    *,
+    alpha_cap_hz: float | None = None,
+    t_end_s: float | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Simulate candidate state dynamics, optionally with firing-rate clipping.
+
+    Args:
+        params: Theory parameters.
+        candidate: Candidate model.
+        stimulus: Sensory population code.
+        alpha_cap_hz: Absolute firing-rate cap. If `None`, no cap is applied.
+        t_end_s: Optional simulation duration.
+
+    Returns:
+        Tuple `(times_s, state_history, readout_history)`.
+    """
+    t_end = params.window_time_s if t_end_s is None else t_end_s
+    dt = 0.001
+    num_steps = int(round(t_end / dt))
+    times = np.arange(num_steps + 1) * dt
+    state = params.state_rate_scale_hz * (candidate.B @ stimulus)
+    if alpha_cap_hz is not None:
+        lower = -params.baseline_rate_hz
+        upper = alpha_cap_hz - params.baseline_rate_hz
+        state = np.clip(state, lower, upper)
+    state_history = np.empty((num_steps + 1, state.size), dtype=np.float64)
+    readout_history = np.empty((num_steps + 1, params.num_neurons), dtype=np.float64)
+    state_history[0] = state
+    readout_history[0] = candidate.C @ state
+    for step in range(1, num_steps + 1):
+        state = state + dt / params.tau_s * (-state + candidate.W @ state)
+        if alpha_cap_hz is not None:
+            state = np.clip(state, lower, upper)
+        state_history[step] = state
+        readout_history[step] = candidate.C @ state
+    return times, state_history, readout_history
 
 
 def candidate_suite(params: TheoryParams) -> tuple[list[Candidate], dict[str, float]]:
@@ -831,6 +875,129 @@ def plot_alpha_sweep(rows: list[dict[str, float]], path: Path) -> str:
     return save_figure(fig, path)
 
 
+def capped_alpha_sweep(
+    params: TheoryParams,
+    spec: InputSpec,
+    recurrent_width_bins: float,
+) -> list[dict[str, float | str]]:
+    """Evaluate alpha sweep with optional biophysical firing-rate caps.
+
+    Capping makes the system nonlinear, so the capped FI/CRB values are
+    estimated by finite differences around each synthetic stimulus. This is a
+    diagnostic of biological limits, not part of the analytic candidate ranking.
+
+    Args:
+        params: Theory parameters.
+        spec: Input family selected by the analytic sweep.
+        recurrent_width_bins: Selected recurrent width.
+
+    Returns:
+        Rows for uncapped, 100 Hz capped, and 55 Hz capped alpha sweeps.
+    """
+    x = positions(params)
+    stimulus_grid = np.linspace(0.2, params.length_m - 0.2, 45)
+    delta = 0.01 * params.length_m
+    alpha_values = [0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]
+    cap_scenarios = [("uncapped", None), ("100 Hz cap", 100.0), ("55 Hz cap", 55.0)]
+    beta_grid = np.linspace(0.25, params.length_m - 0.25, 61)
+    rows: list[dict[str, float | str]] = []
+    final_index = int(round(params.readout_time_s / 0.001))
+    for alpha in alpha_values:
+        sweep_params = replace(params, balanced_alpha_prime=float(alpha))
+        local = recurrent_kernel(sweep_params, recurrent_width_bins)
+        high_gain = rescale_to_alpha(local, float(alpha))
+        matrix = build_input_matrix(sweep_params, spec)
+        beta = analytic_beta(sweep_params, matrix, high_gain, beta_grid, objective="final")
+        candidate = build_candidate(sweep_params, spec, recurrent_width_bins, "balanced_opponent", beta=beta)
+        for cap_label, cap_hz in cap_scenarios:
+            fi_values = []
+            decoded_errors = []
+            peak_rates = []
+            for stimulus_m in stimulus_grid:
+                low = max(0.0, float(stimulus_m) - delta)
+                high = min(params.length_m, float(stimulus_m) + delta)
+                stim = population_code(sweep_params, float(stimulus_m))
+                stim_low = population_code(sweep_params, low)
+                stim_high = population_code(sweep_params, high)
+                _, state, readout = simulate_state_history(sweep_params, candidate, stim, alpha_cap_hz=cap_hz)
+                _, _, read_low = simulate_state_history(sweep_params, candidate, stim_low, alpha_cap_hz=cap_hz)
+                _, _, read_high = simulate_state_history(sweep_params, candidate, stim_high, alpha_cap_hz=cap_hz)
+                derivative = (read_high[final_index] - read_low[final_index]) / max(high - low, 1e-12)
+                fi_values.append(float(np.dot(derivative, derivative) / sweep_params.fisher_noise_sigma**2))
+                decoded = decode_center_of_mass(readout[final_index], x)
+                decoded_errors.append(abs(decoded - stimulus_m))
+                peak_rates.append(float(np.max(state) + sweep_params.baseline_rate_hz))
+            fi_arr = np.maximum(np.array(fi_values), 1e-12)
+            rows.append(
+                {
+                    "alpha_prime": float(alpha),
+                    "cap": cap_label,
+                    "cap_hz": float(cap_hz) if cap_hz is not None else -1.0,
+                    "beta": float(beta),
+                    "final_crb_rmse_m": float(np.sqrt(np.mean(1.0 / fi_arr))),
+                    "mean_abs_bias_m": float(np.mean(decoded_errors)),
+                    "peak_rate_hz": float(np.max(peak_rates)),
+                }
+            )
+    return rows
+
+
+def plot_capped_alpha_sweep(rows: list[dict[str, float | str]], path: Path) -> str:
+    """Plot alpha sweep under firing-rate caps."""
+    labels = ["uncapped", "100 Hz cap", "55 Hz cap"]
+    colors = {"uncapped": "#111827", "100 Hz cap": "#f58518", "55 Hz cap": "#4c78a8"}
+    fig, axes = plt.subplots(1, 2, figsize=(11.2, 4.4))
+    for label in labels:
+        subset = [row for row in rows if row["cap"] == label]
+        alpha = np.array([float(row["alpha_prime"]) for row in subset])
+        crb = np.array([float(row["final_crb_rmse_m"]) for row in subset]) * 100.0
+        peak = np.array([float(row["peak_rate_hz"]) for row in subset])
+        style = "-" if label == "uncapped" else "--"
+        axes[0].plot(alpha, crb, marker="o", linestyle=style, linewidth=2.0, color=colors[label], label=label)
+        axes[1].plot(alpha, peak, marker="o", linestyle=style, linewidth=2.0, color=colors[label], label=label)
+    for cap_hz, color in [(55.0, colors["55 Hz cap"]), (100.0, colors["100 Hz cap"])]:
+        axes[1].axhline(cap_hz, color=color, linestyle=":", linewidth=1.4)
+    axes[0].set_xlabel(r"balanced $\alpha'$")
+    axes[0].set_ylabel("finite-difference CRB RMSE (cm)")
+    axes[0].set_title("Accuracy proxy with firing-rate caps")
+    axes[1].set_xlabel(r"balanced $\alpha'$")
+    axes[1].set_ylabel("peak absolute neural rate (Hz)")
+    axes[1].set_title("Caps bound neural activity")
+    for ax in axes:
+        ax.grid(True, alpha=0.25)
+        ax.legend(frameon=False)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_rate_traces(params: TheoryParams, spec: InputSpec, recurrent_width_bins: float, path: Path) -> str:
+    """Plot maximum firing-rate traces for high-alpha capped/uncapped dynamics."""
+    alpha = 12.0
+    sweep_params = replace(params, balanced_alpha_prime=alpha)
+    beta_grid = np.linspace(0.25, params.length_m - 0.25, 61)
+    matrix = build_input_matrix(sweep_params, spec)
+    high_gain = rescale_to_alpha(recurrent_kernel(sweep_params, recurrent_width_bins), alpha)
+    beta = analytic_beta(sweep_params, matrix, high_gain, beta_grid, objective="final")
+    candidate = build_candidate(sweep_params, spec, recurrent_width_bins, "balanced_opponent", beta=beta)
+    stimulus = population_code(sweep_params, 4.2)
+    scenarios = [("uncapped", None), ("100 Hz cap", 100.0), ("55 Hz cap", 55.0)]
+    fig, ax = plt.subplots(figsize=(7.6, 4.6))
+    colors = {"uncapped": "#111827", "100 Hz cap": "#f58518", "55 Hz cap": "#4c78a8"}
+    for label, cap_hz in scenarios:
+        times, state, _ = simulate_state_history(sweep_params, candidate, stimulus, alpha_cap_hz=cap_hz)
+        peak_rate = np.max(state, axis=1) + sweep_params.baseline_rate_hz
+        style = "-" if label == "uncapped" else "--"
+        ax.plot(times * 1000.0, peak_rate, color=colors[label], linestyle=style, linewidth=2.0, label=label)
+    ax.axhline(55.0, color=colors["55 Hz cap"], linestyle=":", linewidth=1.4)
+    ax.axhline(100.0, color=colors["100 Hz cap"], linestyle=":", linewidth=1.4)
+    ax.set_xlabel("time (ms)")
+    ax.set_ylabel("maximum absolute neural rate (Hz)")
+    ax.set_title(r"Rate trace at $\alpha'=12$")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False)
+    return save_figure(fig, path)
+
+
 def format_table(rows: list[dict[str, float | str]]) -> list[str]:
     """Format report table rows."""
     lines = []
@@ -866,11 +1033,28 @@ def format_alpha_table(rows: list[dict[str, float]]) -> list[str]:
     ]
 
 
+def format_capped_alpha_table(rows: list[dict[str, float | str]]) -> list[str]:
+    """Format capped alpha table rows."""
+    selected_alphas = {4.0, 8.0, 12.0}
+    return [
+        "| "
+        f"`{row['alpha_prime']:.1f}` | "
+        f"{row['cap']} | "
+        f"`{row['beta']:.3f}` | "
+        f"`{row['final_crb_rmse_m'] * 100.0:.3f} cm` | "
+        f"`{row['mean_abs_bias_m'] * 100.0:.3f} cm` | "
+        f"`{row['peak_rate_hz']:.1f} Hz` |"
+        for row in rows
+        if float(row["alpha_prime"]) in selected_alphas
+    ]
+
+
 def write_report(
     params: TheoryParams,
     rows: list[dict[str, float | str]],
     top_rows: list[dict[str, float | str]],
     alpha_rows: list[dict[str, float]],
+    capped_alpha_rows: list[dict[str, float | str]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -879,6 +1063,7 @@ def write_report(
     best = top_rows[0]
     table_rows = format_table(top_rows)
     alpha_table_rows = format_alpha_table(alpha_rows)
+    capped_alpha_table_rows = format_capped_alpha_table(capped_alpha_rows)
     best_alpha = min(alpha_rows, key=lambda row: row["final_crb_rmse_m"])
     lines = [
         "# Finite-Line Input Theory For The SC Line Attractor",
@@ -1070,6 +1255,28 @@ def write_report(
         "",
         f"The best alpha in this sweep by final CRB RMSE was `{best_alpha['alpha_prime']:.1f}`, with analytic beta `{best_alpha['beta']:.3f}` and final CRB RMSE `{best_alpha['final_crb_rmse_m'] * 100.0:.3f} cm`.",
         "",
+        "## Biological Limits On Alpha",
+        "",
+        "The uncapped alpha sweep should not be interpreted as permission to increase gain indefinitely. This is the same limitation seen in the original ring notebook: increasing $\\alpha'$ improves the idealised accuracy metric, but it also increases neural activity and therefore metabolic cost. Real neurons have maximum firing rates, refractory periods, synaptic limits, and finite energy budgets.",
+        "",
+        "To illustrate this, the selected reflected/opponent family was re-simulated with a simple firing-rate cap inside the dynamics. The state is interpreted as relative rate around a `5 Hz` baseline, with `20 Hz` per activity unit used for this diagnostic scaling. The caps are applied as:",
+        "",
+        "$$",
+        "r(t) \\leftarrow \\operatorname{clip}\\left(r(t), -r_0, r_{\\max}-r_0\\right),",
+        "$$",
+        "",
+        "where $r_0=5\\,\\mathrm{Hz}$ and $r_{\\max}$ is either `55 Hz` or `100 Hz`. Because clipping makes the system nonlinear, the capped FI curves are estimated with finite differences rather than the analytic linear formula.",
+        "",
+        "![Capped alpha sweep](../outputs/finite_line_input_theory/figures/capped_alpha_sweep.png)",
+        "",
+        "| alpha prime | cap | analytic beta | Capped finite-difference CRB RMSE | Mean COM bias | Peak rate |",
+        "|---:|---|---:|---:|---:|---:|",
+        *capped_alpha_table_rows,
+        "",
+        "The rate trace below shows the same issue dynamically. Without a cap, high $\\alpha'$ produces increasingly large transient activity. With caps, the activity saturates, so extra gain no longer has the same linear Fisher-information benefit.",
+        "",
+        "![Capped rate traces](../outputs/finite_line_input_theory/figures/capped_rate_traces.png)",
+        "",
         "## Bump Dynamics",
         "",
         "The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.",
@@ -1085,6 +1292,7 @@ def write_report(
         "- Edge correction matters. Raw Toeplitz input loses structure near the boundaries; reflected or amplitude-compensated input is more appropriate.",
         "- This report still does not prove the setup will improve the real distance pathway. It only identifies principled finite-line candidates to consider before integration.",
         "- The alpha sweep now behaves more like the original ring theory: stronger balanced recurrence improves the analytical FI metric over this tested range, although this should be capped by biological rate/stability constraints before integration.",
+        "- Once firing-rate caps are included, high alpha becomes a tradeoff rather than a free improvement: the idealised FI metric improves, but activity saturates and power/firing-rate demands become unrealistic.",
         "- The next step, if accepted, is to port the best reflected/opponent family into `sc_line_attractor_integration.py` and compare it against the current simple COM readout.",
         "",
         "## Generated Files",
@@ -1115,6 +1323,7 @@ def main() -> dict[str, object]:
     selected_for_blocks = selected[:3]
     best_candidate = selected[0]
     alpha_rows = alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
+    capped_alpha_rows = capped_alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
 
     artifacts = {
         "input_matrix_families": plot_input_families(params, FIGURE_DIR / "input_matrix_families.png"),
@@ -1130,6 +1339,13 @@ def main() -> dict[str, object]:
         "beta_scan": plot_beta_scan(rows, FIGURE_DIR / "beta_scan.png"),
         "width_sensitivity": plot_width_sweep(rows, FIGURE_DIR / "width_sensitivity.png"),
         "alpha_sweep": plot_alpha_sweep(alpha_rows, FIGURE_DIR / "alpha_sweep.png"),
+        "capped_alpha_sweep": plot_capped_alpha_sweep(capped_alpha_rows, FIGURE_DIR / "capped_alpha_sweep.png"),
+        "capped_rate_traces": plot_rate_traces(
+            params,
+            best_candidate.input_spec,
+            best_candidate.recurrent_width_bins,
+            FIGURE_DIR / "capped_rate_traces.png",
+        ),
         "block_input_matrices": plot_block_matrices(params, selected_for_blocks, FIGURE_DIR / "block_input_matrices.png"),
         "response_snapshots": plot_response_snapshots(params, selected_for_blocks, FIGURE_DIR / "response_snapshots.png"),
     }
@@ -1141,12 +1357,13 @@ def main() -> dict[str, object]:
         "params": params.__dict__,
         "beta_summary": beta_summary,
         "alpha_sweep": alpha_rows,
+        "capped_alpha_sweep": capped_alpha_rows,
         "top_rows": top_rows,
         "all_rows": rows,
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(params, rows, top_rows, alpha_rows, artifacts, elapsed_s)
+    write_report(params, rows, top_rows, alpha_rows, capped_alpha_rows, artifacts, elapsed_s)
     return payload
 
 

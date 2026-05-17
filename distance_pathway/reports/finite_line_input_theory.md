@@ -208,6 +208,36 @@ The selected reflected/opponent family was re-tested across balanced $\alpha'$. 
 
 The best alpha in this sweep by final CRB RMSE was `12.0`, with analytic beta `0.963` and final CRB RMSE `0.295 cm`.
 
+## Biological Limits On Alpha
+
+The uncapped alpha sweep should not be interpreted as permission to increase gain indefinitely. This is the same limitation seen in the original ring notebook: increasing $\alpha'$ improves the idealised accuracy metric, but it also increases neural activity and therefore metabolic cost. Real neurons have maximum firing rates, refractory periods, synaptic limits, and finite energy budgets.
+
+To illustrate this, the selected reflected/opponent family was re-simulated with a simple firing-rate cap inside the dynamics. The state is interpreted as relative rate around a `5 Hz` baseline, with `20 Hz` per activity unit used for this diagnostic scaling. The caps are applied as:
+
+$$
+r(t) \leftarrow \operatorname{clip}\left(r(t), -r_0, r_{\max}-r_0\right),
+$$
+
+where $r_0=5\,\mathrm{Hz}$ and $r_{\max}$ is either `55 Hz` or `100 Hz`. Because clipping makes the system nonlinear, the capped FI curves are estimated with finite differences rather than the analytic linear formula.
+
+![Capped alpha sweep](../outputs/finite_line_input_theory/figures/capped_alpha_sweep.png)
+
+| alpha prime | cap | analytic beta | Capped finite-difference CRB RMSE | Mean COM bias | Peak rate |
+|---:|---|---:|---:|---:|---:|
+| `4.0` | uncapped | `0.897` | `0.041 cm` | `3.021 cm` | `204.4 Hz` |
+| `4.0` | 100 Hz cap | `0.897` | `0.076 cm` | `4.001 cm` | `100.0 Hz` |
+| `4.0` | 55 Hz cap | `0.897` | `0.108 cm` | `5.784 cm` | `55.0 Hz` |
+| `8.0` | uncapped | `0.946` | `0.021 cm` | `3.053 cm` | `372.8 Hz` |
+| `8.0` | 100 Hz cap | `0.946` | `0.055 cm` | `6.096 cm` | `100.0 Hz` |
+| `8.0` | 55 Hz cap | `0.946` | `0.100 cm` | `8.853 cm` | `55.0 Hz` |
+| `12.0` | uncapped | `0.963` | `0.014 cm` | `3.064 cm` | `542.3 Hz` |
+| `12.0` | 100 Hz cap | `0.963` | `0.053 cm` | `8.299 cm` | `100.0 Hz` |
+| `12.0` | 55 Hz cap | `0.963` | `0.091 cm` | `11.490 cm` | `55.0 Hz` |
+
+The rate trace below shows the same issue dynamically. Without a cap, high $\alpha'$ produces increasingly large transient activity. With caps, the activity saturates, so extra gain no longer has the same linear Fisher-information benefit.
+
+![Capped rate traces](../outputs/finite_line_input_theory/figures/capped_rate_traces.png)
+
 ## Bump Dynamics
 
 The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
@@ -223,6 +253,7 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - Edge correction matters. Raw Toeplitz input loses structure near the boundaries; reflected or amplitude-compensated input is more appropriate.
 - This report still does not prove the setup will improve the real distance pathway. It only identifies principled finite-line candidates to consider before integration.
 - The alpha sweep now behaves more like the original ring theory: stronger balanced recurrence improves the analytical FI metric over this tested range, although this should be capped by biological rate/stability constraints before integration.
+- Once firing-rate caps are included, high alpha becomes a tradeoff rather than a free improvement: the idealised FI metric improves, but activity saturates and power/firing-rate demands become unrealistic.
 - The next step, if accepted, is to port the best reflected/opponent family into `sc_line_attractor_integration.py` and compare it against the current simple COM readout.
 
 ## Generated Files
@@ -236,8 +267,10 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `beta_scan`: `distance_pathway/outputs/finite_line_input_theory/figures/beta_scan.png`
 - `width_sensitivity`: `distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png`
 - `alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png`
+- `capped_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_alpha_sweep.png`
+- `capped_rate_traces`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png`
 - `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `34.27 s`.
+Runtime: `57.18 s`.
