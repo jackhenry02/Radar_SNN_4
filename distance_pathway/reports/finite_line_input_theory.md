@@ -238,6 +238,35 @@ The rate trace below shows the same issue dynamically. Without a cap, high $\alp
 
 ![Capped rate traces](../outputs/finite_line_input_theory/figures/capped_rate_traces.png)
 
+## Fixed-Setup Alpha Sweep
+
+The previous alpha sweep recomputed the analytic opponent $\beta$ for every $\alpha'$. That is useful for asking what the best analytical gain should be at each recurrence strength, but it mixes two effects: stronger recurrence and retuned input balance.
+
+The diagnostic below keeps the selected setup fixed and changes only $\alpha'$:
+
+- input family: `reflected`;
+- input width: `3` bins;
+- recurrent width: `4` bins;
+- fixed opponent beta: `0.897`.
+
+This isolates whether the balanced recurrence gain itself improves the line-attractor sensitivity, and how firing-rate caps change that conclusion.
+
+![Fixed setup alpha sweep](../outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png)
+
+| alpha prime | cap | fixed beta | Finite-difference CRB RMSE | Mean COM bias | Peak rate | Saturated state fraction |
+|---:|---|---:|---:|---:|---:|---:|
+| `4.0` | uncapped | `0.897` | `0.041 cm` | `3.021 cm` | `204.4 Hz` | `0.0%` |
+| `4.0` | 100 Hz cap | `0.897` | `0.076 cm` | `4.001 cm` | `100.0 Hz` | `0.2%` |
+| `4.0` | 55 Hz cap | `0.897` | `0.108 cm` | `5.784 cm` | `55.0 Hz` | `0.8%` |
+| `8.0` | uncapped | `0.897` | `0.021 cm` | `3.052 cm` | `373.2 Hz` | `0.0%` |
+| `8.0` | 100 Hz cap | `0.897` | `0.055 cm` | `6.148 cm` | `100.0 Hz` | `0.6%` |
+| `8.0` | 55 Hz cap | `0.897` | `0.100 cm` | `8.922 cm` | `55.0 Hz` | `1.1%` |
+| `12.0` | uncapped | `0.897` | `0.014 cm` | `3.063 cm` | `542.6 Hz` | `0.0%` |
+| `12.0` | 100 Hz cap | `0.897` | `0.053 cm` | `8.357 cm` | `100.0 Hz` | `0.7%` |
+| `12.0` | 55 Hz cap | `0.897` | `0.091 cm` | `11.506 cm` | `55.0 Hz` | `1.0%` |
+
+With this fixed setup, the best uncapped tested value was $\alpha'=12.0$, giving finite-difference CRB RMSE `0.014 cm`. If this curve improves with $\alpha'$ even when $\beta$ is fixed, the gain is coming from balanced recurrent amplification rather than from repeatedly retuning the input matrix.
+
 ## Bump Dynamics
 
 The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
@@ -268,9 +297,10 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `width_sensitivity`: `distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png`
 - `alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png`
 - `capped_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_alpha_sweep.png`
+- `fixed_setup_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png`
 - `capped_rate_traces`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png`
 - `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `57.18 s`.
+Runtime: `65.93 s`.

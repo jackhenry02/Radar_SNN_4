@@ -1,6 +1,6 @@
 {
   "experiment": "finite_line_input_theory",
-  "elapsed_seconds": 57.17765212501399,
+  "elapsed_seconds": 65.93042845791206,
   "params": {
     "length_m": 10.0,
     "num_neurons": 96,
@@ -394,6 +394,248 @@
       "final_crb_rmse_m": 0.0009098374940052003,
       "mean_abs_bias_m": 0.11489865325819046,
       "peak_rate_hz": 55.0
+    }
+  ],
+  "fixed_setup_alpha_sweep": [
+    {
+      "alpha_prime": 0.5,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0023806325596822486,
+      "mean_abs_bias_m": 0.026852803315808367,
+      "peak_rate_hz": 78.82099448781331,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 0.5,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0033220989595772726,
+      "mean_abs_bias_m": 0.030050993014923335,
+      "peak_rate_hz": 78.82099448781331,
+      "saturated_fraction": 0.0016089860352155433
+    },
+    {
+      "alpha_prime": 0.5,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.003828325573006078,
+      "mean_abs_bias_m": 0.03236232559122801,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.001643139040680024
+    },
+    {
+      "alpha_prime": 1.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.001419432164657092,
+      "mean_abs_bias_m": 0.02856492198779094,
+      "peak_rate_hz": 85.51070035573753,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 1.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0021426922343927477,
+      "mean_abs_bias_m": 0.033258701361828305,
+      "peak_rate_hz": 78.82099448781331,
+      "saturated_fraction": 0.0016089860352155433
+    },
+    {
+      "alpha_prime": 1.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0024479750349319243,
+      "mean_abs_bias_m": 0.03544095541521439,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.001662112932604736
+    },
+    {
+      "alpha_prime": 2.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0007846331735119608,
+      "mean_abs_bias_m": 0.02961823348189047,
+      "peak_rate_hz": 121.96268536263581,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 2.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.001250246247325191,
+      "mean_abs_bias_m": 0.03543044500662377,
+      "peak_rate_hz": 89.9443475789981,
+      "saturated_fraction": 0.0016089860352155433
+    },
+    {
+      "alpha_prime": 2.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0014476386560962349,
+      "mean_abs_bias_m": 0.04053978332678396,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.002060564663023679
+    },
+    {
+      "alpha_prime": 4.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0004140468682015604,
+      "mean_abs_bias_m": 0.030207988354351616,
+      "peak_rate_hz": 204.35900433693268,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 4.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0007629826229990264,
+      "mean_abs_bias_m": 0.04000538813948298,
+      "peak_rate_hz": 100.0,
+      "saturated_fraction": 0.0018594414086217368
+    },
+    {
+      "alpha_prime": 4.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0010818816724309363,
+      "mean_abs_bias_m": 0.05783650949627113,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.008173952641165756
+    },
+    {
+      "alpha_prime": 6.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0002812075878362543,
+      "mean_abs_bias_m": 0.030415182581751448,
+      "peak_rate_hz": 288.51526999552175,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 6.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0005460988050679285,
+      "mean_abs_bias_m": 0.049751568524553355,
+      "peak_rate_hz": 100.0,
+      "saturated_fraction": 0.0021706132361870066
+    },
+    {
+      "alpha_prime": 6.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0010453392097946193,
+      "mean_abs_bias_m": 0.07489438660341743,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.010249696417729205
+    },
+    {
+      "alpha_prime": 8.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.00021289944677986097,
+      "mean_abs_bias_m": 0.030520890530335,
+      "peak_rate_hz": 373.16993316495336,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 8.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0005519431432131306,
+      "mean_abs_bias_m": 0.06148332616222245,
+      "peak_rate_hz": 100.0,
+      "saturated_fraction": 0.005631451123254402
+    },
+    {
+      "alpha_prime": 8.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0009969259740666128,
+      "mean_abs_bias_m": 0.08922136259985329,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.01060261080752884
+    },
+    {
+      "alpha_prime": 10.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0001712904492774891,
+      "mean_abs_bias_m": 0.03058500735004282,
+      "peak_rate_hz": 457.88172745284544,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 10.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0005494881131187303,
+      "mean_abs_bias_m": 0.07310822960793335,
+      "peak_rate_hz": 100.0,
+      "saturated_fraction": 0.00648148148148148
+    },
+    {
+      "alpha_prime": 10.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0009516254710657573,
+      "mean_abs_bias_m": 0.10240658398806561,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.010598816029143898
+    },
+    {
+      "alpha_prime": 12.0,
+      "cap": "uncapped",
+      "cap_hz": -1.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0001432863308862807,
+      "mean_abs_bias_m": 0.03062804419466779,
+      "peak_rate_hz": 542.5935217407375,
+      "saturated_fraction": 0.0
+    },
+    {
+      "alpha_prime": 12.0,
+      "cap": "100 Hz cap",
+      "cap_hz": 100.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.0005339668463079313,
+      "mean_abs_bias_m": 0.08356565895274352,
+      "peak_rate_hz": 100.0,
+      "saturated_fraction": 0.006728142076502733
+    },
+    {
+      "alpha_prime": 12.0,
+      "cap": "55 Hz cap",
+      "cap_hz": 55.0,
+      "beta": 0.8965377489071944,
+      "final_crb_rmse_m": 0.000908938592716008,
+      "mean_abs_bias_m": 0.115056859865118,
+      "peak_rate_hz": 55.0,
+      "saturated_fraction": 0.010371129326047359
     }
   ],
   "top_rows": [
@@ -4911,6 +5153,7 @@
     "width_sensitivity": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/width_sensitivity.png",
     "alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/alpha_sweep.png",
     "capped_alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/capped_alpha_sweep.png",
+    "fixed_setup_alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png",
     "capped_rate_traces": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png",
     "block_input_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png",
     "response_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png"

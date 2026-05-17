@@ -942,6 +942,75 @@ def capped_alpha_sweep(
     return rows
 
 
+def fixed_setup_alpha_sweep(
+    params: TheoryParams,
+    spec: InputSpec,
+    recurrent_width_bins: float,
+    beta: float,
+) -> list[dict[str, float | str]]:
+    """Sweep alpha while keeping every other selected setup parameter fixed.
+
+    Args:
+        params: Theory parameters.
+        spec: Fixed input matrix family.
+        recurrent_width_bins: Fixed recurrent width.
+        beta: Fixed opponent input beta from the selected default-alpha setup.
+
+    Returns:
+        Rows for uncapped, 100 Hz capped, and 55 Hz capped alpha sweeps.
+    """
+    x = positions(params)
+    stimulus_grid = np.linspace(0.2, params.length_m - 0.2, 45)
+    delta = 0.01 * params.length_m
+    alpha_values = [0.5, 1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]
+    cap_scenarios = [("uncapped", None), ("100 Hz cap", 100.0), ("55 Hz cap", 55.0)]
+    final_index = int(round(params.readout_time_s / 0.001))
+    rows: list[dict[str, float | str]] = []
+    for alpha in alpha_values:
+        sweep_params = replace(params, balanced_alpha_prime=float(alpha))
+        candidate = build_candidate(sweep_params, spec, recurrent_width_bins, "balanced_opponent", beta=beta)
+        for cap_label, cap_hz in cap_scenarios:
+            fi_values = []
+            decoded_errors = []
+            peak_rates = []
+            saturated_fractions = []
+            for stimulus_m in stimulus_grid:
+                low = max(0.0, float(stimulus_m) - delta)
+                high = min(params.length_m, float(stimulus_m) + delta)
+                stim = population_code(sweep_params, float(stimulus_m))
+                stim_low = population_code(sweep_params, low)
+                stim_high = population_code(sweep_params, high)
+                _, state, readout = simulate_state_history(sweep_params, candidate, stim, alpha_cap_hz=cap_hz)
+                _, _, read_low = simulate_state_history(sweep_params, candidate, stim_low, alpha_cap_hz=cap_hz)
+                _, _, read_high = simulate_state_history(sweep_params, candidate, stim_high, alpha_cap_hz=cap_hz)
+                derivative = (read_high[final_index] - read_low[final_index]) / max(high - low, 1e-12)
+                fi_values.append(float(np.dot(derivative, derivative) / sweep_params.fisher_noise_sigma**2))
+                decoded = decode_center_of_mass(readout[final_index], x)
+                decoded_errors.append(abs(decoded - stimulus_m))
+                peak_rates.append(float(np.max(state) + sweep_params.baseline_rate_hz))
+                if cap_hz is None:
+                    saturated_fractions.append(0.0)
+                else:
+                    upper = cap_hz - sweep_params.baseline_rate_hz
+                    lower = -sweep_params.baseline_rate_hz
+                    saturated = (state >= upper - 1e-9) | (state <= lower + 1e-9)
+                    saturated_fractions.append(float(np.mean(saturated)))
+            fi_arr = np.maximum(np.array(fi_values), 1e-12)
+            rows.append(
+                {
+                    "alpha_prime": float(alpha),
+                    "cap": cap_label,
+                    "cap_hz": float(cap_hz) if cap_hz is not None else -1.0,
+                    "beta": float(beta),
+                    "final_crb_rmse_m": float(np.sqrt(np.mean(1.0 / fi_arr))),
+                    "mean_abs_bias_m": float(np.mean(decoded_errors)),
+                    "peak_rate_hz": float(np.max(peak_rates)),
+                    "saturated_fraction": float(np.mean(saturated_fractions)),
+                }
+            )
+    return rows
+
+
 def plot_capped_alpha_sweep(rows: list[dict[str, float | str]], path: Path) -> str:
     """Plot alpha sweep under firing-rate caps."""
     labels = ["uncapped", "100 Hz cap", "55 Hz cap"]
@@ -966,6 +1035,36 @@ def plot_capped_alpha_sweep(rows: list[dict[str, float | str]], path: Path) -> s
     for ax in axes:
         ax.grid(True, alpha=0.25)
         ax.legend(frameon=False)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_fixed_setup_alpha_sweep(rows: list[dict[str, float | str]], path: Path) -> str:
+    """Plot fixed-beta fixed-setup alpha sweep."""
+    labels = ["uncapped", "100 Hz cap", "55 Hz cap"]
+    colors = {"uncapped": "#111827", "100 Hz cap": "#f58518", "55 Hz cap": "#4c78a8"}
+    fig, axes = plt.subplots(1, 3, figsize=(14.2, 4.4))
+    for label in labels:
+        subset = [row for row in rows if row["cap"] == label]
+        alpha = np.array([float(row["alpha_prime"]) for row in subset])
+        crb = np.array([float(row["final_crb_rmse_m"]) for row in subset]) * 100.0
+        bias = np.array([float(row["mean_abs_bias_m"]) for row in subset]) * 100.0
+        saturation = np.array([float(row["saturated_fraction"]) for row in subset]) * 100.0
+        style = "-" if label == "uncapped" else "--"
+        axes[0].plot(alpha, crb, marker="o", linestyle=style, linewidth=2.0, color=colors[label], label=label)
+        axes[1].plot(alpha, bias, marker="o", linestyle=style, linewidth=2.0, color=colors[label], label=label)
+        axes[2].plot(alpha, saturation, marker="o", linestyle=style, linewidth=2.0, color=colors[label], label=label)
+    axes[0].set_ylabel("finite-difference CRB RMSE (cm)")
+    axes[0].set_title("Accuracy proxy")
+    axes[1].set_ylabel("mean COM bias (cm)")
+    axes[1].set_title("Bias")
+    axes[2].set_ylabel("saturated state fraction (%)")
+    axes[2].set_title("Saturation")
+    for ax in axes:
+        ax.set_xlabel(r"balanced $\alpha'$")
+        ax.grid(True, alpha=0.25)
+        ax.legend(frameon=False, fontsize=8)
+    fig.suptitle(r"Fixed setup alpha sweep: input, recurrence width, and $\beta$ held constant")
     fig.tight_layout()
     return save_figure(fig, path)
 
@@ -1049,12 +1148,30 @@ def format_capped_alpha_table(rows: list[dict[str, float | str]]) -> list[str]:
     ]
 
 
+def format_fixed_alpha_table(rows: list[dict[str, float | str]]) -> list[str]:
+    """Format fixed-setup alpha table rows."""
+    selected_alphas = {4.0, 8.0, 12.0}
+    return [
+        "| "
+        f"`{row['alpha_prime']:.1f}` | "
+        f"{row['cap']} | "
+        f"`{row['beta']:.3f}` | "
+        f"`{row['final_crb_rmse_m'] * 100.0:.3f} cm` | "
+        f"`{row['mean_abs_bias_m'] * 100.0:.3f} cm` | "
+        f"`{row['peak_rate_hz']:.1f} Hz` | "
+        f"`{row['saturated_fraction'] * 100.0:.1f}%` |"
+        for row in rows
+        if float(row["alpha_prime"]) in selected_alphas
+    ]
+
+
 def write_report(
     params: TheoryParams,
     rows: list[dict[str, float | str]],
     top_rows: list[dict[str, float | str]],
     alpha_rows: list[dict[str, float]],
     capped_alpha_rows: list[dict[str, float | str]],
+    fixed_alpha_rows: list[dict[str, float | str]],
     artifacts: dict[str, str],
     elapsed_s: float,
 ) -> None:
@@ -1064,7 +1181,12 @@ def write_report(
     table_rows = format_table(top_rows)
     alpha_table_rows = format_alpha_table(alpha_rows)
     capped_alpha_table_rows = format_capped_alpha_table(capped_alpha_rows)
+    fixed_alpha_table_rows = format_fixed_alpha_table(fixed_alpha_rows)
     best_alpha = min(alpha_rows, key=lambda row: row["final_crb_rmse_m"])
+    best_fixed_uncapped = min(
+        (row for row in fixed_alpha_rows if row["cap"] == "uncapped"),
+        key=lambda row: float(row["final_crb_rmse_m"]),
+    )
     lines = [
         "# Finite-Line Input Theory For The SC Line Attractor",
         "",
@@ -1277,6 +1399,27 @@ def write_report(
         "",
         "![Capped rate traces](../outputs/finite_line_input_theory/figures/capped_rate_traces.png)",
         "",
+        "## Fixed-Setup Alpha Sweep",
+        "",
+        "The previous alpha sweep recomputed the analytic opponent $\\beta$ for every $\\alpha'$. That is useful for asking what the best analytical gain should be at each recurrence strength, but it mixes two effects: stronger recurrence and retuned input balance.",
+        "",
+        "The diagnostic below keeps the selected setup fixed and changes only $\\alpha'$:",
+        "",
+        f"- input family: `{best['family']}`;",
+        f"- input width: `{float(best['input_width_bins']):.0f}` bins;",
+        f"- recurrent width: `{float(best['recurrent_width_bins']):.0f}` bins;",
+        f"- fixed opponent beta: `{float(best['beta']):.3f}`.",
+        "",
+        "This isolates whether the balanced recurrence gain itself improves the line-attractor sensitivity, and how firing-rate caps change that conclusion.",
+        "",
+        "![Fixed setup alpha sweep](../outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png)",
+        "",
+        "| alpha prime | cap | fixed beta | Finite-difference CRB RMSE | Mean COM bias | Peak rate | Saturated state fraction |",
+        "|---:|---|---:|---:|---:|---:|---:|",
+        *fixed_alpha_table_rows,
+        "",
+        f"With this fixed setup, the best uncapped tested value was $\\alpha'={float(best_fixed_uncapped['alpha_prime']):.1f}$, giving finite-difference CRB RMSE `{float(best_fixed_uncapped['final_crb_rmse_m']) * 100.0:.3f} cm`. If this curve improves with $\\alpha'$ even when $\\beta$ is fixed, the gain is coming from balanced recurrent amplification rather than from repeatedly retuning the input matrix.",
+        "",
         "## Bump Dynamics",
         "",
         "The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.",
@@ -1324,6 +1467,12 @@ def main() -> dict[str, object]:
     best_candidate = selected[0]
     alpha_rows = alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
     capped_alpha_rows = capped_alpha_sweep(params, best_candidate.input_spec, best_candidate.recurrent_width_bins)
+    fixed_alpha_rows = fixed_setup_alpha_sweep(
+        params,
+        best_candidate.input_spec,
+        best_candidate.recurrent_width_bins,
+        best_candidate.beta,
+    )
 
     artifacts = {
         "input_matrix_families": plot_input_families(params, FIGURE_DIR / "input_matrix_families.png"),
@@ -1340,6 +1489,10 @@ def main() -> dict[str, object]:
         "width_sensitivity": plot_width_sweep(rows, FIGURE_DIR / "width_sensitivity.png"),
         "alpha_sweep": plot_alpha_sweep(alpha_rows, FIGURE_DIR / "alpha_sweep.png"),
         "capped_alpha_sweep": plot_capped_alpha_sweep(capped_alpha_rows, FIGURE_DIR / "capped_alpha_sweep.png"),
+        "fixed_setup_alpha_sweep": plot_fixed_setup_alpha_sweep(
+            fixed_alpha_rows,
+            FIGURE_DIR / "fixed_setup_alpha_sweep.png",
+        ),
         "capped_rate_traces": plot_rate_traces(
             params,
             best_candidate.input_spec,
@@ -1358,12 +1511,13 @@ def main() -> dict[str, object]:
         "beta_summary": beta_summary,
         "alpha_sweep": alpha_rows,
         "capped_alpha_sweep": capped_alpha_rows,
+        "fixed_setup_alpha_sweep": fixed_alpha_rows,
         "top_rows": top_rows,
         "all_rows": rows,
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(params, rows, top_rows, alpha_rows, capped_alpha_rows, artifacts, elapsed_s)
+    write_report(params, rows, top_rows, alpha_rows, capped_alpha_rows, fixed_alpha_rows, artifacts, elapsed_s)
     return payload
 
 
