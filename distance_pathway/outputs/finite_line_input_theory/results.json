@@ -1,6 +1,6 @@
 {
   "experiment": "finite_line_input_theory",
-  "elapsed_seconds": 94.96060724998824,
+  "elapsed_seconds": 95.89535379200242,
   "params": {
     "length_m": 10.0,
     "num_neurons": 96,
@@ -1359,6 +1359,32 @@
       "peak_rate_hz": 100.0,
       "saturated_fraction": 0.008041135397692772,
       "readout_noise_hz": 5.0
+    }
+  ],
+  "input_dynamics_summary": [
+    {
+      "input": "diagonal",
+      "readout": "global COM",
+      "best_time_ms": 0.0,
+      "best_mae_m": 0.017484033154643253,
+      "mae_5ms_m": 0.025827824143757293,
+      "mae_60ms_m": 0.027750070215147676
+    },
+    {
+      "input": "reflected",
+      "readout": "global COM",
+      "best_time_ms": 0.0,
+      "best_mae_m": 0.021331351471064387,
+      "mae_5ms_m": 0.03078964348716313,
+      "mae_60ms_m": 0.03291649874853109
+    },
+    {
+      "input": "reflected",
+      "readout": "local population vector",
+      "best_time_ms": 0.0,
+      "best_mae_m": 0.03997382884107399,
+      "mae_5ms_m": 0.04735621294275148,
+      "mae_60ms_m": 0.05198980695442457
     }
   ],
   "top_rows": [
@@ -5879,6 +5905,10 @@
     "fixed_setup_alpha_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png",
     "notebook_style_alpha_error": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png",
     "capped_decoding_error": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/capped_decoding_error.png",
+    "input_spread_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/input_spread_snapshots.png",
+    "input_spread_error_time": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/input_spread_error_time.png",
+    "local_vector_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/local_vector_snapshots.png",
+    "local_vector_error_time": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/local_vector_error_time.png",
     "capped_rate_traces": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png",
     "block_input_matrices": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png",
     "response_snapshots": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png"

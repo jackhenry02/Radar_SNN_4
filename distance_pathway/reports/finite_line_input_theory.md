@@ -316,6 +316,37 @@ For this diagnostic, Gaussian readout noise has standard deviation `5.0 Hz`.
 
 Best uncapped tested error: `19.497 cm` at $\alpha'=20.0$, but this requires a peak rate of `882.3 Hz`. With a `55 Hz` cap, the best tested error is `109.800 cm` at $\alpha'=8.0$. With a `100 Hz` cap, the best tested error is `73.581 cm` at $\alpha'=12.0$.
 
+## Input Spread Dynamics
+
+This diagnostic compares a direct diagonal input matrix against the selected reflected Gaussian spread input. Everything else is fixed: balanced opponent block, recurrent width `4` bins, fixed beta from the selected setup, and $\alpha'=8$. A roughened synthetic input population is used to expose whether the input matrix passes high-frequency discontinuity/noise into the attractor.
+
+![Input spread snapshots](../outputs/finite_line_input_theory/figures/input_spread_snapshots.png)
+
+The diagonal input preserves the rougher sample-to-sample shape more directly. The reflected Gaussian input smooths the injected population before the recurrence acts, so the initial bump is less jagged and the attractor has a cleaner state to stabilise.
+
+![Input spread error over time](../outputs/finite_line_input_theory/figures/input_spread_error_time.png)
+
+| Input | Readout | Best time | Best MAE | MAE at 5 ms | MAE at 60 ms |
+|---|---|---:|---:|---:|---:|
+| diagonal | global COM | `0.0 ms` | `1.748 cm` | `2.583 cm` | `2.775 cm` |
+| reflected | global COM | `0.0 ms` | `2.133 cm` | `3.079 cm` | `3.292 cm` |
+| reflected | local population vector | `0.0 ms` | `3.997 cm` | `4.736 cm` | `5.199 cm` |
+
+These curves are not a replacement for the Fisher analysis. They answer a different practical question: when the incoming population is imperfect, does the input spread make the transient bump easier to read out, and is there a useful readout time before the final state?
+
+## Local Population-Vector Readout
+
+The local population-vector test is performed on the reflected Gaussian attractor output. It does **not** feed a different input into the attractor. Instead, the same attractor activity is decoded in two ways:
+
+- global centre of mass over the whole excitatory population;
+- local centre of mass over a `±5` bin neighbourhood around the activity peak.
+
+![Local vector snapshots](../outputs/finite_line_input_theory/figures/local_vector_snapshots.png)
+
+![Local vector error over time](../outputs/finite_line_input_theory/figures/local_vector_error_time.png)
+
+This test shows whether the best readout should use the full attractor population or only the local peak neighbourhood. A local vector can reduce bias from distant low-amplitude tails, but it is brittle if the peak itself is wrong.
+
 ## Bump Dynamics
 
 The snapshot plot shows the synthetic readout bump for selected one-population, E-only, and opponent candidates. This is still synthetic theory, not the real AC map.
@@ -349,9 +380,13 @@ Best analytical candidate in the default-alpha grid by final Cramer-Rao RMSE: `b
 - `fixed_setup_alpha_sweep`: `distance_pathway/outputs/finite_line_input_theory/figures/fixed_setup_alpha_sweep.png`
 - `notebook_style_alpha_error`: `distance_pathway/outputs/finite_line_input_theory/figures/notebook_style_alpha_error.png`
 - `capped_decoding_error`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_decoding_error.png`
+- `input_spread_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/input_spread_snapshots.png`
+- `input_spread_error_time`: `distance_pathway/outputs/finite_line_input_theory/figures/input_spread_error_time.png`
+- `local_vector_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/local_vector_snapshots.png`
+- `local_vector_error_time`: `distance_pathway/outputs/finite_line_input_theory/figures/local_vector_error_time.png`
 - `capped_rate_traces`: `distance_pathway/outputs/finite_line_input_theory/figures/capped_rate_traces.png`
 - `block_input_matrices`: `distance_pathway/outputs/finite_line_input_theory/figures/block_input_matrices.png`
 - `response_snapshots`: `distance_pathway/outputs/finite_line_input_theory/figures/response_snapshots.png`
 - `results`: `distance_pathway/outputs/finite_line_input_theory/results.json`
 
-Runtime: `94.96 s`.
+Runtime: `95.90 s`.
