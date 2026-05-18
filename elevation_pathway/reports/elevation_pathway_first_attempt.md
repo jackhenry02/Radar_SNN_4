@@ -84,6 +84,67 @@ Deep-comb gain used for the improvement plots: `a = 0.99`.
 
 ![Improvement error curve](../outputs/first_attempt/figures/improvement_error_curve.png)
 
+## Synaptic Weights, Lateral Inhibition, And Dynamic Wideband Inhibition
+
+The best current DCN-style model uses signal-and-notch synaptic weights. Each row corresponds to one candidate elevation neuron, and each column corresponds to one cochlear frequency channel:
+
+$$
+m_k(f_c)=P_0(f_c)(1-H_k(f_c))^2.
+$$
+
+This is interpreted as a fixed frequency-specific synaptic importance profile. It is not claiming the biological DCN computes a Fourier transfer function online; it uses the known transfer function to set biologically plausible frequency-specific weights.
+
+![Signal-and-notch synaptic weights](../outputs/first_attempt/figures/signal_notch_weight_matrix.png)
+
+Lateral inhibition is added as a Mexican-hat interaction across the elevation population:
+
+$$
+L_{ij}=\exp\left(-\frac{(i-j)^2}{2\sigma_E^2}\right)-\gamma\exp\left(-\frac{(i-j)^2}{2\sigma_I^2}\right).
+$$
+
+$$
+r'=[r+\alpha Lr]_+.
+$$
+
+This gives local cooperation and broader suppression, sharpening the elevation bump without changing the cochlear evidence itself.
+
+![Mexican-hat lateral matrix](../outputs/first_attempt/figures/mexican_hat_lateral_matrix.png)
+
+Dynamic wideband inhibition is implemented as a non-spiking leaky interneuron driven by the instantaneous total cochlear spike count:
+
+$$
+g_t=\beta g_{t-1}+\frac{1}{C}\sum_c S_{c,t},
+\qquad
+\hat x_{c,t}=\frac{x_{c,t}}{1+\eta g_t}.
+$$
+
+This is a divisive gain-control mechanism. It should reduce sensitivity to distance-dependent volume changes while preserving the relative spectral notch pattern.
+
+## Full 3D Elevation Test And Tuning
+
+The tuned model is tested on `160` clean full-3D samples. Distances are sampled from `0.25 m` to `5.0 m`, azimuth from `-90 deg` to `+90 deg`, and elevation from `-45 deg` to `+45 deg`. Only elevation error is measured. The selected ear is chosen by azimuth sign as a simple stand-in for the later azimuth-gated elevation pathway.
+
+The full-3D sweep varies:
+
+- dynamic wideband inhibition gain `eta`;
+- dynamic wideband inhibition leak `beta`;
+- Mexican-hat lateral gain `alpha`.
+
+![Full 3D tuning sweep](../outputs/first_attempt/figures/full_3d_tuning_sweep.png)
+
+Full-3D comparison:
+
+| Model | MAE | RMSE | Max error | Bias | Parameters |
+|---|---:|---:|---:|---:|---|
+| Deep-comb signal-weighted DCN, no dynamic/lateral | `3.029 deg` | `3.578 deg` | `6.753 deg` | `0.777 deg` | `eta=0`, `alpha=0` |
+| Best tuned full-3D model | `3.029 deg` | `3.578 deg` | `6.753 deg` | `0.777 deg` | `eta=0.00`, `beta=0.00`, `alpha=0.00` |
+
+In this clean full-3D test the best tuned setting leaves both added mechanisms off. That is still useful: the signal-weighted comb-transfer synaptic matrix already produces a sharp enough population for COM readout, while lateral inhibition over-sharpens the bump and dynamic wideband inhibition slightly distorts the equalised spectral profile. These mechanisms should be revisited under noise, clutter, or stronger distance-dependent amplitude variation.
+
+![Full 3D prediction scatter](../outputs/first_attempt/figures/full_3d_prediction_scatter.png)
+
+![Full 3D error context](../outputs/first_attempt/figures/full_3d_error_context.png)
+
 ## DCN Disinhibitory Notch Detector
 
 Each DCN output neuron corresponds to one candidate elevation. The candidate's expected comb-filter transfer function defines where inhibition should arrive from cochlear channels. If those channels are quiet because a notch is present, the candidate neuron is disinhibited.
@@ -191,5 +252,10 @@ The biological simplification is that the selected ear is fixed. Later, the azim
 - `error_curve`: `elevation_pathway/outputs/first_attempt/figures/error_curve.png`
 - `improvement_prediction_scatter`: `elevation_pathway/outputs/first_attempt/figures/improvement_prediction_scatter.png`
 - `improvement_error_curve`: `elevation_pathway/outputs/first_attempt/figures/improvement_error_curve.png`
+- `signal_notch_weight_matrix`: `elevation_pathway/outputs/first_attempt/figures/signal_notch_weight_matrix.png`
+- `mexican_hat_lateral_matrix`: `elevation_pathway/outputs/first_attempt/figures/mexican_hat_lateral_matrix.png`
+- `full_3d_tuning_sweep`: `elevation_pathway/outputs/first_attempt/figures/full_3d_tuning_sweep.png`
+- `full_3d_prediction_scatter`: `elevation_pathway/outputs/first_attempt/figures/full_3d_prediction_scatter.png`
+- `full_3d_error_context`: `elevation_pathway/outputs/first_attempt/figures/full_3d_error_context.png`
 - `results`: `elevation_pathway/outputs/first_attempt/results.json`
-- runtime: `3.58 s`
+- runtime: `393.60 s`

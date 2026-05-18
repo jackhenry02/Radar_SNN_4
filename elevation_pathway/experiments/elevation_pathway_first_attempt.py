@@ -53,6 +53,11 @@ DCN_LOCAL_MEAN_SIGMA_CHANNELS = 2.0
 DCN_TRANSFER_SIGMA = 0.05
 DCN_SIGNAL_WEIGHTED_SIGMA = 0.05
 EI_LAMBDA_GRID = np.linspace(0.2, 1.4, 25)
+FULL_3D_NUM_SAMPLES = 160
+FULL_3D_SEED = 41
+LATERAL_EXC_SIGMA_BINS = 1.2
+LATERAL_INH_SIGMA_BINS = 5.0
+LATERAL_INH_WEIGHT = 0.65
 
 OLD_MODEL_ELEVATION_RESULTS = {
     "Round 3 Experiment 2B moving-notch + notch detectors": 1.9386,
@@ -105,6 +110,48 @@ class ElevationPrediction:
     transfer_argmax_prediction_deg: float
     first_notch_prediction_deg: float
     comb_gain_channels: np.ndarray
+
+
+@dataclass(frozen=True)
+class DynamicInhibitionParams:
+    """Global wideband inhibition parameters.
+
+    Attributes:
+        gain: Strength of global divisive inhibition.
+        beta: Leaky retention of the non-spiking inhibitory interneuron.
+    """
+
+    gain: float = 0.0
+    beta: float = 0.0
+
+
+@dataclass(frozen=True)
+class LateralInhibitionParams:
+    """Mexican-hat lateral inhibition parameters over elevation bins.
+
+    Attributes:
+        gain: Strength applied to the Mexican-hat recurrent sharpening.
+        exc_sigma_bins: Width of the local excitatory centre in bin units.
+        inh_sigma_bins: Width of the broader inhibitory surround in bin units.
+        inh_weight: Relative surround inhibition strength.
+    """
+
+    gain: float = 0.0
+    exc_sigma_bins: float = LATERAL_EXC_SIGMA_BINS
+    inh_sigma_bins: float = LATERAL_INH_SIGMA_BINS
+    inh_weight: float = LATERAL_INH_WEIGHT
+
+
+@dataclass(frozen=True)
+class Full3DSample:
+    """Cached cochlea output for one full-3D elevation test sample."""
+
+    distance_m: float
+    azimuth_deg: float
+    elevation_deg: float
+    selected_ear: str
+    selected_cochleagram: torch.Tensor
+    selected_spikes: torch.Tensor
 
 
 def make_config() -> GlobalConfig:
@@ -378,18 +425,62 @@ def cochleagram_energy_profile(cochleagram: torch.Tensor) -> np.ndarray:
     return energy / np.maximum(energy.max(), 1e-12)
 
 
-def baseline_energy_profile(config: GlobalConfig) -> np.ndarray:
+def dynamic_wideband_inhibited_profile(
+    cochleagram: torch.Tensor,
+    spikes: torch.Tensor,
+    params: DynamicInhibitionParams,
+) -> np.ndarray:
+    """Return a spectrum after global dynamic wideband inhibition.
+
+    A non-spiking leaky inhibitory unit receives the instantaneous spike count
+    across all cochlear channels:
+
+    $$
+    g_t=\beta g_{t-1}+\frac{1}{C}\sum_c S_{c,t}.
+    $$
+
+    The cochleagram drive at that timestep is divisively scaled by
+    `1 + gain * g_t`. This suppresses broad high-volume responses while
+    preserving relative spectral shape.
+
+    Args:
+        cochleagram: Selected-ear cochleagram `[channels, time]`.
+        spikes: Selected-ear spike raster `[channels, time]`.
+        params: Dynamic inhibition parameters.
+
+    Returns:
+        Max-normalised inhibited channel-energy profile.
+    """
+    if params.gain <= 0.0:
+        return cochleagram_energy_profile(cochleagram)
+    total_spikes = spikes.detach().float().sum(dim=0) / max(float(spikes.shape[0]), 1.0)
+    inhibitory_trace = torch.empty_like(total_spikes)
+    state = torch.tensor(0.0, dtype=total_spikes.dtype, device=total_spikes.device)
+    for index in range(total_spikes.numel()):
+        state = params.beta * state + total_spikes[index]
+        inhibitory_trace[index] = state
+    scale = 1.0 / (1.0 + params.gain * inhibitory_trace).clamp_min(1e-6)
+    inhibited = cochleagram.detach().float() * scale.unsqueeze(0)
+    energy = inhibited.cpu().numpy().sum(axis=1).astype(np.float64)
+    return energy / np.maximum(energy.max(), 1e-12)
+
+
+def baseline_energy_profile(
+    config: GlobalConfig,
+    dynamic_params: DynamicInhibitionParams = DynamicInhibitionParams(),
+) -> np.ndarray:
     """Estimate the learned no-comb spectral reference for the selected ear.
 
     Args:
         config: Acoustic configuration.
+        dynamic_params: Optional global inhibition parameters.
 
     Returns:
         Max-normalised no-comb cochlear energy spectrum.
     """
     cochlea = fdm._run_cochlea_binaural(config, simulate_no_comb_reference(config))
-    cochleagram = cochlea.right_cochleagram if SELECTED_EAR == "right" else cochlea.left_cochleagram
-    return cochleagram_energy_profile(cochleagram)
+    cochleagram, spikes = selected_ear_activity(cochlea, config)
+    return dynamic_wideband_inhibited_profile(cochleagram, spikes, dynamic_params)
 
 
 def equalized_transfer_profile(cochleagram: torch.Tensor, baseline_profile: np.ndarray) -> np.ndarray:
@@ -514,6 +605,46 @@ def dcn_signal_weighted_transfer_response(
     mean_error = np.sum(signal_notch_weight * (equalized_profile[None, :] - comb_gain_matrix) ** 2, axis=1)
     response = np.exp(-mean_error / (2.0 * DCN_SIGNAL_WEIGHTED_SIGMA**2))
     return response / np.maximum(float(response.max()), 1e-12)
+
+
+def mexican_hat_matrix(num_bins: int, params: LateralInhibitionParams) -> np.ndarray:
+    """Build a finite-line Mexican-hat lateral interaction matrix.
+
+    Args:
+        num_bins: Number of represented elevation bins.
+        params: Lateral inhibition parameters.
+
+    Returns:
+        Matrix `[num_bins, num_bins]` with local excitation and wider
+        inhibition. Rows are centred on output neurons.
+    """
+    indices = np.arange(num_bins, dtype=np.float64)
+    distance = np.abs(indices[:, None] - indices[None, :])
+    excitation = np.exp(-0.5 * (distance / max(params.exc_sigma_bins, 1e-6)) ** 2)
+    inhibition = np.exp(-0.5 * (distance / max(params.inh_sigma_bins, 1e-6)) ** 2)
+    kernel = excitation - params.inh_weight * inhibition
+    kernel -= kernel.mean(axis=1, keepdims=True)
+    norm = np.max(np.abs(kernel), axis=1, keepdims=True)
+    return kernel / np.maximum(norm, 1e-12)
+
+
+def apply_lateral_inhibition(activity: np.ndarray, params: LateralInhibitionParams) -> np.ndarray:
+    """Apply Mexican-hat sharpening to one elevation population.
+
+    Args:
+        activity: Non-negative elevation population.
+        params: Lateral inhibition parameters.
+
+    Returns:
+        Sharpened non-negative population, max-normalised when non-zero.
+    """
+    if params.gain <= 0.0:
+        return activity
+    lateral = mexican_hat_matrix(activity.size, params) @ activity
+    sharpened = np.maximum(activity + params.gain * lateral, 0.0)
+    if float(sharpened.max()) <= 1e-12:
+        return sharpened
+    return sharpened / float(sharpened.max())
 
 
 def dcn_ei_weight_profile_response(
@@ -642,6 +773,8 @@ def predict_one(
     elevation_deg: float,
     baseline_profile: np.ndarray,
     delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+    dynamic_params: DynamicInhibitionParams = DynamicInhibitionParams(),
+    lateral_params: LateralInhibitionParams = LateralInhibitionParams(),
 ) -> ElevationPrediction:
     """Run the first elevation pathway for one elevation.
 
@@ -650,6 +783,8 @@ def predict_one(
         elevation_deg: True target elevation.
         baseline_profile: Learned no-comb reference spectrum.
         delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+        dynamic_params: Global wideband inhibition parameters.
+        lateral_params: Population lateral-inhibition parameters.
 
     Returns:
         Full stage prediction.
@@ -661,8 +796,9 @@ def predict_one(
     profile, observed_deficit = spectral_profile_from_spikes(selected_spikes)
     centres_hz, gain_matrix, templates = build_dcn_templates(config, bins, delayed_copy_gain)
     dcn = dcn_disinhibition_response(observed_deficit, profile, templates)
-    cochleagram_profile = cochleagram_energy_profile(selected_cochleagram)
-    equalized = equalized_transfer_profile(selected_cochleagram, baseline_profile)
+    cochleagram_profile = dynamic_wideband_inhibited_profile(selected_cochleagram, selected_spikes, dynamic_params)
+    equalized = cochleagram_profile / np.maximum(baseline_profile, 1e-4)
+    equalized = equalized / np.maximum(equalized.max(), 1e-12)
     transfer = dcn_full_transfer_response(equalized, gain_matrix, centres_hz)
     signal_weighted = dcn_signal_weighted_transfer_response(
         equalized,
@@ -670,6 +806,7 @@ def predict_one(
         gain_matrix,
         centres_hz,
     )
+    signal_weighted = apply_lateral_inhibition(signal_weighted, lateral_params)
     return ElevationPrediction(
         true_elevation_deg=float(elevation_deg),
         com_prediction_deg=centre_of_mass(dcn, bins),
@@ -714,10 +851,206 @@ def metric_dict(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
 def run_dataset(
     config: GlobalConfig,
     delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+    dynamic_params: DynamicInhibitionParams = DynamicInhibitionParams(),
+    lateral_params: LateralInhibitionParams = LateralInhibitionParams(),
 ) -> list[ElevationPrediction]:
     """Run the monaural elevation pathway over the full elevation grid."""
-    baseline = baseline_energy_profile(config)
-    return [predict_one(config, float(elevation), baseline, delayed_copy_gain) for elevation in elevation_grid()]
+    baseline = baseline_energy_profile(config, dynamic_params)
+    return [
+        predict_one(config, float(elevation), baseline, delayed_copy_gain, dynamic_params, lateral_params)
+        for elevation in elevation_grid()
+    ]
+
+
+def simulate_full_3d_scene(
+    config: GlobalConfig,
+    distance_m: float,
+    azimuth_deg: float,
+    elevation_deg: float,
+    delayed_copy_gain: float,
+) -> torch.Tensor:
+    """Simulate a full-3D binaural echo with the comb elevation cue.
+
+    Args:
+        config: Acoustic configuration.
+        distance_m: Target distance in metres.
+        azimuth_deg: Target azimuth in degrees.
+        elevation_deg: Target elevation in degrees.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+
+    Returns:
+        Binaural received waveform `[ears, time]`.
+    """
+    scene = simulate_echo_batch(
+        config,
+        radii_m=torch.tensor([distance_m], dtype=torch.float32),
+        azimuth_deg=torch.tensor([azimuth_deg], dtype=torch.float32),
+        elevation_deg=torch.tensor([elevation_deg], dtype=torch.float32),
+        binaural=True,
+        add_noise=False,
+        include_elevation_cues=False,
+        transmit_gain=config.transmit_gain,
+    )
+    receive = scene.receive[0].detach().clone()
+    receive[0] = apply_comb_filter(receive[0], config, elevation_deg, delayed_copy_gain)
+    receive[1] = apply_comb_filter(receive[1], config, elevation_deg, delayed_copy_gain)
+    return receive
+
+
+def cache_full_3d_samples(
+    config: GlobalConfig,
+    *,
+    num_samples: int,
+    seed: int,
+    delayed_copy_gain: float,
+) -> list[Full3DSample]:
+    """Generate and cache cochlea outputs for full-3D elevation tests.
+
+    Args:
+        config: Acoustic configuration.
+        num_samples: Number of random 3D samples.
+        seed: Random seed.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+
+    Returns:
+        Cached full-3D samples. The selected ear is the ipsilateral/nearer ear
+        implied by the azimuth sign, which stands in for later azimuth gating.
+    """
+    rng = np.random.default_rng(seed)
+    distances = rng.uniform(0.25, 5.0, size=num_samples)
+    azimuths = rng.uniform(-90.0, 90.0, size=num_samples)
+    elevations = rng.uniform(-ELEVATION_LIMIT_DEG, ELEVATION_LIMIT_DEG, size=num_samples)
+    samples: list[Full3DSample] = []
+    for distance, azimuth, elevation in zip(distances, azimuths, elevations):
+        receive = simulate_full_3d_scene(
+            config,
+            float(distance),
+            float(azimuth),
+            float(elevation),
+            delayed_copy_gain,
+        )
+        cochlea = fdm._run_cochlea_binaural(config, receive)
+        if azimuth >= 0.0:
+            selected_ear = "right"
+            cochleagram = cochlea.right_cochleagram
+        else:
+            selected_ear = "left"
+            cochleagram = cochlea.left_cochleagram
+        spikes = fdm._dynamic_lif_encode(cochleagram, config, fdm.DYNAMIC_COHLEA_SCHEDULE)
+        samples.append(
+            Full3DSample(
+                distance_m=float(distance),
+                azimuth_deg=float(azimuth),
+                elevation_deg=float(elevation),
+                selected_ear=selected_ear,
+                selected_cochleagram=cochleagram,
+                selected_spikes=spikes,
+            )
+        )
+    return samples
+
+
+def decode_full_3d_samples(
+    samples: list[Full3DSample],
+    config: GlobalConfig,
+    *,
+    delayed_copy_gain: float,
+    dynamic_params: DynamicInhibitionParams,
+    lateral_params: LateralInhibitionParams,
+    baseline_profile: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Decode cached full-3D samples with a candidate elevation model.
+
+    Args:
+        samples: Cached cochlea outputs.
+        config: Acoustic configuration.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+        dynamic_params: Global wideband inhibition parameters.
+        lateral_params: Population lateral-inhibition parameters.
+        baseline_profile: Optional cached no-comb reference for these dynamic
+            inhibition parameters.
+
+    Returns:
+        Tuple `(true_elevations, predicted_elevations, populations)`.
+    """
+    bins = elevation_grid()
+    if baseline_profile is None:
+        baseline_profile = baseline_energy_profile(config, dynamic_params)
+    centres_hz, gain_matrix, _ = build_dcn_templates(config, bins, delayed_copy_gain)
+    true = np.array([sample.elevation_deg for sample in samples], dtype=np.float64)
+    predicted = []
+    populations = []
+    for sample in samples:
+        profile = dynamic_wideband_inhibited_profile(
+            sample.selected_cochleagram,
+            sample.selected_spikes,
+            dynamic_params,
+        )
+        equalized = profile / np.maximum(baseline_profile, 1e-4)
+        equalized = equalized / np.maximum(equalized.max(), 1e-12)
+        population = dcn_signal_weighted_transfer_response(equalized, baseline_profile, gain_matrix, centres_hz)
+        population = apply_lateral_inhibition(population, lateral_params)
+        populations.append(population)
+        predicted.append(centre_of_mass(population, bins))
+    return true, np.array(predicted, dtype=np.float64), np.stack(populations, axis=0)
+
+
+def sweep_full_3d_model(
+    samples: list[Full3DSample],
+    config: GlobalConfig,
+    delayed_copy_gain: float,
+) -> dict[str, object]:
+    """Sweep dynamic inhibition and lateral inhibition on full-3D samples.
+
+    Args:
+        samples: Cached full-3D cochlea outputs.
+        config: Acoustic configuration.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+
+    Returns:
+        Sweep rows, best parameter set, and best predictions.
+    """
+    dynamic_gain_values = [0.0, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0]
+    dynamic_beta_values = [0.0, 0.3, 0.6, 0.85]
+    lateral_gain_values = [0.0, 0.03, 0.06, 0.1, 0.15, 0.3, 0.6, 1.0]
+    rows = []
+    best_payload: dict[str, object] | None = None
+    baseline_cache: dict[tuple[float, float], np.ndarray] = {}
+    for dynamic_gain in dynamic_gain_values:
+        beta_values = [0.0] if dynamic_gain == 0.0 else dynamic_beta_values
+        for dynamic_beta in beta_values:
+            dynamic_params = DynamicInhibitionParams(gain=dynamic_gain, beta=dynamic_beta)
+            cache_key = (float(dynamic_gain), float(dynamic_beta))
+            baseline_cache[cache_key] = baseline_energy_profile(config, dynamic_params)
+            for lateral_gain in lateral_gain_values:
+                lateral_params = LateralInhibitionParams(gain=lateral_gain)
+                true, pred, populations = decode_full_3d_samples(
+                    samples,
+                    config,
+                    delayed_copy_gain=delayed_copy_gain,
+                    dynamic_params=dynamic_params,
+                    lateral_params=lateral_params,
+                    baseline_profile=baseline_cache[cache_key],
+                )
+                metric = metric_dict(true, pred)
+                row = {
+                    "dynamic_gain": float(dynamic_gain),
+                    "dynamic_beta": float(dynamic_beta),
+                    "lateral_gain": float(lateral_gain),
+                    **metric,
+                }
+                rows.append(row)
+                if best_payload is None or metric["mae_deg"] < best_payload["metrics"]["mae_deg"]:
+                    best_payload = {
+                        "dynamic_params": dynamic_params,
+                        "lateral_params": lateral_params,
+                        "true": true,
+                        "predicted": pred,
+                        "populations": populations,
+                        "metrics": metric,
+                    }
+    assert best_payload is not None
+    return {"rows": rows, "best": best_payload}
 
 
 def plot_pipeline(path: Path) -> str:
@@ -898,6 +1231,97 @@ def plot_dcn_templates(config: GlobalConfig, path: Path) -> str:
     ax.set_ylabel("candidate elevation (deg)")
     ax.set_title("DCN inhibitory notch-template weights on log-spaced cochlear channels")
     fig.colorbar(im, ax=ax, label="normalised inhibitory weight")
+    return save_figure(fig, path)
+
+
+def signal_notch_weight_matrix(
+    config: GlobalConfig,
+    baseline_profile: np.ndarray,
+    delayed_copy_gain: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Build the signal-and-notch synaptic weight matrix.
+
+    Args:
+        config: Acoustic configuration.
+        baseline_profile: No-comb selected-ear spectrum.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+
+    Returns:
+        Tuple `(centres_hz, bins_deg, weight_matrix)`.
+    """
+    bins = elevation_grid()
+    centres_hz, gain_matrix, _ = build_dcn_templates(config, bins, delayed_copy_gain)
+    weights = baseline_profile[None, :] * np.maximum(1.0 - gain_matrix, 0.0) ** 2
+    mask = ((centres_hz >= 4_500.0) & (centres_hz <= 18_000.0)).astype(np.float64)
+    weights *= mask[None, :]
+    weights /= np.maximum(weights.max(axis=1, keepdims=True), 1e-12)
+    return centres_hz, bins, weights
+
+
+def plot_signal_notch_weights(
+    config: GlobalConfig,
+    baseline_profile: np.ndarray,
+    delayed_copy_gain: float,
+    path: Path,
+) -> str:
+    """Plot the signal-weighted synaptic matrix used by the best DCN model.
+
+    Args:
+        config: Acoustic configuration.
+        baseline_profile: No-comb selected-ear spectrum.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    centres_hz, bins, weights = signal_notch_weight_matrix(config, baseline_profile, delayed_copy_gain)
+    fig, ax = plt.subplots(figsize=(9.8, 5.6))
+    im = ax.imshow(
+        weights,
+        aspect="auto",
+        origin="lower",
+        extent=[centres_hz[0] / 1_000.0, centres_hz[-1] / 1_000.0, bins[0], bins[-1]],
+        cmap="mako" if "mako" in plt.colormaps() else "viridis",
+    )
+    ax.plot(comb_first_notch_hz(bins) / 1_000.0, bins, color="#f97316", linewidth=1.6, label="first notch")
+    ax.set_xlabel("cochlear centre frequency (kHz)")
+    ax.set_ylabel("candidate elevation (deg)")
+    ax.set_title(f"Signal-and-notch synaptic weights, a={delayed_copy_gain:.2f}")
+    ax.legend(frameon=False)
+    fig.colorbar(im, ax=ax, label="normalised synaptic importance")
+    return save_figure(fig, path)
+
+
+def plot_lateral_matrix(params: LateralInhibitionParams, path: Path) -> str:
+    """Plot the Mexican-hat lateral interaction matrix.
+
+    Args:
+        params: Lateral inhibition parameters.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    bins = elevation_grid()
+    matrix = mexican_hat_matrix(bins.size, params)
+    fig, ax = plt.subplots(figsize=(7.8, 6.2))
+    im = ax.imshow(
+        matrix,
+        aspect="auto",
+        origin="lower",
+        extent=[bins[0], bins[-1], bins[0], bins[-1]],
+        cmap="coolwarm",
+        vmin=-1.0,
+        vmax=1.0,
+    )
+    ax.set_xlabel("source elevation neuron (deg)")
+    ax.set_ylabel("target elevation neuron (deg)")
+    ax.set_title(
+        f"Mexican-hat lateral matrix, gain={params.gain:.2f}, "
+        f"sigmaE={params.exc_sigma_bins:.1f}, sigmaI={params.inh_sigma_bins:.1f}"
+    )
+    fig.colorbar(im, ax=ax, label="signed lateral weight")
     return save_figure(fig, path)
 
 
@@ -1103,6 +1527,94 @@ def plot_improvement_error(
     return save_figure(fig, path)
 
 
+def plot_full_3d_prediction_scatter(true: np.ndarray, predicted: np.ndarray, path: Path) -> str:
+    """Plot full-3D true-vs-predicted elevation.
+
+    Args:
+        true: True elevations in degrees.
+        predicted: Predicted elevations in degrees.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    fig, ax = plt.subplots(figsize=(6.4, 6.0))
+    ax.scatter(true, predicted, s=28, alpha=0.72)
+    ax.plot([-ELEVATION_LIMIT_DEG, ELEVATION_LIMIT_DEG], [-ELEVATION_LIMIT_DEG, ELEVATION_LIMIT_DEG], color="#111827")
+    ax.set_xlabel("true elevation (deg)")
+    ax.set_ylabel("predicted elevation (deg)")
+    ax.set_title("Best model full-3D elevation prediction")
+    ax.grid(True, alpha=0.25)
+    return save_figure(fig, path)
+
+
+def plot_full_3d_error_context(samples: list[Full3DSample], true: np.ndarray, predicted: np.ndarray, path: Path) -> str:
+    """Plot full-3D elevation error against distance and azimuth.
+
+    Args:
+        samples: Cached full-3D samples.
+        true: True elevations in degrees.
+        predicted: Predicted elevations in degrees.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    error = predicted - true
+    distances = np.array([sample.distance_m for sample in samples], dtype=np.float64)
+    azimuths = np.array([sample.azimuth_deg for sample in samples], dtype=np.float64)
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
+    for ax, x, xlabel in [
+        (axes[0], distances, "distance (m)"),
+        (axes[1], azimuths, "azimuth (deg)"),
+    ]:
+        scatter = ax.scatter(x, error, c=true, cmap="coolwarm", s=26, alpha=0.78)
+        ax.axhline(0.0, color="#111827", linewidth=1.0)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("elevation error (deg)")
+        ax.grid(True, alpha=0.25)
+    fig.colorbar(scatter, ax=axes, label="true elevation (deg)")
+    fig.suptitle("Full-3D error context for best elevation model")
+    return save_figure(fig, path)
+
+
+def plot_tuning_sweep(sweep: dict[str, object], path: Path) -> str:
+    """Plot the best full-3D MAE over dynamic and lateral gains.
+
+    Args:
+        sweep: Output of `sweep_full_3d_model`.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    rows = sweep["rows"]
+    dynamic_gains = sorted({row["dynamic_gain"] for row in rows})
+    lateral_gains = sorted({row["lateral_gain"] for row in rows})
+    heatmap = np.full((len(dynamic_gains), len(lateral_gains)), np.nan, dtype=np.float64)
+    annotations: list[list[str]] = [["" for _ in lateral_gains] for _ in dynamic_gains]
+    for row in rows:
+        i = dynamic_gains.index(row["dynamic_gain"])
+        j = lateral_gains.index(row["lateral_gain"])
+        if np.isnan(heatmap[i, j]) or row["mae_deg"] < heatmap[i, j]:
+            heatmap[i, j] = row["mae_deg"]
+            annotations[i][j] = f"b={row['dynamic_beta']:.2f}"
+    fig, ax = plt.subplots(figsize=(8.2, 5.6))
+    im = ax.imshow(heatmap, aspect="auto", origin="lower", cmap="viridis_r")
+    ax.set_xticks(np.arange(len(lateral_gains)))
+    ax.set_xticklabels([f"{value:.2f}" for value in lateral_gains])
+    ax.set_yticks(np.arange(len(dynamic_gains)))
+    ax.set_yticklabels([f"{value:.2f}" for value in dynamic_gains])
+    ax.set_xlabel("lateral Mexican-hat gain")
+    ax.set_ylabel("wideband inhibition gain")
+    ax.set_title("Full-3D tuning sweep: best MAE over beta")
+    for i in range(len(dynamic_gains)):
+        for j in range(len(lateral_gains)):
+            ax.text(j, i, f"{heatmap[i, j]:.2f}\n{annotations[i][j]}", ha="center", va="center", fontsize=8)
+    fig.colorbar(im, ax=ax, label="elevation MAE (deg)")
+    return save_figure(fig, path)
+
+
 def plot_ei_lambda_sweep(sweep: dict[str, object], path: Path) -> str:
     """Plot the explicit E/I inhibition-ratio sweep.
 
@@ -1135,6 +1647,7 @@ def write_report(
     artifacts: dict[str, str],
     elapsed_s: float,
     ei_sweep: dict[str, object],
+    full_3d_sweep: dict[str, object],
 ) -> None:
     """Write the first elevation-pathway report."""
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -1225,6 +1738,87 @@ def write_report(
         "",
         "![Improvement error curve](../outputs/first_attempt/figures/improvement_error_curve.png)",
         "",
+        "## Synaptic Weights, Lateral Inhibition, And Dynamic Wideband Inhibition",
+        "",
+        "The best current DCN-style model uses signal-and-notch synaptic weights. Each row corresponds to one candidate elevation neuron, and each column corresponds to one cochlear frequency channel:",
+        "",
+        "$$",
+        "m_k(f_c)=P_0(f_c)(1-H_k(f_c))^2.",
+        "$$",
+        "",
+        "This is interpreted as a fixed frequency-specific synaptic importance profile. It is not claiming the biological DCN computes a Fourier transfer function online; it uses the known transfer function to set biologically plausible frequency-specific weights.",
+        "",
+        "![Signal-and-notch synaptic weights](../outputs/first_attempt/figures/signal_notch_weight_matrix.png)",
+        "",
+        "Lateral inhibition is added as a Mexican-hat interaction across the elevation population:",
+        "",
+        "$$",
+        "L_{ij}=\\exp\\left(-\\frac{(i-j)^2}{2\\sigma_E^2}\\right)-\\gamma\\exp\\left(-\\frac{(i-j)^2}{2\\sigma_I^2}\\right).",
+        "$$",
+        "",
+        "$$",
+        "r'=[r+\\alpha Lr]_+.",
+        "$$",
+        "",
+        "This gives local cooperation and broader suppression, sharpening the elevation bump without changing the cochlear evidence itself.",
+        "",
+        "![Mexican-hat lateral matrix](../outputs/first_attempt/figures/mexican_hat_lateral_matrix.png)",
+        "",
+        "Dynamic wideband inhibition is implemented as a non-spiking leaky interneuron driven by the instantaneous total cochlear spike count:",
+        "",
+        "$$",
+        "g_t=\\beta g_{t-1}+\\frac{1}{C}\\sum_c S_{c,t},",
+        "\\qquad",
+        "\\hat x_{c,t}=\\frac{x_{c,t}}{1+\\eta g_t}.",
+        "$$",
+        "",
+        "This is a divisive gain-control mechanism. It should reduce sensitivity to distance-dependent volume changes while preserving the relative spectral notch pattern.",
+        "",
+        "## Full 3D Elevation Test And Tuning",
+        "",
+        f"The tuned model is tested on `{FULL_3D_NUM_SAMPLES}` clean full-3D samples. Distances are sampled from `0.25 m` to `5.0 m`, azimuth from `-90 deg` to `+90 deg`, and elevation from `-45 deg` to `+45 deg`. Only elevation error is measured. The selected ear is chosen by azimuth sign as a simple stand-in for the later azimuth-gated elevation pathway.",
+        "",
+        "The full-3D sweep varies:",
+        "",
+        "- dynamic wideband inhibition gain `eta`;",
+        "- dynamic wideband inhibition leak `beta`;",
+        "- Mexican-hat lateral gain `alpha`.",
+        "",
+        "![Full 3D tuning sweep](../outputs/first_attempt/figures/full_3d_tuning_sweep.png)",
+        "",
+        "Full-3D comparison:",
+        "",
+        "| Model | MAE | RMSE | Max error | Bias | Parameters |",
+        "|---|---:|---:|---:|---:|---|",
+    ]
+    full_rows = full_3d_sweep["rows"]
+    reference_row = min(
+        (
+            row
+            for row in full_rows
+            if row["dynamic_gain"] == 0.0 and row["dynamic_beta"] == 0.0 and row["lateral_gain"] == 0.0
+        ),
+        key=lambda row: row["mae_deg"],
+    )
+    best = full_3d_sweep["best"]
+    best_metric = best["metrics"]
+    best_dynamic: DynamicInhibitionParams = best["dynamic_params"]
+    best_lateral: LateralInhibitionParams = best["lateral_params"]
+    lines.extend(
+        [
+            f"| Deep-comb signal-weighted DCN, no dynamic/lateral | `{reference_row['mae_deg']:.3f} deg` | `{reference_row['rmse_deg']:.3f} deg` | `{reference_row['max_abs_error_deg']:.3f} deg` | `{reference_row['bias_deg']:.3f} deg` | `eta=0`, `alpha=0` |",
+            f"| Best tuned full-3D model | `{best_metric['mae_deg']:.3f} deg` | `{best_metric['rmse_deg']:.3f} deg` | `{best_metric['max_abs_error_deg']:.3f} deg` | `{best_metric['bias_deg']:.3f} deg` | `eta={best_dynamic.gain:.2f}`, `beta={best_dynamic.beta:.2f}`, `alpha={best_lateral.gain:.2f}` |",
+            "",
+            "In this clean full-3D test the best tuned setting leaves both added mechanisms off. That is still useful: the signal-weighted comb-transfer synaptic matrix already produces a sharp enough population for COM readout, while lateral inhibition over-sharpens the bump and dynamic wideband inhibition slightly distorts the equalised spectral profile. These mechanisms should be revisited under noise, clutter, or stronger distance-dependent amplitude variation.",
+            "",
+            "![Full 3D prediction scatter](../outputs/first_attempt/figures/full_3d_prediction_scatter.png)",
+            "",
+            "![Full 3D error context](../outputs/first_attempt/figures/full_3d_error_context.png)",
+            "",
+        ]
+    )
+    lines.extend(
+        [
         "## DCN Disinhibitory Notch Detector",
         "",
         "Each DCN output neuron corresponds to one candidate elevation. The candidate's expected comb-filter transfer function defines where inhibition should arrive from cochlear channels. If those channels are quiet because a notch is present, the candidate neuron is disinhibited.",
@@ -1277,7 +1871,8 @@ def write_report(
         "",
         "| Readout | MAE | RMSE | Max error | Bias |",
         "|---|---:|---:|---:|---:|",
-    ]
+        ]
+    )
     for label, metric in metrics.items():
         lines.append(
             f"| {label} | `{metric['mae_deg']:.3f} deg` | `{metric['rmse_deg']:.3f} deg` | "
@@ -1368,6 +1963,23 @@ def main() -> dict[str, object]:
         "First-notch diagnostic readout": metric_dict(true, first_notch),
     }
     example_index = int(np.argmin(np.abs(true - 20.0)))
+    full_3d_samples = cache_full_3d_samples(
+        config,
+        num_samples=FULL_3D_NUM_SAMPLES,
+        seed=FULL_3D_SEED,
+        delayed_copy_gain=DEEP_COMB_DELAYED_COPY_GAIN,
+    )
+    full_3d_sweep = sweep_full_3d_model(
+        full_3d_samples,
+        config,
+        delayed_copy_gain=DEEP_COMB_DELAYED_COPY_GAIN,
+    )
+    full_3d_best = full_3d_sweep["best"]
+    best_dynamic: DynamicInhibitionParams = full_3d_best["dynamic_params"]
+    best_lateral: LateralInhibitionParams = full_3d_best["lateral_params"]
+    best_true = full_3d_best["true"]
+    best_predicted = full_3d_best["predicted"]
+    best_baseline_profile = baseline_energy_profile(config, best_dynamic)
     artifacts = {
         "pipeline_diagram": plot_pipeline(FIGURE_DIR / "pipeline_diagram.png"),
         "comb_transfer": plot_comb_transfer(config, FIGURE_DIR / "comb_transfer.png"),
@@ -1404,6 +2016,31 @@ def main() -> dict[str, object]:
             deep_predictions,
             FIGURE_DIR / "improvement_error_curve.png",
         ),
+        "signal_notch_weight_matrix": plot_signal_notch_weights(
+            config,
+            best_baseline_profile,
+            DEEP_COMB_DELAYED_COPY_GAIN,
+            FIGURE_DIR / "signal_notch_weight_matrix.png",
+        ),
+        "mexican_hat_lateral_matrix": plot_lateral_matrix(
+            best_lateral,
+            FIGURE_DIR / "mexican_hat_lateral_matrix.png",
+        ),
+        "full_3d_tuning_sweep": plot_tuning_sweep(
+            full_3d_sweep,
+            FIGURE_DIR / "full_3d_tuning_sweep.png",
+        ),
+        "full_3d_prediction_scatter": plot_full_3d_prediction_scatter(
+            best_true,
+            best_predicted,
+            FIGURE_DIR / "full_3d_prediction_scatter.png",
+        ),
+        "full_3d_error_context": plot_full_3d_error_context(
+            full_3d_samples,
+            best_true,
+            best_predicted,
+            FIGURE_DIR / "full_3d_error_context.png",
+        ),
     }
     elapsed_s = time.perf_counter() - start
     payload = {
@@ -1421,6 +2058,8 @@ def main() -> dict[str, object]:
             "comb_delayed_copy_gain": COMB_DELAYED_COPY_GAIN,
             "deep_comb_delayed_copy_gain": DEEP_COMB_DELAYED_COPY_GAIN,
             "selected_ei_lambda": ei_lambda,
+            "full_3d_num_samples": FULL_3D_NUM_SAMPLES,
+            "full_3d_seed": FULL_3D_SEED,
         },
         "metrics": metrics,
         "ei_lambda_sweep": ei_sweep,
@@ -1450,10 +2089,29 @@ def main() -> dict[str, object]:
             }
             for item in deep_predictions
         ],
+        "full_3d_sweep": {
+            "rows": full_3d_sweep["rows"],
+            "best": {
+                "dynamic_gain": best_dynamic.gain,
+                "dynamic_beta": best_dynamic.beta,
+                "lateral_gain": best_lateral.gain,
+                "metrics": full_3d_best["metrics"],
+            },
+        },
+        "full_3d_best_predictions": [
+            {
+                "distance_m": sample.distance_m,
+                "azimuth_deg": sample.azimuth_deg,
+                "true_elevation_deg": sample.elevation_deg,
+                "predicted_elevation_deg": float(prediction),
+                "selected_ear": sample.selected_ear,
+            }
+            for sample, prediction in zip(full_3d_samples, best_predicted)
+        ],
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(config, metrics, artifacts, elapsed_s, ei_sweep)
+    write_report(config, metrics, artifacts, elapsed_s, ei_sweep, full_3d_sweep)
     return payload
 
 
