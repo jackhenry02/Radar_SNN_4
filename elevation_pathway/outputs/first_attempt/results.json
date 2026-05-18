@@ -1,0 +1,1122 @@
+{
+  "experiment": "elevation_pathway_first_attempt",
+  "elapsed_seconds": 2.0975935000460595,
+  "setup": {
+    "num_channels": 48,
+    "num_elevation_bins": 91,
+    "elevation_limit_deg": 45.0,
+    "fixed_distance_m": 3.0,
+    "fixed_azimuth_deg": 45.0,
+    "selected_ear": "right",
+    "comb_first_notch_low_hz": 6000.0,
+    "comb_first_notch_high_hz": 16000.0,
+    "comb_delayed_copy_gain": 0.85,
+    "selected_ei_lambda": 1.0999999999999999
+  },
+  "metrics": {
+    "Local-dip disinhibition COM": {
+      "mae_deg": 16.906651986405404,
+      "rmse_deg": 21.114213460277934,
+      "max_abs_error_deg": 52.71802003699577,
+      "bias_deg": -9.857904293284617
+    },
+    "Local-dip disinhibition argmax": {
+      "mae_deg": 45.175824175824175,
+      "rmse_deg": 52.25728825555509,
+      "max_abs_error_deg": 90.0,
+      "bias_deg": -44.010989010989015
+    },
+    "Explicit E/I weight-profile COM": {
+      "mae_deg": 7.098765117647292,
+      "rmse_deg": 8.828048260417134,
+      "max_abs_error_deg": 18.09021691691154,
+      "bias_deg": 2.299040335671895
+    },
+    "Explicit E/I weight-profile argmax": {
+      "mae_deg": 12.384615384615385,
+      "rmse_deg": 16.943020216771686,
+      "max_abs_error_deg": 41.0,
+      "bias_deg": 8.780219780219781
+    },
+    "Baseline-equalised full-transfer DCN COM": {
+      "mae_deg": 5.181276125872918,
+      "rmse_deg": 6.181995927479258,
+      "max_abs_error_deg": 10.830107739207612,
+      "bias_deg": 2.9127550631998
+    },
+    "Baseline-equalised full-transfer DCN argmax": {
+      "mae_deg": 5.934065934065934,
+      "rmse_deg": 7.306477631842541,
+      "max_abs_error_deg": 19.0,
+      "bias_deg": 3.956043956043956
+    },
+    "First-notch diagnostic readout": {
+      "mae_deg": 2.893971239697802,
+      "rmse_deg": 3.9807647335856715,
+      "max_abs_error_deg": 12.257190429687498,
+      "bias_deg": -2.7638863431490375
+    }
+  },
+  "ei_lambda_sweep": {
+    "grid": [
+      {
+        "lambda": 0.2,
+        "com_mae_deg": 22.06691867044556,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.25,
+        "com_mae_deg": 21.841834834835982,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.3,
+        "com_mae_deg": 21.586849037700112,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.35,
+        "com_mae_deg": 21.29822832022343,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.4,
+        "com_mae_deg": 20.96310860773784,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.44999999999999996,
+        "com_mae_deg": 20.571070272926093,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.5,
+        "com_mae_deg": 20.11087543409765,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.55,
+        "com_mae_deg": 19.556617938157267,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.6,
+        "com_mae_deg": 18.879363226500416,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.6499999999999999,
+        "com_mae_deg": 18.03620505221772,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.7,
+        "com_mae_deg": 16.954910021928775,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.75,
+        "com_mae_deg": 15.514901668786907,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.8,
+        "com_mae_deg": 13.497551028008324,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.8499999999999999,
+        "com_mae_deg": 10.881362534078622,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.8999999999999999,
+        "com_mae_deg": 9.168977701305602,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 0.95,
+        "com_mae_deg": 7.954812085155795,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 1.0,
+        "com_mae_deg": 7.462287895242182,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 1.05,
+        "com_mae_deg": 7.205967002994477,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 1.0999999999999999,
+        "com_mae_deg": 7.098765117647292,
+        "argmax_mae_deg": 12.384615384615385
+      },
+      {
+        "lambda": 1.15,
+        "com_mae_deg": 7.440017151882806,
+        "argmax_mae_deg": 13.978021978021978
+      },
+      {
+        "lambda": 1.2,
+        "com_mae_deg": 9.353729866770788,
+        "argmax_mae_deg": 21.54945054945055
+      },
+      {
+        "lambda": 1.2499999999999998,
+        "com_mae_deg": 15.183676668129564,
+        "argmax_mae_deg": 34.62637362637363
+      },
+      {
+        "lambda": 1.2999999999999998,
+        "com_mae_deg": 15.59390726209344,
+        "argmax_mae_deg": 43.59340659340659
+      },
+      {
+        "lambda": 1.3499999999999999,
+        "com_mae_deg": 17.94354451991844,
+        "argmax_mae_deg": 44.05494505494506
+      },
+      {
+        "lambda": 1.4,
+        "com_mae_deg": 22.747252747252748,
+        "argmax_mae_deg": 45.0
+      }
+    ],
+    "best_lambda": 1.0999999999999999,
+    "best": {
+      "lambda": 1.0999999999999999,
+      "com_mae_deg": 7.098765117647292,
+      "argmax_mae_deg": 12.384615384615385
+    }
+  },
+  "old_model_elevation_results": {
+    "Round 3 Experiment 2B moving-notch + notch detectors": 1.9386,
+    "Round 3 2B + 3": 2.5258,
+    "Round 4 combined": 2.7802,
+    "Round 5 trained-once fixed ridge decoder": 2.5876
+  },
+  "predictions": [
+    {
+      "true_elevation_deg": -45.0,
+      "com_prediction_deg": -45.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -42.267986727698066,
+      "transfer_argmax_prediction_deg": -43.0,
+      "ei_com_prediction_deg": -38.685718952091555,
+      "ei_argmax_prediction_deg": -43.0,
+      "first_notch_prediction_deg": -43.45637255859375
+    },
+    {
+      "true_elevation_deg": -44.0,
+      "com_prediction_deg": -44.61943877438769,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -41.83037069497594,
+      "transfer_argmax_prediction_deg": -42.0,
+      "ei_com_prediction_deg": -38.22477117524596,
+      "ei_argmax_prediction_deg": -42.0,
+      "first_notch_prediction_deg": -43.45637255859375
+    },
+    {
+      "true_elevation_deg": -43.0,
+      "com_prediction_deg": -44.69492425512161,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -41.37223958706342,
+      "transfer_argmax_prediction_deg": -42.0,
+      "ei_com_prediction_deg": -37.787271764124185,
+      "ei_argmax_prediction_deg": -42.0,
+      "first_notch_prediction_deg": -43.45637255859375
+    },
+    {
+      "true_elevation_deg": -42.0,
+      "com_prediction_deg": -44.67499298562297,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -40.90161114464441,
+      "transfer_argmax_prediction_deg": -41.0,
+      "ei_com_prediction_deg": -37.371179216933555,
+      "ei_argmax_prediction_deg": -41.0,
+      "first_notch_prediction_deg": -43.45637255859375
+    },
+    {
+      "true_elevation_deg": -41.0,
+      "com_prediction_deg": -44.055287012965074,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -40.42157332400232,
+      "transfer_argmax_prediction_deg": -41.0,
+      "ei_com_prediction_deg": -36.97310464372259,
+      "ei_argmax_prediction_deg": -41.0,
+      "first_notch_prediction_deg": -40.667466796875
+    },
+    {
+      "true_elevation_deg": -40.0,
+      "com_prediction_deg": -43.949903193166605,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -39.927312690379765,
+      "transfer_argmax_prediction_deg": -40.0,
+      "ei_com_prediction_deg": -36.588899116794856,
+      "ei_argmax_prediction_deg": -40.0,
+      "first_notch_prediction_deg": -40.667466796875
+    },
+    {
+      "true_elevation_deg": -39.0,
+      "com_prediction_deg": -43.95539484137816,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -39.43132639203704,
+      "transfer_argmax_prediction_deg": -40.0,
+      "ei_com_prediction_deg": -36.21813191584904,
+      "ei_argmax_prediction_deg": -40.0,
+      "first_notch_prediction_deg": -40.667466796875
+    },
+    {
+      "true_elevation_deg": -38.0,
+      "com_prediction_deg": -43.42477357408219,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -38.92763345699718,
+      "transfer_argmax_prediction_deg": -39.0,
+      "ei_com_prediction_deg": -35.846802092029044,
+      "ei_argmax_prediction_deg": -39.0,
+      "first_notch_prediction_deg": -37.73852490234375
+    },
+    {
+      "true_elevation_deg": -37.0,
+      "com_prediction_deg": -43.0243756621755,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -38.41389861990136,
+      "transfer_argmax_prediction_deg": -39.0,
+      "ei_com_prediction_deg": -35.480639771270084,
+      "ei_argmax_prediction_deg": -39.0,
+      "first_notch_prediction_deg": -37.73852490234375
+    },
+    {
+      "true_elevation_deg": -36.0,
+      "com_prediction_deg": -43.089466102114436,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -37.88288050871553,
+      "transfer_argmax_prediction_deg": -38.0,
+      "ei_com_prediction_deg": -35.12079181504082,
+      "ei_argmax_prediction_deg": -38.0,
+      "first_notch_prediction_deg": -37.73852490234375
+    },
+    {
+      "true_elevation_deg": -35.0,
+      "com_prediction_deg": -42.933886266421084,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -37.33535339716297,
+      "transfer_argmax_prediction_deg": -38.0,
+      "ei_com_prediction_deg": -34.76395274603653,
+      "ei_argmax_prediction_deg": -38.0,
+      "first_notch_prediction_deg": -34.66252001953125
+    },
+    {
+      "true_elevation_deg": -34.0,
+      "com_prediction_deg": -42.27365132960847,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -36.75929871535079,
+      "transfer_argmax_prediction_deg": -37.0,
+      "ei_com_prediction_deg": -34.39150173659773,
+      "ei_argmax_prediction_deg": -37.0,
+      "first_notch_prediction_deg": -34.66252001953125
+    },
+    {
+      "true_elevation_deg": -33.0,
+      "com_prediction_deg": -42.33918248298554,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -36.15542443563785,
+      "transfer_argmax_prediction_deg": -37.0,
+      "ei_com_prediction_deg": -34.01639780438413,
+      "ei_argmax_prediction_deg": -37.0,
+      "first_notch_prediction_deg": -34.66252001953125
+    },
+    {
+      "true_elevation_deg": -32.0,
+      "com_prediction_deg": -42.317147137723225,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -35.519401992379485,
+      "transfer_argmax_prediction_deg": -36.0,
+      "ei_com_prediction_deg": -33.63169698372585,
+      "ei_argmax_prediction_deg": -36.0,
+      "first_notch_prediction_deg": -31.43206494140625
+    },
+    {
+      "true_elevation_deg": -31.0,
+      "com_prediction_deg": -41.5195781338394,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -34.852696201095185,
+      "transfer_argmax_prediction_deg": -35.0,
+      "ei_com_prediction_deg": -33.21995407411379,
+      "ei_argmax_prediction_deg": -36.0,
+      "first_notch_prediction_deg": -31.43206494140625
+    },
+    {
+      "true_elevation_deg": -30.0,
+      "com_prediction_deg": -40.9511089377221,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -34.15767524264321,
+      "transfer_argmax_prediction_deg": -35.0,
+      "ei_com_prediction_deg": -32.79769481733804,
+      "ei_argmax_prediction_deg": -35.0,
+      "first_notch_prediction_deg": -31.43206494140625
+    },
+    {
+      "true_elevation_deg": -29.0,
+      "com_prediction_deg": -41.13156851836534,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -33.42858596241124,
+      "transfer_argmax_prediction_deg": -34.0,
+      "ei_com_prediction_deg": -32.35260804228127,
+      "ei_argmax_prediction_deg": -35.0,
+      "first_notch_prediction_deg": -31.43206494140625
+    },
+    {
+      "true_elevation_deg": -28.0,
+      "com_prediction_deg": -40.78720324164749,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -32.655943515363205,
+      "transfer_argmax_prediction_deg": -33.0,
+      "ei_com_prediction_deg": -31.864240584691366,
+      "ei_argmax_prediction_deg": -34.0,
+      "first_notch_prediction_deg": -28.039403320312502
+    },
+    {
+      "true_elevation_deg": -27.0,
+      "com_prediction_deg": -40.25334996161358,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -31.845350955718423,
+      "transfer_argmax_prediction_deg": -32.0,
+      "ei_com_prediction_deg": -31.341043425922383,
+      "ei_argmax_prediction_deg": -34.0,
+      "first_notch_prediction_deg": -28.039403320312502
+    },
+    {
+      "true_elevation_deg": -26.0,
+      "com_prediction_deg": -40.20066131094022,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -30.842385826330432,
+      "transfer_argmax_prediction_deg": -31.0,
+      "ei_com_prediction_deg": -30.657626402217858,
+      "ei_argmax_prediction_deg": -33.0,
+      "first_notch_prediction_deg": -28.039403320312502
+    },
+    {
+      "true_elevation_deg": -25.0,
+      "com_prediction_deg": -41.7429009491196,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -29.904497997914202,
+      "transfer_argmax_prediction_deg": -30.0,
+      "ei_com_prediction_deg": -29.98262687652751,
+      "ei_argmax_prediction_deg": -32.0,
+      "first_notch_prediction_deg": -24.476396484374998
+    },
+    {
+      "true_elevation_deg": -24.0,
+      "com_prediction_deg": -44.848516054895676,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -28.913749658762566,
+      "transfer_argmax_prediction_deg": -29.0,
+      "ei_com_prediction_deg": -29.25672856026544,
+      "ei_argmax_prediction_deg": -31.0,
+      "first_notch_prediction_deg": -24.476396484374998
+    },
+    {
+      "true_elevation_deg": -23.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -27.872308286283552,
+      "transfer_argmax_prediction_deg": -28.0,
+      "ei_com_prediction_deg": -28.477006003977692,
+      "ei_argmax_prediction_deg": -31.0,
+      "first_notch_prediction_deg": -24.476396484374998
+    },
+    {
+      "true_elevation_deg": -22.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -26.747861823826,
+      "transfer_argmax_prediction_deg": -27.0,
+      "ei_com_prediction_deg": -27.609548355052265,
+      "ei_argmax_prediction_deg": -30.0,
+      "first_notch_prediction_deg": -24.476396484374998
+    },
+    {
+      "true_elevation_deg": -21.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -25.5395632316757,
+      "transfer_argmax_prediction_deg": -26.0,
+      "ei_com_prediction_deg": -26.723902321424006,
+      "ei_argmax_prediction_deg": -29.0,
+      "first_notch_prediction_deg": -20.7344794921875
+    },
+    {
+      "true_elevation_deg": -20.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -24.022150181616617,
+      "transfer_argmax_prediction_deg": -24.0,
+      "ei_com_prediction_deg": -25.76679437512107,
+      "ei_argmax_prediction_deg": -28.0,
+      "first_notch_prediction_deg": -20.7344794921875
+    },
+    {
+      "true_elevation_deg": -19.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -22.43211222682216,
+      "transfer_argmax_prediction_deg": -23.0,
+      "ei_com_prediction_deg": -24.730209260290675,
+      "ei_argmax_prediction_deg": -27.0,
+      "first_notch_prediction_deg": -20.7344794921875
+    },
+    {
+      "true_elevation_deg": -18.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -20.796816885125967,
+      "transfer_argmax_prediction_deg": -21.0,
+      "ei_com_prediction_deg": -23.621616669847427,
+      "ei_argmax_prediction_deg": -26.0,
+      "first_notch_prediction_deg": -20.7344794921875
+    },
+    {
+      "true_elevation_deg": -17.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -19.136516958258042,
+      "transfer_argmax_prediction_deg": -19.0,
+      "ei_com_prediction_deg": -22.430323152762004,
+      "ei_argmax_prediction_deg": -24.0,
+      "first_notch_prediction_deg": -16.8046875
+    },
+    {
+      "true_elevation_deg": -16.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -17.438322358724367,
+      "transfer_argmax_prediction_deg": -18.0,
+      "ei_com_prediction_deg": -21.09938327404598,
+      "ei_argmax_prediction_deg": -23.0,
+      "first_notch_prediction_deg": -16.8046875
+    },
+    {
+      "true_elevation_deg": -15.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -15.772960769907986,
+      "transfer_argmax_prediction_deg": -16.0,
+      "ei_com_prediction_deg": -19.69578156277037,
+      "ei_argmax_prediction_deg": -21.0,
+      "first_notch_prediction_deg": -16.8046875
+    },
+    {
+      "true_elevation_deg": -14.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -14.124597606280629,
+      "transfer_argmax_prediction_deg": -14.0,
+      "ei_com_prediction_deg": -18.193725501814043,
+      "ei_argmax_prediction_deg": -20.0,
+      "first_notch_prediction_deg": -16.8046875
+    },
+    {
+      "true_elevation_deg": -13.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -12.483010215925544,
+      "transfer_argmax_prediction_deg": -13.0,
+      "ei_com_prediction_deg": -16.57380246464991,
+      "ei_argmax_prediction_deg": -18.0,
+      "first_notch_prediction_deg": -12.677572265624999
+    },
+    {
+      "true_elevation_deg": -12.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -10.85200455432885,
+      "transfer_argmax_prediction_deg": -11.0,
+      "ei_com_prediction_deg": -14.823494526073581,
+      "ei_argmax_prediction_deg": -17.0,
+      "first_notch_prediction_deg": -12.677572265624999
+    },
+    {
+      "true_elevation_deg": -11.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -9.228687501256774,
+      "transfer_argmax_prediction_deg": -10.0,
+      "ei_com_prediction_deg": -12.942849284236136,
+      "ei_argmax_prediction_deg": -15.0,
+      "first_notch_prediction_deg": -12.677572265624999
+    },
+    {
+      "true_elevation_deg": -10.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -7.611410019867976,
+      "transfer_argmax_prediction_deg": -8.0,
+      "ei_com_prediction_deg": -10.894987666095828,
+      "ei_argmax_prediction_deg": -13.0,
+      "first_notch_prediction_deg": -12.677572265624999
+    },
+    {
+      "true_elevation_deg": -9.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -6.006590403242993,
+      "transfer_argmax_prediction_deg": -7.0,
+      "ei_com_prediction_deg": -8.657566610559156,
+      "ei_argmax_prediction_deg": -11.0,
+      "first_notch_prediction_deg": -12.677572265624999
+    },
+    {
+      "true_elevation_deg": -8.0,
+      "com_prediction_deg": 44.71802003699577,
+      "argmax_prediction_deg": 45.0,
+      "transfer_com_prediction_deg": -4.41926516197095,
+      "transfer_argmax_prediction_deg": -5.0,
+      "ei_com_prediction_deg": -6.22266724337995,
+      "ei_argmax_prediction_deg": -9.0,
+      "first_notch_prediction_deg": -8.343228515624999
+    },
+    {
+      "true_elevation_deg": -7.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -2.8499162483373364,
+      "transfer_argmax_prediction_deg": -4.0,
+      "ei_com_prediction_deg": -3.461409663783492,
+      "ei_argmax_prediction_deg": -7.0,
+      "first_notch_prediction_deg": -8.343228515624999
+    },
+    {
+      "true_elevation_deg": -6.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": -1.305411470826932,
+      "transfer_argmax_prediction_deg": -2.0,
+      "ei_com_prediction_deg": -0.254532675635462,
+      "ei_argmax_prediction_deg": -4.0,
+      "first_notch_prediction_deg": -8.343228515624999
+    },
+    {
+      "true_elevation_deg": -5.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 0.21836063561822047,
+      "transfer_argmax_prediction_deg": -1.0,
+      "ei_com_prediction_deg": 4.007042494642744,
+      "ei_argmax_prediction_deg": -2.0,
+      "first_notch_prediction_deg": -8.343228515624999
+    },
+    {
+      "true_elevation_deg": -4.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 1.722681746562441,
+      "transfer_argmax_prediction_deg": 1.0,
+      "ei_com_prediction_deg": 9.17924320930616,
+      "ei_argmax_prediction_deg": 0.0,
+      "first_notch_prediction_deg": -8.343228515624999
+    },
+    {
+      "true_elevation_deg": -3.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 3.20773152211165,
+      "transfer_argmax_prediction_deg": 2.0,
+      "ei_com_prediction_deg": 12.567579441211961,
+      "ei_argmax_prediction_deg": 3.0,
+      "first_notch_prediction_deg": -3.791250000000002
+    },
+    {
+      "true_elevation_deg": -2.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 4.67774521349174,
+      "transfer_argmax_prediction_deg": 3.0,
+      "ei_com_prediction_deg": 14.932092380097355,
+      "ei_argmax_prediction_deg": 6.0,
+      "first_notch_prediction_deg": -3.791250000000002
+    },
+    {
+      "true_elevation_deg": -1.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 6.140370704833475,
+      "transfer_argmax_prediction_deg": 5.0,
+      "ei_com_prediction_deg": 16.689184261099342,
+      "ei_argmax_prediction_deg": 8.0,
+      "first_notch_prediction_deg": -3.791250000000002
+    },
+    {
+      "true_elevation_deg": 0.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 7.569568219652847,
+      "transfer_argmax_prediction_deg": 6.0,
+      "ei_com_prediction_deg": 18.02740387991993,
+      "ei_argmax_prediction_deg": 12.0,
+      "first_notch_prediction_deg": -3.791250000000002
+    },
+    {
+      "true_elevation_deg": 1.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 8.96725140715426,
+      "transfer_argmax_prediction_deg": 7.0,
+      "ei_com_prediction_deg": 19.09021691691154,
+      "ei_argmax_prediction_deg": 15.0,
+      "first_notch_prediction_deg": -3.791250000000002
+    },
+    {
+      "true_elevation_deg": 2.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 10.3443094280698,
+      "transfer_argmax_prediction_deg": 8.0,
+      "ei_com_prediction_deg": 19.971171906968447,
+      "ei_argmax_prediction_deg": 19.0,
+      "first_notch_prediction_deg": -3.791250000000002
+    },
+    {
+      "true_elevation_deg": 3.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 11.71060316229053,
+      "transfer_argmax_prediction_deg": 10.0,
+      "ei_com_prediction_deg": 20.724414674080922,
+      "ei_argmax_prediction_deg": 24.0,
+      "first_notch_prediction_deg": 0.9892880859374997
+    },
+    {
+      "true_elevation_deg": 4.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 13.049081686428066,
+      "transfer_argmax_prediction_deg": 11.0,
+      "ei_com_prediction_deg": 21.364010347350366,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 0.9892880859374997
+    },
+    {
+      "true_elevation_deg": 5.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 14.357623103341803,
+      "transfer_argmax_prediction_deg": 12.0,
+      "ei_com_prediction_deg": 21.921081410175894,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 0.9892880859374997
+    },
+    {
+      "true_elevation_deg": 6.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 15.633345170722947,
+      "transfer_argmax_prediction_deg": 13.0,
+      "ei_com_prediction_deg": 22.421285789625376,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 0.9892880859374997
+    },
+    {
+      "true_elevation_deg": 7.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 16.882336081808695,
+      "transfer_argmax_prediction_deg": 14.0,
+      "ei_com_prediction_deg": 22.862015414273394,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 6.009855468749996
+    },
+    {
+      "true_elevation_deg": 8.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 18.277965909374952,
+      "transfer_argmax_prediction_deg": 15.0,
+      "ei_com_prediction_deg": 23.28045774210801,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 6.009855468749996
+    },
+    {
+      "true_elevation_deg": 9.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 19.464927348768132,
+      "transfer_argmax_prediction_deg": 16.0,
+      "ei_com_prediction_deg": 23.652053157921937,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 6.009855468749996
+    },
+    {
+      "true_elevation_deg": 10.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 20.61565072274984,
+      "transfer_argmax_prediction_deg": 18.0,
+      "ei_com_prediction_deg": 24.000226381818184,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 6.009855468749996
+    },
+    {
+      "true_elevation_deg": 11.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 21.725068604948074,
+      "transfer_argmax_prediction_deg": 19.0,
+      "ei_com_prediction_deg": 24.320543902653522,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 12.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 22.79476048456761,
+      "transfer_argmax_prediction_deg": 20.0,
+      "ei_com_prediction_deg": 24.62484794094305,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 13.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 23.830107739207612,
+      "transfer_argmax_prediction_deg": 21.0,
+      "ei_com_prediction_deg": 24.909044463438573,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 14.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 24.82729736800737,
+      "transfer_argmax_prediction_deg": 22.0,
+      "ei_com_prediction_deg": 25.185819348066605,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 15.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 25.777471156549893,
+      "transfer_argmax_prediction_deg": 23.0,
+      "ei_com_prediction_deg": 25.440395006681072,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 16.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 26.693071490353727,
+      "transfer_argmax_prediction_deg": 24.0,
+      "ei_com_prediction_deg": 25.694665179160584,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 17.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 27.58052039084306,
+      "transfer_argmax_prediction_deg": 25.0,
+      "ei_com_prediction_deg": 25.93297370413733,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 11.282510742187503
+    },
+    {
+      "true_elevation_deg": 18.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 28.430480049869242,
+      "transfer_argmax_prediction_deg": 26.0,
+      "ei_com_prediction_deg": 26.17051609984769,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 16.819918945312498
+    },
+    {
+      "true_elevation_deg": 19.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 29.24025186022855,
+      "transfer_argmax_prediction_deg": 28.0,
+      "ei_com_prediction_deg": 26.396927442484742,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 16.819918945312498
+    },
+    {
+      "true_elevation_deg": 20.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 30.009488329502126,
+      "transfer_argmax_prediction_deg": 29.0,
+      "ei_com_prediction_deg": 26.61772081052806,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 16.819918945312498
+    },
+    {
+      "true_elevation_deg": 21.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 30.735811737679814,
+      "transfer_argmax_prediction_deg": 30.0,
+      "ei_com_prediction_deg": 26.83509036119032,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 16.819918945312498
+    },
+    {
+      "true_elevation_deg": 22.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 31.42161036377401,
+      "transfer_argmax_prediction_deg": 32.0,
+      "ei_com_prediction_deg": 27.040373111736894,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 16.819918945312498
+    },
+    {
+      "true_elevation_deg": 23.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 32.0666369739108,
+      "transfer_argmax_prediction_deg": 34.0,
+      "ei_com_prediction_deg": 27.247990062676557,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 22.635369140625002
+    },
+    {
+      "true_elevation_deg": 24.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 32.67179232873515,
+      "transfer_argmax_prediction_deg": 36.0,
+      "ei_com_prediction_deg": 27.443239041664558,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 22.635369140625002
+    },
+    {
+      "true_elevation_deg": 25.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 33.24130017782332,
+      "transfer_argmax_prediction_deg": 39.0,
+      "ei_com_prediction_deg": 27.638547382464157,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 22.635369140625002
+    },
+    {
+      "true_elevation_deg": 26.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 33.7817385821815,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 27.833496658977374,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 22.635369140625002
+    },
+    {
+      "true_elevation_deg": 27.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 34.29140681818745,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 28.021380544937113,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 22.635369140625002
+    },
+    {
+      "true_elevation_deg": 28.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 34.771152838561186,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 28.214537059419513,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 29.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 35.22034935121736,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 28.39665477979872,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 30.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 35.63933768450548,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 28.580272564046332,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 31.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 36.0301978314442,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 28.76212896139881,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 32.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 36.39536679083682,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 28.937503411628285,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 33.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 36.70830102410101,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 29.151977372808634,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 34.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 37.0345306529525,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 29.326982401418743,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 35.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 37.34010109579119,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 29.5100184869257,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 36.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 37.62600354841716,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 29.688512466441935,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 37.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 37.89228186492716,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 29.868298048801044,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 38.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 38.13981964522712,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 30.050351199183996,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 39.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 38.37137005374921,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 30.227208482372955,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 40.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 38.588179623415314,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 30.41364489609629,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 41.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 38.79127556637529,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 30.589825758462702,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 28.742809570312502
+    },
+    {
+      "true_elevation_deg": 42.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 38.98114666042157,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 30.775926720177925,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 35.15691796875
+    },
+    {
+      "true_elevation_deg": 43.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 39.158183884364206,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 30.956896109201832,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 35.15691796875
+    },
+    {
+      "true_elevation_deg": 44.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 39.323444513454774,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 31.142966700028982,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 35.15691796875
+    },
+    {
+      "true_elevation_deg": 45.0,
+      "com_prediction_deg": 0.0,
+      "argmax_prediction_deg": -45.0,
+      "transfer_com_prediction_deg": 39.478004553534454,
+      "transfer_argmax_prediction_deg": 45.0,
+      "ei_com_prediction_deg": 31.328897787552872,
+      "ei_argmax_prediction_deg": 45.0,
+      "first_notch_prediction_deg": 35.15691796875
+    }
+  ],
+  "artifacts": {
+    "pipeline_diagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/pipeline_diagram.png",
+    "comb_transfer": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/comb_transfer.png",
+    "dcn_templates": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/dcn_templates.png",
+    "ei_lambda_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/ei_lambda_sweep.png",
+    "example_stages": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/example_stages.png",
+    "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/prediction_scatter.png",
+    "error_curve": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/error_curve.png"
+  }
+}
