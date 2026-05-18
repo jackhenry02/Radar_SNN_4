@@ -5,7 +5,7 @@ from __future__ import annotations
 This combines the three independently developed pathway prototypes:
 
 * distance: dynamic cochlea + VCN consensus + IC/AC + reflected SC CANN;
-* azimuth: inverse-sigmoid ILD population + reflected SC CANN;
+* azimuth: Jeffress-style ITD population + reflected SC CANN;
 * elevation: deep-comb signal-weighted DCN + reflected SC CANN + inverse-sigmoid calibration.
 
 The pathways remain separate modules. This wrapper runs them on the same target
@@ -238,12 +238,19 @@ def make_azimuth_config(channels: int, max_distance_m: float) -> object:
     )
 
 
-def tune_azimuth_params(config: object, azimuth_limit_deg: float, count: int = 36) -> dict[str, float]:
-    """Tune inverse-sigmoid ILD mapping for the current channel count."""
-    support = min(45.0, azimuth_limit_deg)
-    predictions = az.run_dataset(config, support, count=count)
-    bins = az.azimuth_grid(support)
-    return az.tune_inverse_sigmoid_ild_mapping(predictions, bins, support)
+def azimuth_readout_params() -> dict[str, object]:
+    """Return metadata for the selected azimuth readout.
+
+    The final integrated model uses the ITD branch because the standalone
+    azimuth diagnostics showed it is more stable than the ILD branch in the
+    constrained full-3D setup. No inverse-sigmoid calibration is needed for the
+    ITD population.
+    """
+    return {
+        "branch": "ITD",
+        "readout": "reflected FI two-block SC CANN",
+        "calibration": "none",
+    }
 
 
 def make_elevation_config(channels: int, min_distance_m: float, max_distance_m: float) -> fdm.GlobalConfig:
@@ -284,7 +291,7 @@ def predict_distance(config: fdm.GlobalConfig, variant: fdm.PathwayVariant, dist
     return float(cann_pred[0]), time.perf_counter() - start
 
 
-def predict_azimuth(config: object, inverse_params: dict[str, float], distance_m: float, azimuth_deg: float, elevation_deg: float, azimuth_limit_deg: float) -> tuple[float, float]:
+def predict_azimuth(config: object, distance_m: float, azimuth_deg: float, elevation_deg: float, azimuth_limit_deg: float) -> tuple[float, float]:
     """Predict azimuth with pathway runtime."""
     start = time.perf_counter()
     bins = az.azimuth_grid(azimuth_limit_deg)
@@ -296,7 +303,7 @@ def predict_azimuth(config: object, inverse_params: dict[str, float], distance_m
         add_noise=False,
         limit_deg=azimuth_limit_deg,
     )
-    _, population = azc.inverse_ild_population_dataset([prediction], bins, inverse_params, azimuth_limit_deg)
+    _, population = azc.itd_population_dataset([prediction], bins)
     cann_pred, _, _, _ = azc.run_cann_readout(population, bins)
     return float(cann_pred[0]), time.perf_counter() - start
 
@@ -353,7 +360,7 @@ def run_integrated_condition(
         distance_config = make_distance_config(channels, min_distance_m, max_distance_m)
         distance_variant = make_distance_variant(distance_config, channels, min_distance_m, max_distance_m)
         azimuth_config = make_azimuth_config(channels, max_distance_m)
-        azimuth_params = tune_azimuth_params(azimuth_config, azimuth_limit_deg)
+        azimuth_params = azimuth_readout_params()
         elevation_config = make_elevation_config(channels, min_distance_m, max_distance_m)
         elevation_params, elevation_baseline = tune_elevation_calibration(elevation_config)
         prep_seconds = time.perf_counter() - prep_start
@@ -365,7 +372,7 @@ def run_integrated_condition(
             true_azimuth = target["azimuth_deg"]
             true_elevation = target["elevation_deg"]
             pred_distance, distance_s = predict_distance(distance_config, distance_variant, true_distance, true_azimuth, true_elevation)
-            pred_azimuth, azimuth_s = predict_azimuth(azimuth_config, azimuth_params, true_distance, true_azimuth, true_elevation, azimuth_limit_deg)
+            pred_azimuth, azimuth_s = predict_azimuth(azimuth_config, true_distance, true_azimuth, true_elevation, azimuth_limit_deg)
             pred_elevation, elevation_s = predict_elevation(elevation_config, elevation_baseline, elevation_params, true_distance, true_azimuth, true_elevation)
             runtime["distance_s"].append(distance_s)
             runtime["azimuth_s"].append(azimuth_s)
@@ -393,7 +400,7 @@ def run_integrated_condition(
         "metrics": localisation_metrics(rows, max_distance_m, azimuth_limit_deg, elevation_limit_deg),
         "predictions": rows,
         "calibrations": {
-            "azimuth_inverse_sigmoid": azimuth_params,
+            "azimuth_itd_cann": azimuth_params,
             "elevation_inverse_sigmoid": elevation_params,
         },
     }
@@ -562,7 +569,7 @@ def write_results_report(payload: dict[str, object], artifacts: dict[str, str]) 
         "## Final Pathway Choices",
         "",
         "- Distance: dynamic cochlear spikes, VCN consensus, DNLL suppression, IC coincidence with facilitation, AC Mexican-hat map, reflected FI two-block SC line attractor.",
-        "- Azimuth: binaural cochlea, LSO/MNTB ILD pathway, inverse-sigmoid ILD population, reflected FI two-block SC line attractor.",
+        "- Azimuth: binaural cochlea, VCN onset detection, Jeffress-style ITD population, reflected FI two-block SC line attractor.",
         "- Elevation: comb-filter spectral cue, selected-ear DCN signal-weighted full-transfer population, reflected FI two-block SC line attractor at 5 ms, inverse-sigmoid elevation calibration.",
         "",
         "## Main Full 3D Tests",
@@ -755,13 +762,13 @@ def write_explained_report(payload: dict[str, object]) -> None:
         "",
         "## Azimuth Pathway",
         "",
-        "The azimuth pathway uses the ILD branch as the final selected branch. The lower pathway runs binaural cochleae, multi-threshold level coding, MNTB-style contralateral inhibition, and LSO opponent comparison.",
+        "The azimuth pathway uses the ITD branch as the final selected branch. The lower pathway runs binaural cochleae, VCN onset extraction for each ear, and a Jeffress-style candidate-delay coincidence population.",
         "",
         "$$",
-        "b\\approx \\tanh(k\\sin a),\\qquad \\tilde b=\\operatorname{atanh}(b)/k.",
+        "\\Delta t_k \\approx \\frac{d_{ear}}{c}\\sin a_k,\\qquad A_k=\\sum_c \\max(0,1+\\beta^{|\\Delta n_c-\\Delta n_k|}-\\theta).",
         "$$",
         "",
-        "The inverse-sigmoid ILD population is injected into the reflected FI two-block SC line attractor.",
+        "This ITD population is injected into the reflected FI two-block SC line attractor. The ILD inverse-sigmoid pathway remains useful in the isolated azimuth sweep, but the ITD branch was selected here because it was more stable in the constrained full-3D test.",
         "",
         "## Elevation Pathway",
         "",
@@ -804,7 +811,7 @@ def write_explained_report(payload: dict[str, object]) -> None:
         "## Important Implementation Caveats",
         "",
         "- The three pathways currently simulate or process cochlear activity separately; sharing the cochlea should reduce runtime.",
-        "- The azimuth and elevation calibrations are tuned on controlled sweeps and then reused in full 3D.",
+        "- The azimuth branch uses an untuned ITD CANN readout; the elevation calibration is tuned on a controlled sweep and then reused in full 3D.",
         "- The expanded 0-10 m, +/-90 degree test is intentionally a stress test outside the main tuned operating range.",
         "- Exact zero range is numerically replaced by `0.02 m` to avoid a singular path length; the expanded test should be read as a near-zero-to-10 m stress test.",
         "- FLOPs and SOPs in the results report are analytical estimates, not hardware profiler counts.",

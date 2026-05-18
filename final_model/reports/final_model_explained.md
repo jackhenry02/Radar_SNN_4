@@ -65,13 +65,13 @@ Neighbouring-channel sweep facilitation boosts candidates consistent across the 
 
 ## Azimuth Pathway
 
-The azimuth pathway uses the ILD branch as the final selected branch. The lower pathway runs binaural cochleae, multi-threshold level coding, MNTB-style contralateral inhibition, and LSO opponent comparison.
+The azimuth pathway uses the ITD branch as the final selected branch. The lower pathway runs binaural cochleae, VCN onset extraction for each ear, and a Jeffress-style candidate-delay coincidence population.
 
 $$
-b\approx \tanh(k\sin a),\qquad \tilde b=\operatorname{atanh}(b)/k.
+\Delta t_k \approx \frac{d_{ear}}{c}\sin a_k,\qquad A_k=\sum_c \max(0,1+\beta^{|\Delta n_c-\Delta n_k|}-\theta).
 $$
 
-The inverse-sigmoid ILD population is injected into the reflected FI two-block SC line attractor.
+This ITD population is injected into the reflected FI two-block SC line attractor. The ILD inverse-sigmoid pathway remains useful in the isolated azimuth sweep, but the ITD branch was selected here because it was more stable in the constrained full-3D test.
 
 ## Elevation Pathway
 
@@ -109,12 +109,12 @@ This FI-optimised input is a common readout geometry, not a pathway-specific sen
 
 ## Current Integrated Performance
 
-The constrained integrated test used `24` samples. Its main metrics were: distance MAE `0.0310 m`, azimuth MAE `6.109 deg`, elevation MAE `0.810 deg`, and Euclidean MAE `0.3285 m`.
+The constrained integrated test used `24` samples. Its main metrics were: distance MAE `0.0310 m`, azimuth MAE `4.896 deg`, elevation MAE `0.810 deg`, and Euclidean MAE `0.2394 m`.
 
 ## Important Implementation Caveats
 
 - The three pathways currently simulate or process cochlear activity separately; sharing the cochlea should reduce runtime.
-- The azimuth and elevation calibrations are tuned on controlled sweeps and then reused in full 3D.
+- The azimuth branch uses an untuned ITD CANN readout; the elevation calibration is tuned on a controlled sweep and then reused in full 3D.
 - The expanded 0-10 m, +/-90 degree test is intentionally a stress test outside the main tuned operating range.
 - Exact zero range is numerically replaced by `0.02 m` to avoid a singular path length; the expanded test should be read as a near-zero-to-10 m stress test.
 - FLOPs and SOPs in the results report are analytical estimates, not hardware profiler counts.
