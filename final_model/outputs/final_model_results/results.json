@@ -1,0 +1,1528 @@
+{
+  "experiment": "final_integrated_model",
+  "elapsed_seconds": 126.3605665420182,
+  "setup": {
+    "base_channels": 48,
+    "base_distance_bins": 180,
+    "base_angular_bins": 91,
+    "constrained_samples": 24,
+    "expanded_samples": 24,
+    "scaling_samples": 8,
+    "channel_sweep": [
+      16,
+      32,
+      48,
+      96
+    ],
+    "readout_sweep": [
+      45,
+      91,
+      181,
+      361
+    ]
+  },
+  "conditions": {
+    "constrained": {
+      "name": "constrained_5m_pm45",
+      "channels": 48,
+      "distance_bins": 180,
+      "angular_bins": 91,
+      "num_samples": 24,
+      "prep_seconds": 7.2071629168931395,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.09429161277754854,
+        "azimuth_s": 0.05656014230529157,
+        "elevation_s": 0.042064125096658245,
+        "total_prediction_s": 0.19291588017949834
+      },
+      "metrics": {
+        "distance_mae_m": 0.031003511051126698,
+        "distance_rmse_m": 0.03513288244836217,
+        "distance_bias_m": 0.01503429954992517,
+        "azimuth_mae_deg": 6.109401081031826,
+        "azimuth_rmse_deg": 7.3749929941746855,
+        "azimuth_bias_deg": -0.779392460566779,
+        "elevation_mae_deg": 0.8098116852106104,
+        "elevation_rmse_deg": 1.0648663804261043,
+        "elevation_bias_deg": -0.08043856392300223,
+        "euclidean_mae_m": 0.32849952381348085,
+        "euclidean_rmse_m": 0.41815679057391597,
+        "euclidean_max_m": 0.9021072516857677,
+        "combined_normalised_error": 0.0533203286348339
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.3791418030864606,
+          "true_azimuth_deg": 44.068066102820524,
+          "true_elevation_deg": -6.648263632834279,
+          "pred_distance_m": 3.414075722637412,
+          "pred_azimuth_deg": 34.71654266957508,
+          "pred_elevation_deg": -6.557928071005609
+        },
+        {
+          "true_distance_m": 4.564464700317479,
+          "true_azimuth_deg": -22.418629237620202,
+          "true_elevation_deg": -42.201909074941035,
+          "pred_distance_m": 4.592514112034023,
+          "pred_azimuth_deg": -27.21901907715683,
+          "pred_elevation_deg": -43.10541147649353
+        },
+        {
+          "true_distance_m": 2.546332060497437,
+          "true_azimuth_deg": -10.734053300496512,
+          "true_elevation_deg": 38.817524780022225,
+          "pred_distance_m": 2.5614209881005565,
+          "pred_azimuth_deg": -12.610498231115931,
+          "pred_elevation_deg": 39.49216270033102
+        },
+        {
+          "true_distance_m": 3.6956982898445787,
+          "true_azimuth_deg": 13.239738049859177,
+          "true_elevation_deg": 6.297252579312833,
+          "pred_distance_m": 3.7304187510705153,
+          "pred_azimuth_deg": 17.40796693209449,
+          "pred_elevation_deg": 4.44721025438769
+        },
+        {
+          "true_distance_m": 2.890318408950619,
+          "true_azimuth_deg": -38.8075861513592,
+          "true_elevation_deg": -2.624013361170725,
+          "pred_distance_m": 2.9121192589946037,
+          "pred_azimuth_deg": -36.807560919455575,
+          "pred_elevation_deg": -3.3051271756935794
+        },
+        {
+          "true_distance_m": 4.527732401215721,
+          "true_azimuth_deg": 24.192539748262476,
+          "true_elevation_deg": 22.247640938399144,
+          "pred_distance_m": 4.569272206978551,
+          "pred_azimuth_deg": 33.490489545535475,
+          "pred_elevation_deg": 22.22593593692059
+        },
+        {
+          "true_distance_m": 3.494157715471112,
+          "true_azimuth_deg": 8.140304789678638,
+          "true_elevation_deg": 32.81606800017532,
+          "pred_distance_m": 3.527919436664061,
+          "pred_azimuth_deg": 9.987072972236936,
+          "pred_elevation_deg": 32.78383011028273
+        },
+        {
+          "true_distance_m": 1.1427238023911197,
+          "true_azimuth_deg": -8.991464208830394,
+          "true_elevation_deg": 14.981368074969396,
+          "pred_distance_m": 1.084209091127969,
+          "pred_azimuth_deg": -4.796603533203173,
+          "pred_elevation_deg": 13.844330257980928
+        },
+        {
+          "true_distance_m": 1.9951097249296568,
+          "true_azimuth_deg": -24.589555345065172,
+          "true_elevation_deg": 28.91661022820361,
+          "pred_distance_m": 1.9834973424576636,
+          "pred_azimuth_deg": -20.10832040907258,
+          "pred_elevation_deg": 28.83214482502361
+        },
+        {
+          "true_distance_m": 4.819286407980821,
+          "true_azimuth_deg": -26.418433987041244,
+          "true_elevation_deg": 7.470128320383296,
+          "pred_distance_m": 4.83749228193244,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": 5.522639435447186
+        },
+        {
+          "true_distance_m": 4.801998605050935,
+          "true_azimuth_deg": -33.0905970201039,
+          "true_elevation_deg": -34.01106867862859,
+          "pred_distance_m": 4.8217681668330785,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": -33.91406415442461
+        },
+        {
+          "true_distance_m": 2.0770247858975663,
+          "true_azimuth_deg": 33.54626583933826,
+          "true_elevation_deg": 29.998453029570612,
+          "pred_distance_m": 2.0662910964421424,
+          "pred_azimuth_deg": 29.71874582025326,
+          "pred_elevation_deg": 30.175915690606786
+        },
+        {
+          "true_distance_m": 3.930715800722533,
+          "true_azimuth_deg": 38.75579886533107,
+          "true_elevation_deg": 27.574404911630097,
+          "pred_distance_m": 3.958731172795629,
+          "pred_azimuth_deg": 37.02712031879122,
+          "pred_elevation_deg": 27.976753642311152
+        },
+        {
+          "true_distance_m": 2.1839865527010174,
+          "true_azimuth_deg": -30.81522308410961,
+          "true_elevation_deg": 0.57061502851559,
+          "pred_distance_m": 2.184649792287177,
+          "pred_azimuth_deg": -27.57027005417254,
+          "pred_elevation_deg": -0.5523807903970268
+        },
+        {
+          "true_distance_m": 4.487235333129222,
+          "true_azimuth_deg": -16.95429625860006,
+          "true_elevation_deg": -35.243036189377406,
+          "pred_distance_m": 4.5204320777929015,
+          "pred_azimuth_deg": -29.029685853638313,
+          "pred_elevation_deg": -35.59390819729375
+        },
+        {
+          "true_distance_m": 4.5304122289646145,
+          "true_azimuth_deg": -16.33182076034589,
+          "true_elevation_deg": 31.194564081281513,
+          "pred_distance_m": 4.571818989337964,
+          "pred_azimuth_deg": -20.42996281415645,
+          "pred_elevation_deg": 31.253083506102428
+        },
+        {
+          "true_distance_m": 1.0181851344071209,
+          "true_azimuth_deg": -32.68934219830909,
+          "true_elevation_deg": -29.68942032358516,
+          "pred_distance_m": 0.9787763315715203,
+          "pred_azimuth_deg": -20.29860238881898,
+          "pred_elevation_deg": -28.26915232730974
+        },
+        {
+          "true_distance_m": 4.634788895550822,
+          "true_azimuth_deg": -4.759625447198005,
+          "true_elevation_deg": -30.726984685582067,
+          "pred_distance_m": 4.671744810136638,
+          "pred_azimuth_deg": -14.188545017848812,
+          "pred_elevation_deg": -29.492850470725017
+        },
+        {
+          "true_distance_m": 3.875953591977443,
+          "true_azimuth_deg": 5.521460150475249,
+          "true_elevation_deg": -33.711170671140266,
+          "pred_distance_m": 3.9044206706648317,
+          "pred_azimuth_deg": 9.403300096952474,
+          "pred_elevation_deg": -33.428699657176914
+        },
+        {
+          "true_distance_m": 2.192206064977287,
+          "true_azimuth_deg": -36.15781310254974,
+          "true_elevation_deg": 28.232676190206547,
+          "pred_distance_m": 2.184059798164948,
+          "pred_azimuth_deg": -34.08170486804291,
+          "pred_elevation_deg": 28.43859175807284
+        },
+        {
+          "true_distance_m": 1.8655425320700816,
+          "true_azimuth_deg": 36.544805126537995,
+          "true_elevation_deg": -24.13492499285022,
+          "pred_distance_m": 1.8901483376485284,
+          "pred_azimuth_deg": 34.8794952086136,
+          "pred_elevation_deg": -22.058874187750305
+        },
+        {
+          "true_distance_m": 1.2855288877826672,
+          "true_azimuth_deg": -44.292978953368795,
+          "true_elevation_deg": 13.281506204958085,
+          "pred_distance_m": 1.2223142026067566,
+          "pred_azimuth_deg": -27.91558423378952,
+          "pred_elevation_deg": 11.976644678800623
+        },
+        {
+          "true_distance_m": 4.299476693868542,
+          "true_azimuth_deg": -17.28489964516004,
+          "true_elevation_deg": 1.4462512052313699,
+          "pred_distance_m": 4.343784795834865,
+          "pred_azimuth_deg": -25.30806413446023,
+          "pred_elevation_deg": 0.19957110609065598
+        },
+        {
+          "true_distance_m": 3.9581744698457952,
+          "true_azimuth_deg": -25.782289845795823,
+          "true_elevation_deg": -25.230917033780532,
+          "pred_distance_m": 4.025138646714079,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": -23.197587999270876
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.135,
+          "mae_deg": 0.9807438217610392,
+          "rmse_deg": 1.5529224639157546,
+          "max_abs_error_deg": 7.192836692849795,
+          "bias_deg": -0.08678893022142427
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.48,
+          "input_offset_deg": -2.0,
+          "output_offset_deg": -3.0,
+          "mae_deg": 0.9720494989523812,
+          "rmse_deg": 1.1789783660880773,
+          "max_abs_error_deg": 2.0911587799698523,
+          "bias_deg": -0.029306058446470478
+        }
+      }
+    },
+    "expanded": {
+      "name": "expanded_10m_pm90",
+      "channels": 48,
+      "distance_bins": 180,
+      "angular_bins": 181,
+      "num_samples": 24,
+      "prep_seconds": 10.180455084191635,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.1008848384662997,
+        "azimuth_s": 0.12029398784701091,
+        "elevation_s": 0.1307013959158212,
+        "total_prediction_s": 0.3518802222291318
+      },
+      "metrics": {
+        "distance_mae_m": 0.5556135254288582,
+        "distance_rmse_m": 1.4962373064310954,
+        "distance_bias_m": -0.5187099149959348,
+        "azimuth_mae_deg": 15.177666736318296,
+        "azimuth_rmse_deg": 20.877920200810102,
+        "azimuth_bias_deg": 3.668877989298744,
+        "elevation_mae_deg": 2.7700372765784187,
+        "elevation_rmse_deg": 3.4450241905131707,
+        "elevation_bias_deg": -0.56321137721793,
+        "euclidean_mae_m": 1.043877032074926,
+        "euclidean_rmse_m": 1.8074181268410354,
+        "euclidean_max_m": 5.27604487137267,
+        "combined_normalised_error": 0.084993428673172
+      },
+      "predictions": [
+        {
+          "true_distance_m": 0.02,
+          "true_azimuth_deg": -17.36841539012471,
+          "true_elevation_deg": -50.09825211387646,
+          "pred_distance_m": 0.15431277227996118,
+          "pred_azimuth_deg": -0.6327105439160252,
+          "pred_elevation_deg": -46.407032503003315
+        },
+        {
+          "true_distance_m": 9.913770160557275,
+          "true_azimuth_deg": 19.226559517373104,
+          "true_elevation_deg": 60.81428062115657,
+          "pred_distance_m": 5.0,
+          "pred_azimuth_deg": 4.231390559799359e-16,
+          "pred_elevation_deg": 61.52429806935861
+        },
+        {
+          "true_distance_m": 6.964089128190433,
+          "true_azimuth_deg": -72.93326846670178,
+          "true_elevation_deg": -85.95275505332387,
+          "pred_distance_m": 6.981794025382723,
+          "pred_azimuth_deg": -72.04969760678867,
+          "pred_elevation_deg": -90.0
+        },
+        {
+          "true_distance_m": 6.638594238281033,
+          "true_azimuth_deg": 1.4325219274263645,
+          "true_elevation_deg": 17.510617161604785,
+          "pred_distance_m": 6.678660868534226,
+          "pred_azimuth_deg": 4.477286007387141,
+          "pred_elevation_deg": 14.8448568891843
+        },
+        {
+          "true_distance_m": 3.7131841786377784,
+          "true_azimuth_deg": 81.15243287570499,
+          "true_elevation_deg": -79.63927289711769,
+          "pred_distance_m": 3.700274335737899,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": -89.28202720708026
+        },
+        {
+          "true_distance_m": 5.474978823658308,
+          "true_azimuth_deg": 17.944439114301005,
+          "true_elevation_deg": 31.20917081368647,
+          "pred_distance_m": 5.500583349979933,
+          "pred_azimuth_deg": 34.31643206409954,
+          "pred_elevation_deg": 29.439129294116384
+        },
+        {
+          "true_distance_m": 2.8519934988926,
+          "true_azimuth_deg": 3.1494160302753897,
+          "true_elevation_deg": 31.59198639153648,
+          "pred_distance_m": 2.8542366073836303,
+          "pred_azimuth_deg": 2.7258465696363707,
+          "pred_elevation_deg": 30.370581664658985
+        },
+        {
+          "true_distance_m": 4.934483357011709,
+          "true_azimuth_deg": -71.5355871177762,
+          "true_elevation_deg": -35.171936350112226,
+          "pred_distance_m": 4.935621508642707,
+          "pred_azimuth_deg": -72.04969760678865,
+          "pred_elevation_deg": -31.25826902789117
+        },
+        {
+          "true_distance_m": 8.930524501545833,
+          "true_azimuth_deg": 14.448745225584048,
+          "true_elevation_deg": 56.211649610422,
+          "pred_distance_m": 5.0,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": 57.57178963522788
+        },
+        {
+          "true_distance_m": 6.804075414609217,
+          "true_azimuth_deg": -40.819830132039655,
+          "true_elevation_deg": 61.848178515642644,
+          "pred_distance_m": 6.834911990161432,
+          "pred_azimuth_deg": -72.04969760678865,
+          "pred_elevation_deg": 62.118383891949435
+        },
+        {
+          "true_distance_m": 8.361844288900894,
+          "true_azimuth_deg": 83.54580451525584,
+          "true_elevation_deg": 50.717496618506544,
+          "pred_distance_m": 8.397964535251113,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": 52.79926775265274
+        },
+        {
+          "true_distance_m": 3.366835457618854,
+          "true_azimuth_deg": -65.3545215170652,
+          "true_elevation_deg": -72.54856457664759,
+          "pred_distance_m": 3.349746607916401,
+          "pred_azimuth_deg": -72.04969760678865,
+          "pred_elevation_deg": -77.47411516547677
+        },
+        {
+          "true_distance_m": 2.001493730188546,
+          "true_azimuth_deg": 26.50025500383198,
+          "true_elevation_deg": -46.379937527770295,
+          "pred_distance_m": 1.9906303195088344,
+          "pred_azimuth_deg": 31.184585570686906,
+          "pred_elevation_deg": -42.53302297234107
+        },
+        {
+          "true_distance_m": 3.1618424034025017,
+          "true_azimuth_deg": 59.003865918413055,
+          "true_elevation_deg": 50.28162447713737,
+          "pred_distance_m": 3.158262531037692,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": 52.05150475789084
+        },
+        {
+          "true_distance_m": 2.8546983811294613,
+          "true_azimuth_deg": 48.342291549498015,
+          "true_elevation_deg": 21.07282879190275,
+          "pred_distance_m": 2.844599678076622,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": 18.38657275952349
+        },
+        {
+          "true_distance_m": 8.75175968123333,
+          "true_azimuth_deg": -12.858790136954923,
+          "true_elevation_deg": -47.82345356557934,
+          "pred_distance_m": 5.0,
+          "pred_azimuth_deg": 4.231390559799359e-16,
+          "pred_elevation_deg": -43.92604437028542
+        },
+        {
+          "true_distance_m": 7.1608628065827995,
+          "true_azimuth_deg": 52.53302151233632,
+          "true_elevation_deg": 78.82166575313201,
+          "pred_distance_m": 7.1948945952576295,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": 79.80444829224318
+        },
+        {
+          "true_distance_m": 6.619539046904105,
+          "true_azimuth_deg": 89.48124879961927,
+          "true_elevation_deg": -73.67221189912095,
+          "pred_distance_m": 6.633542542378648,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": -79.27857260818207
+        },
+        {
+          "true_distance_m": 4.193586186700413,
+          "true_azimuth_deg": 24.732014249752012,
+          "true_elevation_deg": -52.87833951050116,
+          "pred_distance_m": 4.1957309311145305,
+          "pred_azimuth_deg": 28.309129878381416,
+          "pred_elevation_deg": -49.54177363374076
+        },
+        {
+          "true_distance_m": 0.944420932999952,
+          "true_azimuth_deg": -82.31141817056293,
+          "true_elevation_deg": 89.24880528464095,
+          "pred_distance_m": 0.8403888392515525,
+          "pred_azimuth_deg": -34.84254291115147,
+          "pred_elevation_deg": 85.94182225365255
+        },
+        {
+          "true_distance_m": 4.287074318750177,
+          "true_azimuth_deg": 65.3871714484392,
+          "true_elevation_deg": -88.7710145941027,
+          "pred_distance_m": 4.284480301383328,
+          "pred_azimuth_deg": 72.04969760678867,
+          "pred_elevation_deg": -90.0
+        },
+        {
+          "true_distance_m": 0.46762646458737844,
+          "true_azimuth_deg": 2.8342204938454074,
+          "true_elevation_deg": 17.198215255454414,
+          "pred_distance_m": 0.3329663126412404,
+          "pred_azimuth_deg": 0.1260370912104578,
+          "pred_elevation_deg": 14.54915786213915
+        },
+        {
+          "true_distance_m": 0.09787520405080463,
+          "true_azimuth_deg": 36.36307004303666,
+          "true_elevation_deg": -64.48292114753338,
+          "pred_distance_m": 0.16022780202824888,
+          "pred_azimuth_deg": 4.754821181883537,
+          "pred_elevation_deg": -64.7315060571122
+        },
+        {
+          "true_distance_m": 9.05938327830288,
+          "true_azimuth_deg": -64.38034130805326,
+          "true_elevation_deg": 65.61942870694367,
+          "pred_distance_m": 9.101667068885495,
+          "pred_azimuth_deg": -72.04969760678865,
+          "pred_elevation_deg": 66.24076613536626
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.13,
+          "mae_deg": 0.9831673473247157,
+          "rmse_deg": 1.544606778579708,
+          "max_abs_error_deg": 7.0892398731099675,
+          "bias_deg": -0.08344013313469034
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.46,
+          "input_offset_deg": -2.25,
+          "output_offset_deg": -4.0,
+          "mae_deg": 2.2432264435913494,
+          "rmse_deg": 2.9468260173848186,
+          "max_abs_error_deg": 10.0,
+          "bias_deg": -0.2347834896102579
+        }
+      }
+    }
+  },
+  "channel_sweep": [
+    {
+      "name": "channel_sweep_16",
+      "channels": 16,
+      "distance_bins": 180,
+      "angular_bins": 91,
+      "num_samples": 8,
+      "prep_seconds": 6.631917125079781,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.08164683877839707,
+        "azimuth_s": 0.04069113024161197,
+        "elevation_s": 0.047197749838232994,
+        "total_prediction_s": 0.16953571885824203
+      },
+      "metrics": {
+        "distance_mae_m": 0.01832550533761504,
+        "distance_rmse_m": 0.028554799737295484,
+        "distance_bias_m": 0.017026362764030994,
+        "azimuth_mae_deg": 5.009175821035672,
+        "azimuth_rmse_deg": 5.463147498975872,
+        "azimuth_bias_deg": -1.5650862741490776,
+        "elevation_mae_deg": 1.490831182781747,
+        "elevation_rmse_deg": 2.1319289698512756,
+        "elevation_bias_deg": -1.2846154658325162,
+        "euclidean_mae_m": 0.23302281007999343,
+        "euclidean_rmse_m": 0.2743906336377695,
+        "euclidean_max_m": 0.5246954531116977,
+        "combined_normalised_error": 0.04936990038411818
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.161136137217466,
+          "pred_azimuth_deg": 14.318850412405332,
+          "pred_elevation_deg": -45.0
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.0739718502175095,
+          "pred_azimuth_deg": -4.35409405459877,
+          "pred_elevation_deg": 39.25518343534183
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.14159489889909,
+          "pred_azimuth_deg": -37.532239625522465,
+          "pred_elevation_deg": -7.264338240046947
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.841996620876088,
+          "pred_azimuth_deg": -37.532239625522465,
+          "pred_elevation_deg": -45.0
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.182479742491534,
+          "pred_azimuth_deg": 15.436166815377126,
+          "pred_elevation_deg": -25.482922765404258
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8457501835717465,
+          "pred_azimuth_deg": 12.03087165442616,
+          "pred_elevation_deg": -1.3102878637701476
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.0169623234581584,
+          "pred_azimuth_deg": 24.13477365963351,
+          "pred_elevation_deg": -15.476704221562072
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.8166665647503484,
+          "pred_azimuth_deg": -31.909931183376724,
+          "pred_elevation_deg": -38.71249145740883
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.7,
+          "sigma": 0.125,
+          "mae_deg": 2.14941232565705,
+          "rmse_deg": 2.967422974764292,
+          "max_abs_error_deg": 8.211793691484779,
+          "bias_deg": -0.6875129318865388
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.46,
+          "input_offset_deg": -0.5,
+          "output_offset_deg": -2.0,
+          "mae_deg": 1.0392678513444467,
+          "rmse_deg": 1.4883223063518252,
+          "max_abs_error_deg": 4.888410280585241,
+          "bias_deg": -0.3658667385531902
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 24982880.0,
+        "estimated_sops": 8003.84,
+        "cochlea_flops_per_path": 479232.0,
+        "distance_readout_flops": 15575040.0,
+        "azimuth_readout_flops": 3983616.0,
+        "elevation_readout_flops": 3986528.0
+      }
+    },
+    {
+      "name": "channel_sweep_32",
+      "channels": 32,
+      "distance_bins": 180,
+      "angular_bins": 91,
+      "num_samples": 8,
+      "prep_seconds": 6.937147749820724,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.07914924985379912,
+        "azimuth_s": 0.05150638538179919,
+        "elevation_s": 0.04636592694441788,
+        "total_prediction_s": 0.1770215621800162
+      },
+      "metrics": {
+        "distance_mae_m": 0.017507328412892154,
+        "distance_rmse_m": 0.02536264218052151,
+        "distance_bias_m": 0.012800951093889235,
+        "azimuth_mae_deg": 3.5451893173826896,
+        "azimuth_rmse_deg": 5.057090262724487,
+        "azimuth_bias_deg": 0.8038386335602574,
+        "elevation_mae_deg": 0.8889060837279885,
+        "elevation_rmse_deg": 1.0031519977470253,
+        "elevation_bias_deg": -0.1524915712430257,
+        "euclidean_mae_m": 0.18442183932490294,
+        "euclidean_rmse_m": 0.26524315053529746,
+        "euclidean_max_m": 0.6126903172852233,
+        "combined_normalised_error": 0.0340123063468645
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.1671201257725676,
+          "pred_azimuth_deg": 20.480068502006507,
+          "pred_elevation_deg": -42.13575142913928
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.0676456834546606,
+          "pred_azimuth_deg": -8.177333814299887,
+          "pred_elevation_deg": 39.132185221961436
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.1334039374909706,
+          "pred_azimuth_deg": -35.03522766701248,
+          "pred_elevation_deg": -7.151782738911822
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.837274105393989,
+          "pred_azimuth_deg": -35.03522766701248,
+          "pred_elevation_deg": -42.919883858833906
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.1715192982974665,
+          "pred_azimuth_deg": 21.358145774786472,
+          "pred_elevation_deg": -23.71766932460376
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8431072390054812,
+          "pred_azimuth_deg": 14.733334201977037,
+          "pred_elevation_deg": -1.999450424713579
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.009886767295326,
+          "pred_azimuth_deg": 30.25502565106371,
+          "pred_elevation_deg": -14.730478960107066
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.816797871410345,
+          "pred_azimuth_deg": -35.03522766701248,
+          "pred_elevation_deg": -36.41173844178649
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.2,
+          "sigma": 0.175,
+          "mae_deg": 2.5643061486884946,
+          "rmse_deg": 3.585187246505082,
+          "max_abs_error_deg": 9.469501323913633,
+          "bias_deg": -0.7239117878921588
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.44,
+          "input_offset_deg": -2.5,
+          "output_offset_deg": -3.5,
+          "mae_deg": 0.995185738528236,
+          "rmse_deg": 1.1129728538294075,
+          "max_abs_error_deg": 2.1071091867855003,
+          "bias_deg": -0.037487022964280706
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 26464000.0,
+        "estimated_sops": 16007.68,
+        "cochlea_flops_per_path": 958464.0,
+        "distance_readout_flops": 15598080.0,
+        "azimuth_readout_flops": 3992352.0,
+        "elevation_readout_flops": 3998176.0
+      }
+    },
+    {
+      "name": "channel_sweep_48",
+      "channels": 48,
+      "distance_bins": 180,
+      "angular_bins": 91,
+      "num_samples": 8,
+      "prep_seconds": 7.1106585001107305,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.0912341404473409,
+        "azimuth_s": 0.05628736992366612,
+        "elevation_s": 0.04579980231937952,
+        "total_prediction_s": 0.19332131269038655
+      },
+      "metrics": {
+        "distance_mae_m": 0.019304440272472412,
+        "distance_rmse_m": 0.028224643882958863,
+        "distance_bias_m": 0.016765261810300636,
+        "azimuth_mae_deg": 2.998187020041854,
+        "azimuth_rmse_deg": 3.8274538260006397,
+        "azimuth_bias_deg": -1.1260007670457668,
+        "elevation_mae_deg": 0.9391256763607743,
+        "elevation_rmse_deg": 1.1243600203230018,
+        "elevation_bias_deg": 0.09494528790066425,
+        "euclidean_mae_m": 0.14226644194701932,
+        "euclidean_rmse_m": 0.18832117466612086,
+        "euclidean_max_m": 0.43997038699083474,
+        "combined_normalised_error": 0.030452241917443557
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.168282535455526,
+          "pred_azimuth_deg": 21.48799232049191,
+          "pred_elevation_deg": -42.002486506812545
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.07269473672504,
+          "pred_azimuth_deg": -4.729841701251384,
+          "pred_elevation_deg": 39.21777935029222
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.138483007044221,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": -6.900694108058417
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.838440862875405,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": -42.78450416118407
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.1717030515225169,
+          "pred_azimuth_deg": 16.793019119822517,
+          "pred_elevation_deg": -23.191637033182577
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8508591600209825,
+          "pred_azimuth_deg": 13.043689336454399,
+          "pred_elevation_deg": -1.9501116623732822
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.0161700958426385,
+          "pred_azimuth_deg": 20.94782144842407,
+          "pred_elevation_deg": -14.299642205533761
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.8218360643657676,
+          "pred_azimuth_deg": -35.38359777671079,
+          "pred_elevation_deg": -36.043778756132525
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.135,
+          "mae_deg": 0.9807438217610392,
+          "rmse_deg": 1.5529224639157546,
+          "max_abs_error_deg": 7.192836692849795,
+          "bias_deg": -0.08678893022142427
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.48,
+          "input_offset_deg": -2.0,
+          "output_offset_deg": -3.0,
+          "mae_deg": 0.9720494989523812,
+          "rmse_deg": 1.1789783660880773,
+          "max_abs_error_deg": 2.0911587799698523,
+          "bias_deg": -0.029306058446470478
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 27945120.0,
+        "estimated_sops": 24011.52,
+        "cochlea_flops_per_path": 1437696.0,
+        "distance_readout_flops": 15621120.0,
+        "azimuth_readout_flops": 4001088.0,
+        "elevation_readout_flops": 4009824.0
+      }
+    },
+    {
+      "name": "channel_sweep_96",
+      "channels": 96,
+      "distance_bins": 180,
+      "angular_bins": 91,
+      "num_samples": 8,
+      "prep_seconds": 7.60697004199028,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.08501296339090914,
+        "azimuth_s": 0.061358557286439463,
+        "elevation_s": 0.040017161576543,
+        "total_prediction_s": 0.1863886822538916
+      },
+      "metrics": {
+        "distance_mae_m": 0.019195479472761706,
+        "distance_rmse_m": 0.027033396856074313,
+        "distance_bias_m": 0.01696711498837497,
+        "azimuth_mae_deg": 3.265693007755079,
+        "azimuth_rmse_deg": 4.227627969297387,
+        "azimuth_bias_deg": -0.6344809323498914,
+        "elevation_mae_deg": 0.9322164719724491,
+        "elevation_rmse_deg": 1.0492074032452807,
+        "elevation_bias_deg": -0.1526792984422407,
+        "euclidean_mae_m": 0.1652385681786076,
+        "euclidean_rmse_m": 0.217510296566145,
+        "euclidean_max_m": 0.42763302721398033,
+        "combined_normalised_error": 0.03237532440727692
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.1679278078149022,
+          "pred_azimuth_deg": 21.006547627947597,
+          "pred_elevation_deg": -42.2256222824178
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.072283228594981,
+          "pred_azimuth_deg": -6.071072476664737,
+          "pred_elevation_deg": 39.24459116454035
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.1348059805563735,
+          "pred_azimuth_deg": -36.775616785649184,
+          "pred_elevation_deg": -7.0580098412099135
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.836656431976827,
+          "pred_azimuth_deg": -36.775616785649184,
+          "pred_elevation_deg": -43.03866694248931
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.173035306793494,
+          "pred_azimuth_deg": 18.155582849382096,
+          "pred_elevation_deg": -23.724911028805053
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8507701606611455,
+          "pred_azimuth_deg": 12.563488185324784,
+          "pred_elevation_deg": -1.9611139195170673
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.0125284228543907,
+          "pred_azimuth_deg": 25.215283112495158,
+          "pred_elevation_deg": -14.6631525543037
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.8320770000245785,
+          "pred_azimuth_deg": -35.281594939971306,
+          "pred_elevation_deg": -36.50918636952566
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.5,
+          "sigma": 0.14,
+          "mae_deg": 1.0687164375285687,
+          "rmse_deg": 1.634165612939038,
+          "max_abs_error_deg": 7.44541639053876,
+          "bias_deg": -0.06478544721418089
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.44,
+          "input_offset_deg": -2.25,
+          "output_offset_deg": -3.25,
+          "mae_deg": 0.874260633739228,
+          "rmse_deg": 1.0312368290164147,
+          "max_abs_error_deg": 1.6848769218311954,
+          "bias_deg": -0.06985399326042153
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 32388480.0,
+        "estimated_sops": 48023.04,
+        "cochlea_flops_per_path": 2875392.0,
+        "distance_readout_flops": 15690240.0,
+        "azimuth_readout_flops": 4027296.0,
+        "elevation_readout_flops": 4044768.0
+      }
+    }
+  ],
+  "readout_sweep": [
+    {
+      "name": "readout_sweep_45",
+      "channels": 48,
+      "distance_bins": 90,
+      "angular_bins": 45,
+      "num_samples": 8,
+      "prep_seconds": 6.441849832888693,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.049641327699646354,
+        "azimuth_s": 0.0432505467615556,
+        "elevation_s": 0.019330843642819673,
+        "total_prediction_s": 0.11222271810402162
+      },
+      "metrics": {
+        "distance_mae_m": 0.021192594530878073,
+        "distance_rmse_m": 0.02945746879933079,
+        "distance_bias_m": 0.012468228814642157,
+        "azimuth_mae_deg": 3.0792414108049364,
+        "azimuth_rmse_deg": 3.727294679975392,
+        "azimuth_bias_deg": -0.782790387510456,
+        "elevation_mae_deg": 0.6068904265997581,
+        "elevation_rmse_deg": 0.7350070758175532,
+        "elevation_bias_deg": -0.1205156883212446,
+        "euclidean_mae_m": 0.14007176258670134,
+        "euclidean_rmse_m": 0.17658196968774628,
+        "euclidean_max_m": 0.3835620986426104,
+        "combined_normalised_error": 0.028717519912463685
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.1682911378593026,
+          "pred_azimuth_deg": 21.39297255568756,
+          "pred_elevation_deg": -40.55945629803672
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.073368428761011,
+          "pred_azimuth_deg": -4.73485508309208,
+          "pred_elevation_deg": 37.955455992688584
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.138703932640121,
+          "pred_azimuth_deg": -35.97347154742435,
+          "pred_elevation_deg": -7.1164955082533385
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.802112107005567,
+          "pred_azimuth_deg": -35.97347154742435,
+          "pred_elevation_deg": -40.91496498523372
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.1716624719908892,
+          "pred_azimuth_deg": 16.782726656695612,
+          "pred_elevation_deg": -25.17664207894648
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.851456822217638,
+          "pred_azimuth_deg": 13.048956983303295,
+          "pred_elevation_deg": -1.6490307250551743
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.0166450774153564,
+          "pred_azimuth_deg": 20.87123591571841,
+          "pred_elevation_deg": -15.313465387213265
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.8218532719969445,
+          "pred_azimuth_deg": -34.56356878753342,
+          "pred_elevation_deg": -36.90416390271009
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.14,
+          "mae_deg": 0.9762655455772747,
+          "rmse_deg": 1.542199173450575,
+          "max_abs_error_deg": 7.138834697705214,
+          "bias_deg": -0.09239107487687402
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.34,
+          "input_offset_deg": -1.25,
+          "output_offset_deg": -2.25,
+          "mae_deg": 0.9272092686931802,
+          "rmse_deg": 1.3438148603055633,
+          "max_abs_error_deg": 5.132116288846156,
+          "bias_deg": -0.14107074635359879
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 10209888.0,
+        "estimated_sops": 15275.52,
+        "cochlea_flops_per_path": 1437696.0,
+        "distance_readout_flops": 3922560.0,
+        "azimuth_readout_flops": 984960.0,
+        "elevation_readout_flops": 989280.0
+      }
+    },
+    {
+      "name": "readout_sweep_91",
+      "channels": 48,
+      "distance_bins": 182,
+      "angular_bins": 91,
+      "num_samples": 8,
+      "prep_seconds": 7.125881500076503,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.09982396874693222,
+        "azimuth_s": 0.059093666583066806,
+        "elevation_s": 0.04445360426325351,
+        "total_prediction_s": 0.20337123959325254
+      },
+      "metrics": {
+        "distance_mae_m": 0.019303859098253884,
+        "distance_rmse_m": 0.02828200655431841,
+        "distance_bias_m": 0.01678504855341756,
+        "azimuth_mae_deg": 2.998187020041854,
+        "azimuth_rmse_deg": 3.8274538260006397,
+        "azimuth_bias_deg": -1.1260007670457668,
+        "elevation_mae_deg": 0.9391256763607743,
+        "elevation_rmse_deg": 1.1243600203230018,
+        "elevation_bias_deg": 0.09494528790066425,
+        "euclidean_mae_m": 0.14227317545519247,
+        "euclidean_rmse_m": 0.1883314672391986,
+        "euclidean_max_m": 0.4399745831573293,
+        "combined_normalised_error": 0.030452203172495654
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.1681558950556967,
+          "pred_azimuth_deg": 21.48799232049191,
+          "pred_elevation_deg": -42.002486506812545
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.0725052417666623,
+          "pred_azimuth_deg": -4.729841701251384,
+          "pred_elevation_deg": 39.21777935029222
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.138438716523804,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": -6.900694108058417
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.8384993604799815,
+          "pred_azimuth_deg": -37.02712031879122,
+          "pred_elevation_deg": -42.78450416118407
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.1716969293467585,
+          "pred_azimuth_deg": 16.793019119822517,
+          "pred_elevation_deg": -23.191637033182577
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8510609962578037,
+          "pred_azimuth_deg": 13.043689336454399,
+          "pred_elevation_deg": -1.9501116623732822
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.016420819683206,
+          "pred_azimuth_deg": 20.94782144842407,
+          "pred_elevation_deg": -14.299642205533761
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.8218498486831205,
+          "pred_azimuth_deg": -35.38359777671079,
+          "pred_elevation_deg": -36.043778756132525
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.135,
+          "mae_deg": 0.9807438217610392,
+          "rmse_deg": 1.5529224639157546,
+          "max_abs_error_deg": 7.192836692849795,
+          "bias_deg": -0.08678893022142427
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.48,
+          "input_offset_deg": -2.0,
+          "output_offset_deg": -3.0,
+          "mae_deg": 0.9720494989523812,
+          "rmse_deg": 1.1789783660880773,
+          "max_abs_error_deg": 2.0911587799698523,
+          "bias_deg": -0.029306058446470478
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 28293408.0,
+        "estimated_sops": 24107.52,
+        "cochlea_flops_per_path": 1437696.0,
+        "distance_readout_flops": 15969408.0,
+        "azimuth_readout_flops": 4001088.0,
+        "elevation_readout_flops": 4009824.0
+      }
+    },
+    {
+      "name": "readout_sweep_181",
+      "channels": 48,
+      "distance_bins": 362,
+      "angular_bins": 181,
+      "num_samples": 8,
+      "prep_seconds": 8.703019707929343,
+      "runtime_seconds_per_sample": {
+        "distance_s": 0.229078166623367,
+        "azimuth_s": 0.1023900885193143,
+        "elevation_s": 0.12125864578410983,
+        "total_prediction_s": 0.45272690092679113
+      },
+      "metrics": {
+        "distance_mae_m": 0.02015808615520842,
+        "distance_rmse_m": 0.02868886525698407,
+        "distance_bias_m": 0.01764580947640315,
+        "azimuth_mae_deg": 3.010214765677876,
+        "azimuth_rmse_deg": 3.8909300195932435,
+        "azimuth_bias_deg": -1.2680318672359583,
+        "elevation_mae_deg": 1.707089722997889,
+        "elevation_rmse_deg": 2.1223448055302705,
+        "elevation_bias_deg": -0.8622496110404292,
+        "euclidean_mae_m": 0.17909547155474403,
+        "euclidean_rmse_m": 0.2259615725794726,
+        "euclidean_max_m": 0.5184556825341619,
+        "combined_normalised_error": 0.0362868686227603
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.1679850924716653,
+          "pred_azimuth_deg": 21.4887162723352,
+          "pred_elevation_deg": -45.0
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.072916193256584,
+          "pred_azimuth_deg": -4.721273519025987,
+          "pred_elevation_deg": 39.449703345638596
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.1385157553116376,
+          "pred_azimuth_deg": -37.41025997852643,
+          "pred_elevation_deg": -7.036003090683116
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.844779088950059,
+          "pred_azimuth_deg": -37.41025997852643,
+          "pred_elevation_deg": -45.0
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.1717230648108827,
+          "pred_azimuth_deg": 16.772154075820605,
+          "pred_elevation_deg": -23.752031931818074
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8515002114352808,
+          "pred_azimuth_deg": 13.022396289264782,
+          "pred_elevation_deg": -1.9910354596563828
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.0164158421933793,
+          "pred_azimuth_deg": 20.94462863438074,
+          "pred_elevation_deg": -14.592785728835809
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.8216786467514297,
+          "pred_azimuth_deg": -35.717508487595765,
+          "pred_elevation_deg": -37.69048140915888
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.13,
+          "mae_deg": 0.9831673473247157,
+          "rmse_deg": 1.544606778579708,
+          "max_abs_error_deg": 7.0892398731099675,
+          "bias_deg": -0.08344013313469034
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.46,
+          "input_offset_deg": -1.5,
+          "output_offset_deg": -2.75,
+          "mae_deg": 1.0954353865483997,
+          "rmse_deg": 1.420956137738223,
+          "max_abs_error_deg": 4.668376286126055,
+          "bias_deg": -0.334259943824669
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 98925408.0,
+        "estimated_sops": 41387.520000000004,
+        "cochlea_flops_per_path": 1437696.0,
+        "distance_readout_flops": 63040128.0,
+        "azimuth_readout_flops": 15777408.0,
+        "elevation_readout_flops": 15794784.0
+      }
+    },
+    {
+      "name": "readout_sweep_361",
+      "channels": 48,
+      "distance_bins": 722,
+      "angular_bins": 361,
+      "num_samples": 8,
+      "prep_seconds": 16.54870354104787,
+      "runtime_seconds_per_sample": {
+        "distance_s": 1.2485540834022686,
+        "azimuth_s": 0.2920278803212568,
+        "elevation_s": 0.43660932313650846,
+        "total_prediction_s": 1.9771912868600339
+      },
+      "metrics": {
+        "distance_mae_m": 0.020764770385798326,
+        "distance_rmse_m": 0.029087325328891037,
+        "distance_bias_m": 0.018247493471523768,
+        "azimuth_mae_deg": 3.0080342683009214,
+        "azimuth_rmse_deg": 3.8889333348262425,
+        "azimuth_bias_deg": -1.2626930957088156,
+        "elevation_mae_deg": 1.7026497007752823,
+        "elevation_rmse_deg": 2.1446425853513285,
+        "elevation_bias_deg": -0.907137279755446,
+        "euclidean_mae_m": 0.18036455309724148,
+        "euclidean_rmse_m": 0.22663251342737614,
+        "euclidean_max_m": 0.5179596087378945,
+        "combined_normalised_error": 0.03627827335221029
+      },
+      "predictions": [
+        {
+          "true_distance_m": 3.1526961672481133,
+          "true_azimuth_deg": 21.244358351589042,
+          "true_elevation_deg": -40.82296702467578,
+          "pred_distance_m": 3.1680838312804958,
+          "pred_azimuth_deg": 21.49216686588421,
+          "pred_elevation_deg": -45.0
+        },
+        {
+          "true_distance_m": 2.0683788046414335,
+          "true_azimuth_deg": -6.226307904677775,
+          "true_elevation_deg": 38.871533974713216,
+          "pred_distance_m": 2.075105648378351,
+          "pred_azimuth_deg": -4.722480252485406,
+          "pred_elevation_deg": 39.11568000026367
+        },
+        {
+          "true_distance_m": 3.1003349958827604,
+          "true_azimuth_deg": -39.822578040148386,
+          "true_elevation_deg": -7.0488567408390495,
+          "pred_distance_m": 3.1397738994769453,
+          "pred_azimuth_deg": -37.40363105367322,
+          "pred_elevation_deg": -6.949104102043918
+        },
+        {
+          "true_distance_m": 4.826899870335296,
+          "true_azimuth_deg": -30.054743908069455,
+          "true_elevation_deg": -41.95390559046602,
+          "pred_distance_m": 4.843101651531232,
+          "pred_azimuth_deg": -37.40363105367322,
+          "pred_elevation_deg": -45.0
+        },
+        {
+          "true_distance_m": 1.1817721715261038,
+          "true_azimuth_deg": 23.166608937723225,
+          "true_elevation_deg": -25.215237458672068,
+          "pred_distance_m": 1.1717030638690056,
+          "pred_azimuth_deg": 16.776202565090248,
+          "pred_elevation_deg": -23.76638026499058
+        },
+        {
+          "true_distance_m": 1.8509467538660827,
+          "true_azimuth_deg": 16.194474256182367,
+          "true_elevation_deg": -0.9183068055040522,
+          "pred_distance_m": 1.8534235486960213,
+          "pred_azimuth_deg": 13.025603134946461,
+          "pred_elevation_deg": -1.8941135859709897
+        },
+        {
+          "true_distance_m": 2.95025616456964,
+          "true_azimuth_deg": 18.137607408632967,
+          "true_elevation_deg": -15.917917628730372,
+          "pred_distance_m": 3.017207676673108,
+          "pred_azimuth_deg": 20.948388946038673,
+          "pred_elevation_deg": -14.528623802678108
+        },
+        {
+          "true_distance_m": 2.8130624913002626,
+          "true_azimuth_deg": -35.52657085521763,
+          "true_elevation_deg": -35.708980112016114,
+          "pred_distance_m": 2.821928047236723,
+          "pred_azimuth_deg": -35.70131567178392,
+          "pred_elevation_deg": -37.94919386881393
+        }
+      ],
+      "calibrations": {
+        "azimuth_inverse_sigmoid": {
+          "gain": 3.75,
+          "sigma": 0.13,
+          "mae_deg": 0.9835568776286681,
+          "rmse_deg": 1.5536367890145435,
+          "max_abs_error_deg": 7.165431293290872,
+          "bias_deg": -0.08235641170798634
+        },
+        "elevation_inverse_sigmoid": {
+          "gain": 1.46,
+          "input_offset_deg": -1.25,
+          "output_offset_deg": -2.5,
+          "mae_deg": 1.103283783138698,
+          "rmse_deg": 1.479558259447455,
+          "max_abs_error_deg": 5.25,
+          "bias_deg": -0.397159970320582
+        }
+      },
+      "cost_estimate": {
+        "time_samples": 2304,
+        "estimated_flops": 380157408.0,
+        "estimated_sops": 75947.51999999999,
+        "cochlea_flops_per_path": 1437696.0,
+        "distance_readout_flops": 250493568.0,
+        "azimuth_readout_flops": 62658048.0,
+        "elevation_readout_flops": 62692704.0
+      }
+    }
+  ],
+  "old_model_results": {
+    "Round 3 2B + 3": {
+      "combined_error": 0.0394,
+      "distance_mae_m": 0.0646,
+      "azimuth_mae_deg": 2.8595,
+      "elevation_mae_deg": 2.5258,
+      "euclidean_error_m": 0.2043
+    },
+    "Round 4 combined": {
+      "combined_error": 0.0435,
+      "distance_mae_m": 0.0786,
+      "azimuth_mae_deg": 2.832,
+      "elevation_mae_deg": 2.7802,
+      "euclidean_error_m": 0.2264
+    },
+    "Round 5 fixed ridge": {
+      "combined_error": 0.0387,
+      "distance_mae_m": 0.0438,
+      "azimuth_mae_deg": 3.1077,
+      "elevation_mae_deg": 2.5876,
+      "euclidean_error_m": 0.2069
+    }
+  },
+  "artifacts": {
+    "constrained_predictions": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/final_model_results/figures/constrained_predictions.png",
+    "expanded_predictions": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/final_model_results/figures/expanded_predictions.png",
+    "runtime_breakdown": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/final_model_results/figures/runtime_breakdown.png",
+    "channel_scaling": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/final_model_results/figures/channel_scaling.png",
+    "readout_scaling": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/final_model_results/figures/readout_scaling.png"
+  }
+}
