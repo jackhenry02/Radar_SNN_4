@@ -75,6 +75,16 @@ The example below shows the inverse-sigmoid ILD population being injected into t
 | Full 3D 5 m +/-90 50 dB noise direct COM | `16.056 deg` | `23.875 deg` | `73.374 deg` | `1.278 deg` |
 | Full 3D 5 m +/-90 50 dB noise SC CANN | `15.975 deg` | `23.762 deg` | `73.362 deg` | `1.274 deg` |
 
+## Old Model Reference
+
+These old model values are copied from the previous trained-model reports and are not rerun here. They are useful as a reference point, but they are not a strict like-for-like comparison because the old models were full trained localisation systems evaluated on their original small-space setup, while this report isolates standalone azimuth readouts and also includes wider 3D stress tests.
+
+| Old model | Azimuth MAE | Notes |
+|---|---:|---|
+| Round 3 2B + 3 | `2.860 deg` | old trained full model |
+| Round 4 combined | `2.832 deg` | old trained full model |
+| Round 4 LSO/MNTB ILD experiment | `3.121 deg` | old trained full model |
+
 ![Prediction scatter](../outputs/ild_line_attractor/figures/prediction_scatter.png)
 
 ![Error over time](../outputs/ild_line_attractor/figures/error_over_time.png)

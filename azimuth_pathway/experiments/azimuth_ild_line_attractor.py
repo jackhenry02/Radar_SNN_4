@@ -814,6 +814,19 @@ def write_report(
     lines.extend(
         [
             "",
+            "## Old Model Reference",
+            "",
+            "These old model values are copied from the previous trained-model reports and are not rerun here. They are useful as a reference point, but they are not a strict like-for-like comparison because the old models were full trained localisation systems evaluated on their original small-space setup, while this report isolates standalone azimuth readouts and also includes wider 3D stress tests.",
+            "",
+            "| Old model | Azimuth MAE | Notes |",
+            "|---|---:|---|",
+        ]
+    )
+    for model_name, azimuth_mae in az.OLD_MODEL_AZIMUTH_RESULTS.items():
+        lines.append(f"| {model_name} | `{azimuth_mae:.3f} deg` | old trained full model |")
+    lines.extend(
+        [
+            "",
             "![Prediction scatter](../outputs/ild_line_attractor/figures/prediction_scatter.png)",
             "",
             "![Error over time](../outputs/ild_line_attractor/figures/error_over_time.png)",
@@ -1199,6 +1212,7 @@ def main() -> dict[str, object]:
             "readout_time_s": distance_cann.ATTRACTOR_READOUT_TIME_S,
         },
         "metrics": metrics,
+        "old_model_azimuth_results": az.OLD_MODEL_AZIMUTH_RESULTS,
         "runtime": runtime,
         "full_3d": serialise_full_3d_suite(full_3d),
         "full_3d_5m": serialise_full_3d_suite(full_3d_5m),
