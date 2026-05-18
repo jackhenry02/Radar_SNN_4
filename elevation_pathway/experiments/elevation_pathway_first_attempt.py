@@ -673,6 +673,100 @@ def plot_comb_transfer(config: GlobalConfig, path: Path) -> str:
     return save_figure(fig, path)
 
 
+def active_echo_window(before: torch.Tensor, after: torch.Tensor, *, margin_samples: int = 256) -> slice:
+    """Find a shared crop around the received echo for PSD estimation.
+
+    Args:
+        before: Selected-ear waveform before spectral filtering.
+        after: Selected-ear waveform after spectral filtering.
+        margin_samples: Extra samples retained on both sides of the active echo.
+
+    Returns:
+        Slice covering the active echo. If no active region is found, the full
+        signal is returned.
+    """
+    envelope = torch.maximum(before.abs(), after.abs())
+    peak = float(envelope.max())
+    if peak <= 1e-12:
+        return slice(0, before.numel())
+    active = torch.nonzero(envelope > 0.02 * peak, as_tuple=False).flatten()
+    if active.numel() == 0:
+        return slice(0, before.numel())
+    start = max(int(active[0]) - margin_samples, 0)
+    stop = min(int(active[-1]) + margin_samples + 1, before.numel())
+    return slice(start, stop)
+
+
+def one_sided_psd(waveform: torch.Tensor, config: GlobalConfig) -> tuple[np.ndarray, np.ndarray]:
+    """Compute a Hann-windowed one-sided PSD.
+
+    Args:
+        waveform: One-dimensional waveform.
+        config: Acoustic configuration.
+
+    Returns:
+        Pair `(frequencies_hz, psd)`.
+    """
+    waveform = waveform.detach().float()
+    window = torch.hann_window(waveform.numel(), dtype=waveform.dtype, device=waveform.device)
+    centred = waveform - waveform.mean()
+    spectrum = torch.fft.rfft(centred * window)
+    psd = spectrum.abs().square() / torch.clamp(window.square().sum(), min=1e-12)
+    frequencies = torch.fft.rfftfreq(waveform.numel(), d=1.0 / config.sample_rate_hz)
+    return frequencies.cpu().numpy(), psd.cpu().numpy()
+
+
+def plot_received_psd(config: GlobalConfig, elevation_deg: float, path: Path) -> str:
+    """Plot selected-ear PSD before and after the comb-filter cue.
+
+    Args:
+        config: Acoustic configuration.
+        elevation_deg: Elevation angle used for the comb-filter cue.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    before_binaural, after_binaural = simulate_pre_post_comb_scene(config, elevation_deg)
+    ear_index = 1 if SELECTED_EAR == "right" else 0
+    before = before_binaural[ear_index]
+    after = after_binaural[ear_index]
+    crop = active_echo_window(before, after)
+    frequencies_hz, before_psd = one_sided_psd(before[crop], config)
+    _, after_psd = one_sided_psd(after[crop], config)
+    shared_peak = max(float(before_psd.max()), float(after_psd.max()), 1e-12)
+    before_psd_db = 10.0 * np.log10(before_psd / shared_peak + 1e-12)
+    after_psd_db = 10.0 * np.log10(after_psd / shared_peak + 1e-12)
+
+    theoretical_gain = 20.0 * np.log10(comb_gain(frequencies_hz, elevation_deg) + 1e-12)
+    first_notch_hz = float(comb_first_notch_hz(elevation_deg))
+    lag_us = float(comb_lag_s(elevation_deg) * 1e6)
+
+    fig, ax = plt.subplots(figsize=(10.4, 5.2))
+    ax.plot(frequencies_hz / 1_000.0, before_psd_db, label="before comb notch", linewidth=1.8)
+    ax.plot(frequencies_hz / 1_000.0, after_psd_db, label="after comb notch", linewidth=1.8)
+    ax.plot(
+        frequencies_hz / 1_000.0,
+        theoretical_gain,
+        color="#64748b",
+        linestyle="--",
+        linewidth=1.4,
+        label="theoretical comb gain",
+    )
+    ax.axvline(first_notch_hz / 1_000.0, color="#dc2626", linestyle=":", linewidth=1.5, label="first notch")
+    ax.set_xlim(0.0, min(config.sample_rate_hz / 2_000.0, 24.0))
+    ax.set_ylim(-80.0, 5.0)
+    ax.set_xlabel("frequency (kHz)")
+    ax.set_ylabel("normalised power / gain (dB)")
+    ax.set_title(
+        f"Selected-ear received PSD before and after comb cue "
+        f"(elevation={elevation_deg:.1f} deg, f1={first_notch_hz / 1_000.0:.2f} kHz, tau={lag_us:.1f} us)"
+    )
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False)
+    return save_figure(fig, path)
+
+
 def plot_dcn_templates(config: GlobalConfig, path: Path) -> str:
     """Plot the DCN E/I template matrix."""
     bins = elevation_grid()
@@ -900,6 +994,20 @@ def write_report(
         "",
         "![Comb transfer](../outputs/first_attempt/figures/comb_transfer.png)",
         "",
+        "## Received Signal PSD",
+        "",
+        "The plot below checks the actual selected-ear received waveform before and after the comb-filter cue is applied. The two PSDs use the same simulated echo, cropped around the active received call, so the difference comes from the spectral notch rather than a different acoustic scene.",
+        "",
+        "The PSD is estimated with a Hann-windowed one-sided FFT:",
+        "",
+        "$$",
+        "P(f)=\\frac{|\\mathcal{F}\\{w(t)(x(t)-\\bar{x})\\}|^2}{\\sum_t w(t)^2}.",
+        "$$",
+        "",
+        "Both curves are normalised to the same peak power, so attenuation from the comb filter remains visible. The dashed curve is the theoretical comb-filter magnitude in dB.",
+        "",
+        "![Received PSD before and after comb filtering](../outputs/first_attempt/figures/received_psd_before_after_comb.png)",
+        "",
         "## DCN Disinhibitory Notch Detector",
         "",
         "Each DCN output neuron corresponds to one candidate elevation. The candidate's expected comb-filter transfer function defines where inhibition should arrive from cochlear channels. If those channels are quiet because a notch is present, the candidate neuron is disinhibited.",
@@ -1031,6 +1139,7 @@ def main() -> dict[str, object]:
     artifacts = {
         "pipeline_diagram": plot_pipeline(FIGURE_DIR / "pipeline_diagram.png"),
         "comb_transfer": plot_comb_transfer(config, FIGURE_DIR / "comb_transfer.png"),
+        "received_psd": plot_received_psd(config, float(true[example_index]), FIGURE_DIR / "received_psd_before_after_comb.png"),
         "dcn_templates": plot_dcn_templates(config, FIGURE_DIR / "dcn_templates.png"),
         "ei_lambda_sweep": plot_ei_lambda_sweep(ei_sweep, FIGURE_DIR / "ei_lambda_sweep.png"),
         "example_stages": plot_example(

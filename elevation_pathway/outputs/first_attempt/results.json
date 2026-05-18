@@ -1,6 +1,6 @@
 {
   "experiment": "elevation_pathway_first_attempt",
-  "elapsed_seconds": 2.0975935000460595,
+  "elapsed_seconds": 2.060268250061199,
   "setup": {
     "num_channels": 48,
     "num_elevation_bins": 91,
@@ -1113,6 +1113,7 @@
   "artifacts": {
     "pipeline_diagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/pipeline_diagram.png",
     "comb_transfer": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/comb_transfer.png",
+    "received_psd": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/received_psd_before_after_comb.png",
     "dcn_templates": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/dcn_templates.png",
     "ei_lambda_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/ei_lambda_sweep.png",
     "example_stages": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/example_stages.png",

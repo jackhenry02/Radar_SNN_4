@@ -32,6 +32,20 @@ $$
 
 ![Comb transfer](../outputs/first_attempt/figures/comb_transfer.png)
 
+## Received Signal PSD
+
+The plot below checks the actual selected-ear received waveform before and after the comb-filter cue is applied. The two PSDs use the same simulated echo, cropped around the active received call, so the difference comes from the spectral notch rather than a different acoustic scene.
+
+The PSD is estimated with a Hann-windowed one-sided FFT:
+
+$$
+P(f)=\frac{|\mathcal{F}\{w(t)(x(t)-\bar{x})\}|^2}{\sum_t w(t)^2}.
+$$
+
+Both curves are normalised to the same peak power, so attenuation from the comb filter remains visible. The dashed curve is the theoretical comb-filter magnitude in dB.
+
+![Received PSD before and after comb filtering](../outputs/first_attempt/figures/received_psd_before_after_comb.png)
+
 ## DCN Disinhibitory Notch Detector
 
 Each DCN output neuron corresponds to one candidate elevation. The candidate's expected comb-filter transfer function defines where inhibition should arrive from cochlear channels. If those channels are quiet because a notch is present, the candidate neuron is disinhibited.
@@ -123,10 +137,11 @@ The biological simplification is that the selected ear is fixed. Later, the azim
 
 - `pipeline_diagram`: `elevation_pathway/outputs/first_attempt/figures/pipeline_diagram.png`
 - `comb_transfer`: `elevation_pathway/outputs/first_attempt/figures/comb_transfer.png`
+- `received_psd`: `elevation_pathway/outputs/first_attempt/figures/received_psd_before_after_comb.png`
 - `dcn_templates`: `elevation_pathway/outputs/first_attempt/figures/dcn_templates.png`
 - `ei_lambda_sweep`: `elevation_pathway/outputs/first_attempt/figures/ei_lambda_sweep.png`
 - `example_stages`: `elevation_pathway/outputs/first_attempt/figures/example_stages.png`
 - `prediction_scatter`: `elevation_pathway/outputs/first_attempt/figures/prediction_scatter.png`
 - `error_curve`: `elevation_pathway/outputs/first_attempt/figures/error_curve.png`
 - `results`: `elevation_pathway/outputs/first_attempt/results.json`
-- runtime: `2.10 s`
+- runtime: `2.06 s`
