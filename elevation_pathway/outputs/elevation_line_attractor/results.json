@@ -1,6 +1,6 @@
 {
   "experiment": "elevation_line_attractor",
-  "elapsed_seconds": 4.527131500188261,
+  "elapsed_seconds": 7.272202499909326,
   "setup": {
     "elevation_bins": 91,
     "elevation_limit_deg": 45.0,
@@ -57,18 +57,87 @@
         "max_abs_error_deg": 6.5934833110744115,
         "bias_deg": 0.4922765530717997
       }
+    },
+    "isolated_calibrated": {
+      "direct": {
+        "mae_deg": 1.3820445058772446,
+        "rmse_deg": 1.907887491416136,
+        "max_abs_error_deg": 7.0,
+        "bias_deg": -0.4351835663746337
+      },
+      "diagonal": {
+        "mae_deg": 1.2441596477903263,
+        "rmse_deg": 1.5150547684107405,
+        "max_abs_error_deg": 4.308969071101217,
+        "bias_deg": -0.3145033559984157
+      },
+      "reflected": {
+        "mae_deg": 0.9720494989523812,
+        "rmse_deg": 1.1789783660880773,
+        "max_abs_error_deg": 2.0911587799698523,
+        "bias_deg": -0.029306058446470478
+      }
+    },
+    "full_3d_calibrated": {
+      "direct": {
+        "mae_deg": 1.309700095511697,
+        "rmse_deg": 1.8161387859879938,
+        "max_abs_error_deg": 7.096791191159561,
+        "bias_deg": -0.438913724788509
+      },
+      "diagonal": {
+        "mae_deg": 1.215234924234173,
+        "rmse_deg": 1.505012880165881,
+        "max_abs_error_deg": 4.536102868064084,
+        "bias_deg": -0.2985141078752952
+      },
+      "reflected": {
+        "mae_deg": 0.9379577103576157,
+        "rmse_deg": 1.1470886113471974,
+        "max_abs_error_deg": 2.077613377448955,
+        "bias_deg": 0.01602510508461901
+      }
     }
   },
   "runtimes": {
     "isolated": {
       "direct": 0.0,
-      "diagonal": 0.0003663576028954524,
-      "reflected": 0.0007522280230749767
+      "diagonal": 0.00048687270392182763,
+      "reflected": 0.0003095499117050197
     },
     "full_3d": {
       "direct": 0.0,
-      "diagonal": 8.894323109416291e-05,
-      "reflected": 0.0001805992185836658
+      "diagonal": 0.00015314635675167665,
+      "reflected": 0.00014625208714278415
+    }
+  },
+  "inverse_sigmoid_calibration": {
+    "direct": {
+      "gain": 1.46,
+      "input_offset_deg": 0.5,
+      "output_offset_deg": -0.75,
+      "mae_deg": 1.3820445058772446,
+      "rmse_deg": 1.907887491416136,
+      "max_abs_error_deg": 7.0,
+      "bias_deg": -0.4351835663746337
+    },
+    "diagonal": {
+      "gain": 1.48,
+      "input_offset_deg": -1.0,
+      "output_offset_deg": -2.25,
+      "mae_deg": 1.2441596477903263,
+      "rmse_deg": 1.5150547684107405,
+      "max_abs_error_deg": 4.308969071101217,
+      "bias_deg": -0.3145033559984157
+    },
+    "reflected": {
+      "gain": 1.48,
+      "input_offset_deg": -2.0,
+      "output_offset_deg": -3.0,
+      "mae_deg": 0.9720494989523812,
+      "rmse_deg": 1.1789783660880773,
+      "max_abs_error_deg": 2.0911587799698523,
+      "bias_deg": -0.029306058446470478
     }
   },
   "isolated_predictions": {
@@ -443,6 +512,285 @@
       38.661081089937,
       38.83835338441773,
       38.9915942443839
+    ],
+    "direct_calibrated_deg": [
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -43.20213294572154,
+      -41.02953333020862,
+      -38.97042934999088,
+      -37.01015821738297,
+      -35.15472378648138,
+      -33.41041045083854,
+      -31.80284679440431,
+      -30.320149927995647,
+      -28.853914310310977,
+      -27.3751382742073,
+      -26.093350364978996,
+      -24.84772861301366,
+      -23.66591832470539,
+      -22.514113642035753,
+      -21.41997973107815,
+      -20.400259015181454,
+      -19.240622304322386,
+      -18.172430593238484,
+      -17.147786086041087,
+      -16.170023864395933,
+      -15.2085442085902,
+      -14.269166262804777,
+      -13.334390182609253,
+      -12.416484003181838,
+      -11.53131280240404,
+      -10.665940015543645,
+      -9.791245399031068,
+      -8.923000595009563,
+      -8.0796628499411,
+      -7.254921523188863,
+      -6.433399580156364,
+      -5.600402306431647,
+      -4.770696908055924,
+      -3.94265793509729,
+      -3.1077281556830356,
+      -2.2656562168387238,
+      -1.4031171204765938,
+      -0.541166369316307,
+      0.3253938189796737,
+      1.2077251655541692,
+      2.0496952829441097,
+      2.8787326779892135,
+      3.7597583066631755,
+      4.672949175089056,
+      5.6439436920998025,
+      6.590125786885281,
+      7.5063852795260075,
+      8.45954458292516,
+      9.4380457537586,
+      10.506445866894024,
+      11.544816849280553,
+      12.587944399291652,
+      13.647991396410568,
+      14.726586550883987,
+      15.842891000616373,
+      16.99016548760288,
+      18.151217452334283,
+      19.326019429038798,
+      20.50381367993473,
+      21.665471957389784,
+      22.841159182862377,
+      24.02328034240232,
+      25.210618487222227,
+      26.37992020910895,
+      27.545867541590553,
+      28.70620546781705,
+      29.85079105653732,
+      30.984054069614334,
+      32.089341573926895,
+      33.15652381220944,
+      34.18509611368,
+      35.19816653881549,
+      36.12947920608616,
+      36.97453292995622,
+      37.789292795509574,
+      38.591737688882496,
+      39.339158896216865,
+      40.051195713348044,
+      40.72962581040885,
+      41.37429685961407,
+      41.97841231299867,
+      42.533769318992704,
+      43.051248300909535
+    ],
+    "diagonal_calibrated_deg": [
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -45.0,
+      -44.30896907110122,
+      -42.816449210441554,
+      -41.22726722100908,
+      -39.68256309643211,
+      -38.11603562956313,
+      -36.51160736674613,
+      -34.942512853908156,
+      -33.423457205394655,
+      -31.937262395066174,
+      -30.536185166450284,
+      -29.237356536977853,
+      -27.94303118986857,
+      -26.600762310323432,
+      -25.441624998217762,
+      -24.31379078744304,
+      -23.224503461125856,
+      -22.154722540645047,
+      -21.14698787242153,
+      -20.19234034541496,
+      -19.095884677801923,
+      -18.09217286872545,
+      -17.121156505197497,
+      -16.18752056910647,
+      -15.273377528645637,
+      -14.384312681934956,
+      -13.483967275162343,
+      -12.594369958397376,
+      -11.749463420786492,
+      -10.920930839022585,
+      -10.06416459090768,
+      -9.217044129991958,
+      -8.408775075583785,
+      -7.6083266209026155,
+      -6.793917016050879,
+      -5.980005754463605,
+      -5.1770160794256,
+      -4.364092386407133,
+      -3.5323956199773363,
+      -2.704849028307931,
+      -1.8592540382092966,
+      -1.0015073266927583,
+      -0.1347556845658504,
+      0.7386308569736917,
+      1.572052612290825,
+      2.404139601911437,
+      3.2884775747627115,
+      4.2060502910876805,
+      5.182453080866312,
+      6.143940564272668,
+      7.069457559988226,
+      8.030809977292314,
+      9.028298301704801,
+      10.126671263578741,
+      11.187041692229093,
+      12.2455937712997,
+      13.337468532063838,
+      14.459087467624254,
+      15.617809898044833,
+      16.798441461708208,
+      17.985056382813774,
+      19.20183680583573,
+      20.439922419601693,
+      21.62188878233321,
+      22.807529695369833,
+      23.997044159604222,
+      25.17361213152523,
+      26.292069021110134,
+      27.412435053875058,
+      28.520408200474254,
+      29.629955833910653,
+      30.728791224550207,
+      31.79735782466907,
+      32.853973392047095,
+      33.902149197703466,
+      34.92582567992789,
+      35.86244454935488,
+      36.71564719376383,
+      37.57076808747652,
+      38.415054204987115,
+      39.202826797792284,
+      39.94612309867339,
+      40.65069813596883,
+      41.317882111536484,
+      41.936818939157085,
+      42.50687789196677,
+      43.03546221523382
+    ],
+    "reflected_calibrated_deg": [
+      -44.697191056730986,
+      -44.253780250449076,
+      -43.67093562070174,
+      -42.93906787730595,
+      -42.09672801462318,
+      -41.16719001232674,
+      -40.11111817216785,
+      -38.939998419772905,
+      -37.73071355364799,
+      -36.47718580460421,
+      -35.180665074795265,
+      -33.844401874972334,
+      -32.47879518888273,
+      -31.130941828374336,
+      -29.851660791602427,
+      -28.640771708130725,
+      -27.41755152422359,
+      -26.160914528413503,
+      -25.05784741803715,
+      -23.97196696589849,
+      -22.931309773503767,
+      -21.908841220030148,
+      -20.928646396125618,
+      -20.00745709969469,
+      -18.95231668653174,
+      -17.975495845912313,
+      -17.031463328611615,
+      -16.123676600337866,
+      -15.228209764487135,
+      -14.34894490664641,
+      -13.47015732305261,
+      -12.603028001525548,
+      -11.7629581078673,
+      -10.939597383306229,
+      -10.10269643496806,
+      -9.27053311968891,
+      -8.458675239781487,
+      -7.661703503898567,
+      -6.862568085065188,
+      -6.0546062980981405,
+      -5.246059975236778,
+      -4.43060994821798,
+      -3.611403360673285,
+      -2.7830047691901596,
+      -1.9296368114430575,
+      -1.0673060127425464,
+      -0.20341388109433378,
+      0.675376579644106,
+      1.5227427675077791,
+      2.3650400521968464,
+      3.2636236784653496,
+      4.187118539620721,
+      5.182233651669431,
+      6.163236814682902,
+      7.126347165818656,
+      8.108136659075406,
+      9.120689528717525,
+      10.24626013743952,
+      11.35630856935917,
+      12.460343771901325,
+      13.572032600159172,
+      14.717013606361803,
+      15.915071479408827,
+      17.157904715068756,
+      18.364166711921477,
+      19.54487149808052,
+      20.721278249113393,
+      21.894735447603445,
+      23.089927219613717,
+      24.274218401445165,
+      25.441724095613054,
+      26.56727509729955,
+      27.544811900625238,
+      28.184702015916933,
+      28.949894367195817,
+      29.888314585614395,
+      30.77022140751552,
+      31.680735721706043,
+      32.921439999680864,
+      34.1538125144888,
+      35.292382450785574,
+      36.327562798155796,
+      37.31889062687678,
+      38.28697811362451,
+      39.18908199593529,
+      40.04378101894,
+      40.86142909506016,
+      41.62784775482941,
+      42.34621684659834,
+      43.01181737960539,
+      43.60929661382137
     ]
   },
   "full_3d_predictions": [
@@ -453,6 +801,9 @@
       "direct_deg": 25.91270321343421,
       "diagonal_deg": 26.004548174240767,
       "reflected_deg": 26.036369551676124,
+      "direct_calibrated_deg": 18.96820567724818,
+      "diagonal_calibrated_deg": 18.830223189824608,
+      "reflected_calibrated_deg": 19.194210758241606,
       "selected_ear": "left"
     },
     {
@@ -462,6 +813,9 @@
       "direct_deg": -10.33348440242083,
       "diagonal_deg": -10.31599060065418,
       "reflected_deg": -10.322047085627425,
+      "direct_calibrated_deg": -8.31874849225748,
+      "diagonal_calibrated_deg": -8.636898608067767,
+      "reflected_calibrated_deg": -8.688456848969937,
       "selected_ear": "left"
     },
     {
@@ -471,6 +825,9 @@
       "direct_deg": -15.916533105391462,
       "diagonal_deg": -15.901225609015642,
       "reflected_deg": -15.911378493600477,
+      "direct_calibrated_deg": -12.537081128314343,
+      "diagonal_calibrated_deg": -12.712690228563897,
+      "reflected_calibrated_deg": -12.717451585773023,
       "selected_ear": "right"
     },
     {
@@ -480,6 +837,9 @@
       "direct_deg": -33.88178171082633,
       "diagonal_deg": -33.85330891323645,
       "reflected_deg": -33.82851600341843,
+      "direct_calibrated_deg": -31.75218996701388,
+      "diagonal_calibrated_deg": -30.49311902414451,
+      "reflected_calibrated_deg": -29.81029586985957,
       "selected_ear": "right"
     },
     {
@@ -489,6 +849,9 @@
       "direct_deg": 17.990345241434845,
       "diagonal_deg": 18.134222254258752,
       "reflected_deg": 18.27087065588143,
+      "direct_calibrated_deg": 11.894307177000849,
+      "diagonal_calibrated_deg": 11.554925739779927,
+      "reflected_calibrated_deg": 11.755195602458494,
       "selected_ear": "right"
     },
     {
@@ -498,6 +861,9 @@
       "direct_deg": 37.909979021199035,
       "diagonal_deg": 37.16407872585985,
       "reflected_deg": 36.226964379786665,
+      "direct_calibrated_deg": 36.00316713904016,
+      "diagonal_calibrated_deg": 35.73584178584123,
+      "reflected_calibrated_deg": 35.13783456673996,
       "selected_ear": "left"
     },
     {
@@ -507,6 +873,9 @@
       "direct_deg": 26.45614391637716,
       "diagonal_deg": 26.547428537243192,
       "reflected_deg": 26.529826746860966,
+      "direct_calibrated_deg": 19.52030333139136,
+      "diagonal_calibrated_deg": 19.410104419358756,
+      "reflected_calibrated_deg": 19.74537263307292,
       "selected_ear": "right"
     },
     {
@@ -516,6 +885,9 @@
       "direct_deg": 34.63937103798134,
       "diagonal_deg": 34.156847335114605,
       "reflected_deg": 33.18816839937934,
+      "direct_calibrated_deg": 29.857185516244204,
+      "diagonal_calibrated_deg": 29.63324879983423,
+      "reflected_calibrated_deg": 28.937640417712757,
       "selected_ear": "left"
     },
     {
@@ -525,6 +897,9 @@
       "direct_deg": -42.95303754423669,
       "diagonal_deg": -42.02492679274996,
       "reflected_deg": -41.2960837946892,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -43.94365159245329,
       "selected_ear": "left"
     },
     {
@@ -534,6 +909,9 @@
       "direct_deg": 29.7687057120507,
       "diagonal_deg": 29.738829420671287,
       "reflected_deg": 29.538685827346807,
+      "direct_calibrated_deg": 23.168388897229608,
+      "diagonal_calibrated_deg": 23.134719940425033,
+      "reflected_calibrated_deg": 23.42193783299772,
       "selected_ear": "right"
     },
     {
@@ -543,6 +921,9 @@
       "direct_deg": 40.46753142589775,
       "diagonal_deg": 39.580089257743204,
       "reflected_deg": 38.91995739670664,
+      "direct_calibrated_deg": 42.806895714587874,
+      "diagonal_calibrated_deg": 42.80067292099106,
+      "reflected_calibrated_deg": 43.327328278887556,
       "selected_ear": "right"
     },
     {
@@ -552,6 +933,9 @@
       "direct_deg": 39.5192991385644,
       "diagonal_deg": 38.69731574577463,
       "reflected_deg": 37.955100698885126,
+      "direct_calibrated_deg": 39.973593936472724,
+      "diagonal_calibrated_deg": 39.87472430724816,
+      "reflected_calibrated_deg": 39.92855872885253,
       "selected_ear": "left"
     },
     {
@@ -561,6 +945,9 @@
       "direct_deg": -9.781243311130316,
       "diagonal_deg": -9.773121302308171,
       "reflected_deg": -9.771685401091506,
+      "direct_calibrated_deg": -7.9184628729099105,
+      "diagonal_calibrated_deg": -8.254647813431497,
+      "reflected_calibrated_deg": -8.304301550311536,
       "selected_ear": "right"
     },
     {
@@ -570,6 +957,9 @@
       "direct_deg": 23.752839940010787,
       "diagonal_deg": 23.88871673204903,
       "reflected_deg": 24.00004601751549,
+      "direct_calibrated_deg": 16.8760664432943,
+      "diagonal_calibrated_deg": 16.686839217921516,
+      "reflected_calibrated_deg": 17.040871134924096,
       "selected_ear": "right"
     },
     {
@@ -579,6 +969,9 @@
       "direct_deg": 9.008928599456395,
       "diagonal_deg": 9.08455367889758,
       "reflected_deg": 9.124280409067424,
+      "direct_calibrated_deg": 5.149020999438368,
+      "diagonal_calibrated_deg": 4.6815206512433685,
+      "reflected_calibrated_deg": 4.675388562921335,
       "selected_ear": "left"
     },
     {
@@ -588,6 +981,9 @@
       "direct_deg": -33.61705533707644,
       "diagonal_deg": -33.587391127443716,
       "reflected_deg": -33.56695705201627,
+      "direct_calibrated_deg": -31.321206395026113,
+      "diagonal_calibrated_deg": -30.111873567265725,
+      "reflected_calibrated_deg": -29.459514278606473,
       "selected_ear": "right"
     },
     {
@@ -597,6 +993,9 @@
       "direct_deg": 13.808403863450403,
       "diagonal_deg": 13.91562417025132,
       "reflected_deg": 13.997633075370103,
+      "direct_calibrated_deg": 8.645979841469885,
+      "diagonal_calibrated_deg": 8.22361845270234,
+      "reflected_calibrated_deg": 8.302565117697888,
       "selected_ear": "right"
     },
     {
@@ -606,6 +1005,9 @@
       "direct_deg": -39.092365472413654,
       "diagonal_deg": -38.90882120912402,
       "reflected_deg": -38.66323315288728,
+      "direct_calibrated_deg": -43.13063419620687,
+      "diagonal_calibrated_deg": -39.631771771599894,
+      "reflected_calibrated_deg": -37.69147912962533,
       "selected_ear": "left"
     },
     {
@@ -615,6 +1017,9 @@
       "direct_deg": -29.777599676663232,
       "diagonal_deg": -29.76969743615397,
       "reflected_deg": -29.756435711248297,
+      "direct_calibrated_deg": -25.897794514390476,
+      "diagonal_calibrated_deg": -25.267925977126698,
+      "reflected_calibrated_deg": -24.887002343461265,
       "selected_ear": "right"
     },
     {
@@ -624,6 +1029,9 @@
       "direct_deg": -25.172290333950716,
       "diagonal_deg": -25.172799859265577,
       "reflected_deg": -25.16871808479177,
+      "direct_calibrated_deg": -20.730520317316742,
+      "diagonal_calibrated_deg": -20.498532084854926,
+      "reflected_calibrated_deg": -20.31043412389851,
       "selected_ear": "right"
     },
     {
@@ -633,6 +1041,9 @@
       "direct_deg": 1.348266430114376,
       "diagonal_deg": 1.3994197299851734,
       "reflected_deg": 1.4060092983363872,
+      "direct_calibrated_deg": -0.16892676382474603,
+      "diagonal_calibrated_deg": -0.6272314039116373,
+      "reflected_calibrated_deg": -0.6942324953777219,
       "selected_ear": "right"
     },
     {
@@ -642,6 +1053,9 @@
       "direct_deg": 24.515995881818206,
       "diagonal_deg": 24.63441494189616,
       "reflected_deg": 24.743507234161342,
+      "direct_calibrated_deg": 17.597946523248446,
+      "diagonal_calibrated_deg": 17.422600816863394,
+      "reflected_calibrated_deg": 17.806062784752562,
       "selected_ear": "left"
     },
     {
@@ -651,6 +1065,9 @@
       "direct_deg": 34.65114756409948,
       "diagonal_deg": 34.16768188472044,
       "reflected_deg": 33.20169060925901,
+      "direct_calibrated_deg": 29.87619827112949,
+      "diagonal_calibrated_deg": 29.652046689623425,
+      "reflected_calibrated_deg": 28.961169956559377,
       "selected_ear": "left"
     },
     {
@@ -660,6 +1077,9 @@
       "direct_deg": -41.276138841061,
       "diagonal_deg": -40.78797976461089,
       "reflected_deg": -40.3315060157345,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -44.65316923442178,
+      "reflected_calibrated_deg": -41.393401867521106,
       "selected_ear": "left"
     },
     {
@@ -669,6 +1089,9 @@
       "direct_deg": 40.287177277566805,
       "diagonal_deg": 39.413659446902024,
       "reflected_deg": 38.738594343842536,
+      "direct_calibrated_deg": 42.23151608676076,
+      "diagonal_calibrated_deg": 42.20914247212689,
+      "reflected_calibrated_deg": 42.63401343055823,
       "selected_ear": "right"
     },
     {
@@ -678,6 +1101,9 @@
       "direct_deg": 35.02788881578605,
       "diagonal_deg": 34.5074335850857,
       "reflected_deg": 33.49480502548949,
+      "direct_calibrated_deg": 30.494056597925383,
+      "diagonal_calibrated_deg": 30.25095374746379,
+      "reflected_calibrated_deg": 29.478357161110225,
       "selected_ear": "right"
     },
     {
@@ -687,6 +1113,9 @@
       "direct_deg": -8.814022788442959,
       "diagonal_deg": -8.804297720742028,
       "reflected_deg": -8.801074292648467,
+      "direct_calibrated_deg": -7.222982215131773,
+      "diagonal_calibrated_deg": -7.577017284350519,
+      "reflected_calibrated_deg": -7.630796390642626,
       "selected_ear": "right"
     },
     {
@@ -696,6 +1125,9 @@
       "direct_deg": -35.878979927766274,
       "diagonal_deg": -35.83496717282437,
       "reflected_deg": -35.77548661807123,
+      "direct_calibrated_deg": -35.346271114133984,
+      "diagonal_calibrated_deg": -33.58289063153886,
+      "reflected_calibrated_deg": -32.622493330654706,
       "selected_ear": "right"
     },
     {
@@ -705,6 +1137,9 @@
       "direct_deg": -29.900241535791775,
       "diagonal_deg": -29.889828802268706,
       "reflected_deg": -29.879497996235582,
+      "direct_calibrated_deg": -26.05179698688463,
+      "diagonal_calibrated_deg": -25.405606823405385,
+      "reflected_calibrated_deg": -25.02158116075918,
       "selected_ear": "right"
     },
     {
@@ -714,6 +1149,9 @@
       "direct_deg": -23.359221280067082,
       "diagonal_deg": -23.35103555081862,
       "reflected_deg": -23.35716657542979,
+      "direct_calibrated_deg": -18.948190063592268,
+      "diagonal_calibrated_deg": -18.8179684540387,
+      "reflected_calibrated_deg": -18.689063372555324,
       "selected_ear": "right"
     },
     {
@@ -723,6 +1161,9 @@
       "direct_deg": 10.320793449171928,
       "diagonal_deg": 10.405899039591107,
       "reflected_deg": 10.45250737791659,
+      "direct_calibrated_deg": 6.086522970457596,
+      "diagonal_calibrated_deg": 5.628394171126164,
+      "reflected_calibrated_deg": 5.639062202412937,
       "selected_ear": "left"
     },
     {
@@ -732,6 +1173,9 @@
       "direct_deg": 12.996351245554271,
       "diagonal_deg": 13.097428033900224,
       "reflected_deg": 13.183461747226488,
+      "direct_calibrated_deg": 8.039935327231971,
+      "diagonal_calibrated_deg": 7.6066417245319435,
+      "reflected_calibrated_deg": 7.677380750725506,
       "selected_ear": "left"
     },
     {
@@ -741,6 +1185,9 @@
       "direct_deg": -2.932313874057731,
       "diagonal_deg": -2.8938047804440283,
       "reflected_deg": -2.9016687819247116,
+      "direct_calibrated_deg": -3.1054748122539095,
+      "diagonal_calibrated_deg": -3.5303540643313225,
+      "reflected_calibrated_deg": -3.609317216048842,
       "selected_ear": "right"
     },
     {
@@ -750,6 +1197,9 @@
       "direct_deg": -42.82667979050481,
       "diagonal_deg": -41.93702782776461,
       "reflected_deg": -41.23671536369315,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -43.775523356556135,
       "selected_ear": "left"
     },
     {
@@ -759,6 +1209,9 @@
       "direct_deg": 22.32050061374619,
       "diagonal_deg": 22.476106183020796,
       "reflected_deg": 22.572385006449043,
+      "direct_calibrated_deg": 15.566224643734653,
+      "diagonal_calibrated_deg": 15.34441030532934,
+      "reflected_calibrated_deg": 15.630609017954491,
       "selected_ear": "left"
     },
     {
@@ -768,6 +1221,9 @@
       "direct_deg": -8.05960309738004,
       "diagonal_deg": -8.034159637245265,
       "reflected_deg": -8.042983005141346,
+      "direct_calibrated_deg": -6.685024511573423,
+      "diagonal_calibrated_deg": -7.0420986697823915,
+      "reflected_calibrated_deg": -7.107909706178488,
       "selected_ear": "left"
     },
     {
@@ -777,6 +1233,9 @@
       "direct_deg": 40.221818684052245,
       "diagonal_deg": 39.34971486040595,
       "reflected_deg": 38.67616741553001,
+      "direct_calibrated_deg": 42.02760992592021,
+      "diagonal_calibrated_deg": 41.98725867079613,
+      "reflected_calibrated_deg": 42.401845628899395,
       "selected_ear": "left"
     },
     {
@@ -786,6 +1245,9 @@
       "direct_deg": -4.7487426468407135,
       "diagonal_deg": -4.730468251431477,
       "reflected_deg": -4.725545030485055,
+      "direct_calibrated_deg": -4.361466563218423,
+      "diagonal_calibrated_deg": -4.7763846525652776,
+      "reflected_calibrated_deg": -4.843841365181223,
       "selected_ear": "left"
     },
     {
@@ -795,6 +1257,9 @@
       "direct_deg": 35.66599539793846,
       "diagonal_deg": 35.08211130344077,
       "reflected_deg": 33.97983360828054,
+      "direct_calibrated_deg": 31.586093688657385,
+      "diagonal_calibrated_deg": 31.308493616091788,
+      "reflected_calibrated_deg": 30.365939822572308,
       "selected_ear": "left"
     },
     {
@@ -804,6 +1269,9 @@
       "direct_deg": 33.75955704697678,
       "diagonal_deg": 33.36762221050803,
       "reflected_deg": 32.67762945480225,
+      "direct_calibrated_deg": 28.484456704408586,
+      "diagonal_calibrated_deg": 28.310270022003944,
+      "reflected_calibrated_deg": 28.069389897182578,
       "selected_ear": "right"
     },
     {
@@ -813,6 +1281,9 @@
       "direct_deg": -30.62728036009663,
       "diagonal_deg": -30.607347187046376,
       "reflected_deg": -30.601822493693575,
+      "direct_calibrated_deg": -26.986886073324314,
+      "diagonal_calibrated_deg": -26.245165813391093,
+      "reflected_calibrated_deg": -25.8268518230076,
       "selected_ear": "left"
     },
     {
@@ -822,6 +1293,9 @@
       "direct_deg": 14.980961532921265,
       "diagonal_deg": 15.100446902105773,
       "reflected_deg": 15.186391317632062,
+      "direct_calibrated_deg": 9.5338189654549,
+      "diagonal_calibrated_deg": 9.13215784205189,
+      "reflected_calibrated_deg": 9.232258249149211,
       "selected_ear": "right"
     },
     {
@@ -831,6 +1305,9 @@
       "direct_deg": -43.57346904892945,
       "diagonal_deg": -42.40766894986447,
       "reflected_deg": -41.54643603600983,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -44.671088346468615,
       "selected_ear": "left"
     },
     {
@@ -840,6 +1317,9 @@
       "direct_deg": -9.926055540229948,
       "diagonal_deg": -9.915976677796301,
       "reflected_deg": -9.916280762643247,
+      "direct_calibrated_deg": -8.02319360521976,
+      "diagonal_calibrated_deg": -8.35505037950654,
+      "reflected_calibrated_deg": -8.405062768767305,
       "selected_ear": "right"
     },
     {
@@ -849,6 +1329,9 @@
       "direct_deg": 40.479243803414896,
       "diagonal_deg": 39.58824786028444,
       "reflected_deg": 38.9313685776665,
+      "direct_calibrated_deg": 42.84492858380996,
+      "diagonal_calibrated_deg": 42.830210390254976,
+      "reflected_calibrated_deg": 43.37192617122112,
       "selected_ear": "left"
     },
     {
@@ -858,6 +1341,9 @@
       "direct_deg": -32.037477057317474,
       "diagonal_deg": -32.02616155658949,
       "reflected_deg": -32.00640476528722,
+      "direct_calibrated_deg": -28.921778704891583,
+      "diagonal_calibrated_deg": -28.001715403743287,
+      "reflected_calibrated_deg": -27.47559701140665,
       "selected_ear": "left"
     },
     {
@@ -867,6 +1353,9 @@
       "direct_deg": 8.922856693163395,
       "diagonal_deg": 8.9975704668361,
       "reflected_deg": 9.037840698589214,
+      "direct_calibrated_deg": 5.087904506054154,
+      "diagonal_calibrated_deg": 4.619668630940967,
+      "reflected_calibrated_deg": 4.613213202425794,
       "selected_ear": "left"
     },
     {
@@ -876,6 +1365,9 @@
       "direct_deg": 37.9791501988796,
       "diagonal_deg": 37.2275790050328,
       "reflected_deg": 36.30410484277669,
+      "direct_calibrated_deg": 36.15718766341969,
+      "diagonal_calibrated_deg": 35.88932648282264,
+      "reflected_calibrated_deg": 35.32606140570519,
       "selected_ear": "right"
     },
     {
@@ -885,6 +1377,9 @@
       "direct_deg": 38.62076533091153,
       "diagonal_deg": 37.83652330887173,
       "reflected_deg": 37.00422648478014,
+      "direct_calibrated_deg": 37.650829343187404,
+      "diagonal_calibrated_deg": 37.432516246153725,
+      "reflected_calibrated_deg": 37.132281678912925,
       "selected_ear": "left"
     },
     {
@@ -894,6 +1389,9 @@
       "direct_deg": 35.067196994946244,
       "diagonal_deg": 34.54141720776005,
       "reflected_deg": 33.51708058915605,
+      "direct_calibrated_deg": 30.559627383826037,
+      "diagonal_calibrated_deg": 30.311893433534536,
+      "reflected_calibrated_deg": 29.518233236554615,
       "selected_ear": "left"
     },
     {
@@ -903,6 +1401,9 @@
       "direct_deg": -4.717502957364295,
       "diagonal_deg": -4.69855139544992,
       "reflected_deg": -4.694157383962395,
+      "direct_calibrated_deg": -4.339776179596186,
+      "diagonal_calibrated_deg": -4.754671261574889,
+      "reflected_calibrated_deg": -4.82255630865407,
       "selected_ear": "right"
     },
     {
@@ -912,6 +1413,9 @@
       "direct_deg": 33.16688199541508,
       "diagonal_deg": 32.838815319906274,
       "reflected_deg": 32.37142850530806,
+      "direct_calibrated_deg": 27.60833382479141,
+      "diagonal_calibrated_deg": 27.470726609874486,
+      "reflected_calibrated_deg": 27.566442496425125,
       "selected_ear": "left"
     },
     {
@@ -921,6 +1425,9 @@
       "direct_deg": -31.14091814999964,
       "diagonal_deg": -31.12074326585237,
       "reflected_deg": -31.117202164245192,
+      "direct_calibrated_deg": -27.671938433468306,
+      "diagonal_calibrated_deg": -26.865131529772803,
+      "reflected_calibrated_deg": -26.41841088184514,
       "selected_ear": "left"
     },
     {
@@ -930,6 +1437,9 @@
       "direct_deg": -37.30526449172612,
       "diagonal_deg": -37.21671490393261,
       "reflected_deg": -37.11593559824458,
+      "direct_calibrated_deg": -38.401161899194825,
+      "diagonal_calibrated_deg": -36.06492436052498,
+      "reflected_calibrated_deg": -34.812430389306655,
       "selected_ear": "left"
     },
     {
@@ -939,6 +1449,9 @@
       "direct_deg": 37.88520287410276,
       "diagonal_deg": 37.141312778992976,
       "reflected_deg": 36.20122699461954,
+      "direct_calibrated_deg": 35.94830906618793,
+      "diagonal_calibrated_deg": 35.68113345794426,
+      "reflected_calibrated_deg": 35.07547205677288,
       "selected_ear": "right"
     },
     {
@@ -948,6 +1461,9 @@
       "direct_deg": 31.86844894747444,
       "diagonal_deg": 31.673604035310152,
       "reflected_deg": 31.374964295037074,
+      "direct_calibrated_deg": 25.805896275922965,
+      "diagonal_calibrated_deg": 25.734717165427842,
+      "reflected_calibrated_deg": 26.011979197153924,
       "selected_ear": "right"
     },
     {
@@ -957,6 +1473,9 @@
       "direct_deg": -31.42422796972975,
       "diagonal_deg": -31.408472040542865,
       "reflected_deg": -31.397121496476053,
+      "direct_calibrated_deg": -28.059141223692084,
+      "diagonal_calibrated_deg": -27.22011303714319,
+      "reflected_calibrated_deg": -26.74604140798822,
       "selected_ear": "left"
     },
     {
@@ -966,6 +1485,9 @@
       "direct_deg": 2.8492937512120013,
       "diagonal_deg": 2.903018543248763,
       "reflected_deg": 2.9075679044896505,
+      "direct_calibrated_deg": 0.8605695880802176,
+      "diagonal_calibrated_deg": 0.39381762992350033,
+      "reflected_calibrated_deg": 0.3291647934147912,
       "selected_ear": "right"
     },
     {
@@ -975,6 +1497,9 @@
       "direct_deg": 40.481767074495046,
       "diagonal_deg": 39.58897280165084,
       "reflected_deg": 38.933615738023526,
+      "direct_calibrated_deg": 42.85313317209863,
+      "diagonal_calibrated_deg": 42.83283747933003,
+      "reflected_calibrated_deg": 43.380722705134794,
       "selected_ear": "right"
     },
     {
@@ -984,6 +1509,9 @@
       "direct_deg": 16.096174048621403,
       "diagonal_deg": 16.221921594852596,
       "reflected_deg": 16.30330910616086,
+      "direct_calibrated_deg": 10.393771586699206,
+      "diagonal_calibrated_deg": 10.010374841816095,
+      "reflected_calibrated_deg": 10.125982852357303,
       "selected_ear": "right"
     },
     {
@@ -993,6 +1521,9 @@
       "direct_deg": 39.42854066894606,
       "diagonal_deg": 38.61185633753339,
       "reflected_deg": 37.861205668809355,
+      "direct_calibrated_deg": 39.724829855832674,
+      "diagonal_calibrated_deg": 39.616319812822745,
+      "reflected_calibrated_deg": 39.63139704796414,
       "selected_ear": "right"
     },
     {
@@ -1002,6 +1533,9 @@
       "direct_deg": 38.988790997938935,
       "diagonal_deg": 38.187715563466874,
       "reflected_deg": 37.40454881617808,
+      "direct_calibrated_deg": 38.56624155390818,
+      "diagonal_calibrated_deg": 38.387969553735296,
+      "reflected_calibrated_deg": 38.25507745474357,
       "selected_ear": "left"
     },
     {
@@ -1011,6 +1545,9 @@
       "direct_deg": -30.798886486000622,
       "diagonal_deg": -30.781055984140963,
       "reflected_deg": -30.771997702672433,
+      "direct_calibrated_deg": -27.213409464546267,
+      "diagonal_calibrated_deg": -26.45306182068886,
+      "reflected_calibrated_deg": -26.02055479717588,
       "selected_ear": "right"
     },
     {
@@ -1020,6 +1557,9 @@
       "direct_deg": 33.91248221316876,
       "diagonal_deg": 33.5003892681638,
       "reflected_deg": 32.73256983223366,
+      "direct_calibrated_deg": 28.716595798362466,
+      "diagonal_calibrated_deg": 28.52671218423743,
+      "reflected_calibrated_deg": 28.161000894070014,
       "selected_ear": "left"
     },
     {
@@ -1029,6 +1569,9 @@
       "direct_deg": -34.71248964762293,
       "diagonal_deg": -34.68052216131975,
       "reflected_deg": -34.642979848080934,
+      "direct_calibrated_deg": -33.168063415853,
+      "diagonal_calibrated_deg": -31.72607461264599,
+      "reflected_calibrated_deg": -30.94099869355825,
       "selected_ear": "left"
     },
     {
@@ -1038,6 +1581,9 @@
       "direct_deg": 13.953366609940106,
       "diagonal_deg": 14.062059690973438,
       "reflected_deg": 14.140125241934033,
+      "direct_calibrated_deg": 8.7549001265613,
+      "diagonal_calibrated_deg": 8.334908713957846,
+      "reflected_calibrated_deg": 8.412914460913365,
       "selected_ear": "right"
     },
     {
@@ -1047,6 +1593,9 @@
       "direct_deg": 7.240706266582575,
       "diagonal_deg": 7.313285191711664,
       "reflected_deg": 7.3426987856209,
+      "direct_calibrated_deg": 3.901926207286566,
+      "diagonal_calibrated_deg": 3.432327233731465,
+      "reflected_calibrated_deg": 3.4057551542272844,
       "selected_ear": "right"
     },
     {
@@ -1056,6 +1605,9 @@
       "direct_deg": 22.73481571116854,
       "diagonal_deg": 22.884393109530563,
       "reflected_deg": 22.986547837242966,
+      "direct_calibrated_deg": 15.939434182426908,
+      "diagonal_calibrated_deg": 15.725937270686618,
+      "reflected_calibrated_deg": 16.032239101554385,
       "selected_ear": "right"
     },
     {
@@ -1065,6 +1617,9 @@
       "direct_deg": 12.142377727912429,
       "diagonal_deg": 12.244653075163182,
       "reflected_deg": 12.32556312193333,
+      "direct_calibrated_deg": 7.40965779499763,
+      "diagonal_calibrated_deg": 6.971825330426041,
+      "reflected_calibrated_deg": 7.027864789112019,
       "selected_ear": "right"
     },
     {
@@ -1074,6 +1629,9 @@
       "direct_deg": 36.07291765741172,
       "diagonal_deg": 35.448272167273615,
       "reflected_deg": 34.28026265712135,
+      "direct_calibrated_deg": 32.315382586116385,
+      "diagonal_calibrated_deg": 32.01437999760861,
+      "reflected_calibrated_deg": 30.93720758762464,
       "selected_ear": "right"
     },
     {
@@ -1083,6 +1641,9 @@
       "direct_deg": 22.031834036740577,
       "diagonal_deg": 22.18369088826504,
       "reflected_deg": 22.279973809880303,
+      "direct_calibrated_deg": 15.308769002609157,
+      "diagonal_calibrated_deg": 15.074203153910712,
+      "reflected_calibrated_deg": 15.350501424762214,
       "selected_ear": "left"
     },
     {
@@ -1092,6 +1653,9 @@
       "direct_deg": -30.24650265342402,
       "diagonal_deg": -30.22630468669121,
       "reflected_deg": -30.226450846113877,
+      "direct_calibrated_deg": -26.492311170716068,
+      "diagonal_calibrated_deg": -25.79556434162189,
+      "reflected_calibrated_deg": -25.405036553609225,
       "selected_ear": "right"
     },
     {
@@ -1101,6 +1665,9 @@
       "direct_deg": 35.24460426077063,
       "diagonal_deg": 34.70210097872737,
       "reflected_deg": 33.651211862426834,
+      "direct_calibrated_deg": 30.858263535767495,
+      "diagonal_calibrated_deg": 30.602677901710344,
+      "reflected_calibrated_deg": 29.760108041126635,
       "selected_ear": "right"
     },
     {
@@ -1110,6 +1677,9 @@
       "direct_deg": -24.519136117732042,
       "diagonal_deg": -24.51624223503009,
       "reflected_deg": -24.5136545611274,
+      "direct_calibrated_deg": -20.075243344989264,
+      "diagonal_calibrated_deg": -19.881693748554294,
+      "reflected_calibrated_deg": -19.71417990620221,
       "selected_ear": "left"
     },
     {
@@ -1119,6 +1689,9 @@
       "direct_deg": -20.68298094822215,
       "diagonal_deg": -20.683561686932965,
       "reflected_deg": -20.68146054898538,
+      "direct_calibrated_deg": -16.500353422330047,
+      "diagonal_calibrated_deg": -16.510943600132734,
+      "reflected_calibrated_deg": -16.4334100960409,
       "selected_ear": "left"
     },
     {
@@ -1128,6 +1701,9 @@
       "direct_deg": 10.216551613713822,
       "diagonal_deg": 10.302400636360701,
       "reflected_deg": 10.346843799872468,
+      "direct_calibrated_deg": 6.0115933998671425,
+      "diagonal_calibrated_deg": 5.553708065778155,
+      "reflected_calibrated_deg": 5.561801695668207,
       "selected_ear": "left"
     },
     {
@@ -1137,6 +1713,9 @@
       "direct_deg": 40.43160019524934,
       "diagonal_deg": 39.5468805413623,
       "reflected_deg": 38.88416564523891,
+      "direct_calibrated_deg": 42.69073584561283,
+      "diagonal_calibrated_deg": 42.680974919118135,
+      "reflected_calibrated_deg": 43.18821138319311,
       "selected_ear": "right"
     },
     {
@@ -1146,6 +1725,9 @@
       "direct_deg": 39.9119149905231,
       "diagonal_deg": 39.06295688098407,
       "reflected_deg": 38.366454539481175,
+      "direct_calibrated_deg": 41.091861632410236,
+      "diagonal_calibrated_deg": 41.02639446937545,
+      "reflected_calibrated_deg": 41.2950641509434,
       "selected_ear": "right"
     },
     {
@@ -1155,6 +1737,9 @@
       "direct_deg": 24.06813050188049,
       "diagonal_deg": 24.201024562914792,
       "reflected_deg": 24.3177009722077,
+      "direct_calibrated_deg": 17.17215637600817,
+      "diagonal_calibrated_deg": 16.992558168426097,
+      "reflected_calibrated_deg": 17.365054929241133,
       "selected_ear": "right"
     },
     {
@@ -1164,6 +1749,9 @@
       "direct_deg": 36.75931345304771,
       "diagonal_deg": 36.09452578238284,
       "reflected_deg": 34.91245632583372,
+      "direct_calibrated_deg": 33.61114781850794,
+      "diagonal_calibrated_deg": 33.3291265290812,
+      "reflected_calibrated_deg": 32.19921300759543,
       "selected_ear": "left"
     },
     {
@@ -1173,6 +1761,9 @@
       "direct_deg": -38.7158626506919,
       "diagonal_deg": -38.55616356082349,
       "reflected_deg": -38.34826703381783,
+      "direct_calibrated_deg": -42.0246174405861,
+      "diagonal_calibrated_deg": -38.829108432554804,
+      "reflected_calibrated_deg": -37.06895098560475,
       "selected_ear": "left"
     },
     {
@@ -1182,6 +1773,9 @@
       "direct_deg": 23.06986225023584,
       "diagonal_deg": 23.212056434759383,
       "reflected_deg": 23.31778101970828,
+      "direct_calibrated_deg": 16.244536167753548,
+      "diagonal_calibrated_deg": 16.035839559382644,
+      "reflected_calibrated_deg": 16.357739073890514,
       "selected_ear": "left"
     },
     {
@@ -1191,6 +1785,9 @@
       "direct_deg": 40.47120974611172,
       "diagonal_deg": 39.58050955204625,
       "reflected_deg": 38.92367277633666,
+      "direct_calibrated_deg": 42.81883111509358,
+      "diagonal_calibrated_deg": 42.80219329404701,
+      "reflected_calibrated_deg": 43.341835899169325,
       "selected_ear": "right"
     },
     {
@@ -1200,6 +1797,9 @@
       "direct_deg": -13.335436203807625,
       "diagonal_deg": -13.333604077923018,
       "reflected_deg": -13.329642172848308,
+      "direct_calibrated_deg": -10.543088881907664,
+      "diagonal_calibrated_deg": -10.802128508439278,
+      "reflected_calibrated_deg": -10.823357026354326,
       "selected_ear": "right"
     },
     {
@@ -1209,6 +1809,9 @@
       "direct_deg": -28.451255977552968,
       "diagonal_deg": -28.446945176977454,
       "reflected_deg": -28.436757875409935,
+      "direct_calibrated_deg": -24.294486688825423,
+      "diagonal_calibrated_deg": -23.801754292211807,
+      "reflected_calibrated_deg": -23.4876054352052,
       "selected_ear": "left"
     },
     {
@@ -1218,6 +1821,9 @@
       "direct_deg": 23.854297848904725,
       "diagonal_deg": 23.990841859389423,
       "reflected_deg": 24.103916254026476,
+      "direct_calibrated_deg": 16.971023446625725,
+      "diagonal_calibrated_deg": 16.786434027360592,
+      "reflected_calibrated_deg": 17.14643500592057,
       "selected_ear": "left"
     },
     {
@@ -1227,6 +1833,9 @@
       "direct_deg": 40.02678350966883,
       "diagonal_deg": 39.17300233665273,
       "reflected_deg": 38.477853184284406,
+      "direct_calibrated_deg": 41.43290724621206,
+      "diagonal_calibrated_deg": 41.38874752254654,
+      "reflected_calibrated_deg": 41.68485519409243,
       "selected_ear": "left"
     },
     {
@@ -1236,6 +1845,9 @@
       "direct_deg": 39.31135602954623,
       "diagonal_deg": 38.4973666412665,
       "reflected_deg": 37.74625101445205,
+      "direct_calibrated_deg": 39.40868604759863,
+      "diagonal_calibrated_deg": 39.276085130847505,
+      "reflected_calibrated_deg": 39.27445330568394,
       "selected_ear": "right"
     },
     {
@@ -1245,6 +1857,9 @@
       "direct_deg": 3.8336540634714913,
       "diagonal_deg": 3.887350903837547,
       "reflected_deg": 3.8977638648421524,
+      "direct_calibrated_deg": 1.5375154897370589,
+      "diagonal_calibrated_deg": 1.0653409207622646,
+      "reflected_calibrated_deg": 1.008030433015768,
       "selected_ear": "left"
     },
     {
@@ -1254,6 +1869,9 @@
       "direct_deg": 33.31830825392186,
       "diagonal_deg": 32.97685708486999,
       "reflected_deg": 32.4625941607872,
+      "direct_calibrated_deg": 27.8287383912586,
+      "diagonal_calibrated_deg": 27.686522085564977,
+      "reflected_calibrated_deg": 27.71485656677522,
       "selected_ear": "right"
     },
     {
@@ -1263,6 +1881,9 @@
       "direct_deg": 34.41704452176282,
       "diagonal_deg": 33.954571761491735,
       "reflected_deg": 33.01152400363305,
+      "direct_calibrated_deg": 29.50154043107417,
+      "diagonal_calibrated_deg": 29.285589390780203,
+      "reflected_calibrated_deg": 28.632851040783777,
       "selected_ear": "left"
     },
     {
@@ -1272,6 +1893,9 @@
       "direct_deg": -33.553079116275455,
       "diagonal_deg": -33.523475070005986,
       "reflected_deg": -33.50498054864097,
+      "direct_calibrated_deg": -31.218410376069084,
+      "diagonal_calibrated_deg": -30.02126232128597,
+      "reflected_calibrated_deg": -29.377223656622373,
       "selected_ear": "left"
     },
     {
@@ -1281,6 +1905,9 @@
       "direct_deg": 3.9529319745657276,
       "diagonal_deg": 4.005240737231591,
       "reflected_deg": 4.016645252762718,
+      "direct_calibrated_deg": 1.6196799370361208,
+      "diagonal_calibrated_deg": 1.1459704192998776,
+      "reflected_calibrated_deg": 1.0897885638160636,
       "selected_ear": "left"
     },
     {
@@ -1290,6 +1917,9 @@
       "direct_deg": 34.93399517630445,
       "diagonal_deg": 34.420265746929225,
       "reflected_deg": 33.41179150758494,
+      "direct_calibrated_deg": 30.338291180945003,
+      "diagonal_calibrated_deg": 30.095518897044023,
+      "reflected_calibrated_deg": 29.330474460248887,
       "selected_ear": "left"
     },
     {
@@ -1299,6 +1929,9 @@
       "direct_deg": -6.2596477197161,
       "diagonal_deg": -6.235965112637785,
       "reflected_deg": -6.243588814311048,
+      "direct_calibrated_deg": -5.415198446582221,
+      "diagonal_calibrated_deg": -5.803910710788257,
+      "reflected_calibrated_deg": -5.875834851130406,
       "selected_ear": "left"
     },
     {
@@ -1308,6 +1941,9 @@
       "direct_deg": -28.351004821946578,
       "diagonal_deg": -28.345508637234577,
       "reflected_deg": -28.33790785617723,
+      "direct_calibrated_deg": -24.17761313246156,
+      "diagonal_calibrated_deg": -23.692851999249076,
+      "reflected_calibrated_deg": -23.385814025861954,
       "selected_ear": "right"
     },
     {
@@ -1317,6 +1953,9 @@
       "direct_deg": 29.870683972739396,
       "diagonal_deg": 29.83264078593374,
       "reflected_deg": 29.630437353749905,
+      "direct_calibrated_deg": 23.289762046327695,
+      "diagonal_calibrated_deg": 23.253873832426365,
+      "reflected_calibrated_deg": 23.544126790115136,
       "selected_ear": "left"
     },
     {
@@ -1326,6 +1965,9 @@
       "direct_deg": -36.79298611886706,
       "diagonal_deg": -36.71895991397282,
       "reflected_deg": -36.64387357468656,
+      "direct_calibrated_deg": -37.24554050558515,
+      "diagonal_calibrated_deg": -35.133444001512416,
+      "reflected_calibrated_deg": -34.01331354972604,
       "selected_ear": "left"
     },
     {
@@ -1335,6 +1977,9 @@
       "direct_deg": -29.05490145481459,
       "diagonal_deg": -29.050441921205532,
       "reflected_deg": -29.038531171032368,
+      "direct_calibrated_deg": -25.01061081451199,
+      "diagonal_calibrated_deg": -24.459756481078767,
+      "reflected_calibrated_deg": -24.116132758957537,
       "selected_ear": "left"
     },
     {
@@ -1344,6 +1989,9 @@
       "direct_deg": -9.542918987077668,
       "diagonal_deg": -9.537501117853141,
       "reflected_deg": -9.531073264158639,
+      "direct_calibrated_deg": -7.746454734657266,
+      "diagonal_calibrated_deg": -8.089328603996098,
+      "reflected_calibrated_deg": -8.1368852600528,
       "selected_ear": "right"
     },
     {
@@ -1353,6 +2001,9 @@
       "direct_deg": 17.773113036000435,
       "diagonal_deg": 17.914704215752383,
       "reflected_deg": 18.043901732611964,
+      "direct_calibrated_deg": 11.71942555343151,
+      "diagonal_calibrated_deg": 11.374322718914309,
+      "reflected_calibrated_deg": 11.56334150644032,
       "selected_ear": "left"
     },
     {
@@ -1362,6 +2013,9 @@
       "direct_deg": -20.192506241217018,
       "diagonal_deg": -20.179873304958157,
       "reflected_deg": -20.186725796170627,
+      "direct_calibrated_deg": -16.071577974489056,
+      "diagonal_calibrated_deg": -16.092598520653514,
+      "reflected_calibrated_deg": -16.03171378199115,
       "selected_ear": "right"
     },
     {
@@ -1371,6 +2025,9 @@
       "direct_deg": -26.084884302670016,
       "diagonal_deg": -26.08190674833005,
       "reflected_deg": -26.077876517033655,
+      "direct_calibrated_deg": -21.673645468161908,
+      "diagonal_calibrated_deg": -21.37554923028342,
+      "reflected_calibrated_deg": -21.15852427241309,
       "selected_ear": "left"
     },
     {
@@ -1380,6 +2037,9 @@
       "direct_deg": -41.802074971733816,
       "diagonal_deg": -41.2011793229181,
       "reflected_deg": -40.67239136172821,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -42.25317600392597,
       "selected_ear": "left"
     },
     {
@@ -1389,6 +2049,9 @@
       "direct_deg": 22.435318859674325,
       "diagonal_deg": 22.588903302943848,
       "reflected_deg": 22.684284170227233,
+      "direct_calibrated_deg": 15.669209647015851,
+      "diagonal_calibrated_deg": 15.449312391926757,
+      "reflected_calibrated_deg": 15.738548039508576,
       "selected_ear": "right"
     },
     {
@@ -1398,6 +2061,9 @@
       "direct_deg": 40.3576291270597,
       "diagonal_deg": 39.47838026179404,
       "reflected_deg": 38.80940360639986,
+      "direct_calibrated_deg": 42.45401714842624,
+      "diagonal_calibrated_deg": 42.4367209872887,
+      "reflected_calibrated_deg": 42.901300415636875,
       "selected_ear": "right"
     },
     {
@@ -1407,6 +2073,9 @@
       "direct_deg": 29.5694248608497,
       "diagonal_deg": 29.552455388213172,
       "reflected_deg": 29.360106952840706,
+      "direct_calibrated_deg": 22.932985270376903,
+      "diagonal_calibrated_deg": 22.89987230025063,
+      "reflected_calibrated_deg": 23.186071442669945,
       "selected_ear": "left"
     },
     {
@@ -1416,6 +2085,9 @@
       "direct_deg": -23.762806249571607,
       "diagonal_deg": -23.75967973295225,
       "reflected_deg": -23.75515231660282,
+      "direct_calibrated_deg": -19.335295401365364,
+      "diagonal_calibrated_deg": -19.186729876002207,
+      "reflected_calibrated_deg": -19.03806050835365,
       "selected_ear": "right"
     },
     {
@@ -1425,6 +2097,9 @@
       "direct_deg": -16.08554379638651,
       "diagonal_deg": -16.07423580874358,
       "reflected_deg": -16.081026621353107,
+      "direct_calibrated_deg": -12.670825594329383,
+      "diagonal_calibrated_deg": -12.844174757220499,
+      "reflected_calibrated_deg": -12.844355275024714,
       "selected_ear": "left"
     },
     {
@@ -1434,6 +2109,9 @@
       "direct_deg": 40.70110741306588,
       "diagonal_deg": 39.79312571688368,
       "reflected_deg": 39.14120272852256,
+      "direct_calibrated_deg": 43.581615174393065,
+      "diagonal_calibrated_deg": 43.58947746373681,
+      "reflected_calibrated_deg": 44.21400448162265,
       "selected_ear": "left"
     },
     {
@@ -1443,6 +2121,9 @@
       "direct_deg": 27.61978359595721,
       "diagonal_deg": 27.697399887971386,
       "reflected_deg": 27.575608548897154,
+      "direct_calibrated_deg": 20.74263993873417,
+      "diagonal_calibrated_deg": 20.685449610782168,
+      "reflected_calibrated_deg": 20.957382370399817,
       "selected_ear": "left"
     },
     {
@@ -1452,6 +2133,9 @@
       "direct_deg": 1.979972493044286,
       "diagonal_deg": 2.0343147688165697,
       "reflected_deg": 2.038856835018185,
+      "direct_calibrated_deg": 0.26404550559467,
+      "diagonal_calibrated_deg": -0.1966715806137036,
+      "reflected_calibrated_deg": -0.26367936215619814,
       "selected_ear": "right"
     },
     {
@@ -1461,6 +2145,9 @@
       "direct_deg": -27.967456202793272,
       "diagonal_deg": -27.963373004089192,
       "reflected_deg": -27.953789593340158,
+      "direct_calibrated_deg": -23.735626217880547,
+      "diagonal_calibrated_deg": -23.286781790421777,
+      "reflected_calibrated_deg": -22.99399654077062,
       "selected_ear": "right"
     },
     {
@@ -1470,6 +2157,9 @@
       "direct_deg": 15.184761448178692,
       "diagonal_deg": 15.305365067083528,
       "reflected_deg": 15.391202209986407,
+      "direct_calibrated_deg": 9.68978774636308,
+      "diagonal_calibrated_deg": 9.291241086122513,
+      "reflected_calibrated_deg": 9.394608336079708,
       "selected_ear": "right"
     },
     {
@@ -1479,6 +2169,9 @@
       "direct_deg": 38.671727448826225,
       "diagonal_deg": 37.88786789023879,
       "reflected_deg": 37.05827382255783,
+      "direct_calibrated_deg": 37.77486608628916,
+      "diagonal_calibrated_deg": 37.56900001844082,
+      "reflected_calibrated_deg": 37.279721972863456,
       "selected_ear": "left"
     },
     {
@@ -1488,6 +2181,9 @@
       "direct_deg": 3.786810658265078,
       "diagonal_deg": 3.8388131594388777,
       "reflected_deg": 3.8498434541583353,
+      "direct_calibrated_deg": 1.5052564029407653,
+      "diagonal_calibrated_deg": 1.0321576028693635,
+      "reflected_calibrated_deg": 0.9750905502883294,
       "selected_ear": "right"
     },
     {
@@ -1497,6 +2193,9 @@
       "direct_deg": -32.407616700053076,
       "diagonal_deg": -32.39291194298345,
       "reflected_deg": -32.37418178429429,
+      "direct_calibrated_deg": -29.459814273234354,
+      "diagonal_calibrated_deg": -28.479208965440392,
+      "reflected_calibrated_deg": -27.92751377730405,
       "selected_ear": "left"
     },
     {
@@ -1506,6 +2205,9 @@
       "direct_deg": 40.47118160763678,
       "diagonal_deg": 39.58260189597773,
       "reflected_deg": 38.9253740600528,
+      "direct_calibrated_deg": 42.81873978029805,
+      "diagonal_calibrated_deg": 42.80976418227343,
+      "reflected_calibrated_deg": 43.348483187689496,
       "selected_ear": "right"
     },
     {
@@ -1515,6 +2217,9 @@
       "direct_deg": 28.25248282913431,
       "diagonal_deg": 28.304413150462963,
       "reflected_deg": 28.15464230752042,
+      "direct_calibrated_deg": 21.43245461368692,
+      "diagonal_calibrated_deg": 21.387021778549403,
+      "reflected_calibrated_deg": 21.656665820821768,
       "selected_ear": "left"
     },
     {
@@ -1524,6 +2229,9 @@
       "direct_deg": 17.00490211689947,
       "diagonal_deg": 17.149678968528345,
       "reflected_deg": 17.25823653840612,
+      "direct_calibrated_deg": 11.106957726502475,
+      "diagonal_calibrated_deg": 10.751807246762374,
+      "reflected_calibrated_deg": 10.907359464577452,
       "selected_ear": "right"
     },
     {
@@ -1533,6 +2241,9 @@
       "direct_deg": 38.583839128125696,
       "diagonal_deg": 37.802722508490234,
       "reflected_deg": 36.96432665989048,
+      "direct_calibrated_deg": 37.56148016475194,
+      "diagonal_calibrated_deg": 37.34324108800734,
+      "reflected_calibrated_deg": 37.024225416619466,
       "selected_ear": "right"
     },
     {
@@ -1542,6 +2253,9 @@
       "direct_deg": 1.393398074036624,
       "diagonal_deg": 1.445092262351305,
       "reflected_deg": 1.4509694051931976,
+      "direct_calibrated_deg": -0.1380030956458448,
+      "diagonal_calibrated_deg": -0.5962819076251735,
+      "reflected_calibrated_deg": -0.6636766744961884,
       "selected_ear": "right"
     },
     {
@@ -1551,6 +2265,9 @@
       "direct_deg": 5.131385825277593,
       "diagonal_deg": 5.188492382846153,
       "reflected_deg": 5.212292211160613,
+      "direct_calibrated_deg": 2.433454204638984,
+      "diagonal_calibrated_deg": 1.958077062811407,
+      "reflected_calibrated_deg": 1.9155520617234538,
       "selected_ear": "left"
     },
     {
@@ -1560,6 +2277,9 @@
       "direct_deg": -34.400769946639016,
       "diagonal_deg": -34.366352430484994,
       "reflected_deg": -34.340809085418336,
+      "direct_calibrated_deg": -32.62489161734654,
+      "diagonal_calibrated_deg": -31.249050585337006,
+      "reflected_calibrated_deg": -30.51443272795545,
       "selected_ear": "right"
     },
     {
@@ -1569,6 +2289,9 @@
       "direct_deg": 40.36945806128963,
       "diagonal_deg": 39.4860492841765,
       "reflected_deg": 38.824197463045316,
+      "direct_calibrated_deg": 42.4916557258826,
+      "diagonal_calibrated_deg": 42.4638917650164,
+      "reflected_calibrated_deg": 42.957685502990785,
       "selected_ear": "right"
     },
     {
@@ -1578,6 +2301,9 @@
       "direct_deg": 39.77370339660996,
       "diagonal_deg": 38.93343705762061,
       "reflected_deg": 38.22517900261054,
+      "direct_calibrated_deg": 40.69008191420172,
+      "diagonal_calibrated_deg": 40.6095383492781,
+      "reflected_calibrated_deg": 40.81328360375802,
       "selected_ear": "left"
     },
     {
@@ -1587,6 +2313,9 @@
       "direct_deg": -39.73720359547171,
       "diagonal_deg": -39.483180412908006,
       "reflected_deg": -39.19197711420381,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -41.02082507201377,
+      "reflected_calibrated_deg": -38.785731817475536,
       "selected_ear": "left"
     },
     {
@@ -1596,6 +2325,9 @@
       "direct_deg": -34.87912694253307,
       "diagonal_deg": -34.84725425563583,
       "reflected_deg": -34.8057789722846,
+      "direct_calibrated_deg": -33.464684265857805,
+      "diagonal_calibrated_deg": -31.983852887882655,
+      "reflected_calibrated_deg": -31.174462829597893,
       "selected_ear": "left"
     },
     {
@@ -1605,6 +2337,9 @@
       "direct_deg": -41.08838890238793,
       "diagonal_deg": -40.63990969562177,
       "reflected_deg": -40.20559077626297,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -44.20071909750541,
+      "reflected_calibrated_deg": -41.086030358619965,
       "selected_ear": "left"
     },
     {
@@ -1614,6 +2349,9 @@
       "direct_deg": -41.44661535404583,
       "diagonal_deg": -40.92789293362018,
       "reflected_deg": -40.44481097353197,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -41.674588881907006,
       "selected_ear": "right"
     },
     {
@@ -1623,6 +2361,9 @@
       "direct_deg": 35.9640139726489,
       "diagonal_deg": 35.3545575229142,
       "reflected_deg": 34.21638906759463,
+      "direct_calibrated_deg": 32.11752854811812,
+      "diagonal_calibrated_deg": 31.831184111685815,
+      "reflected_calibrated_deg": 30.814299399051777,
       "selected_ear": "right"
     },
     {
@@ -1632,6 +2373,9 @@
       "direct_deg": -25.20900812849648,
       "diagonal_deg": -25.20849113570374,
       "reflected_deg": -25.205864494628504,
+      "direct_calibrated_deg": -20.76782979952962,
+      "diagonal_calibrated_deg": -20.53244924525129,
+      "reflected_calibrated_deg": -20.34460587243972,
       "selected_ear": "right"
     },
     {
@@ -1641,6 +2385,9 @@
       "direct_deg": -41.635045730917156,
       "diagonal_deg": -41.07440562854098,
       "reflected_deg": -40.56665500141169,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -41.98200947246105,
       "selected_ear": "right"
     },
     {
@@ -1650,6 +2397,9 @@
       "direct_deg": 39.244528588140206,
       "diagonal_deg": 38.43410972917319,
       "reflected_deg": 37.674105534357636,
+      "direct_calibrated_deg": 39.23087154856978,
+      "diagonal_calibrated_deg": 39.09093012589178,
+      "reflected_calibrated_deg": 39.05415957073633,
       "selected_ear": "left"
     },
     {
@@ -1659,6 +2409,9 @@
       "direct_deg": -26.05882617175764,
       "diagonal_deg": -26.056848144279133,
       "reflected_deg": -26.0515952993988,
+      "direct_calibrated_deg": -21.646242878854455,
+      "diagonal_calibrated_deg": -21.350998121636053,
+      "reflected_calibrated_deg": -21.133654372324415,
       "selected_ear": "right"
     },
     {
@@ -1668,6 +2421,9 @@
       "direct_deg": 39.83315354437301,
       "diagonal_deg": 38.98925807767905,
       "reflected_deg": 38.28657730754488,
+      "direct_calibrated_deg": 40.86178180207981,
+      "diagonal_calibrated_deg": 40.78795257558145,
+      "reflected_calibrated_deg": 41.020987799809646,
       "selected_ear": "right"
     },
     {
@@ -1677,6 +2433,9 @@
       "direct_deg": 24.45189848659332,
       "diagonal_deg": 24.568692525261604,
       "reflected_deg": 24.680006729145227,
+      "direct_calibrated_deg": 17.53662490227996,
+      "diagonal_calibrated_deg": 17.356941559835363,
+      "reflected_calibrated_deg": 17.739813911297006,
       "selected_ear": "right"
     },
     {
@@ -1686,6 +2445,9 @@
       "direct_deg": -41.7932300215154,
       "diagonal_deg": -41.19256886092432,
       "reflected_deg": -40.66338955267384,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -42.22992798566068,
       "selected_ear": "left"
     },
     {
@@ -1695,6 +2457,9 @@
       "direct_deg": -5.72358692805722,
       "diagonal_deg": -5.698017610967571,
       "reflected_deg": -5.7014631228077235,
+      "direct_calibrated_deg": -5.040225363074708,
+      "diagonal_calibrated_deg": -5.435945067559622,
+      "reflected_calibrated_deg": -5.506652035991225,
       "selected_ear": "right"
     },
     {
@@ -1704,6 +2469,9 @@
       "direct_deg": -36.869166041616545,
       "diagonal_deg": -36.791918949488775,
       "reflected_deg": -36.71627711387844,
+      "direct_calibrated_deg": -37.412887435050884,
+      "diagonal_calibrated_deg": -35.26716092167541,
+      "reflected_calibrated_deg": -34.13378896327877,
       "selected_ear": "left"
     },
     {
@@ -1713,6 +2481,9 @@
       "direct_deg": -33.17594289940333,
       "diagonal_deg": -33.14671193418517,
       "reflected_deg": -33.13467914807401,
+      "direct_calibrated_deg": -30.622726303884804,
+      "diagonal_calibrated_deg": -29.49490489187219,
+      "reflected_calibrated_deg": -28.891921308836586,
       "selected_ear": "left"
     },
     {
@@ -1722,6 +2493,9 @@
       "direct_deg": -39.26078540187619,
       "diagonal_deg": -39.06262340282571,
       "reflected_deg": -38.802045971023084,
+      "direct_calibrated_deg": -43.64889141212484,
+      "diagonal_calibrated_deg": -39.99331111340402,
+      "reflected_calibrated_deg": -37.97256548346613,
       "selected_ear": "right"
     },
     {
@@ -1731,6 +2505,9 @@
       "direct_deg": 36.07398075425736,
       "diagonal_deg": 35.456377966473276,
       "reflected_deg": 34.30755804372171,
+      "direct_calibrated_deg": 32.31732391999816,
+      "diagonal_calibrated_deg": 32.03030970135996,
+      "reflected_calibrated_deg": 30.98997572135289,
       "selected_ear": "left"
     },
     {
@@ -1740,6 +2517,9 @@
       "direct_deg": -15.629862518033642,
       "diagonal_deg": -15.609862448986616,
       "reflected_deg": -15.624860079997411,
+      "direct_calibrated_deg": -12.311189474897526,
+      "diagonal_calibrated_deg": -12.492104968607006,
+      "reflected_calibrated_deg": -12.503862917606378,
       "selected_ear": "right"
     },
     {
@@ -1749,6 +2529,9 @@
       "direct_deg": -1.7022010170486497,
       "diagonal_deg": -1.6638704182800508,
       "reflected_deg": -1.6699491585676973,
+      "direct_calibrated_deg": -2.259562719677885,
+      "diagonal_calibrated_deg": -2.698593639511233,
+      "reflected_calibrated_deg": -2.7769886757341564,
       "selected_ear": "right"
     },
     {
@@ -1758,6 +2541,9 @@
       "direct_deg": -21.10390342982099,
       "diagonal_deg": -21.10338089875783,
       "reflected_deg": -21.099356890405065,
+      "direct_calibrated_deg": -16.872852596059627,
+      "diagonal_calibrated_deg": -16.863513850481127,
+      "reflected_calibrated_deg": -16.776180386378496,
       "selected_ear": "right"
     },
     {
@@ -1767,6 +2553,9 @@
       "direct_deg": -13.474529658821087,
       "diagonal_deg": -13.47268551578473,
       "reflected_deg": -13.467591999999916,
+      "direct_calibrated_deg": -10.64841512083885,
+      "diagonal_calibrated_deg": -10.903828658160183,
+      "reflected_calibrated_deg": -10.922957024208788,
       "selected_ear": "left"
     },
     {
@@ -1776,6 +2565,9 @@
       "direct_deg": 39.889213473794285,
       "diagonal_deg": 39.0419789159532,
       "reflected_deg": 38.343912557591416,
+      "direct_calibrated_deg": 41.025236515081964,
+      "diagonal_calibrated_deg": 40.95818388914806,
+      "reflected_calibrated_deg": 41.21726806275922,
       "selected_ear": "left"
     },
     {
@@ -1785,6 +2577,9 @@
       "direct_deg": -29.579329306222213,
       "diagonal_deg": -29.571513544494508,
       "reflected_deg": -29.558954947836305,
+      "direct_calibrated_deg": -25.650992448163628,
+      "diagonal_calibrated_deg": -25.04251671629117,
+      "reflected_calibrated_deg": -24.672563468542904,
       "selected_ear": "right"
     },
     {
@@ -1794,6 +2589,9 @@
       "direct_deg": 9.28299157800183,
       "diagonal_deg": 9.361730362036134,
       "reflected_deg": 9.401066290862916,
+      "direct_calibrated_deg": 5.343931147263935,
+      "diagonal_calibrated_deg": 4.878994828815025,
+      "reflected_calibrated_deg": 4.874904718173288,
       "selected_ear": "right"
     },
     {
@@ -1803,6 +2601,9 @@
       "direct_deg": 22.29498645715252,
       "diagonal_deg": 22.44879734439042,
       "reflected_deg": 22.543391511434137,
+      "direct_calibrated_deg": 15.543385300357077,
+      "diagonal_calibrated_deg": 15.3190696478981,
+      "reflected_calibrated_deg": 15.60270981515298,
       "selected_ear": "right"
     },
     {
@@ -1812,6 +2613,9 @@
       "direct_deg": 39.766966893969865,
       "diagonal_deg": 38.927922263588684,
       "reflected_deg": 38.21645849781536,
+      "direct_calibrated_deg": 40.67073094319229,
+      "diagonal_calibrated_deg": 40.59201253060618,
+      "reflected_calibrated_deg": 40.783987770993434,
       "selected_ear": "left"
     },
     {
@@ -1821,6 +2625,9 @@
       "direct_deg": -3.5337066424910475,
       "diagonal_deg": -3.499281549791963,
       "reflected_deg": -3.501080166047489,
+      "direct_calibrated_deg": -3.520248343145008,
+      "diagonal_calibrated_deg": -3.9404433216953376,
+      "reflected_calibrated_deg": -4.014619793684819,
       "selected_ear": "right"
     },
     {
@@ -1830,6 +2637,9 @@
       "direct_deg": -5.032861787363916,
       "diagonal_deg": -5.017416864368578,
       "reflected_deg": -5.011048342099555,
+      "direct_calibrated_deg": -4.558902813384442,
+      "diagonal_calibrated_deg": -4.97171715636886,
+      "reflected_calibrated_deg": -5.037536609318687,
       "selected_ear": "left"
     },
     {
@@ -1839,6 +2649,9 @@
       "direct_deg": -25.624415422450472,
       "diagonal_deg": -25.62926880864216,
       "reflected_deg": -25.615438244562725,
+      "direct_calibrated_deg": -21.193583338531436,
+      "diagonal_calibrated_deg": -20.935427270884784,
+      "reflected_calibrated_deg": -20.72404522787792,
       "selected_ear": "left"
     },
     {
@@ -1848,6 +2661,9 @@
       "direct_deg": 31.09303374411691,
       "diagonal_deg": 30.981073664252385,
       "reflected_deg": 30.702924322865993,
+      "direct_calibrated_deg": 24.796011092325152,
+      "diagonal_calibrated_deg": 24.76756557341472,
+      "reflected_calibrated_deg": 25.026659925811916,
       "selected_ear": "right"
     },
     {
@@ -1857,6 +2673,9 @@
       "direct_deg": -35.3468939021064,
       "diagonal_deg": -35.3124381160646,
       "reflected_deg": -35.26400465506864,
+      "direct_calibrated_deg": -34.32221734910807,
+      "diagonal_calibrated_deg": -32.72099504387743,
+      "reflected_calibrated_deg": -31.846020746588025,
       "selected_ear": "left"
     },
     {
@@ -1866,6 +2685,9 @@
       "direct_deg": -42.47739430037203,
       "diagonal_deg": -41.699647739241094,
       "reflected_deg": -41.06467063548707,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -45.0,
+      "reflected_calibrated_deg": -43.297254770411875,
       "selected_ear": "left"
     },
     {
@@ -1875,6 +2697,9 @@
       "direct_deg": -40.266951716760985,
       "diagonal_deg": -39.94839303658865,
       "reflected_deg": -39.60928490015846,
+      "direct_calibrated_deg": -45.0,
+      "diagonal_calibrated_deg": -42.23125932064192,
+      "reflected_calibrated_deg": -39.697767355411465,
       "selected_ear": "right"
     },
     {
@@ -1884,6 +2709,9 @@
       "direct_deg": 25.607710129851846,
       "diagonal_deg": 25.70731366410994,
       "reflected_deg": 25.752624192860992,
+      "direct_calibrated_deg": 18.663193602264137,
+      "diagonal_calibrated_deg": 18.518281721438616,
+      "reflected_calibrated_deg": 18.88284585807907,
       "selected_ear": "left"
     }
   ],
@@ -1895,6 +2723,10 @@
     "full_3d_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/full_3d_prediction_scatter.png",
     "full_3d_error_over_time": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/full_3d_error_over_time.png",
     "mae_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/mae_comparison.png",
+    "inverse_sigmoid_mapping": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/inverse_sigmoid_mapping.png",
+    "isolated_calibrated_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/isolated_calibrated_scatter.png",
+    "full_3d_calibrated_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/full_3d_calibrated_scatter.png",
+    "calibrated_mae_comparison": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/calibrated_mae_comparison.png",
     "example_attractor_dynamics": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/elevation_line_attractor/figures/example_attractor_dynamics.png"
   }
 }

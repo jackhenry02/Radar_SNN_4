@@ -48,8 +48,8 @@ The isolated test uses the same monaural fixed-distance, fixed-azimuth elevation
 | Readout | MAE | RMSE | Max error | Bias | runtime/sample |
 |---|---:|---:|---:|---:|---:|
 | Direct DCN COM | `2.824 deg` | `3.377 deg` | `6.491 deg` | `0.814 deg` | `0.000 ms` |
-| FI diagonal 2-block CANN | `2.828 deg` | `3.368 deg` | `6.504 deg` | `0.754 deg` | `0.366 ms` |
-| FI reflected Gaussian 2-block CANN | `2.787 deg` | `3.316 deg` | `6.376 deg` | `0.638 deg` | `0.752 ms` |
+| FI diagonal 2-block CANN | `2.828 deg` | `3.368 deg` | `6.504 deg` | `0.754 deg` | `0.487 ms` |
+| FI reflected Gaussian 2-block CANN | `2.787 deg` | `3.316 deg` | `6.376 deg` | `0.638 deg` | `0.310 ms` |
 
 ![Isolated scatter](../outputs/elevation_line_attractor/figures/isolated_prediction_scatter.png)
 
@@ -62,14 +62,50 @@ The full-3D test reuses the clean elevation setup: distance sampled from `0.25 m
 | Readout | MAE | RMSE | Max error | Bias | runtime/sample |
 |---|---:|---:|---:|---:|---:|
 | Direct DCN COM | `3.029 deg` | `3.578 deg` | `6.753 deg` | `0.777 deg` | `0.000 ms` |
-| FI diagonal 2-block CANN | `3.053 deg` | `3.592 deg` | `6.736 deg` | `0.660 deg` | `0.089 ms` |
-| FI reflected Gaussian 2-block CANN | `3.027 deg` | `3.551 deg` | `6.593 deg` | `0.492 deg` | `0.181 ms` |
+| FI diagonal 2-block CANN | `3.053 deg` | `3.592 deg` | `6.736 deg` | `0.660 deg` | `0.153 ms` |
+| FI reflected Gaussian 2-block CANN | `3.027 deg` | `3.551 deg` | `6.593 deg` | `0.492 deg` | `0.146 ms` |
 
 ![Full 3D scatter](../outputs/elevation_line_attractor/figures/full_3d_prediction_scatter.png)
 
 ![Full 3D error over time](../outputs/elevation_line_attractor/figures/full_3d_error_over_time.png)
 
 ![MAE comparison](../outputs/elevation_line_attractor/figures/mae_comparison.png)
+
+## Inverse-Sigmoid Calibration Readout
+
+The azimuth pathway improved strongly after recognising that the raw ILD balance was a saturating monotonic coordinate. The same idea is tested here as a post-readout elevation calibration. This is not a new DCN mechanism; it is a calibrated synaptic/readout mapping applied after the direct or attractor readout.
+
+The calibration assumes the raw elevation readout has the form:
+
+$$
+y = y_0 + L\tanh\left(k\frac{\theta-\theta_0}{L}\right),
+$$
+
+so the inverse readout is:
+
+$$
+\hat\theta = \theta_0 + \frac{L}{k}\operatorname{atanh}\left(\frac{y-y_0}{L}\right).
+$$
+
+The parameters are tuned only on the isolated elevation sweep and then applied unchanged to the full-3D test. This makes the full-3D calibrated result a useful check of whether the calibration captures a genuine readout nonlinearity or merely overfits the isolated sweep.
+
+| Readout | gain `k` | input offset `y0` | output offset `theta0` | isolated calibrated MAE | full-3D calibrated MAE |
+|---|---:|---:|---:|---:|---:|
+| Direct DCN COM | `1.460` | `0.500 deg` | `-0.750 deg` | `1.382 deg` | `1.310 deg` |
+| FI diagonal 2-block CANN | `1.480` | `-1.000 deg` | `-2.250 deg` | `1.244 deg` | `1.215 deg` |
+| FI reflected Gaussian 2-block CANN | `1.480` | `-2.000 deg` | `-3.000 deg` | `0.972 deg` | `0.938 deg` |
+
+![Inverse-sigmoid mapping](../outputs/elevation_line_attractor/figures/inverse_sigmoid_mapping.png)
+
+![Isolated calibrated scatter](../outputs/elevation_line_attractor/figures/isolated_calibrated_scatter.png)
+
+![Full-3D calibrated scatter](../outputs/elevation_line_attractor/figures/full_3d_calibrated_scatter.png)
+
+![Calibrated MAE comparison](../outputs/elevation_line_attractor/figures/calibrated_mae_comparison.png)
+
+Result: the calibrated reflected-Gaussian attractor is the best tested elevation readout in this report, reducing the full-3D MAE from about `3.03 deg` to about `0.94 deg`. Because the calibration was fitted on the isolated sweep and still improved full 3D, the main remaining error appears to be a stable monotonic readout distortion rather than random scene-specific noise.
+
+The calibrated readout should be interpreted cautiously. If it improves the isolated sweep much more than the full-3D test, then the nonlinearity is not the only source of error; range, azimuth, selected-ear effects, and residual spectral mismatch are also shifting the DCN population.
 
 ## Example Attractor Dynamics
 
@@ -94,6 +130,10 @@ The most defensible use of this block is as an optional SC stabiliser for downst
 - `full_3d_prediction_scatter`: `elevation_pathway/outputs/elevation_line_attractor/figures/full_3d_prediction_scatter.png`
 - `full_3d_error_over_time`: `elevation_pathway/outputs/elevation_line_attractor/figures/full_3d_error_over_time.png`
 - `mae_comparison`: `elevation_pathway/outputs/elevation_line_attractor/figures/mae_comparison.png`
+- `inverse_sigmoid_mapping`: `elevation_pathway/outputs/elevation_line_attractor/figures/inverse_sigmoid_mapping.png`
+- `isolated_calibrated_scatter`: `elevation_pathway/outputs/elevation_line_attractor/figures/isolated_calibrated_scatter.png`
+- `full_3d_calibrated_scatter`: `elevation_pathway/outputs/elevation_line_attractor/figures/full_3d_calibrated_scatter.png`
+- `calibrated_mae_comparison`: `elevation_pathway/outputs/elevation_line_attractor/figures/calibrated_mae_comparison.png`
 - `example_attractor_dynamics`: `elevation_pathway/outputs/elevation_line_attractor/figures/example_attractor_dynamics.png`
 - `results`: `elevation_pathway/outputs/elevation_line_attractor/results.json`
-- runtime: `4.53 s`
+- runtime: `7.27 s`

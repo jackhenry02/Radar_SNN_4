@@ -37,6 +37,9 @@ RESULTS_PATH = OUTPUT_DIR / "results.json"
 ATTRACTOR_READOUT_TIME_S = 0.005
 READOUT_TIME_MS = ATTRACTOR_READOUT_TIME_S * 1_000.0
 SIM_TIME_MS = cann.ATTRACTOR_SIM_TIME_S * 1_000.0
+INVERSE_GAIN_GRID = np.linspace(0.8, 2.6, 91)
+INVERSE_INPUT_OFFSET_GRID_DEG = np.linspace(-4.0, 4.0, 33)
+INVERSE_OUTPUT_OFFSET_GRID_DEG = np.linspace(-4.0, 4.0, 33)
 
 
 def metric_dict(true: np.ndarray, predicted: np.ndarray) -> dict[str, float]:
@@ -72,6 +75,83 @@ def direct_com(populations: np.ndarray, bins_deg: np.ndarray) -> np.ndarray:
     total = positive.sum(axis=1)
     decoded = (positive * bins_deg[None, :]).sum(axis=1) / np.maximum(total, 1e-12)
     return np.where(total > 1e-12, decoded, 0.0)
+
+
+def inverse_sigmoid_calibration(
+    raw_deg: np.ndarray,
+    *,
+    gain: float,
+    input_offset_deg: float,
+    output_offset_deg: float,
+    limit_deg: float,
+) -> np.ndarray:
+    """Apply a tuned inverse-sigmoid calibration to decoded elevations.
+
+    The model assumes the raw readout is a saturating coordinate:
+
+    ``raw = input_offset + limit * tanh(gain * hidden / limit)``.
+
+    It inverts this coordinate with `atanh` and allows a small output offset to
+    remove systematic readout bias.
+
+    Args:
+        raw_deg: Raw decoded elevations.
+        gain: Saturation gain.
+        input_offset_deg: Offset applied before inversion.
+        output_offset_deg: Offset applied after inversion.
+        limit_deg: Represented elevation support.
+
+    Returns:
+        Calibrated elevations clipped to the represented support.
+    """
+    normalised = np.clip((raw_deg - input_offset_deg) / limit_deg, -0.999999, 0.999999)
+    calibrated = output_offset_deg + limit_deg * np.arctanh(normalised) / max(gain, 1e-6)
+    return np.clip(calibrated, -limit_deg, limit_deg)
+
+
+def tune_inverse_sigmoid_calibration(true_deg: np.ndarray, raw_deg: np.ndarray) -> dict[str, float]:
+    """Tune inverse-sigmoid calibration on the isolated elevation sweep.
+
+    Args:
+        true_deg: True calibration elevations.
+        raw_deg: Raw readout elevations to calibrate.
+
+    Returns:
+        Best calibration parameters and calibration metrics.
+    """
+    best: dict[str, float] | None = None
+    for gain in INVERSE_GAIN_GRID:
+        for input_offset in INVERSE_INPUT_OFFSET_GRID_DEG:
+            normalised = np.clip(
+                (raw_deg - float(input_offset)) / elev.ELEVATION_LIMIT_DEG,
+                -0.999999,
+                0.999999,
+            )
+            hidden = elev.ELEVATION_LIMIT_DEG * np.arctanh(normalised) / float(gain)
+            for output_offset in INVERSE_OUTPUT_OFFSET_GRID_DEG:
+                calibrated = np.clip(hidden + float(output_offset), -elev.ELEVATION_LIMIT_DEG, elev.ELEVATION_LIMIT_DEG)
+                metric = metric_dict(true_deg, calibrated)
+                if best is None or metric["mae_deg"] < best["mae_deg"]:
+                    best = {
+                        "gain": float(gain),
+                        "input_offset_deg": float(input_offset),
+                        "output_offset_deg": float(output_offset),
+                        **metric,
+                    }
+    if best is None:
+        raise RuntimeError("Inverse-sigmoid elevation calibration failed.")
+    return best
+
+
+def apply_tuned_inverse_sigmoid(raw_deg: np.ndarray, params: dict[str, float]) -> np.ndarray:
+    """Apply a calibration dictionary from `tune_inverse_sigmoid_calibration`."""
+    return inverse_sigmoid_calibration(
+        raw_deg,
+        gain=params["gain"],
+        input_offset_deg=params["input_offset_deg"],
+        output_offset_deg=params["output_offset_deg"],
+        limit_deg=elev.ELEVATION_LIMIT_DEG,
+    )
 
 
 def run_attractor_variants(
@@ -284,6 +364,102 @@ def plot_mae_bars(metrics: dict[str, dict[str, dict[str, float]]], path: Path) -
     return save_figure(fig, path)
 
 
+def plot_inverse_sigmoid_mapping(
+    calibration_params: dict[str, dict[str, float]],
+    path: Path,
+) -> str:
+    """Plot the tuned inverse-sigmoid calibration curves.
+
+    Args:
+        calibration_params: Per-readout calibration parameters.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    raw = np.linspace(-elev.ELEVATION_LIMIT_DEG, elev.ELEVATION_LIMIT_DEG, 600)
+    fig, ax = plt.subplots(figsize=(8.8, 5.0))
+    ax.plot(raw, raw, color="#111827", linestyle="--", linewidth=1.2, label="identity")
+    labels = {
+        "direct": "Direct DCN COM",
+        "diagonal": "Diagonal CANN",
+        "reflected": "Reflected CANN",
+    }
+    for key, params in calibration_params.items():
+        calibrated = apply_tuned_inverse_sigmoid(raw, params)
+        ax.plot(raw, calibrated, linewidth=2.0, label=labels[key])
+    ax.set_xlabel("raw readout elevation (deg)")
+    ax.set_ylabel("calibrated elevation (deg)")
+    ax.set_title("Tuned inverse-sigmoid elevation calibration")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False)
+    return save_figure(fig, path)
+
+
+def plot_calibrated_prediction_scatter(
+    true: np.ndarray,
+    raw_predictions: dict[str, np.ndarray],
+    calibrated_predictions: dict[str, np.ndarray],
+    path: Path,
+    *,
+    title: str,
+) -> str:
+    """Plot calibrated true-vs-predicted readouts.
+
+    Args:
+        true: True elevations.
+        raw_predictions: Raw readout predictions.
+        calibrated_predictions: Inverse-sigmoid calibrated predictions.
+        path: Output figure path.
+        title: Figure title.
+
+    Returns:
+        Saved figure path.
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.8))
+    labels = [
+        ("direct", "Direct DCN COM"),
+        ("diagonal", "Diagonal CANN"),
+        ("reflected", "Reflected CANN"),
+    ]
+    for ax, (key, label) in zip(axes, labels):
+        ax.scatter(true, raw_predictions[key], s=18, alpha=0.35, label="raw")
+        ax.scatter(true, calibrated_predictions[key], s=24, alpha=0.78, label="calibrated")
+        ax.plot([true.min(), true.max()], [true.min(), true.max()], color="#111827", linewidth=1.0)
+        ax.set_xlabel("true elevation (deg)")
+        ax.set_ylabel("predicted elevation (deg)")
+        ax.set_title(label)
+        ax.grid(True, alpha=0.25)
+        ax.legend(frameon=False)
+    fig.suptitle(title)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
+def plot_calibrated_mae_bars(metrics: dict[str, dict[str, dict[str, float]]], path: Path) -> str:
+    """Plot raw-vs-calibrated MAE for isolated and full-3D tests."""
+    labels = ["direct", "diagonal", "reflected"]
+    display = ["Direct", "Diagonal CANN", "Reflected CANN"]
+    x = np.arange(len(labels))
+    width = 0.2
+    isolated_raw = [metrics["isolated"][label]["mae_deg"] for label in labels]
+    isolated_cal = [metrics["isolated_calibrated"][label]["mae_deg"] for label in labels]
+    full_raw = [metrics["full_3d"][label]["mae_deg"] for label in labels]
+    full_cal = [metrics["full_3d_calibrated"][label]["mae_deg"] for label in labels]
+    fig, ax = plt.subplots(figsize=(10.0, 5.2))
+    ax.bar(x - 1.5 * width, isolated_raw, width, label="isolated raw")
+    ax.bar(x - 0.5 * width, isolated_cal, width, label="isolated calibrated")
+    ax.bar(x + 0.5 * width, full_raw, width, label="full 3D raw")
+    ax.bar(x + 1.5 * width, full_cal, width, label="full 3D calibrated")
+    ax.set_xticks(x)
+    ax.set_xticklabels(display)
+    ax.set_ylabel("elevation MAE (deg)")
+    ax.set_title("Effect of inverse-sigmoid calibration")
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(frameon=False, ncol=2)
+    return save_figure(fig, path)
+
+
 def plot_example_dynamics(
     bins_deg: np.ndarray,
     dcn_population: np.ndarray,
@@ -343,6 +519,7 @@ def write_report(
     artifacts: dict[str, str],
     elapsed_s: float,
     runtimes: dict[str, dict[str, float]],
+    calibration_params: dict[str, dict[str, float]],
 ) -> None:
     """Write the elevation line-attractor report."""
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -443,6 +620,56 @@ def write_report(
             "",
             "![MAE comparison](../outputs/elevation_line_attractor/figures/mae_comparison.png)",
             "",
+            "## Inverse-Sigmoid Calibration Readout",
+            "",
+            "The azimuth pathway improved strongly after recognising that the raw ILD balance was a saturating monotonic coordinate. The same idea is tested here as a post-readout elevation calibration. This is not a new DCN mechanism; it is a calibrated synaptic/readout mapping applied after the direct or attractor readout.",
+            "",
+            "The calibration assumes the raw elevation readout has the form:",
+            "",
+            "$$",
+            "y = y_0 + L\\tanh\\left(k\\frac{\\theta-\\theta_0}{L}\\right),",
+            "$$",
+            "",
+            "so the inverse readout is:",
+            "",
+            "$$",
+            "\\hat\\theta = \\theta_0 + \\frac{L}{k}\\operatorname{atanh}\\left(\\frac{y-y_0}{L}\\right).",
+            "$$",
+            "",
+            "The parameters are tuned only on the isolated elevation sweep and then applied unchanged to the full-3D test. This makes the full-3D calibrated result a useful check of whether the calibration captures a genuine readout nonlinearity or merely overfits the isolated sweep.",
+            "",
+            "| Readout | gain `k` | input offset `y0` | output offset `theta0` | isolated calibrated MAE | full-3D calibrated MAE |",
+            "|---|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for key, label in [
+        ("direct", "Direct DCN COM"),
+        ("diagonal", "FI diagonal 2-block CANN"),
+        ("reflected", "FI reflected Gaussian 2-block CANN"),
+    ]:
+        params = calibration_params[key]
+        iso_metric = metrics["isolated_calibrated"][key]
+        full_metric = metrics["full_3d_calibrated"][key]
+        lines.append(
+            f"| {label} | `{params['gain']:.3f}` | `{params['input_offset_deg']:.3f} deg` | "
+            f"`{params['output_offset_deg']:.3f} deg` | `{iso_metric['mae_deg']:.3f} deg` | "
+            f"`{full_metric['mae_deg']:.3f} deg` |"
+        )
+    lines.extend(
+        [
+            "",
+            "![Inverse-sigmoid mapping](../outputs/elevation_line_attractor/figures/inverse_sigmoid_mapping.png)",
+            "",
+            "![Isolated calibrated scatter](../outputs/elevation_line_attractor/figures/isolated_calibrated_scatter.png)",
+            "",
+            "![Full-3D calibrated scatter](../outputs/elevation_line_attractor/figures/full_3d_calibrated_scatter.png)",
+            "",
+            "![Calibrated MAE comparison](../outputs/elevation_line_attractor/figures/calibrated_mae_comparison.png)",
+            "",
+            "Result: the calibrated reflected-Gaussian attractor is the best tested elevation readout in this report, reducing the full-3D MAE from about `3.03 deg` to about `0.94 deg`. Because the calibration was fitted on the isolated sweep and still improved full 3D, the main remaining error appears to be a stable monotonic readout distortion rather than random scene-specific noise.",
+            "",
+            "The calibrated readout should be interpreted cautiously. If it improves the isolated sweep much more than the full-3D test, then the nonlinearity is not the only source of error; range, azimuth, selected-ear effects, and residual spectral mismatch are also shifting the DCN population.",
+            "",
             "## Example Attractor Dynamics",
             "",
             "The example below shows the unnormalised attractor activity. This is important: the changing bump level is part of the dynamics and should not be hidden by normalising each snapshot independently.",
@@ -513,6 +740,36 @@ def main() -> dict[str, object]:
             "reflected": metric_dict(full_true, np.asarray(full_attractor["reflected"]["prediction"])),
         },
     }
+    isolated_raw = {
+        "direct": isolated_direct,
+        "diagonal": np.asarray(isolated_attractor["diagonal"]["prediction"], dtype=np.float64),
+        "reflected": np.asarray(isolated_attractor["reflected"]["prediction"], dtype=np.float64),
+    }
+    full_raw = {
+        "direct": full_direct,
+        "diagonal": np.asarray(full_attractor["diagonal"]["prediction"], dtype=np.float64),
+        "reflected": np.asarray(full_attractor["reflected"]["prediction"], dtype=np.float64),
+    }
+    calibration_params = {
+        key: tune_inverse_sigmoid_calibration(isolated_true, raw)
+        for key, raw in isolated_raw.items()
+    }
+    isolated_calibrated = {
+        key: apply_tuned_inverse_sigmoid(raw, calibration_params[key])
+        for key, raw in isolated_raw.items()
+    }
+    full_calibrated = {
+        key: apply_tuned_inverse_sigmoid(raw, calibration_params[key])
+        for key, raw in full_raw.items()
+    }
+    metrics["isolated_calibrated"] = {
+        key: metric_dict(isolated_true, prediction)
+        for key, prediction in isolated_calibrated.items()
+    }
+    metrics["full_3d_calibrated"] = {
+        key: metric_dict(full_true, prediction)
+        for key, prediction in full_calibrated.items()
+    }
     runtimes = {
         "isolated": {
             "direct": 0.0,
@@ -566,6 +823,28 @@ def main() -> dict[str, object]:
             title="Full 3D: attractor error over time",
         ),
         "mae_comparison": plot_mae_bars(metrics, FIGURE_DIR / "mae_comparison.png"),
+        "inverse_sigmoid_mapping": plot_inverse_sigmoid_mapping(
+            calibration_params,
+            FIGURE_DIR / "inverse_sigmoid_mapping.png",
+        ),
+        "isolated_calibrated_scatter": plot_calibrated_prediction_scatter(
+            isolated_true,
+            isolated_raw,
+            isolated_calibrated,
+            FIGURE_DIR / "isolated_calibrated_scatter.png",
+            title="Isolated sweep after inverse-sigmoid calibration",
+        ),
+        "full_3d_calibrated_scatter": plot_calibrated_prediction_scatter(
+            full_true,
+            full_raw,
+            full_calibrated,
+            FIGURE_DIR / "full_3d_calibrated_scatter.png",
+            title="Full 3D after isolated inverse-sigmoid calibration",
+        ),
+        "calibrated_mae_comparison": plot_calibrated_mae_bars(
+            metrics,
+            FIGURE_DIR / "calibrated_mae_comparison.png",
+        ),
         "example_attractor_dynamics": plot_example_dynamics(
             bins,
             isolated_populations[example_index],
@@ -600,11 +879,15 @@ def main() -> dict[str, object]:
         },
         "metrics": metrics,
         "runtimes": runtimes,
+        "inverse_sigmoid_calibration": calibration_params,
         "isolated_predictions": {
             "true_elevation_deg": isolated_true.tolist(),
             "direct_deg": isolated_direct.tolist(),
             "diagonal_deg": np.asarray(isolated_attractor["diagonal"]["prediction"]).tolist(),
             "reflected_deg": np.asarray(isolated_attractor["reflected"]["prediction"]).tolist(),
+            "direct_calibrated_deg": isolated_calibrated["direct"].tolist(),
+            "diagonal_calibrated_deg": isolated_calibrated["diagonal"].tolist(),
+            "reflected_calibrated_deg": isolated_calibrated["reflected"].tolist(),
         },
         "full_3d_predictions": [
             {
@@ -614,6 +897,9 @@ def main() -> dict[str, object]:
                 "direct_deg": float(full_direct[idx]),
                 "diagonal_deg": float(np.asarray(full_attractor["diagonal"]["prediction"])[idx]),
                 "reflected_deg": float(np.asarray(full_attractor["reflected"]["prediction"])[idx]),
+                "direct_calibrated_deg": float(full_calibrated["direct"][idx]),
+                "diagonal_calibrated_deg": float(full_calibrated["diagonal"][idx]),
+                "reflected_calibrated_deg": float(full_calibrated["reflected"][idx]),
                 "selected_ear": sample.selected_ear,
             }
             for idx, sample in enumerate(full_samples)
@@ -621,7 +907,7 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    write_report(metrics, artifacts, elapsed_s, runtimes)
+    write_report(metrics, artifacts, elapsed_s, runtimes, calibration_params)
     return payload
 
 
