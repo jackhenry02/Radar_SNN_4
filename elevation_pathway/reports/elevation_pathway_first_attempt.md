@@ -32,6 +32,8 @@ $$
 
 ![Comb transfer](../outputs/first_attempt/figures/comb_transfer.png)
 
+Current comb-filter gain: `a = 0.85`.
+
 ## Received Signal PSD
 
 The plot below checks the actual selected-ear received waveform before and after the comb-filter cue is applied. The two PSDs use the same simulated echo, cropped around the active received call, so the difference comes from the spectral notch rather than a different acoustic scene.
@@ -45,6 +47,42 @@ $$
 Both curves are normalised to the same peak power, so attenuation from the comb filter remains visible. The dashed curve is the theoretical comb-filter magnitude in dB.
 
 ![Received PSD before and after comb filtering](../outputs/first_attempt/figures/received_psd_before_after_comb.png)
+
+## Comb-Depth And Signal-Weighted Improvements
+
+Two additions are tested without removing the original pathway results.
+
+First, the delayed-copy gain is increased from `a = 0.85` to `a = 0.99`. In the ideal comb filter, the first-notch amplitude is:
+
+$$
+|H(f_1)|=\frac{|1-a|}{1+a}.
+$$
+
+This makes the spectral notch much deeper, which should make the elevation cue easier for a notch detector to identify.
+
+Second, the matcher weights the transfer-shape error by the expected usefulness of each frequency channel. The no-notch selected-ear spectrum is treated as a baseline signal envelope `P_0(f_c)`, and each candidate elevation defines a signal-and-notch mask:
+
+$$
+m_k(f_c)=P_0(f_c)(1-H_k(f_c))^2.
+$$
+
+The signal-weighted DCN population is then:
+
+$$
+r_k=\exp\left(-\frac{\sum_c m_k(f_c)(\tilde p_c-H_k(f_c))^2}{2\sigma^2}\right).
+$$
+
+This matters because the emitted sweep and cochlear front end are not flat across frequency. A notch in a weak part of the spectrum should not contribute as much evidence as a notch inside the high-energy part of the received call.
+
+Deep-comb gain used for the improvement plots: `a = 0.99`.
+
+![Deep comb transfer, a=0.99](../outputs/first_attempt/figures/deep_comb_transfer.png)
+
+![Deep received PSD, a=0.99](../outputs/first_attempt/figures/deep_received_psd_before_after_comb.png)
+
+![Improvement prediction scatter](../outputs/first_attempt/figures/improvement_prediction_scatter.png)
+
+![Improvement error curve](../outputs/first_attempt/figures/improvement_error_curve.png)
 
 ## DCN Disinhibitory Notch Detector
 
@@ -104,6 +142,12 @@ This still has an E/I interpretation: channels where the candidate transfer pred
 | Explicit E/I weight-profile argmax | `12.385 deg` | `16.943 deg` | `41.000 deg` | `8.780 deg` |
 | Baseline-equalised full-transfer DCN COM | `5.181 deg` | `6.182 deg` | `10.830 deg` | `2.913 deg` |
 | Baseline-equalised full-transfer DCN argmax | `5.934 deg` | `7.306 deg` | `19.000 deg` | `3.956 deg` |
+| Signal-weighted full-transfer DCN COM | `3.137 deg` | `3.777 deg` | `7.244 deg` | `1.070 deg` |
+| Signal-weighted full-transfer DCN argmax | `3.549 deg` | `4.640 deg` | `14.000 deg` | `1.747 deg` |
+| Deep-comb baseline-equalised full-transfer DCN COM | `4.837 deg` | `5.724 deg` | `9.879 deg` | `2.611 deg` |
+| Deep-comb baseline-equalised full-transfer DCN argmax | `5.505 deg` | `6.782 deg` | `18.000 deg` | `3.549 deg` |
+| Deep-comb signal-weighted full-transfer DCN COM | `2.824 deg` | `3.377 deg` | `6.491 deg` | `0.814 deg` |
+| Deep-comb signal-weighted full-transfer DCN argmax | `3.242 deg` | `4.257 deg` | `13.000 deg` | `1.484 deg` |
 | First-notch diagnostic readout | `2.894 deg` | `3.981 deg` | `12.257 deg` | `-2.764 deg` |
 
 ![Prediction scatter](../outputs/first_attempt/figures/prediction_scatter.png)
@@ -138,10 +182,14 @@ The biological simplification is that the selected ear is fixed. Later, the azim
 - `pipeline_diagram`: `elevation_pathway/outputs/first_attempt/figures/pipeline_diagram.png`
 - `comb_transfer`: `elevation_pathway/outputs/first_attempt/figures/comb_transfer.png`
 - `received_psd`: `elevation_pathway/outputs/first_attempt/figures/received_psd_before_after_comb.png`
+- `deep_comb_transfer`: `elevation_pathway/outputs/first_attempt/figures/deep_comb_transfer.png`
+- `deep_received_psd`: `elevation_pathway/outputs/first_attempt/figures/deep_received_psd_before_after_comb.png`
 - `dcn_templates`: `elevation_pathway/outputs/first_attempt/figures/dcn_templates.png`
 - `ei_lambda_sweep`: `elevation_pathway/outputs/first_attempt/figures/ei_lambda_sweep.png`
 - `example_stages`: `elevation_pathway/outputs/first_attempt/figures/example_stages.png`
 - `prediction_scatter`: `elevation_pathway/outputs/first_attempt/figures/prediction_scatter.png`
 - `error_curve`: `elevation_pathway/outputs/first_attempt/figures/error_curve.png`
+- `improvement_prediction_scatter`: `elevation_pathway/outputs/first_attempt/figures/improvement_prediction_scatter.png`
+- `improvement_error_curve`: `elevation_pathway/outputs/first_attempt/figures/improvement_error_curve.png`
 - `results`: `elevation_pathway/outputs/first_attempt/results.json`
-- runtime: `2.06 s`
+- runtime: `3.58 s`

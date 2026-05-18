@@ -47,9 +47,11 @@ SELECTED_EAR = "right"
 COMB_FIRST_NOTCH_LOW_HZ = 6_000.0
 COMB_FIRST_NOTCH_HIGH_HZ = 16_000.0
 COMB_DELAYED_COPY_GAIN = 0.85
+DEEP_COMB_DELAYED_COPY_GAIN = 0.99
 DCN_TEMPLATE_POWER = 1.35
 DCN_LOCAL_MEAN_SIGMA_CHANNELS = 2.0
 DCN_TRANSFER_SIGMA = 0.05
+DCN_SIGNAL_WEIGHTED_SIGMA = 0.05
 EI_LAMBDA_GRID = np.linspace(0.2, 1.4, 25)
 
 OLD_MODEL_ELEVATION_RESULTS = {
@@ -73,8 +75,12 @@ class ElevationPrediction:
         spectral_profile: Normalised selected-ear spike-count spectrum.
         observed_deficit: Local spectral dips extracted from the spectrum.
         dcn_activation: DCN elevation population.
+        cochleagram_profile: Max-normalised selected-ear cochleagram spectrum.
         equalized_profile: Spectrum divided by a learned no-comb reference.
         transfer_activation: Full comb-transfer DCN population.
+        signal_weighted_activation: Baseline-spectrum-weighted DCN population.
+        signal_weighted_com_prediction_deg: COM prediction from weighted population.
+        signal_weighted_argmax_prediction_deg: Argmax prediction from weighted population.
         transfer_com_prediction_deg: COM prediction from the transfer population.
         transfer_argmax_prediction_deg: Argmax prediction from the transfer population.
         first_notch_prediction_deg: Direct diagnostic prediction from the deepest notch.
@@ -89,8 +95,12 @@ class ElevationPrediction:
     spectral_profile: np.ndarray
     observed_deficit: np.ndarray
     dcn_activation: np.ndarray
+    cochleagram_profile: np.ndarray
     equalized_profile: np.ndarray
     transfer_activation: np.ndarray
+    signal_weighted_activation: np.ndarray
+    signal_weighted_com_prediction_deg: float
+    signal_weighted_argmax_prediction_deg: float
     transfer_com_prediction_deg: float
     transfer_argmax_prediction_deg: float
     first_notch_prediction_deg: float
@@ -161,7 +171,11 @@ def comb_lag_s(elevation_deg: np.ndarray | float) -> np.ndarray:
     return 1.0 / (2.0 * np.maximum(comb_first_notch_hz(elevation_deg), 1.0))
 
 
-def comb_gain(frequency_hz: np.ndarray, elevation_deg: np.ndarray | float) -> np.ndarray:
+def comb_gain(
+    frequency_hz: np.ndarray,
+    elevation_deg: np.ndarray | float,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> np.ndarray:
     """Evaluate the comb-filter magnitude response.
 
     The acoustic cue is modelled as a direct path plus a delayed copy:
@@ -179,6 +193,8 @@ def comb_gain(frequency_hz: np.ndarray, elevation_deg: np.ndarray | float) -> np
     Args:
         frequency_hz: Frequency axis in Hz.
         elevation_deg: Elevation angle or array in degrees.
+        delayed_copy_gain: Relative gain of the delayed copy. Values near
+            `1.0` create a much deeper destructive-interference notch.
 
     Returns:
         Gain array. If `elevation_deg` is vector-shaped, output shape is
@@ -188,38 +204,53 @@ def comb_gain(frequency_hz: np.ndarray, elevation_deg: np.ndarray | float) -> np
     tau = np.atleast_1d(comb_lag_s(elevation_deg)).astype(np.float64)
     phase = 2.0 * math.pi * tau[:, None] * frequencies[None, :]
     gain = np.sqrt(
-        1.0 + COMB_DELAYED_COPY_GAIN**2 + 2.0 * COMB_DELAYED_COPY_GAIN * np.cos(phase)
-    ) / (1.0 + COMB_DELAYED_COPY_GAIN)
+        1.0 + delayed_copy_gain**2 + 2.0 * delayed_copy_gain * np.cos(phase)
+    ) / (1.0 + delayed_copy_gain)
     gain = np.clip(gain, 1e-3, 1.0)
     if np.ndim(elevation_deg) == 0:
         return gain[0]
     return gain
 
 
-def apply_comb_filter(waveform: torch.Tensor, config: GlobalConfig, elevation_deg: float) -> torch.Tensor:
+def apply_comb_filter(
+    waveform: torch.Tensor,
+    config: GlobalConfig,
+    elevation_deg: float,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> torch.Tensor:
     """Apply the comb-filter elevation cue to one waveform.
 
     Args:
         waveform: One received ear waveform.
         config: Acoustic configuration.
         elevation_deg: Elevation angle in degrees.
+        delayed_copy_gain: Relative gain of the delayed copy.
 
     Returns:
         Comb-filtered waveform.
     """
     frequencies = torch.fft.rfftfreq(waveform.numel(), d=1.0 / config.sample_rate_hz)
-    gain = torch.from_numpy(comb_gain(frequencies.detach().cpu().numpy(), elevation_deg)).to(waveform)
+    gain = torch.from_numpy(
+        comb_gain(frequencies.detach().cpu().numpy(), elevation_deg, delayed_copy_gain)
+    ).to(waveform)
     spectrum = torch.fft.rfft(waveform)
     return torch.fft.irfft(spectrum * gain, n=waveform.numel())
 
 
-def simulate_elevation_scene(config: GlobalConfig, elevation_deg: float, *, add_noise: bool = False) -> torch.Tensor:
+def simulate_elevation_scene(
+    config: GlobalConfig,
+    elevation_deg: float,
+    *,
+    add_noise: bool = False,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> torch.Tensor:
     """Simulate one binaural side-source echo with a comb elevation cue.
 
     Args:
         config: Acoustic configuration.
         elevation_deg: Target elevation in degrees.
         add_noise: Whether to add receiver noise.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
 
     Returns:
         Binaural received waveform `[ears, time]`.
@@ -235,8 +266,8 @@ def simulate_elevation_scene(config: GlobalConfig, elevation_deg: float, *, add_
         transmit_gain=config.transmit_gain,
     )
     receive = scene.receive[0].detach().clone()
-    receive[0] = apply_comb_filter(receive[0], config, elevation_deg)
-    receive[1] = apply_comb_filter(receive[1], config, elevation_deg)
+    receive[0] = apply_comb_filter(receive[0], config, elevation_deg, delayed_copy_gain)
+    receive[1] = apply_comb_filter(receive[1], config, elevation_deg, delayed_copy_gain)
     return receive
 
 
@@ -262,7 +293,11 @@ def simulate_no_comb_reference(config: GlobalConfig) -> torch.Tensor:
     return scene.receive[0].detach()
 
 
-def simulate_pre_post_comb_scene(config: GlobalConfig, elevation_deg: float) -> tuple[torch.Tensor, torch.Tensor]:
+def simulate_pre_post_comb_scene(
+    config: GlobalConfig,
+    elevation_deg: float,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Simulate one scene before and after the comb-filter elevation cue.
 
     The same base received waveform is used for both outputs. This makes the
@@ -272,14 +307,15 @@ def simulate_pre_post_comb_scene(config: GlobalConfig, elevation_deg: float) -> 
     Args:
         config: Acoustic configuration.
         elevation_deg: Elevation angle used to set the comb-filter lag.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
 
     Returns:
         Pair `(before_comb, after_comb)`, each shaped `[ears, time]`.
     """
     before_comb = simulate_no_comb_reference(config).clone()
     after_comb = before_comb.clone()
-    after_comb[0] = apply_comb_filter(after_comb[0], config, elevation_deg)
-    after_comb[1] = apply_comb_filter(after_comb[1], config, elevation_deg)
+    after_comb[0] = apply_comb_filter(after_comb[0], config, elevation_deg, delayed_copy_gain)
+    after_comb[1] = apply_comb_filter(after_comb[1], config, elevation_deg, delayed_copy_gain)
     return before_comb, after_comb
 
 
@@ -371,18 +407,23 @@ def equalized_transfer_profile(cochleagram: torch.Tensor, baseline_profile: np.n
     return equalized / np.maximum(equalized.max(), 1e-12)
 
 
-def build_dcn_templates(config: GlobalConfig, bins_deg: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def build_dcn_templates(
+    config: GlobalConfig,
+    bins_deg: np.ndarray,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Build comb-derived DCN inhibitory templates.
 
     Args:
         config: Acoustic configuration.
         bins_deg: Candidate elevation bins.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
 
     Returns:
         Tuple `(centres_hz, comb_gain_matrix, template_matrix)`.
     """
     centres_hz = fdm._log_spaced_centers(config).detach().cpu().numpy()
-    gains = comb_gain(centres_hz, bins_deg)
+    gains = comb_gain(centres_hz, bins_deg, delayed_copy_gain)
     frequency_mask = (centres_hz >= COMB_FIRST_NOTCH_LOW_HZ * 0.75) & (centres_hz <= config.chirp_start_hz)
     templates = np.maximum(1.0 - gains, 0.0) ** DCN_TEMPLATE_POWER
     templates *= frequency_mask[None, :]
@@ -434,6 +475,44 @@ def dcn_full_transfer_response(
     squared_error = ((equalized_profile[None, :] - comb_gain_matrix) ** 2) * mask[None, :]
     mean_error = squared_error.sum(axis=1) / max(float(mask.sum()), 1.0)
     response = np.exp(-mean_error / (2.0 * DCN_TRANSFER_SIGMA**2))
+    return response / np.maximum(float(response.max()), 1e-12)
+
+
+def dcn_signal_weighted_transfer_response(
+    equalized_profile: np.ndarray,
+    baseline_profile: np.ndarray,
+    comb_gain_matrix: np.ndarray,
+    centres_hz: np.ndarray,
+) -> np.ndarray:
+    """Compute a signal-and-notch-weighted full-transfer DCN response.
+
+    The previous full-transfer matcher implicitly treats each frequency channel
+    as equally informative after baseline equalisation. This variant still
+    compares transfer shape, but weights each candidate's error by the product
+    of available signal energy and expected notch strength:
+
+    $$
+    m_k(f_c)=P_0(f_c)(1-H_k(f_c))^2.
+    $$
+
+    This accounts for the fact that a notch is only informative if it lies in a
+    frequency channel that receives enough signal energy.
+
+    Args:
+        equalized_profile: Baseline-divided selected-ear transfer estimate.
+        baseline_profile: Max-normalised no-comb selected-ear spectrum.
+        comb_gain_matrix: Candidate comb gains `[elevation_bins, channels]`.
+        centres_hz: Cochlear centre frequencies.
+
+    Returns:
+        DCN activation over elevation bins.
+    """
+    mask = (centres_hz >= 4_500.0) & (centres_hz <= 18_000.0)
+    signal_notch_weight = baseline_profile[None, :] * np.maximum(1.0 - comb_gain_matrix, 0.0) ** 2
+    signal_notch_weight *= mask[None, :]
+    signal_notch_weight /= np.maximum(signal_notch_weight.sum(axis=1, keepdims=True), 1e-12)
+    mean_error = np.sum(signal_notch_weight * (equalized_profile[None, :] - comb_gain_matrix) ** 2, axis=1)
+    response = np.exp(-mean_error / (2.0 * DCN_SIGNAL_WEIGHTED_SIGMA**2))
     return response / np.maximum(float(response.max()), 1e-12)
 
 
@@ -558,25 +637,39 @@ def centre_of_mass(activity: np.ndarray, bins_deg: np.ndarray) -> float:
     return float(np.sum(positive * bins_deg) / total)
 
 
-def predict_one(config: GlobalConfig, elevation_deg: float, baseline_profile: np.ndarray) -> ElevationPrediction:
+def predict_one(
+    config: GlobalConfig,
+    elevation_deg: float,
+    baseline_profile: np.ndarray,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> ElevationPrediction:
     """Run the first elevation pathway for one elevation.
 
     Args:
         config: Acoustic configuration.
         elevation_deg: True target elevation.
+        baseline_profile: Learned no-comb reference spectrum.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
 
     Returns:
         Full stage prediction.
     """
     bins = elevation_grid()
-    receive = simulate_elevation_scene(config, elevation_deg)
+    receive = simulate_elevation_scene(config, elevation_deg, delayed_copy_gain=delayed_copy_gain)
     cochlea = fdm._run_cochlea_binaural(config, receive)
     selected_cochleagram, selected_spikes = selected_ear_activity(cochlea, config)
     profile, observed_deficit = spectral_profile_from_spikes(selected_spikes)
-    centres_hz, gain_matrix, templates = build_dcn_templates(config, bins)
+    centres_hz, gain_matrix, templates = build_dcn_templates(config, bins, delayed_copy_gain)
     dcn = dcn_disinhibition_response(observed_deficit, profile, templates)
+    cochleagram_profile = cochleagram_energy_profile(selected_cochleagram)
     equalized = equalized_transfer_profile(selected_cochleagram, baseline_profile)
     transfer = dcn_full_transfer_response(equalized, gain_matrix, centres_hz)
+    signal_weighted = dcn_signal_weighted_transfer_response(
+        equalized,
+        baseline_profile,
+        gain_matrix,
+        centres_hz,
+    )
     return ElevationPrediction(
         true_elevation_deg=float(elevation_deg),
         com_prediction_deg=centre_of_mass(dcn, bins),
@@ -586,8 +679,12 @@ def predict_one(config: GlobalConfig, elevation_deg: float, baseline_profile: np
         spectral_profile=profile,
         observed_deficit=observed_deficit,
         dcn_activation=dcn,
+        cochleagram_profile=cochleagram_profile,
         equalized_profile=equalized,
         transfer_activation=transfer,
+        signal_weighted_activation=signal_weighted,
+        signal_weighted_com_prediction_deg=centre_of_mass(signal_weighted, bins),
+        signal_weighted_argmax_prediction_deg=float(bins[int(np.argmax(signal_weighted))]),
         transfer_com_prediction_deg=centre_of_mass(transfer, bins),
         transfer_argmax_prediction_deg=float(bins[int(np.argmax(transfer))]),
         first_notch_prediction_deg=first_notch_readout(equalized, centres_hz),
@@ -614,10 +711,13 @@ def metric_dict(true: np.ndarray, pred: np.ndarray) -> dict[str, float]:
     }
 
 
-def run_dataset(config: GlobalConfig) -> list[ElevationPrediction]:
+def run_dataset(
+    config: GlobalConfig,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> list[ElevationPrediction]:
     """Run the monaural elevation pathway over the full elevation grid."""
     baseline = baseline_energy_profile(config)
-    return [predict_one(config, float(elevation), baseline) for elevation in elevation_grid()]
+    return [predict_one(config, float(elevation), baseline, delayed_copy_gain) for elevation in elevation_grid()]
 
 
 def plot_pipeline(path: Path) -> str:
@@ -657,17 +757,22 @@ def plot_pipeline(path: Path) -> str:
     return save_figure(fig, path)
 
 
-def plot_comb_transfer(config: GlobalConfig, path: Path) -> str:
+def plot_comb_transfer(
+    config: GlobalConfig,
+    path: Path,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+    title_suffix: str = "",
+) -> str:
     """Plot the comb-filter sweep over elevation."""
     elevations = elevation_grid()
     frequencies = np.linspace(config.cochlea_low_hz, config.cochlea_high_hz, 700)
-    gain = comb_gain(frequencies, elevations)
+    gain = comb_gain(frequencies, elevations, delayed_copy_gain)
     fig, ax = plt.subplots(figsize=(9.6, 5.4))
     im = ax.contourf(frequencies / 1_000.0, elevations, gain, levels=50, cmap="magma")
     ax.plot(comb_first_notch_hz(elevations) / 1_000.0, elevations, color="#38bdf8", linewidth=1.8, label="first notch")
     ax.set_xlabel("frequency (kHz)")
     ax.set_ylabel("elevation (deg)")
-    ax.set_title("Comb-filter elevation transfer function")
+    ax.set_title(f"Comb-filter elevation transfer function, a={delayed_copy_gain:.2f}{title_suffix}")
     ax.legend(frameon=False)
     fig.colorbar(im, ax=ax, label="normalised gain")
     return save_figure(fig, path)
@@ -716,18 +821,24 @@ def one_sided_psd(waveform: torch.Tensor, config: GlobalConfig) -> tuple[np.ndar
     return frequencies.cpu().numpy(), psd.cpu().numpy()
 
 
-def plot_received_psd(config: GlobalConfig, elevation_deg: float, path: Path) -> str:
+def plot_received_psd(
+    config: GlobalConfig,
+    elevation_deg: float,
+    path: Path,
+    delayed_copy_gain: float = COMB_DELAYED_COPY_GAIN,
+) -> str:
     """Plot selected-ear PSD before and after the comb-filter cue.
 
     Args:
         config: Acoustic configuration.
         elevation_deg: Elevation angle used for the comb-filter cue.
         path: Output figure path.
+        delayed_copy_gain: Relative gain of the delayed comb-filter copy.
 
     Returns:
         Saved figure path.
     """
-    before_binaural, after_binaural = simulate_pre_post_comb_scene(config, elevation_deg)
+    before_binaural, after_binaural = simulate_pre_post_comb_scene(config, elevation_deg, delayed_copy_gain)
     ear_index = 1 if SELECTED_EAR == "right" else 0
     before = before_binaural[ear_index]
     after = after_binaural[ear_index]
@@ -738,7 +849,7 @@ def plot_received_psd(config: GlobalConfig, elevation_deg: float, path: Path) ->
     before_psd_db = 10.0 * np.log10(before_psd / shared_peak + 1e-12)
     after_psd_db = 10.0 * np.log10(after_psd / shared_peak + 1e-12)
 
-    theoretical_gain = 20.0 * np.log10(comb_gain(frequencies_hz, elevation_deg) + 1e-12)
+    theoretical_gain = 20.0 * np.log10(comb_gain(frequencies_hz, elevation_deg, delayed_copy_gain) + 1e-12)
     first_notch_hz = float(comb_first_notch_hz(elevation_deg))
     lag_us = float(comb_lag_s(elevation_deg) * 1e6)
 
@@ -760,7 +871,8 @@ def plot_received_psd(config: GlobalConfig, elevation_deg: float, path: Path) ->
     ax.set_ylabel("normalised power / gain (dB)")
     ax.set_title(
         f"Selected-ear received PSD before and after comb cue "
-        f"(elevation={elevation_deg:.1f} deg, f1={first_notch_hz / 1_000.0:.2f} kHz, tau={lag_us:.1f} us)"
+        f"(elevation={elevation_deg:.1f} deg, a={delayed_copy_gain:.2f}, "
+        f"f1={first_notch_hz / 1_000.0:.2f} kHz, tau={lag_us:.1f} us)"
     )
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
@@ -899,6 +1011,41 @@ def plot_predictions(
     return save_figure(fig, path)
 
 
+def plot_improvement_predictions(
+    current_predictions: list[ElevationPrediction],
+    deep_predictions: list[ElevationPrediction],
+    path: Path,
+) -> str:
+    """Plot true-vs-predicted elevation for the proposed improvements.
+
+    Args:
+        current_predictions: Predictions using the original comb depth.
+        deep_predictions: Predictions using the deeper comb notch.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    true = np.array([item.true_elevation_deg for item in current_predictions])
+    current_weighted = np.array([item.signal_weighted_com_prediction_deg for item in current_predictions])
+    deep_transfer = np.array([item.transfer_com_prediction_deg for item in deep_predictions])
+    deep_weighted = np.array([item.signal_weighted_com_prediction_deg for item in deep_predictions])
+    fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.8))
+    for ax, pred, title in [
+        (axes[0], current_weighted, f"Current comb a={COMB_DELAYED_COPY_GAIN:.2f}\n+ signal-weighted COM"),
+        (axes[1], deep_transfer, f"Deep comb a={DEEP_COMB_DELAYED_COPY_GAIN:.2f}\n+ equalised transfer COM"),
+        (axes[2], deep_weighted, f"Deep comb a={DEEP_COMB_DELAYED_COPY_GAIN:.2f}\n+ signal-weighted COM"),
+    ]:
+        ax.scatter(true, pred, s=26, alpha=0.75)
+        ax.plot([-ELEVATION_LIMIT_DEG, ELEVATION_LIMIT_DEG], [-ELEVATION_LIMIT_DEG, ELEVATION_LIMIT_DEG], color="#111827")
+        ax.set_xlabel("true elevation (deg)")
+        ax.set_ylabel("predicted elevation (deg)")
+        ax.set_title(title)
+        ax.grid(True, alpha=0.25)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
 def plot_error(
     predictions: list[ElevationPrediction],
     path: Path,
@@ -919,6 +1066,38 @@ def plot_error(
     ax.set_xlabel("true elevation (deg)")
     ax.set_ylabel("prediction error (deg)")
     ax.set_title("Elevation error across the monaural sweep")
+    ax.grid(True, alpha=0.25)
+    ax.legend(frameon=False)
+    return save_figure(fig, path)
+
+
+def plot_improvement_error(
+    current_predictions: list[ElevationPrediction],
+    deep_predictions: list[ElevationPrediction],
+    path: Path,
+) -> str:
+    """Plot signed elevation error for the proposed improvements.
+
+    Args:
+        current_predictions: Predictions using the original comb depth.
+        deep_predictions: Predictions using the deeper comb notch.
+        path: Output figure path.
+
+    Returns:
+        Saved figure path.
+    """
+    true = np.array([item.true_elevation_deg for item in current_predictions])
+    current_weighted = np.array([item.signal_weighted_com_prediction_deg for item in current_predictions])
+    deep_transfer = np.array([item.transfer_com_prediction_deg for item in deep_predictions])
+    deep_weighted = np.array([item.signal_weighted_com_prediction_deg for item in deep_predictions])
+    fig, ax = plt.subplots(figsize=(9.5, 4.8))
+    ax.plot(true, current_weighted - true, label=f"current comb a={COMB_DELAYED_COPY_GAIN:.2f} + signal-weighted", linewidth=2.0)
+    ax.plot(true, deep_transfer - true, label=f"deep comb a={DEEP_COMB_DELAYED_COPY_GAIN:.2f} + equalised transfer", linewidth=2.0)
+    ax.plot(true, deep_weighted - true, label=f"deep comb a={DEEP_COMB_DELAYED_COPY_GAIN:.2f} + signal-weighted", linewidth=2.0)
+    ax.axhline(0.0, color="#111827", linewidth=1.0)
+    ax.set_xlabel("true elevation (deg)")
+    ax.set_ylabel("prediction error (deg)")
+    ax.set_title("Improvement comparison error")
     ax.grid(True, alpha=0.25)
     ax.legend(frameon=False)
     return save_figure(fig, path)
@@ -994,6 +1173,8 @@ def write_report(
         "",
         "![Comb transfer](../outputs/first_attempt/figures/comb_transfer.png)",
         "",
+        f"Current comb-filter gain: `a = {COMB_DELAYED_COPY_GAIN:.2f}`.",
+        "",
         "## Received Signal PSD",
         "",
         "The plot below checks the actual selected-ear received waveform before and after the comb-filter cue is applied. The two PSDs use the same simulated echo, cropped around the active received call, so the difference comes from the spectral notch rather than a different acoustic scene.",
@@ -1007,6 +1188,42 @@ def write_report(
         "Both curves are normalised to the same peak power, so attenuation from the comb filter remains visible. The dashed curve is the theoretical comb-filter magnitude in dB.",
         "",
         "![Received PSD before and after comb filtering](../outputs/first_attempt/figures/received_psd_before_after_comb.png)",
+        "",
+        "## Comb-Depth And Signal-Weighted Improvements",
+        "",
+        "Two additions are tested without removing the original pathway results.",
+        "",
+        f"First, the delayed-copy gain is increased from `a = {COMB_DELAYED_COPY_GAIN:.2f}` to `a = {DEEP_COMB_DELAYED_COPY_GAIN:.2f}`. In the ideal comb filter, the first-notch amplitude is:",
+        "",
+        "$$",
+        "|H(f_1)|=\\frac{|1-a|}{1+a}.",
+        "$$",
+        "",
+        "This makes the spectral notch much deeper, which should make the elevation cue easier for a notch detector to identify.",
+        "",
+        "Second, the matcher weights the transfer-shape error by the expected usefulness of each frequency channel. The no-notch selected-ear spectrum is treated as a baseline signal envelope `P_0(f_c)`, and each candidate elevation defines a signal-and-notch mask:",
+        "",
+        "$$",
+        "m_k(f_c)=P_0(f_c)(1-H_k(f_c))^2.",
+        "$$",
+        "",
+        "The signal-weighted DCN population is then:",
+        "",
+        "$$",
+        "r_k=\\exp\\left(-\\frac{\\sum_c m_k(f_c)(\\tilde p_c-H_k(f_c))^2}{2\\sigma^2}\\right).",
+        "$$",
+        "",
+        "This matters because the emitted sweep and cochlear front end are not flat across frequency. A notch in a weak part of the spectrum should not contribute as much evidence as a notch inside the high-energy part of the received call.",
+        "",
+        f"Deep-comb gain used for the improvement plots: `a = {DEEP_COMB_DELAYED_COPY_GAIN:.2f}`.",
+        "",
+        "![Deep comb transfer, a=0.99](../outputs/first_attempt/figures/deep_comb_transfer.png)",
+        "",
+        "![Deep received PSD, a=0.99](../outputs/first_attempt/figures/deep_received_psd_before_after_comb.png)",
+        "",
+        "![Improvement prediction scatter](../outputs/first_attempt/figures/improvement_prediction_scatter.png)",
+        "",
+        "![Improvement error curve](../outputs/first_attempt/figures/improvement_error_curve.png)",
         "",
         "## DCN Disinhibitory Notch Detector",
         "",
@@ -1117,6 +1334,7 @@ def main() -> dict[str, object]:
 
     config = make_config()
     predictions = run_dataset(config)
+    deep_predictions = run_dataset(config, delayed_copy_gain=DEEP_COMB_DELAYED_COPY_GAIN)
     ei_sweep = tune_ei_lambda(predictions, config)
     ei_lambda = float(ei_sweep["best_lambda"])
     ei_com, ei_argmax, _ = ei_weight_readouts(predictions, config, ei_lambda)
@@ -1125,6 +1343,14 @@ def main() -> dict[str, object]:
     argmax = np.array([item.argmax_prediction_deg for item in predictions])
     transfer_com = np.array([item.transfer_com_prediction_deg for item in predictions])
     transfer_argmax = np.array([item.transfer_argmax_prediction_deg for item in predictions])
+    signal_weighted_com = np.array([item.signal_weighted_com_prediction_deg for item in predictions])
+    signal_weighted_argmax = np.array([item.signal_weighted_argmax_prediction_deg for item in predictions])
+    deep_transfer_com = np.array([item.transfer_com_prediction_deg for item in deep_predictions])
+    deep_transfer_argmax = np.array([item.transfer_argmax_prediction_deg for item in deep_predictions])
+    deep_signal_weighted_com = np.array([item.signal_weighted_com_prediction_deg for item in deep_predictions])
+    deep_signal_weighted_argmax = np.array(
+        [item.signal_weighted_argmax_prediction_deg for item in deep_predictions]
+    )
     first_notch = np.array([item.first_notch_prediction_deg for item in predictions])
     metrics = {
         "Local-dip disinhibition COM": metric_dict(true, com),
@@ -1133,6 +1359,12 @@ def main() -> dict[str, object]:
         "Explicit E/I weight-profile argmax": metric_dict(true, ei_argmax),
         "Baseline-equalised full-transfer DCN COM": metric_dict(true, transfer_com),
         "Baseline-equalised full-transfer DCN argmax": metric_dict(true, transfer_argmax),
+        "Signal-weighted full-transfer DCN COM": metric_dict(true, signal_weighted_com),
+        "Signal-weighted full-transfer DCN argmax": metric_dict(true, signal_weighted_argmax),
+        "Deep-comb baseline-equalised full-transfer DCN COM": metric_dict(true, deep_transfer_com),
+        "Deep-comb baseline-equalised full-transfer DCN argmax": metric_dict(true, deep_transfer_argmax),
+        "Deep-comb signal-weighted full-transfer DCN COM": metric_dict(true, deep_signal_weighted_com),
+        "Deep-comb signal-weighted full-transfer DCN argmax": metric_dict(true, deep_signal_weighted_argmax),
         "First-notch diagnostic readout": metric_dict(true, first_notch),
     }
     example_index = int(np.argmin(np.abs(true - 20.0)))
@@ -1140,6 +1372,18 @@ def main() -> dict[str, object]:
         "pipeline_diagram": plot_pipeline(FIGURE_DIR / "pipeline_diagram.png"),
         "comb_transfer": plot_comb_transfer(config, FIGURE_DIR / "comb_transfer.png"),
         "received_psd": plot_received_psd(config, float(true[example_index]), FIGURE_DIR / "received_psd_before_after_comb.png"),
+        "deep_comb_transfer": plot_comb_transfer(
+            config,
+            FIGURE_DIR / "deep_comb_transfer.png",
+            delayed_copy_gain=DEEP_COMB_DELAYED_COPY_GAIN,
+            title_suffix=" with deeper notch",
+        ),
+        "deep_received_psd": plot_received_psd(
+            config,
+            float(true[example_index]),
+            FIGURE_DIR / "deep_received_psd_before_after_comb.png",
+            delayed_copy_gain=DEEP_COMB_DELAYED_COPY_GAIN,
+        ),
         "dcn_templates": plot_dcn_templates(config, FIGURE_DIR / "dcn_templates.png"),
         "ei_lambda_sweep": plot_ei_lambda_sweep(ei_sweep, FIGURE_DIR / "ei_lambda_sweep.png"),
         "example_stages": plot_example(
@@ -1150,6 +1394,16 @@ def main() -> dict[str, object]:
         ),
         "prediction_scatter": plot_predictions(predictions, FIGURE_DIR / "prediction_scatter.png", ei_com=ei_com),
         "error_curve": plot_error(predictions, FIGURE_DIR / "error_curve.png", ei_com=ei_com),
+        "improvement_prediction_scatter": plot_improvement_predictions(
+            predictions,
+            deep_predictions,
+            FIGURE_DIR / "improvement_prediction_scatter.png",
+        ),
+        "improvement_error_curve": plot_improvement_error(
+            predictions,
+            deep_predictions,
+            FIGURE_DIR / "improvement_error_curve.png",
+        ),
     }
     elapsed_s = time.perf_counter() - start
     payload = {
@@ -1165,6 +1419,7 @@ def main() -> dict[str, object]:
             "comb_first_notch_low_hz": COMB_FIRST_NOTCH_LOW_HZ,
             "comb_first_notch_high_hz": COMB_FIRST_NOTCH_HIGH_HZ,
             "comb_delayed_copy_gain": COMB_DELAYED_COPY_GAIN,
+            "deep_comb_delayed_copy_gain": DEEP_COMB_DELAYED_COPY_GAIN,
             "selected_ei_lambda": ei_lambda,
         },
         "metrics": metrics,
@@ -1177,11 +1432,23 @@ def main() -> dict[str, object]:
                 "argmax_prediction_deg": item.argmax_prediction_deg,
                 "transfer_com_prediction_deg": item.transfer_com_prediction_deg,
                 "transfer_argmax_prediction_deg": item.transfer_argmax_prediction_deg,
+                "signal_weighted_com_prediction_deg": item.signal_weighted_com_prediction_deg,
+                "signal_weighted_argmax_prediction_deg": item.signal_weighted_argmax_prediction_deg,
                 "ei_com_prediction_deg": float(ei_com[idx]),
                 "ei_argmax_prediction_deg": float(ei_argmax[idx]),
                 "first_notch_prediction_deg": item.first_notch_prediction_deg,
             }
             for idx, item in enumerate(predictions)
+        ],
+        "deep_comb_predictions": [
+            {
+                "true_elevation_deg": item.true_elevation_deg,
+                "transfer_com_prediction_deg": item.transfer_com_prediction_deg,
+                "transfer_argmax_prediction_deg": item.transfer_argmax_prediction_deg,
+                "signal_weighted_com_prediction_deg": item.signal_weighted_com_prediction_deg,
+                "signal_weighted_argmax_prediction_deg": item.signal_weighted_argmax_prediction_deg,
+            }
+            for item in deep_predictions
         ],
         "artifacts": artifacts,
     }

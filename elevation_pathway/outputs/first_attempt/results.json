@@ -1,6 +1,6 @@
 {
   "experiment": "elevation_pathway_first_attempt",
-  "elapsed_seconds": 2.060268250061199,
+  "elapsed_seconds": 3.5771395000629127,
   "setup": {
     "num_channels": 48,
     "num_elevation_bins": 91,
@@ -11,6 +11,7 @@
     "comb_first_notch_low_hz": 6000.0,
     "comb_first_notch_high_hz": 16000.0,
     "comb_delayed_copy_gain": 0.85,
+    "deep_comb_delayed_copy_gain": 0.99,
     "selected_ei_lambda": 1.0999999999999999
   },
   "metrics": {
@@ -49,6 +50,42 @@
       "rmse_deg": 7.306477631842541,
       "max_abs_error_deg": 19.0,
       "bias_deg": 3.956043956043956
+    },
+    "Signal-weighted full-transfer DCN COM": {
+      "mae_deg": 3.136652760527708,
+      "rmse_deg": 3.777040874763785,
+      "max_abs_error_deg": 7.244107656349232,
+      "bias_deg": 1.0702642361396077
+    },
+    "Signal-weighted full-transfer DCN argmax": {
+      "mae_deg": 3.5494505494505493,
+      "rmse_deg": 4.639770740831117,
+      "max_abs_error_deg": 14.0,
+      "bias_deg": 1.7472527472527473
+    },
+    "Deep-comb baseline-equalised full-transfer DCN COM": {
+      "mae_deg": 4.836734160841307,
+      "rmse_deg": 5.72361015174158,
+      "max_abs_error_deg": 9.879240373854316,
+      "bias_deg": 2.6112274176395025
+    },
+    "Deep-comb baseline-equalised full-transfer DCN argmax": {
+      "mae_deg": 5.5054945054945055,
+      "rmse_deg": 6.781519814098532,
+      "max_abs_error_deg": 18.0,
+      "bias_deg": 3.5494505494505493
+    },
+    "Deep-comb signal-weighted full-transfer DCN COM": {
+      "mae_deg": 2.8240608256889685,
+      "rmse_deg": 3.3768526436407824,
+      "max_abs_error_deg": 6.4911540779075985,
+      "bias_deg": 0.8144979937447417
+    },
+    "Deep-comb signal-weighted full-transfer DCN argmax": {
+      "mae_deg": 3.241758241758242,
+      "rmse_deg": 4.256862591261212,
+      "max_abs_error_deg": 13.0,
+      "bias_deg": 1.4835164835164836
     },
     "First-notch diagnostic readout": {
       "mae_deg": 2.893971239697802,
@@ -205,6 +242,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -42.267986727698066,
       "transfer_argmax_prediction_deg": -43.0,
+      "signal_weighted_com_prediction_deg": -43.44374608497997,
+      "signal_weighted_argmax_prediction_deg": -44.0,
       "ei_com_prediction_deg": -38.685718952091555,
       "ei_argmax_prediction_deg": -43.0,
       "first_notch_prediction_deg": -43.45637255859375
@@ -215,6 +254,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -41.83037069497594,
       "transfer_argmax_prediction_deg": -42.0,
+      "signal_weighted_com_prediction_deg": -43.05160223100868,
+      "signal_weighted_argmax_prediction_deg": -43.0,
       "ei_com_prediction_deg": -38.22477117524596,
       "ei_argmax_prediction_deg": -42.0,
       "first_notch_prediction_deg": -43.45637255859375
@@ -225,6 +266,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -41.37223958706342,
       "transfer_argmax_prediction_deg": -42.0,
+      "signal_weighted_com_prediction_deg": -42.61856277478493,
+      "signal_weighted_argmax_prediction_deg": -43.0,
       "ei_com_prediction_deg": -37.787271764124185,
       "ei_argmax_prediction_deg": -42.0,
       "first_notch_prediction_deg": -43.45637255859375
@@ -235,6 +278,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -40.90161114464441,
       "transfer_argmax_prediction_deg": -41.0,
+      "signal_weighted_com_prediction_deg": -42.147111453230934,
+      "signal_weighted_argmax_prediction_deg": -42.0,
       "ei_com_prediction_deg": -37.371179216933555,
       "ei_argmax_prediction_deg": -41.0,
       "first_notch_prediction_deg": -43.45637255859375
@@ -245,6 +290,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -40.42157332400232,
       "transfer_argmax_prediction_deg": -41.0,
+      "signal_weighted_com_prediction_deg": -41.639502247220705,
+      "signal_weighted_argmax_prediction_deg": -42.0,
       "ei_com_prediction_deg": -36.97310464372259,
       "ei_argmax_prediction_deg": -41.0,
       "first_notch_prediction_deg": -40.667466796875
@@ -255,6 +302,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -39.927312690379765,
       "transfer_argmax_prediction_deg": -40.0,
+      "signal_weighted_com_prediction_deg": -41.089630755722425,
+      "signal_weighted_argmax_prediction_deg": -41.0,
       "ei_com_prediction_deg": -36.588899116794856,
       "ei_argmax_prediction_deg": -40.0,
       "first_notch_prediction_deg": -40.667466796875
@@ -265,6 +314,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -39.43132639203704,
       "transfer_argmax_prediction_deg": -40.0,
+      "signal_weighted_com_prediction_deg": -40.505644437131124,
+      "signal_weighted_argmax_prediction_deg": -41.0,
       "ei_com_prediction_deg": -36.21813191584904,
       "ei_argmax_prediction_deg": -40.0,
       "first_notch_prediction_deg": -40.667466796875
@@ -275,6 +326,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -38.92763345699718,
       "transfer_argmax_prediction_deg": -39.0,
+      "signal_weighted_com_prediction_deg": -39.88102590204286,
+      "signal_weighted_argmax_prediction_deg": -40.0,
       "ei_com_prediction_deg": -35.846802092029044,
       "ei_argmax_prediction_deg": -39.0,
       "first_notch_prediction_deg": -37.73852490234375
@@ -285,6 +338,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -38.41389861990136,
       "transfer_argmax_prediction_deg": -39.0,
+      "signal_weighted_com_prediction_deg": -39.21073196714593,
+      "signal_weighted_argmax_prediction_deg": -39.0,
       "ei_com_prediction_deg": -35.480639771270084,
       "ei_argmax_prediction_deg": -39.0,
       "first_notch_prediction_deg": -37.73852490234375
@@ -295,6 +350,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -37.88288050871553,
       "transfer_argmax_prediction_deg": -38.0,
+      "signal_weighted_com_prediction_deg": -38.48243113556403,
+      "signal_weighted_argmax_prediction_deg": -39.0,
       "ei_com_prediction_deg": -35.12079181504082,
       "ei_argmax_prediction_deg": -38.0,
       "first_notch_prediction_deg": -37.73852490234375
@@ -305,6 +362,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -37.33535339716297,
       "transfer_argmax_prediction_deg": -38.0,
+      "signal_weighted_com_prediction_deg": -37.70896847097513,
+      "signal_weighted_argmax_prediction_deg": -38.0,
       "ei_com_prediction_deg": -34.76395274603653,
       "ei_argmax_prediction_deg": -38.0,
       "first_notch_prediction_deg": -34.66252001953125
@@ -315,6 +374,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -36.75929871535079,
       "transfer_argmax_prediction_deg": -37.0,
+      "signal_weighted_com_prediction_deg": -36.875995315561134,
+      "signal_weighted_argmax_prediction_deg": -37.0,
       "ei_com_prediction_deg": -34.39150173659773,
       "ei_argmax_prediction_deg": -37.0,
       "first_notch_prediction_deg": -34.66252001953125
@@ -325,6 +386,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -36.15542443563785,
       "transfer_argmax_prediction_deg": -37.0,
+      "signal_weighted_com_prediction_deg": -35.998009152304135,
+      "signal_weighted_argmax_prediction_deg": -36.0,
       "ei_com_prediction_deg": -34.01639780438413,
       "ei_argmax_prediction_deg": -37.0,
       "first_notch_prediction_deg": -34.66252001953125
@@ -335,6 +398,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -35.519401992379485,
       "transfer_argmax_prediction_deg": -36.0,
+      "signal_weighted_com_prediction_deg": -35.08038216355583,
+      "signal_weighted_argmax_prediction_deg": -35.0,
       "ei_com_prediction_deg": -33.63169698372585,
       "ei_argmax_prediction_deg": -36.0,
       "first_notch_prediction_deg": -31.43206494140625
@@ -345,6 +410,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -34.852696201095185,
       "transfer_argmax_prediction_deg": -35.0,
+      "signal_weighted_com_prediction_deg": -34.13932153332122,
+      "signal_weighted_argmax_prediction_deg": -34.0,
       "ei_com_prediction_deg": -33.21995407411379,
       "ei_argmax_prediction_deg": -36.0,
       "first_notch_prediction_deg": -31.43206494140625
@@ -355,6 +422,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -34.15767524264321,
       "transfer_argmax_prediction_deg": -35.0,
+      "signal_weighted_com_prediction_deg": -33.190327071435625,
+      "signal_weighted_argmax_prediction_deg": -33.0,
       "ei_com_prediction_deg": -32.79769481733804,
       "ei_argmax_prediction_deg": -35.0,
       "first_notch_prediction_deg": -31.43206494140625
@@ -365,6 +434,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -33.42858596241124,
       "transfer_argmax_prediction_deg": -34.0,
+      "signal_weighted_com_prediction_deg": -32.22666921712669,
+      "signal_weighted_argmax_prediction_deg": -32.0,
       "ei_com_prediction_deg": -32.35260804228127,
       "ei_argmax_prediction_deg": -35.0,
       "first_notch_prediction_deg": -31.43206494140625
@@ -375,6 +446,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -32.655943515363205,
       "transfer_argmax_prediction_deg": -33.0,
+      "signal_weighted_com_prediction_deg": -31.24187876696146,
+      "signal_weighted_argmax_prediction_deg": -31.0,
       "ei_com_prediction_deg": -31.864240584691366,
       "ei_argmax_prediction_deg": -34.0,
       "first_notch_prediction_deg": -28.039403320312502
@@ -385,6 +458,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -31.845350955718423,
       "transfer_argmax_prediction_deg": -32.0,
+      "signal_weighted_com_prediction_deg": -30.249295286288394,
+      "signal_weighted_argmax_prediction_deg": -30.0,
       "ei_com_prediction_deg": -31.341043425922383,
       "ei_argmax_prediction_deg": -34.0,
       "first_notch_prediction_deg": -28.039403320312502
@@ -395,6 +470,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -30.842385826330432,
       "transfer_argmax_prediction_deg": -31.0,
+      "signal_weighted_com_prediction_deg": -29.144277563177507,
+      "signal_weighted_argmax_prediction_deg": -29.0,
       "ei_com_prediction_deg": -30.657626402217858,
       "ei_argmax_prediction_deg": -33.0,
       "first_notch_prediction_deg": -28.039403320312502
@@ -405,6 +482,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -29.904497997914202,
       "transfer_argmax_prediction_deg": -30.0,
+      "signal_weighted_com_prediction_deg": -28.113211338344254,
+      "signal_weighted_argmax_prediction_deg": -28.0,
       "ei_com_prediction_deg": -29.98262687652751,
       "ei_argmax_prediction_deg": -32.0,
       "first_notch_prediction_deg": -24.476396484374998
@@ -415,6 +494,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -28.913749658762566,
       "transfer_argmax_prediction_deg": -29.0,
+      "signal_weighted_com_prediction_deg": -27.06608145865196,
+      "signal_weighted_argmax_prediction_deg": -27.0,
       "ei_com_prediction_deg": -29.25672856026544,
       "ei_argmax_prediction_deg": -31.0,
       "first_notch_prediction_deg": -24.476396484374998
@@ -425,6 +506,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -27.872308286283552,
       "transfer_argmax_prediction_deg": -28.0,
+      "signal_weighted_com_prediction_deg": -26.001883338331883,
+      "signal_weighted_argmax_prediction_deg": -26.0,
       "ei_com_prediction_deg": -28.477006003977692,
       "ei_argmax_prediction_deg": -31.0,
       "first_notch_prediction_deg": -24.476396484374998
@@ -435,6 +518,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -26.747861823826,
       "transfer_argmax_prediction_deg": -27.0,
+      "signal_weighted_com_prediction_deg": -24.900528779430964,
+      "signal_weighted_argmax_prediction_deg": -25.0,
       "ei_com_prediction_deg": -27.609548355052265,
       "ei_argmax_prediction_deg": -30.0,
       "first_notch_prediction_deg": -24.476396484374998
@@ -445,6 +530,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -25.5395632316757,
       "transfer_argmax_prediction_deg": -26.0,
+      "signal_weighted_com_prediction_deg": -23.806234986384627,
+      "signal_weighted_argmax_prediction_deg": -24.0,
       "ei_com_prediction_deg": -26.723902321424006,
       "ei_argmax_prediction_deg": -29.0,
       "first_notch_prediction_deg": -20.7344794921875
@@ -455,6 +542,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -24.022150181616617,
       "transfer_argmax_prediction_deg": -24.0,
+      "signal_weighted_com_prediction_deg": -22.66090402819799,
+      "signal_weighted_argmax_prediction_deg": -23.0,
       "ei_com_prediction_deg": -25.76679437512107,
       "ei_argmax_prediction_deg": -28.0,
       "first_notch_prediction_deg": -20.7344794921875
@@ -465,6 +554,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -22.43211222682216,
       "transfer_argmax_prediction_deg": -23.0,
+      "signal_weighted_com_prediction_deg": -21.505855767383103,
+      "signal_weighted_argmax_prediction_deg": -22.0,
       "ei_com_prediction_deg": -24.730209260290675,
       "ei_argmax_prediction_deg": -27.0,
       "first_notch_prediction_deg": -20.7344794921875
@@ -475,6 +566,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -20.796816885125967,
       "transfer_argmax_prediction_deg": -21.0,
+      "signal_weighted_com_prediction_deg": -20.35471963337072,
+      "signal_weighted_argmax_prediction_deg": -20.0,
       "ei_com_prediction_deg": -23.621616669847427,
       "ei_argmax_prediction_deg": -26.0,
       "first_notch_prediction_deg": -20.7344794921875
@@ -485,6 +578,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -19.136516958258042,
       "transfer_argmax_prediction_deg": -19.0,
+      "signal_weighted_com_prediction_deg": -19.200420267299258,
+      "signal_weighted_argmax_prediction_deg": -19.0,
       "ei_com_prediction_deg": -22.430323152762004,
       "ei_argmax_prediction_deg": -24.0,
       "first_notch_prediction_deg": -16.8046875
@@ -495,6 +590,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -17.438322358724367,
       "transfer_argmax_prediction_deg": -18.0,
+      "signal_weighted_com_prediction_deg": -18.030398465982675,
+      "signal_weighted_argmax_prediction_deg": -18.0,
       "ei_com_prediction_deg": -21.09938327404598,
       "ei_argmax_prediction_deg": -23.0,
       "first_notch_prediction_deg": -16.8046875
@@ -505,6 +602,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -15.772960769907986,
       "transfer_argmax_prediction_deg": -16.0,
+      "signal_weighted_com_prediction_deg": -16.876071870880615,
+      "signal_weighted_argmax_prediction_deg": -17.0,
       "ei_com_prediction_deg": -19.69578156277037,
       "ei_argmax_prediction_deg": -21.0,
       "first_notch_prediction_deg": -16.8046875
@@ -515,6 +614,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -14.124597606280629,
       "transfer_argmax_prediction_deg": -14.0,
+      "signal_weighted_com_prediction_deg": -15.732573563739885,
+      "signal_weighted_argmax_prediction_deg": -16.0,
       "ei_com_prediction_deg": -18.193725501814043,
       "ei_argmax_prediction_deg": -20.0,
       "first_notch_prediction_deg": -16.8046875
@@ -525,6 +626,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -12.483010215925544,
       "transfer_argmax_prediction_deg": -13.0,
+      "signal_weighted_com_prediction_deg": -14.58234922657933,
+      "signal_weighted_argmax_prediction_deg": -15.0,
       "ei_com_prediction_deg": -16.57380246464991,
       "ei_argmax_prediction_deg": -18.0,
       "first_notch_prediction_deg": -12.677572265624999
@@ -535,6 +638,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -10.85200455432885,
       "transfer_argmax_prediction_deg": -11.0,
+      "signal_weighted_com_prediction_deg": -13.417917933142036,
+      "signal_weighted_argmax_prediction_deg": -14.0,
       "ei_com_prediction_deg": -14.823494526073581,
       "ei_argmax_prediction_deg": -17.0,
       "first_notch_prediction_deg": -12.677572265624999
@@ -545,6 +650,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -9.228687501256774,
       "transfer_argmax_prediction_deg": -10.0,
+      "signal_weighted_com_prediction_deg": -12.241201419008842,
+      "signal_weighted_argmax_prediction_deg": -12.0,
       "ei_com_prediction_deg": -12.942849284236136,
       "ei_argmax_prediction_deg": -15.0,
       "first_notch_prediction_deg": -12.677572265624999
@@ -555,6 +662,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -7.611410019867976,
       "transfer_argmax_prediction_deg": -8.0,
+      "signal_weighted_com_prediction_deg": -11.044418835805363,
+      "signal_weighted_argmax_prediction_deg": -11.0,
       "ei_com_prediction_deg": -10.894987666095828,
       "ei_argmax_prediction_deg": -13.0,
       "first_notch_prediction_deg": -12.677572265624999
@@ -565,6 +674,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -6.006590403242993,
       "transfer_argmax_prediction_deg": -7.0,
+      "signal_weighted_com_prediction_deg": -9.846008925971914,
+      "signal_weighted_argmax_prediction_deg": -10.0,
       "ei_com_prediction_deg": -8.657566610559156,
       "ei_argmax_prediction_deg": -11.0,
       "first_notch_prediction_deg": -12.677572265624999
@@ -575,6 +686,8 @@
       "argmax_prediction_deg": 45.0,
       "transfer_com_prediction_deg": -4.41926516197095,
       "transfer_argmax_prediction_deg": -5.0,
+      "signal_weighted_com_prediction_deg": -8.636664912244935,
+      "signal_weighted_argmax_prediction_deg": -9.0,
       "ei_com_prediction_deg": -6.22266724337995,
       "ei_argmax_prediction_deg": -9.0,
       "first_notch_prediction_deg": -8.343228515624999
@@ -585,6 +698,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -2.8499162483373364,
       "transfer_argmax_prediction_deg": -4.0,
+      "signal_weighted_com_prediction_deg": -7.4263039593821745,
+      "signal_weighted_argmax_prediction_deg": -8.0,
       "ei_com_prediction_deg": -3.461409663783492,
       "ei_argmax_prediction_deg": -7.0,
       "first_notch_prediction_deg": -8.343228515624999
@@ -595,6 +710,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": -1.305411470826932,
       "transfer_argmax_prediction_deg": -2.0,
+      "signal_weighted_com_prediction_deg": -6.219082825532736,
+      "signal_weighted_argmax_prediction_deg": -7.0,
       "ei_com_prediction_deg": -0.254532675635462,
       "ei_argmax_prediction_deg": -4.0,
       "first_notch_prediction_deg": -8.343228515624999
@@ -605,6 +722,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 0.21836063561822047,
       "transfer_argmax_prediction_deg": -1.0,
+      "signal_weighted_com_prediction_deg": -4.993209252377797,
+      "signal_weighted_argmax_prediction_deg": -5.0,
       "ei_com_prediction_deg": 4.007042494642744,
       "ei_argmax_prediction_deg": -2.0,
       "first_notch_prediction_deg": -8.343228515624999
@@ -615,6 +734,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 1.722681746562441,
       "transfer_argmax_prediction_deg": 1.0,
+      "signal_weighted_com_prediction_deg": -3.7501802426131112,
+      "signal_weighted_argmax_prediction_deg": -4.0,
       "ei_com_prediction_deg": 9.17924320930616,
       "ei_argmax_prediction_deg": 0.0,
       "first_notch_prediction_deg": -8.343228515624999
@@ -625,6 +746,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 3.20773152211165,
       "transfer_argmax_prediction_deg": 2.0,
+      "signal_weighted_com_prediction_deg": -2.496540814208321,
+      "signal_weighted_argmax_prediction_deg": -3.0,
       "ei_com_prediction_deg": 12.567579441211961,
       "ei_argmax_prediction_deg": 3.0,
       "first_notch_prediction_deg": -3.791250000000002
@@ -635,6 +758,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 4.67774521349174,
       "transfer_argmax_prediction_deg": 3.0,
+      "signal_weighted_com_prediction_deg": -1.2349374551138226,
+      "signal_weighted_argmax_prediction_deg": -2.0,
       "ei_com_prediction_deg": 14.932092380097355,
       "ei_argmax_prediction_deg": 6.0,
       "first_notch_prediction_deg": -3.791250000000002
@@ -645,6 +770,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 6.140370704833475,
       "transfer_argmax_prediction_deg": 5.0,
+      "signal_weighted_com_prediction_deg": 0.05640010193595499,
+      "signal_weighted_argmax_prediction_deg": -1.0,
       "ei_com_prediction_deg": 16.689184261099342,
       "ei_argmax_prediction_deg": 8.0,
       "first_notch_prediction_deg": -3.791250000000002
@@ -655,6 +782,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 7.569568219652847,
       "transfer_argmax_prediction_deg": 6.0,
+      "signal_weighted_com_prediction_deg": 1.344589417988842,
+      "signal_weighted_argmax_prediction_deg": 1.0,
       "ei_com_prediction_deg": 18.02740387991993,
       "ei_argmax_prediction_deg": 12.0,
       "first_notch_prediction_deg": -3.791250000000002
@@ -665,6 +794,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 8.96725140715426,
       "transfer_argmax_prediction_deg": 7.0,
+      "signal_weighted_com_prediction_deg": 2.6214851889570014,
+      "signal_weighted_argmax_prediction_deg": 2.0,
       "ei_com_prediction_deg": 19.09021691691154,
       "ei_argmax_prediction_deg": 15.0,
       "first_notch_prediction_deg": -3.791250000000002
@@ -675,6 +806,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 10.3443094280698,
       "transfer_argmax_prediction_deg": 8.0,
+      "signal_weighted_com_prediction_deg": 3.895772973965459,
+      "signal_weighted_argmax_prediction_deg": 3.0,
       "ei_com_prediction_deg": 19.971171906968447,
       "ei_argmax_prediction_deg": 19.0,
       "first_notch_prediction_deg": -3.791250000000002
@@ -685,6 +818,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 11.71060316229053,
       "transfer_argmax_prediction_deg": 10.0,
+      "signal_weighted_com_prediction_deg": 5.203334397006696,
+      "signal_weighted_argmax_prediction_deg": 4.0,
       "ei_com_prediction_deg": 20.724414674080922,
       "ei_argmax_prediction_deg": 24.0,
       "first_notch_prediction_deg": 0.9892880859374997
@@ -695,6 +830,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 13.049081686428066,
       "transfer_argmax_prediction_deg": 11.0,
+      "signal_weighted_com_prediction_deg": 6.52020613927353,
+      "signal_weighted_argmax_prediction_deg": 6.0,
       "ei_com_prediction_deg": 21.364010347350366,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 0.9892880859374997
@@ -705,6 +842,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 14.357623103341803,
       "transfer_argmax_prediction_deg": 12.0,
+      "signal_weighted_com_prediction_deg": 7.847161298890349,
+      "signal_weighted_argmax_prediction_deg": 7.0,
       "ei_com_prediction_deg": 21.921081410175894,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 0.9892880859374997
@@ -715,6 +854,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 15.633345170722947,
       "transfer_argmax_prediction_deg": 13.0,
+      "signal_weighted_com_prediction_deg": 9.18898397941104,
+      "signal_weighted_argmax_prediction_deg": 8.0,
       "ei_com_prediction_deg": 22.421285789625376,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 0.9892880859374997
@@ -725,6 +866,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 16.882336081808695,
       "transfer_argmax_prediction_deg": 14.0,
+      "signal_weighted_com_prediction_deg": 10.543025783966408,
+      "signal_weighted_argmax_prediction_deg": 9.0,
       "ei_com_prediction_deg": 22.862015414273394,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 6.009855468749996
@@ -735,6 +878,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 18.277965909374952,
       "transfer_argmax_prediction_deg": 15.0,
+      "signal_weighted_com_prediction_deg": 11.983308028680005,
+      "signal_weighted_argmax_prediction_deg": 11.0,
       "ei_com_prediction_deg": 23.28045774210801,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 6.009855468749996
@@ -745,6 +890,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 19.464927348768132,
       "transfer_argmax_prediction_deg": 16.0,
+      "signal_weighted_com_prediction_deg": 13.343496415269403,
+      "signal_weighted_argmax_prediction_deg": 12.0,
       "ei_com_prediction_deg": 23.652053157921937,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 6.009855468749996
@@ -755,6 +902,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 20.61565072274984,
       "transfer_argmax_prediction_deg": 18.0,
+      "signal_weighted_com_prediction_deg": 14.690767008235058,
+      "signal_weighted_argmax_prediction_deg": 13.0,
       "ei_com_prediction_deg": 24.000226381818184,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 6.009855468749996
@@ -765,6 +914,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 21.725068604948074,
       "transfer_argmax_prediction_deg": 19.0,
+      "signal_weighted_com_prediction_deg": 16.026585930144577,
+      "signal_weighted_argmax_prediction_deg": 14.0,
       "ei_com_prediction_deg": 24.320543902653522,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -775,6 +926,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 22.79476048456761,
       "transfer_argmax_prediction_deg": 20.0,
+      "signal_weighted_com_prediction_deg": 17.355288647536224,
+      "signal_weighted_argmax_prediction_deg": 16.0,
       "ei_com_prediction_deg": 24.62484794094305,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -785,6 +938,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 23.830107739207612,
       "transfer_argmax_prediction_deg": 21.0,
+      "signal_weighted_com_prediction_deg": 18.67521358110194,
+      "signal_weighted_argmax_prediction_deg": 17.0,
       "ei_com_prediction_deg": 24.909044463438573,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -795,6 +950,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 24.82729736800737,
       "transfer_argmax_prediction_deg": 22.0,
+      "signal_weighted_com_prediction_deg": 19.973561326194297,
+      "signal_weighted_argmax_prediction_deg": 18.0,
       "ei_com_prediction_deg": 25.185819348066605,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -805,6 +962,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 25.777471156549893,
       "transfer_argmax_prediction_deg": 23.0,
+      "signal_weighted_com_prediction_deg": 21.231904986975906,
+      "signal_weighted_argmax_prediction_deg": 19.0,
       "ei_com_prediction_deg": 25.440395006681072,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -815,6 +974,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 26.693071490353727,
       "transfer_argmax_prediction_deg": 24.0,
+      "signal_weighted_com_prediction_deg": 22.457103732553065,
+      "signal_weighted_argmax_prediction_deg": 21.0,
       "ei_com_prediction_deg": 25.694665179160584,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -825,6 +986,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 27.58052039084306,
       "transfer_argmax_prediction_deg": 25.0,
+      "signal_weighted_com_prediction_deg": 23.67541633695404,
+      "signal_weighted_argmax_prediction_deg": 22.0,
       "ei_com_prediction_deg": 25.93297370413733,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 11.282510742187503
@@ -835,6 +998,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 28.430480049869242,
       "transfer_argmax_prediction_deg": 26.0,
+      "signal_weighted_com_prediction_deg": 24.870254513165904,
+      "signal_weighted_argmax_prediction_deg": 23.0,
       "ei_com_prediction_deg": 26.17051609984769,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 16.819918945312498
@@ -845,6 +1010,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 29.24025186022855,
       "transfer_argmax_prediction_deg": 28.0,
+      "signal_weighted_com_prediction_deg": 26.033972203875404,
+      "signal_weighted_argmax_prediction_deg": 24.0,
       "ei_com_prediction_deg": 26.396927442484742,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 16.819918945312498
@@ -855,6 +1022,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 30.009488329502126,
       "transfer_argmax_prediction_deg": 29.0,
+      "signal_weighted_com_prediction_deg": 27.155359786192697,
+      "signal_weighted_argmax_prediction_deg": 25.0,
       "ei_com_prediction_deg": 26.61772081052806,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 16.819918945312498
@@ -865,6 +1034,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 30.735811737679814,
       "transfer_argmax_prediction_deg": 30.0,
+      "signal_weighted_com_prediction_deg": 28.226001551639037,
+      "signal_weighted_argmax_prediction_deg": 27.0,
       "ei_com_prediction_deg": 26.83509036119032,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 16.819918945312498
@@ -875,6 +1046,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 31.42161036377401,
       "transfer_argmax_prediction_deg": 32.0,
+      "signal_weighted_com_prediction_deg": 29.244107656349232,
+      "signal_weighted_argmax_prediction_deg": 28.0,
       "ei_com_prediction_deg": 27.040373111736894,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 16.819918945312498
@@ -885,6 +1058,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 32.0666369739108,
       "transfer_argmax_prediction_deg": 34.0,
+      "signal_weighted_com_prediction_deg": 30.20964153215823,
+      "signal_weighted_argmax_prediction_deg": 29.0,
       "ei_com_prediction_deg": 27.247990062676557,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 22.635369140625002
@@ -895,6 +1070,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 32.67179232873515,
       "transfer_argmax_prediction_deg": 36.0,
+      "signal_weighted_com_prediction_deg": 31.11821263246898,
+      "signal_weighted_argmax_prediction_deg": 30.0,
       "ei_com_prediction_deg": 27.443239041664558,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 22.635369140625002
@@ -905,6 +1082,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 33.24130017782332,
       "transfer_argmax_prediction_deg": 39.0,
+      "signal_weighted_com_prediction_deg": 31.970784889493665,
+      "signal_weighted_argmax_prediction_deg": 31.0,
       "ei_com_prediction_deg": 27.638547382464157,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 22.635369140625002
@@ -915,6 +1094,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 33.7817385821815,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 32.77724065684477,
+      "signal_weighted_argmax_prediction_deg": 33.0,
       "ei_com_prediction_deg": 27.833496658977374,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 22.635369140625002
@@ -925,6 +1106,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 34.29140681818745,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 33.53303505520105,
+      "signal_weighted_argmax_prediction_deg": 34.0,
       "ei_com_prediction_deg": 28.021380544937113,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 22.635369140625002
@@ -935,6 +1118,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 34.771152838561186,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 34.23800575811008,
+      "signal_weighted_argmax_prediction_deg": 36.0,
       "ei_com_prediction_deg": 28.214537059419513,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -945,6 +1130,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 35.22034935121736,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 34.890242696619715,
+      "signal_weighted_argmax_prediction_deg": 37.0,
       "ei_com_prediction_deg": 28.39665477979872,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -955,6 +1142,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 35.63933768450548,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 35.48805553349236,
+      "signal_weighted_argmax_prediction_deg": 39.0,
       "ei_com_prediction_deg": 28.580272564046332,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -965,6 +1154,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 36.0301978314442,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 36.036526468850205,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 28.76212896139881,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -975,6 +1166,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 36.39536679083682,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 36.540855745364276,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 28.937503411628285,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -985,6 +1178,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 36.70830102410101,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 37.00618412221079,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 29.151977372808634,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -995,6 +1190,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 37.0345306529525,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 37.44377972956687,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 29.326982401418743,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1005,6 +1202,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 37.34010109579119,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 37.845108712761984,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 29.5100184869257,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1015,6 +1214,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 37.62600354841716,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 38.2127049023385,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 29.688512466441935,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1025,6 +1226,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 37.89228186492716,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 38.54747028123017,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 29.868298048801044,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1035,6 +1238,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 38.13981964522712,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 38.851690728963284,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 30.050351199183996,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1045,6 +1250,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 38.37137005374921,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.130661771512514,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 30.227208482372955,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1055,6 +1262,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 38.588179623415314,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.3864730479039,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 30.41364489609629,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1065,6 +1274,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 38.79127556637529,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.62120980316672,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 30.589825758462702,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 28.742809570312502
@@ -1075,6 +1286,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 38.98114666042157,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.83598001064981,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 30.775926720177925,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 35.15691796875
@@ -1085,6 +1298,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 39.158183884364206,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.03128230027188,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 30.956896109201832,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 35.15691796875
@@ -1095,6 +1310,8 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 39.323444513454774,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.20858812879499,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 31.142966700028982,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 35.15691796875
@@ -1105,19 +1322,664 @@
       "argmax_prediction_deg": -45.0,
       "transfer_com_prediction_deg": 39.478004553534454,
       "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.369822823984514,
+      "signal_weighted_argmax_prediction_deg": 45.0,
       "ei_com_prediction_deg": 31.328897787552872,
       "ei_argmax_prediction_deg": 45.0,
       "first_notch_prediction_deg": 35.15691796875
+    }
+  ],
+  "deep_comb_predictions": [
+    {
+      "true_elevation_deg": -45.0,
+      "transfer_com_prediction_deg": -42.366161283721475,
+      "transfer_argmax_prediction_deg": -43.0,
+      "signal_weighted_com_prediction_deg": -43.59607687813868,
+      "signal_weighted_argmax_prediction_deg": -44.0
+    },
+    {
+      "true_elevation_deg": -44.0,
+      "transfer_com_prediction_deg": -41.92912959736348,
+      "transfer_argmax_prediction_deg": -42.0,
+      "signal_weighted_com_prediction_deg": -43.19233961811716,
+      "signal_weighted_argmax_prediction_deg": -43.0
+    },
+    {
+      "true_elevation_deg": -43.0,
+      "transfer_com_prediction_deg": -41.46895651327222,
+      "transfer_argmax_prediction_deg": -42.0,
+      "signal_weighted_com_prediction_deg": -42.74605486173622,
+      "signal_weighted_argmax_prediction_deg": -43.0
+    },
+    {
+      "true_elevation_deg": -42.0,
+      "transfer_com_prediction_deg": -40.98912389492714,
+      "transfer_argmax_prediction_deg": -41.0,
+      "signal_weighted_com_prediction_deg": -42.244600646514755,
+      "signal_weighted_argmax_prediction_deg": -42.0
+    },
+    {
+      "true_elevation_deg": -41.0,
+      "transfer_com_prediction_deg": -40.49963400396801,
+      "transfer_argmax_prediction_deg": -41.0,
+      "signal_weighted_com_prediction_deg": -41.70467147479197,
+      "signal_weighted_argmax_prediction_deg": -42.0
+    },
+    {
+      "true_elevation_deg": -40.0,
+      "transfer_com_prediction_deg": -39.999960577515964,
+      "transfer_argmax_prediction_deg": -40.0,
+      "signal_weighted_com_prediction_deg": -41.13221077016918,
+      "signal_weighted_argmax_prediction_deg": -42.0
+    },
+    {
+      "true_elevation_deg": -39.0,
+      "transfer_com_prediction_deg": -39.48416357023185,
+      "transfer_argmax_prediction_deg": -40.0,
+      "signal_weighted_com_prediction_deg": -40.50574542776082,
+      "signal_weighted_argmax_prediction_deg": -41.0
+    },
+    {
+      "true_elevation_deg": -38.0,
+      "transfer_com_prediction_deg": -38.963555126967705,
+      "transfer_argmax_prediction_deg": -39.0,
+      "signal_weighted_com_prediction_deg": -39.828375199109665,
+      "signal_weighted_argmax_prediction_deg": -40.0
+    },
+    {
+      "true_elevation_deg": -37.0,
+      "transfer_com_prediction_deg": -38.433792617433674,
+      "transfer_argmax_prediction_deg": -39.0,
+      "signal_weighted_com_prediction_deg": -39.115898538684974,
+      "signal_weighted_argmax_prediction_deg": -39.0
+    },
+    {
+      "true_elevation_deg": -36.0,
+      "transfer_com_prediction_deg": -37.88911387344955,
+      "transfer_argmax_prediction_deg": -38.0,
+      "signal_weighted_com_prediction_deg": -38.3563956506704,
+      "signal_weighted_argmax_prediction_deg": -39.0
+    },
+    {
+      "true_elevation_deg": -35.0,
+      "transfer_com_prediction_deg": -37.32655504736131,
+      "transfer_argmax_prediction_deg": -38.0,
+      "signal_weighted_com_prediction_deg": -37.54602281655332,
+      "signal_weighted_argmax_prediction_deg": -37.0
+    },
+    {
+      "true_elevation_deg": -34.0,
+      "transfer_com_prediction_deg": -36.73356823870917,
+      "transfer_argmax_prediction_deg": -37.0,
+      "signal_weighted_com_prediction_deg": -36.68466842145108,
+      "signal_weighted_argmax_prediction_deg": -36.0
+    },
+    {
+      "true_elevation_deg": -33.0,
+      "transfer_com_prediction_deg": -36.10980882711378,
+      "transfer_argmax_prediction_deg": -36.0,
+      "signal_weighted_com_prediction_deg": -35.78160287556339,
+      "signal_weighted_argmax_prediction_deg": -36.0
+    },
+    {
+      "true_elevation_deg": -32.0,
+      "transfer_com_prediction_deg": -35.457872100593306,
+      "transfer_argmax_prediction_deg": -36.0,
+      "signal_weighted_com_prediction_deg": -34.84882453344878,
+      "signal_weighted_argmax_prediction_deg": -36.0
+    },
+    {
+      "true_elevation_deg": -31.0,
+      "transfer_com_prediction_deg": -34.782665828149675,
+      "transfer_argmax_prediction_deg": -35.0,
+      "signal_weighted_com_prediction_deg": -33.91252801392375,
+      "signal_weighted_argmax_prediction_deg": -33.0
+    },
+    {
+      "true_elevation_deg": -30.0,
+      "transfer_com_prediction_deg": -34.08789117294198,
+      "transfer_argmax_prediction_deg": -34.0,
+      "signal_weighted_com_prediction_deg": -32.98015081251505,
+      "signal_weighted_argmax_prediction_deg": -33.0
+    },
+    {
+      "true_elevation_deg": -29.0,
+      "transfer_com_prediction_deg": -33.316360261620744,
+      "transfer_argmax_prediction_deg": -33.0,
+      "signal_weighted_com_prediction_deg": -31.990120654552094,
+      "signal_weighted_argmax_prediction_deg": -32.0
+    },
+    {
+      "true_elevation_deg": -28.0,
+      "transfer_com_prediction_deg": -32.402347255414234,
+      "transfer_argmax_prediction_deg": -33.0,
+      "signal_weighted_com_prediction_deg": -30.920338074589583,
+      "signal_weighted_argmax_prediction_deg": -30.0
+    },
+    {
+      "true_elevation_deg": -27.0,
+      "transfer_com_prediction_deg": -31.568162879279562,
+      "transfer_argmax_prediction_deg": -32.0,
+      "signal_weighted_com_prediction_deg": -29.933191651530883,
+      "signal_weighted_argmax_prediction_deg": -30.0
+    },
+    {
+      "true_elevation_deg": -26.0,
+      "transfer_com_prediction_deg": -30.667827231357563,
+      "transfer_argmax_prediction_deg": -31.0,
+      "signal_weighted_com_prediction_deg": -28.919203200100146,
+      "signal_weighted_argmax_prediction_deg": -29.0
+    },
+    {
+      "true_elevation_deg": -25.0,
+      "transfer_com_prediction_deg": -29.74018935513853,
+      "transfer_argmax_prediction_deg": -30.0,
+      "signal_weighted_com_prediction_deg": -27.90632463520671,
+      "signal_weighted_argmax_prediction_deg": -27.0
+    },
+    {
+      "true_elevation_deg": -24.0,
+      "transfer_com_prediction_deg": -28.742819179023343,
+      "transfer_argmax_prediction_deg": -29.0,
+      "signal_weighted_com_prediction_deg": -26.87084064174413,
+      "signal_weighted_argmax_prediction_deg": -27.0
+    },
+    {
+      "true_elevation_deg": -23.0,
+      "transfer_com_prediction_deg": -27.728349298008677,
+      "transfer_argmax_prediction_deg": -27.0,
+      "signal_weighted_com_prediction_deg": -25.842618396542992,
+      "signal_weighted_argmax_prediction_deg": -26.0
+    },
+    {
+      "true_elevation_deg": -22.0,
+      "transfer_com_prediction_deg": -26.76415817306484,
+      "transfer_argmax_prediction_deg": -27.0,
+      "signal_weighted_com_prediction_deg": -24.84505415174293,
+      "signal_weighted_argmax_prediction_deg": -25.0
+    },
+    {
+      "true_elevation_deg": -21.0,
+      "transfer_com_prediction_deg": -25.397373767386785,
+      "transfer_argmax_prediction_deg": -26.0,
+      "signal_weighted_com_prediction_deg": -23.664603655642132,
+      "signal_weighted_argmax_prediction_deg": -23.0
+    },
+    {
+      "true_elevation_deg": -20.0,
+      "transfer_com_prediction_deg": -23.91133042302687,
+      "transfer_argmax_prediction_deg": -24.0,
+      "signal_weighted_com_prediction_deg": -22.534172458774282,
+      "signal_weighted_argmax_prediction_deg": -23.0
+    },
+    {
+      "true_elevation_deg": -19.0,
+      "transfer_com_prediction_deg": -22.374421244414666,
+      "transfer_argmax_prediction_deg": -23.0,
+      "signal_weighted_com_prediction_deg": -21.411464411168197,
+      "signal_weighted_argmax_prediction_deg": -22.0
+    },
+    {
+      "true_elevation_deg": -18.0,
+      "transfer_com_prediction_deg": -20.828639963564708,
+      "transfer_argmax_prediction_deg": -22.0,
+      "signal_weighted_com_prediction_deg": -20.305679173450553,
+      "signal_weighted_argmax_prediction_deg": -20.0
+    },
+    {
+      "true_elevation_deg": -17.0,
+      "transfer_com_prediction_deg": -19.23345452496857,
+      "transfer_argmax_prediction_deg": -19.0,
+      "signal_weighted_com_prediction_deg": -19.186212436995827,
+      "signal_weighted_argmax_prediction_deg": -19.0
+    },
+    {
+      "true_elevation_deg": -16.0,
+      "transfer_com_prediction_deg": -17.620332103965097,
+      "transfer_argmax_prediction_deg": -18.0,
+      "signal_weighted_com_prediction_deg": -18.062564612537297,
+      "signal_weighted_argmax_prediction_deg": -18.0
+    },
+    {
+      "true_elevation_deg": -15.0,
+      "transfer_com_prediction_deg": -15.974332666335918,
+      "transfer_argmax_prediction_deg": -16.0,
+      "signal_weighted_com_prediction_deg": -16.91602559588522,
+      "signal_weighted_argmax_prediction_deg": -18.0
+    },
+    {
+      "true_elevation_deg": -14.0,
+      "transfer_com_prediction_deg": -14.314817772126444,
+      "transfer_argmax_prediction_deg": -15.0,
+      "signal_weighted_com_prediction_deg": -15.763676883855728,
+      "signal_weighted_argmax_prediction_deg": -15.0
+    },
+    {
+      "true_elevation_deg": -13.0,
+      "transfer_com_prediction_deg": -12.71031473533573,
+      "transfer_argmax_prediction_deg": -14.0,
+      "signal_weighted_com_prediction_deg": -14.628666007910635,
+      "signal_weighted_argmax_prediction_deg": -15.0
+    },
+    {
+      "true_elevation_deg": -12.0,
+      "transfer_com_prediction_deg": -11.16221792447314,
+      "transfer_argmax_prediction_deg": -11.0,
+      "signal_weighted_com_prediction_deg": -13.497644418445038,
+      "signal_weighted_argmax_prediction_deg": -14.0
+    },
+    {
+      "true_elevation_deg": -11.0,
+      "transfer_com_prediction_deg": -9.570883743402335,
+      "transfer_argmax_prediction_deg": -10.0,
+      "signal_weighted_com_prediction_deg": -12.334196862865394,
+      "signal_weighted_argmax_prediction_deg": -12.0
+    },
+    {
+      "true_elevation_deg": -10.0,
+      "transfer_com_prediction_deg": -7.998425066368749,
+      "transfer_argmax_prediction_deg": -9.0,
+      "signal_weighted_com_prediction_deg": -11.16055223755159,
+      "signal_weighted_argmax_prediction_deg": -11.0
+    },
+    {
+      "true_elevation_deg": -9.0,
+      "transfer_com_prediction_deg": -6.458033719320169,
+      "transfer_argmax_prediction_deg": -7.0,
+      "signal_weighted_com_prediction_deg": -10.00404176783283,
+      "signal_weighted_argmax_prediction_deg": -10.0
+    },
+    {
+      "true_elevation_deg": -8.0,
+      "transfer_com_prediction_deg": -4.87575396996977,
+      "transfer_argmax_prediction_deg": -6.0,
+      "signal_weighted_com_prediction_deg": -8.858646901959734,
+      "signal_weighted_argmax_prediction_deg": -10.0
+    },
+    {
+      "true_elevation_deg": -7.0,
+      "transfer_com_prediction_deg": -3.382559099621513,
+      "transfer_argmax_prediction_deg": -5.0,
+      "signal_weighted_com_prediction_deg": -7.7049798435890695,
+      "signal_weighted_argmax_prediction_deg": -7.0
+    },
+    {
+      "true_elevation_deg": -6.0,
+      "transfer_com_prediction_deg": -1.9391394647704823,
+      "transfer_argmax_prediction_deg": -2.0,
+      "signal_weighted_com_prediction_deg": -6.523702486958599,
+      "signal_weighted_argmax_prediction_deg": -6.0
+    },
+    {
+      "true_elevation_deg": -5.0,
+      "transfer_com_prediction_deg": -0.4692688225276708,
+      "transfer_argmax_prediction_deg": -1.0,
+      "signal_weighted_com_prediction_deg": -5.3371447296609515,
+      "signal_weighted_argmax_prediction_deg": -6.0
+    },
+    {
+      "true_elevation_deg": -4.0,
+      "transfer_com_prediction_deg": 0.9765213982533862,
+      "transfer_argmax_prediction_deg": -1.0,
+      "signal_weighted_com_prediction_deg": -4.144680527132421,
+      "signal_weighted_argmax_prediction_deg": -5.0
+    },
+    {
+      "true_elevation_deg": -3.0,
+      "transfer_com_prediction_deg": 2.4188044203001176,
+      "transfer_argmax_prediction_deg": 2.0,
+      "signal_weighted_com_prediction_deg": -2.935584597780924,
+      "signal_weighted_argmax_prediction_deg": -2.0
+    },
+    {
+      "true_elevation_deg": -2.0,
+      "transfer_com_prediction_deg": 3.8687671038239286,
+      "transfer_argmax_prediction_deg": 3.0,
+      "signal_weighted_com_prediction_deg": -1.7110761306052718,
+      "signal_weighted_argmax_prediction_deg": -2.0
+    },
+    {
+      "true_elevation_deg": -1.0,
+      "transfer_com_prediction_deg": 5.312867872398039,
+      "transfer_argmax_prediction_deg": 4.0,
+      "signal_weighted_com_prediction_deg": -0.45340830131013327,
+      "signal_weighted_argmax_prediction_deg": -1.0
+    },
+    {
+      "true_elevation_deg": 0.0,
+      "transfer_com_prediction_deg": 6.715233069468206,
+      "transfer_argmax_prediction_deg": 5.0,
+      "signal_weighted_com_prediction_deg": 0.8048924352183358,
+      "signal_weighted_argmax_prediction_deg": -1.0
+    },
+    {
+      "true_elevation_deg": 1.0,
+      "transfer_com_prediction_deg": 8.08663175495528,
+      "transfer_argmax_prediction_deg": 7.0,
+      "signal_weighted_com_prediction_deg": 2.069438175101173,
+      "signal_weighted_argmax_prediction_deg": 3.0
+    },
+    {
+      "true_elevation_deg": 2.0,
+      "transfer_com_prediction_deg": 9.501621589111927,
+      "transfer_argmax_prediction_deg": 8.0,
+      "signal_weighted_com_prediction_deg": 3.354441075673791,
+      "signal_weighted_argmax_prediction_deg": 3.0
+    },
+    {
+      "true_elevation_deg": 3.0,
+      "transfer_com_prediction_deg": 10.825068536164617,
+      "transfer_argmax_prediction_deg": 9.0,
+      "signal_weighted_com_prediction_deg": 4.576350066501444,
+      "signal_weighted_argmax_prediction_deg": 4.0
+    },
+    {
+      "true_elevation_deg": 4.0,
+      "transfer_com_prediction_deg": 12.04049838659388,
+      "transfer_argmax_prediction_deg": 9.0,
+      "signal_weighted_com_prediction_deg": 5.773606595460451,
+      "signal_weighted_argmax_prediction_deg": 4.0
+    },
+    {
+      "true_elevation_deg": 5.0,
+      "transfer_com_prediction_deg": 13.326693532490795,
+      "transfer_argmax_prediction_deg": 10.0,
+      "signal_weighted_com_prediction_deg": 7.037659644439648,
+      "signal_weighted_argmax_prediction_deg": 8.0
+    },
+    {
+      "true_elevation_deg": 6.0,
+      "transfer_com_prediction_deg": 14.615309310830561,
+      "transfer_argmax_prediction_deg": 13.0,
+      "signal_weighted_com_prediction_deg": 8.336805523629994,
+      "signal_weighted_argmax_prediction_deg": 8.0
+    },
+    {
+      "true_elevation_deg": 7.0,
+      "transfer_com_prediction_deg": 16.0091940202121,
+      "transfer_argmax_prediction_deg": 14.0,
+      "signal_weighted_com_prediction_deg": 9.703511707661386,
+      "signal_weighted_argmax_prediction_deg": 9.0
+    },
+    {
+      "true_elevation_deg": 8.0,
+      "transfer_com_prediction_deg": 17.25230806031219,
+      "transfer_argmax_prediction_deg": 14.0,
+      "signal_weighted_com_prediction_deg": 11.018484183178327,
+      "signal_weighted_argmax_prediction_deg": 9.0
+    },
+    {
+      "true_elevation_deg": 9.0,
+      "transfer_com_prediction_deg": 18.300085905108677,
+      "transfer_argmax_prediction_deg": 15.0,
+      "signal_weighted_com_prediction_deg": 12.27403970899907,
+      "signal_weighted_argmax_prediction_deg": 13.0
+    },
+    {
+      "true_elevation_deg": 10.0,
+      "transfer_com_prediction_deg": 19.443890033200674,
+      "transfer_argmax_prediction_deg": 18.0,
+      "signal_weighted_com_prediction_deg": 13.559573464934676,
+      "signal_weighted_argmax_prediction_deg": 13.0
+    },
+    {
+      "true_elevation_deg": 11.0,
+      "transfer_com_prediction_deg": 20.54724140375816,
+      "transfer_argmax_prediction_deg": 19.0,
+      "signal_weighted_com_prediction_deg": 14.855487519777515,
+      "signal_weighted_argmax_prediction_deg": 14.0
+    },
+    {
+      "true_elevation_deg": 12.0,
+      "transfer_com_prediction_deg": 21.7918883301563,
+      "transfer_argmax_prediction_deg": 19.0,
+      "signal_weighted_com_prediction_deg": 16.240734614898393,
+      "signal_weighted_argmax_prediction_deg": 14.0
+    },
+    {
+      "true_elevation_deg": 13.0,
+      "transfer_com_prediction_deg": 22.84705902322491,
+      "transfer_argmax_prediction_deg": 20.0,
+      "signal_weighted_com_prediction_deg": 17.555273771329354,
+      "signal_weighted_argmax_prediction_deg": 15.0
+    },
+    {
+      "true_elevation_deg": 14.0,
+      "transfer_com_prediction_deg": 23.879240373854316,
+      "transfer_argmax_prediction_deg": 20.0,
+      "signal_weighted_com_prediction_deg": 18.842470341142036,
+      "signal_weighted_argmax_prediction_deg": 19.0
+    },
+    {
+      "true_elevation_deg": 15.0,
+      "transfer_com_prediction_deg": 24.877276645399817,
+      "transfer_argmax_prediction_deg": 21.0,
+      "signal_weighted_com_prediction_deg": 20.114663389220556,
+      "signal_weighted_argmax_prediction_deg": 19.0
+    },
+    {
+      "true_elevation_deg": 16.0,
+      "transfer_com_prediction_deg": 25.85592476284581,
+      "transfer_argmax_prediction_deg": 25.0,
+      "signal_weighted_com_prediction_deg": 21.37055245222198,
+      "signal_weighted_argmax_prediction_deg": 20.0
+    },
+    {
+      "true_elevation_deg": 17.0,
+      "transfer_com_prediction_deg": 26.81057733222121,
+      "transfer_argmax_prediction_deg": 25.0,
+      "signal_weighted_com_prediction_deg": 22.6281103905254,
+      "signal_weighted_argmax_prediction_deg": 20.0
+    },
+    {
+      "true_elevation_deg": 18.0,
+      "transfer_com_prediction_deg": 27.731874077197396,
+      "transfer_argmax_prediction_deg": 26.0,
+      "signal_weighted_com_prediction_deg": 23.874711165012457,
+      "signal_weighted_argmax_prediction_deg": 20.0
+    },
+    {
+      "true_elevation_deg": 19.0,
+      "transfer_com_prediction_deg": 28.60684723319821,
+      "transfer_argmax_prediction_deg": 26.0,
+      "signal_weighted_com_prediction_deg": 25.088155041892698,
+      "signal_weighted_argmax_prediction_deg": 25.0
+    },
+    {
+      "true_elevation_deg": 20.0,
+      "transfer_com_prediction_deg": 29.43985517211217,
+      "transfer_argmax_prediction_deg": 26.0,
+      "signal_weighted_com_prediction_deg": 26.266173631909442,
+      "signal_weighted_argmax_prediction_deg": 25.0
+    },
+    {
+      "true_elevation_deg": 21.0,
+      "transfer_com_prediction_deg": 30.224866121854493,
+      "transfer_argmax_prediction_deg": 31.0,
+      "signal_weighted_com_prediction_deg": 27.39670332396357,
+      "signal_weighted_argmax_prediction_deg": 26.0
+    },
+    {
+      "true_elevation_deg": 22.0,
+      "transfer_com_prediction_deg": 30.952557553215332,
+      "transfer_argmax_prediction_deg": 31.0,
+      "signal_weighted_com_prediction_deg": 28.46231016046235,
+      "signal_weighted_argmax_prediction_deg": 26.0
+    },
+    {
+      "true_elevation_deg": 23.0,
+      "transfer_com_prediction_deg": 31.653540420488138,
+      "transfer_argmax_prediction_deg": 32.0,
+      "signal_weighted_com_prediction_deg": 29.4911540779076,
+      "signal_weighted_argmax_prediction_deg": 26.0
+    },
+    {
+      "true_elevation_deg": 24.0,
+      "transfer_com_prediction_deg": 32.31608878857046,
+      "transfer_argmax_prediction_deg": 32.0,
+      "signal_weighted_com_prediction_deg": 30.475893559833523,
+      "signal_weighted_argmax_prediction_deg": 31.0
+    },
+    {
+      "true_elevation_deg": 25.0,
+      "transfer_com_prediction_deg": 32.94043715730979,
+      "transfer_argmax_prediction_deg": 38.0,
+      "signal_weighted_com_prediction_deg": 31.415615367580024,
+      "signal_weighted_argmax_prediction_deg": 32.0
+    },
+    {
+      "true_elevation_deg": 26.0,
+      "transfer_com_prediction_deg": 33.52605312845047,
+      "transfer_argmax_prediction_deg": 38.0,
+      "signal_weighted_com_prediction_deg": 32.293719843005256,
+      "signal_weighted_argmax_prediction_deg": 32.0
+    },
+    {
+      "true_elevation_deg": 27.0,
+      "transfer_com_prediction_deg": 34.07804751555447,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 33.12367828223132,
+      "signal_weighted_argmax_prediction_deg": 32.0
+    },
+    {
+      "true_elevation_deg": 28.0,
+      "transfer_com_prediction_deg": 34.60275549962627,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 33.905673868864746,
+      "signal_weighted_argmax_prediction_deg": 32.0
+    },
+    {
+      "true_elevation_deg": 29.0,
+      "transfer_com_prediction_deg": 35.0953076197629,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 34.635407823200424,
+      "signal_weighted_argmax_prediction_deg": 38.0
+    },
+    {
+      "true_elevation_deg": 30.0,
+      "transfer_com_prediction_deg": 35.55968605710769,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 35.31854107927448,
+      "signal_weighted_argmax_prediction_deg": 38.0
+    },
+    {
+      "true_elevation_deg": 31.0,
+      "transfer_com_prediction_deg": 35.9956895178375,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 35.948409231087275,
+      "signal_weighted_argmax_prediction_deg": 39.0
+    },
+    {
+      "true_elevation_deg": 32.0,
+      "transfer_com_prediction_deg": 36.4002457601226,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 36.52372200036798,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 33.0,
+      "transfer_com_prediction_deg": 36.77453674808309,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 37.048849001738006,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 34.0,
+      "transfer_com_prediction_deg": 37.127698684798354,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 37.53897431413029,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 35.0,
+      "transfer_com_prediction_deg": 37.4230393925779,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 37.966748635245715,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 36.0,
+      "transfer_com_prediction_deg": 37.71440993259116,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 38.33671710539783,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 37.0,
+      "transfer_com_prediction_deg": 37.98812680644149,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 38.67763230393119,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 38.0,
+      "transfer_com_prediction_deg": 38.24744818584989,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 38.998776840740256,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 39.0,
+      "transfer_com_prediction_deg": 38.48623750938111,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.28530495423224,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 40.0,
+      "transfer_com_prediction_deg": 38.709042873559355,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.54735235270315,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 41.0,
+      "transfer_com_prediction_deg": 38.91717213233504,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 39.7874465676197,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 42.0,
+      "transfer_com_prediction_deg": 39.11184142041474,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.00720115701554,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 43.0,
+      "transfer_com_prediction_deg": 39.29279031370839,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.205934555126575,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 44.0,
+      "transfer_com_prediction_deg": 39.46002128865143,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.38266308239013,
+      "signal_weighted_argmax_prediction_deg": 45.0
+    },
+    {
+      "true_elevation_deg": 45.0,
+      "transfer_com_prediction_deg": 39.616240147916386,
+      "transfer_argmax_prediction_deg": 45.0,
+      "signal_weighted_com_prediction_deg": 40.54233503106468,
+      "signal_weighted_argmax_prediction_deg": 45.0
     }
   ],
   "artifacts": {
     "pipeline_diagram": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/pipeline_diagram.png",
     "comb_transfer": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/comb_transfer.png",
     "received_psd": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/received_psd_before_after_comb.png",
+    "deep_comb_transfer": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/deep_comb_transfer.png",
+    "deep_received_psd": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/deep_received_psd_before_after_comb.png",
     "dcn_templates": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/dcn_templates.png",
     "ei_lambda_sweep": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/ei_lambda_sweep.png",
     "example_stages": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/example_stages.png",
     "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/prediction_scatter.png",
-    "error_curve": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/error_curve.png"
+    "error_curve": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/error_curve.png",
+    "improvement_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/improvement_prediction_scatter.png",
+    "improvement_error_curve": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/elevation_pathway/outputs/first_attempt/figures/improvement_error_curve.png"
   }
 }
