@@ -30,7 +30,7 @@ $$
 \hat{\theta}_{SC}(t)=\frac{\sum_i \theta_i [x_i(t)]_+}{\sum_i [x_i(t)]_+ + \epsilon}.
 $$
 
-The selected readout time is `1.0 ms`; the full trajectory is retained to check whether this is a sensible timing choice.
+The selected readout time is `5.0 ms`; the full trajectory is retained to check whether this is a sensible timing choice.
 
 Two input variants are tested:
 
@@ -48,8 +48,8 @@ The isolated test uses the same monaural fixed-distance, fixed-azimuth elevation
 | Readout | MAE | RMSE | Max error | Bias | runtime/sample |
 |---|---:|---:|---:|---:|---:|
 | Direct DCN COM | `2.824 deg` | `3.377 deg` | `6.491 deg` | `0.814 deg` | `0.000 ms` |
-| FI diagonal 2-block CANN | `2.819 deg` | `3.368 deg` | `6.486 deg` | `0.790 deg` | `0.214 ms` |
-| FI reflected Gaussian 2-block CANN | `2.834 deg` | `3.362 deg` | `6.366 deg` | `0.752 deg` | `0.165 ms` |
+| FI diagonal 2-block CANN | `2.828 deg` | `3.368 deg` | `6.504 deg` | `0.754 deg` | `0.366 ms` |
+| FI reflected Gaussian 2-block CANN | `2.787 deg` | `3.316 deg` | `6.376 deg` | `0.638 deg` | `0.752 ms` |
 
 ![Isolated scatter](../outputs/elevation_line_attractor/figures/isolated_prediction_scatter.png)
 
@@ -62,8 +62,8 @@ The full-3D test reuses the clean elevation setup: distance sampled from `0.25 m
 | Readout | MAE | RMSE | Max error | Bias | runtime/sample |
 |---|---:|---:|---:|---:|---:|
 | Direct DCN COM | `3.029 deg` | `3.578 deg` | `6.753 deg` | `0.777 deg` | `0.000 ms` |
-| FI diagonal 2-block CANN | `3.032 deg` | `3.579 deg` | `6.746 deg` | `0.730 deg` | `0.074 ms` |
-| FI reflected Gaussian 2-block CANN | `3.059 deg` | `3.589 deg` | `6.620 deg` | `0.656 deg` | `0.440 ms` |
+| FI diagonal 2-block CANN | `3.053 deg` | `3.592 deg` | `6.736 deg` | `0.660 deg` | `0.089 ms` |
+| FI reflected Gaussian 2-block CANN | `3.027 deg` | `3.551 deg` | `6.593 deg` | `0.492 deg` | `0.181 ms` |
 
 ![Full 3D scatter](../outputs/elevation_line_attractor/figures/full_3d_prediction_scatter.png)
 
@@ -96,4 +96,4 @@ The most defensible use of this block is as an optional SC stabiliser for downst
 - `mae_comparison`: `elevation_pathway/outputs/elevation_line_attractor/figures/mae_comparison.png`
 - `example_attractor_dynamics`: `elevation_pathway/outputs/elevation_line_attractor/figures/example_attractor_dynamics.png`
 - `results`: `elevation_pathway/outputs/elevation_line_attractor/results.json`
-- runtime: `4.09 s`
+- runtime: `4.53 s`

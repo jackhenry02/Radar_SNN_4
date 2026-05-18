@@ -34,7 +34,8 @@ FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "elevation_pathway" / "reports" / "elevation_line_attractor.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 
-READOUT_TIME_MS = cann.ATTRACTOR_READOUT_TIME_S * 1_000.0
+ATTRACTOR_READOUT_TIME_S = 0.005
+READOUT_TIME_MS = ATTRACTOR_READOUT_TIME_S * 1_000.0
 SIM_TIME_MS = cann.ATTRACTOR_SIM_TIME_S * 1_000.0
 
 
@@ -95,6 +96,8 @@ def run_attractor_variants(
             variant,
             keep_history=False,
         )
+        readout_index = int(round(ATTRACTOR_READOUT_TIME_S / cann.ATTRACTOR_DT_S))
+        pred = trajectory[:, readout_index]
         outputs[variant.key] = {
             "label": variant.label,
             "prediction": pred,
@@ -591,7 +594,8 @@ def main() -> dict[str, object]:
             "attractor_tau_s": cann.ATTRACTOR_TAU_S,
             "attractor_dt_s": cann.ATTRACTOR_DT_S,
             "attractor_sim_time_s": cann.ATTRACTOR_SIM_TIME_S,
-            "attractor_readout_time_s": cann.ATTRACTOR_READOUT_TIME_S,
+            "attractor_readout_time_s": ATTRACTOR_READOUT_TIME_S,
+            "distance_cann_default_readout_time_s": cann.ATTRACTOR_READOUT_TIME_S,
             "attractor_rate_cap_hz": cann.ATTRACTOR_RATE_CAP_HZ,
         },
         "metrics": metrics,
