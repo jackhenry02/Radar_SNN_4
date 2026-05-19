@@ -13,3 +13,5 @@ wheels/
 
 # ipynb
 .ipynb_checkpoints/
+
+*.npz
