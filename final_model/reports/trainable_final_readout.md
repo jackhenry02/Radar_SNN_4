@@ -9,8 +9,8 @@ This report tests whether the fixed biologically structured pathways can be foll
 | distance range | `0.25-5.0 m` |
 | azimuth range | `+/-45.0 deg` |
 | elevation range | `+/-45.0 deg` |
-| train / val / test samples | `4 / 2 / 2` |
-| run label | `train4_val2_test2` |
+| train / val / test samples | `2000 / 400 / 400` |
+| run label | `train2000_val400_test400` |
 | dataset seed | `8101` |
 | training seed | `8202` |
 | cochlear channels | `48` |
@@ -20,7 +20,7 @@ This report tests whether the fixed biologically structured pathways can be foll
 | SNN timesteps | `12` |
 | optimiser | `AdamW`, lr `0.001`, weight decay `1e-05` |
 | batch size | `16` |
-| epochs | `1` |
+| epochs | `80` |
 | residual scale | `0.15` |
 
 The cached input vector is:
@@ -56,30 +56,30 @@ Here `Ld` is distance MSE, `La` is azimuth sine/cosine MSE, and `Le` is elevatio
 
 | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |
 |---|---:|---:|---:|---:|---:|
-| baseline | `0.0605 m` | `1.170 deg` | `1.755 deg` | `0.1163 m` | `0.0257` |
-| residual | `0.0590 m` | `1.223 deg` | `1.543 deg` | `0.1028 m` | `0.0244` |
-| direct | `2.1532 m` | `116.815 deg` | `53.735 deg` | `2.6500 m` | `1.4069` |
+| baseline | `0.0366 m` | `4.925 deg` | `0.910 deg` | `0.2435 m` | `0.0457` |
+| residual | `0.0139 m` | `2.619 deg` | `0.267 deg` | `0.1247 m` | `0.0223` |
+| direct | `0.0624 m` | `2.449 deg` | `1.133 deg` | `0.1612 m` | `0.0307` |
 
-Mean feature-cache generation time was `1.404 s/sample` for this smoke test.
+Mean feature-cache generation time was `0.628 s/sample` for this smoke test.
 
-![Training curves](../outputs/trainable_readout/figures/train4_val2_test2/training_curves.png)
+![Training curves](../outputs/trainable_readout/figures/train2000_val400_test400/training_curves.png)
 
-![Prediction scatter](../outputs/trainable_readout/figures/train4_val2_test2/test_prediction_scatter.png)
+![Prediction scatter](../outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png)
 
 ## Feature Importance
 
 The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.
 
-![Feature importance](../outputs/trainable_readout/figures/train4_val2_test2/residual_feature_importance.png)
+![Feature importance](../outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png)
 
 | Feature group | First-layer share | Ablation delta |
 |---|---:|---:|
-| raw_distance_population | `0.1659` | `-0.0011` |
-| raw_azimuth_itd_population | `0.1681` | `0.0000` |
-| raw_azimuth_ild_population | `0.1674` | `0.0000` |
-| raw_elevation_population | `0.1664` | `0.0000` |
-| cann_readouts | `0.1641` | `0.0000` |
-| confidence_features | `0.1682` | `0.0000` |
+| raw_distance_population | `0.1602` | `0.0040` |
+| raw_azimuth_itd_population | `0.1451` | `0.0115` |
+| raw_azimuth_ild_population | `0.1493` | `0.0107` |
+| raw_elevation_population | `0.1768` | `0.0053` |
+| cann_readouts | `0.1617` | `0.0000` |
+| confidence_features | `0.2067` | `0.0011` |
 
 ## Biological Interpretation
 
@@ -89,8 +89,8 @@ The residual variant is especially biologically defensible because it keeps the 
 
 ## Generated Files
 
-- `training_curves`: `final_model/outputs/trainable_readout/figures/train4_val2_test2/training_curves.png`
-- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train4_val2_test2/test_prediction_scatter.png`
-- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train4_val2_test2/residual_feature_importance.png`
-- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train4_val2_test2.npz`
-- `results`: `final_model/outputs/trainable_readout/results_train4_val2_test2.json`
+- `training_curves`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/training_curves.png`
+- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png`
+- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png`
+- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400.npz`
+- `results`: `final_model/outputs/trainable_readout/results_train2000_val400_test400.json`
