@@ -1,6 +1,6 @@
-# Trainable Final SNN Readout Smoke Test
+# Trainable Final SNN Readout
 
-This report tests whether the fixed biologically structured pathways can be followed by a small trainable snnTorch readout. The purpose is a smoke test: validate the cache, feature layout, loss, training loop, and diagnostics before generating a larger dataset.
+This report tests whether the fixed biologically structured pathways can be followed by a small trainable snnTorch readout. The default command is a smoke test; larger runs use the same cache, training, evaluation, and report-writing pipeline.
 
 ## Reproducible Setup
 
@@ -9,7 +9,8 @@ This report tests whether the fixed biologically structured pathways can be foll
 | distance range | `0.25-5.0 m` |
 | azimuth range | `+/-45.0 deg` |
 | elevation range | `+/-45.0 deg` |
-| train / val / test samples | `48 / 16 / 16` |
+| train / val / test samples | `4 / 2 / 2` |
+| run label | `train4_val2_test2` |
 | dataset seed | `8101` |
 | training seed | `8202` |
 | cochlear channels | `48` |
@@ -19,7 +20,7 @@ This report tests whether the fixed biologically structured pathways can be foll
 | SNN timesteps | `12` |
 | optimiser | `AdamW`, lr `0.001`, weight decay `1e-05` |
 | batch size | `16` |
-| epochs | `80` |
+| epochs | `1` |
 | residual scale | `0.15` |
 
 The cached input vector is:
@@ -55,30 +56,30 @@ Here `Ld` is distance MSE, `La` is azimuth sine/cosine MSE, and `Le` is elevatio
 
 | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |
 |---|---:|---:|---:|---:|---:|
-| baseline | `0.0317 m` | `5.126 deg` | `0.887 deg` | `0.2018 m` | `0.0467` |
-| residual | `0.0204 m` | `4.175 deg` | `0.664 deg` | `0.1813 m` | `0.0372` |
-| direct | `0.6362 m` | `11.269 deg` | `20.480 deg` | `1.2599 m` | `0.2776` |
+| baseline | `0.0605 m` | `1.170 deg` | `1.755 deg` | `0.1163 m` | `0.0257` |
+| residual | `0.0590 m` | `1.223 deg` | `1.543 deg` | `0.1028 m` | `0.0244` |
+| direct | `2.1532 m` | `116.815 deg` | `53.735 deg` | `2.6500 m` | `1.4069` |
 
-Mean feature-cache generation time was `0.584 s/sample` for this smoke test.
+Mean feature-cache generation time was `1.404 s/sample` for this smoke test.
 
-![Training curves](../outputs/trainable_readout/figures/training_curves.png)
+![Training curves](../outputs/trainable_readout/figures/train4_val2_test2/training_curves.png)
 
-![Prediction scatter](../outputs/trainable_readout/figures/test_prediction_scatter.png)
+![Prediction scatter](../outputs/trainable_readout/figures/train4_val2_test2/test_prediction_scatter.png)
 
 ## Feature Importance
 
 The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.
 
-![Feature importance](../outputs/trainable_readout/figures/residual_feature_importance.png)
+![Feature importance](../outputs/trainable_readout/figures/train4_val2_test2/residual_feature_importance.png)
 
 | Feature group | First-layer share | Ablation delta |
 |---|---:|---:|
-| raw_distance_population | `0.1679` | `-0.0035` |
-| raw_azimuth_itd_population | `0.1666` | `0.0077` |
-| raw_azimuth_ild_population | `0.1642` | `-0.0005` |
-| raw_elevation_population | `0.1682` | `0.0000` |
-| cann_readouts | `0.1665` | `0.0004` |
-| confidence_features | `0.1666` | `0.0004` |
+| raw_distance_population | `0.1659` | `-0.0011` |
+| raw_azimuth_itd_population | `0.1681` | `0.0000` |
+| raw_azimuth_ild_population | `0.1674` | `0.0000` |
+| raw_elevation_population | `0.1664` | `0.0000` |
+| cann_readouts | `0.1641` | `0.0000` |
+| confidence_features | `0.1682` | `0.0000` |
 
 ## Biological Interpretation
 
@@ -88,8 +89,8 @@ The residual variant is especially biologically defensible because it keeps the 
 
 ## Generated Files
 
-- `training_curves`: `final_model/outputs/trainable_readout/figures/training_curves.png`
-- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/test_prediction_scatter.png`
-- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/residual_feature_importance.png`
-- `cache`: `final_model/outputs/trainable_readout/smoke_cache_constrained_0p25_5m_pm45.npz`
-- `results`: `final_model/outputs/trainable_readout/smoke_results.json`
+- `training_curves`: `final_model/outputs/trainable_readout/figures/train4_val2_test2/training_curves.png`
+- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train4_val2_test2/test_prediction_scatter.png`
+- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train4_val2_test2/residual_feature_importance.png`
+- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train4_val2_test2.npz`
+- `results`: `final_model/outputs/trainable_readout/results_train4_val2_test2.json`

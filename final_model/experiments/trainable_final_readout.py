@@ -12,6 +12,8 @@ import json
 import math
 import sys
 import time
+import argparse
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,6 +47,7 @@ FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "final_model" / "reports" / "trainable_final_readout.md"
 CACHE_PATH = OUTPUT_DIR / "smoke_cache_constrained_0p25_5m_pm45.npz"
 RESULTS_PATH = OUTPUT_DIR / "smoke_results.json"
+RUN_LABEL = "smoke"
 
 DISTANCE_MIN_M = 0.25
 DISTANCE_MAX_M = 5.0
@@ -63,6 +66,56 @@ EPOCHS = 80
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-5
 RESIDUAL_SCALE = 0.15
+FORCE_CACHE = False
+
+
+def configure_run(args: argparse.Namespace) -> None:
+    """Apply command-line options to module-level experiment settings.
+
+    Args:
+        args: Parsed command-line arguments.
+    """
+    global SMOKE_SPLITS
+    global DATASET_SEED
+    global TRAINING_SEED
+    global HIDDEN_DIM
+    global BATCH_SIZE
+    global EPOCHS
+    global LEARNING_RATE
+    global FORCE_CACHE
+    global RUN_LABEL
+    global FIGURE_DIR
+    global CACHE_PATH
+    global RESULTS_PATH
+
+    SMOKE_SPLITS = {"train": args.train, "val": args.val, "test": args.test}
+    DATASET_SEED = args.dataset_seed
+    TRAINING_SEED = args.training_seed
+    HIDDEN_DIM = args.hidden
+    BATCH_SIZE = args.batch_size
+    EPOCHS = args.epochs
+    LEARNING_RATE = args.lr
+    FORCE_CACHE = args.force_cache
+    RUN_LABEL = f"train{args.train}_val{args.val}_test{args.test}"
+    FIGURE_DIR = OUTPUT_DIR / "figures" / RUN_LABEL
+    CACHE_PATH = OUTPUT_DIR / f"cache_constrained_0p25_5m_pm45_{RUN_LABEL}.npz"
+    RESULTS_PATH = OUTPUT_DIR / f"results_{RUN_LABEL}.json"
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse command-line options for smoke or long training runs."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--train", type=int, default=48, help="Number of training samples.")
+    parser.add_argument("--val", type=int, default=16, help="Number of validation samples.")
+    parser.add_argument("--test", type=int, default=16, help="Number of held-out test samples.")
+    parser.add_argument("--epochs", type=int, default=80, help="Training epochs for each SNN readout.")
+    parser.add_argument("--hidden", type=int, default=96, help="Hidden neurons in each SNN readout layer.")
+    parser.add_argument("--batch-size", type=int, default=16, help="Training batch size.")
+    parser.add_argument("--lr", type=float, default=1e-3, help="AdamW learning rate.")
+    parser.add_argument("--dataset-seed", type=int, default=8_101, help="Random seed for target sampling.")
+    parser.add_argument("--training-seed", type=int, default=8_202, help="Random seed for SNN training.")
+    parser.add_argument("--force-cache", action="store_true", help="Regenerate features even if the matching cache exists.")
+    return parser.parse_args()
 
 
 @dataclass(frozen=True)
@@ -240,12 +293,14 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
         Cache payload with features, targets, baseline outputs, and metadata.
     """
     if CACHE_PATH.exists() and not force:
+        print(f"Loading cached features: {CACHE_PATH}")
         loaded = np.load(CACHE_PATH, allow_pickle=True)
         return {key: loaded[key].item() if loaded[key].shape == () else loaded[key] for key in loaded.files}
 
     ensure_dir(OUTPUT_DIR)
     spec = build_feature_spec()
     total = sum(SMOKE_SPLITS.values())
+    print(f"Generating feature cache: {total} samples -> {CACHE_PATH}")
     distance_true, azimuth_true, elevation_true = random_targets(total, DATASET_SEED)
     split_names = np.array(
         ["train"] * SMOKE_SPLITS["train"] + ["val"] * SMOKE_SPLITS["val"] + ["test"] * SMOKE_SPLITS["test"]
@@ -279,6 +334,8 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
         for index, (distance_m, azimuth_deg, elevation_deg) in enumerate(
             zip(distance_true, azimuth_true, elevation_true)
         ):
+            if index == 0 or (index + 1) % 50 == 0 or index + 1 == total:
+                print(f"  cached {index + 1}/{total} samples")
             start = time.perf_counter()
 
             distance_prediction = fdm._predict_one_3d(
@@ -641,12 +698,17 @@ def plot_importance(weight_importance: dict[str, float], ablation: dict[str, flo
     return save_figure(fig, path)
 
 
+def markdown_path(path: str | Path) -> str:
+    """Return a markdown-friendly path relative to the report directory."""
+    return Path(os.path.relpath(Path(path), REPORT_PATH.parent)).as_posix()
+
+
 def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
     """Write the smoke-test report."""
     lines = [
-        "# Trainable Final SNN Readout Smoke Test",
+        "# Trainable Final SNN Readout",
         "",
-        "This report tests whether the fixed biologically structured pathways can be followed by a small trainable snnTorch readout. The purpose is a smoke test: validate the cache, feature layout, loss, training loop, and diagnostics before generating a larger dataset.",
+        "This report tests whether the fixed biologically structured pathways can be followed by a small trainable snnTorch readout. The default command is a smoke test; larger runs use the same cache, training, evaluation, and report-writing pipeline.",
         "",
         "## Reproducible Setup",
         "",
@@ -656,6 +718,7 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
         f"| azimuth range | `+/-{AZIMUTH_LIMIT_DEG} deg` |",
         f"| elevation range | `+/-{ELEVATION_LIMIT_DEG} deg` |",
         f"| train / val / test samples | `{SMOKE_SPLITS['train']} / {SMOKE_SPLITS['val']} / {SMOKE_SPLITS['test']}` |",
+        f"| run label | `{RUN_LABEL}` |",
         f"| dataset seed | `{DATASET_SEED}` |",
         f"| training seed | `{TRAINING_SEED}` |",
         f"| cochlear channels | `{CHANNELS}` |",
@@ -713,15 +776,15 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
             "",
             f"Mean feature-cache generation time was `{results['cache']['feature_seconds_per_sample']:.3f} s/sample` for this smoke test.",
             "",
-            "![Training curves](../outputs/trainable_readout/figures/training_curves.png)",
+            f"![Training curves]({markdown_path(artifacts['training_curves'])})",
             "",
-            "![Prediction scatter](../outputs/trainable_readout/figures/test_prediction_scatter.png)",
+            f"![Prediction scatter]({markdown_path(artifacts['test_prediction_scatter'])})",
             "",
             "## Feature Importance",
             "",
             "The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.",
             "",
-            "![Feature importance](../outputs/trainable_readout/figures/residual_feature_importance.png)",
+            f"![Feature importance]({markdown_path(artifacts['residual_feature_importance'])})",
             "",
             "| Feature group | First-layer share | Ablation delta |",
             "|---|---:|---:|",
@@ -757,7 +820,7 @@ def main() -> dict[str, object]:
     ensure_dir(OUTPUT_DIR)
     ensure_dir(FIGURE_DIR)
     ensure_dir(REPORT_PATH.parent)
-    cache = build_cached_features(force=True)
+    cache = build_cached_features(force=FORCE_CACHE)
     train_x, train_y, train_base, _ = split_arrays(cache, "train")
     val_x, val_y, val_base, _ = split_arrays(cache, "val")
     test_x, test_y, test_base, test_true = split_arrays(cache, "test")
@@ -770,6 +833,7 @@ def main() -> dict[str, object]:
     models = {}
     criteria = {}
     for mode in ["residual", "direct"]:
+        print(f"Training {mode} SNN readout for {EPOCHS} epochs")
         model, criterion, history = train_one_readout(
             train_x,
             train_y,
@@ -810,9 +874,10 @@ def main() -> dict[str, object]:
         ),
     }
     results = {
-        "experiment": "trainable_final_readout_smoke",
+        "experiment": "trainable_final_readout",
         "elapsed_seconds": time.perf_counter() - start,
         "setup": {
+            "run_label": RUN_LABEL,
             "splits": SMOKE_SPLITS,
             "dataset_seed": DATASET_SEED,
             "training_seed": TRAINING_SEED,
@@ -841,6 +906,7 @@ def main() -> dict[str, object]:
 
 
 if __name__ == "__main__":
+    configure_run(parse_args())
     main()
     print(REPORT_PATH)
     print(RESULTS_PATH)
