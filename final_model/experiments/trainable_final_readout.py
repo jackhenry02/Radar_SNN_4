@@ -14,7 +14,7 @@ import sys
 import time
 import argparse
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import matplotlib
@@ -45,6 +45,7 @@ from mini_models.common.plotting import ensure_dir, save_figure
 OUTPUT_DIR = ROOT / "final_model" / "outputs" / "trainable_readout"
 FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "final_model" / "reports" / "trainable_final_readout.md"
+COMPARISON_REPORT_PATH = ROOT / "final_model" / "reports" / "trainable_final_readout_comparison.md"
 CACHE_PATH = OUTPUT_DIR / "smoke_cache_constrained_0p25_5m_pm45.npz"
 RESULTS_PATH = OUTPUT_DIR / "smoke_results.json"
 RUN_LABEL = "smoke"
@@ -67,6 +68,8 @@ LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-5
 RESIDUAL_SCALE = 0.15
 FORCE_CACHE = False
+NOISE_STD = 0.0
+NOISE_LABEL = "clean"
 
 
 def configure_run(args: argparse.Namespace) -> None:
@@ -83,6 +86,8 @@ def configure_run(args: argparse.Namespace) -> None:
     global EPOCHS
     global LEARNING_RATE
     global FORCE_CACHE
+    global NOISE_STD
+    global NOISE_LABEL
     global RUN_LABEL
     global FIGURE_DIR
     global CACHE_PATH
@@ -96,7 +101,19 @@ def configure_run(args: argparse.Namespace) -> None:
     EPOCHS = args.epochs
     LEARNING_RATE = args.lr
     FORCE_CACHE = args.force_cache
-    RUN_LABEL = f"train{args.train}_val{args.val}_test{args.test}"
+    if args.noise_std is not None and args.noise_db_spl is not None:
+        raise ValueError("Use either --noise-std or --noise-db-spl, not both.")
+    if args.noise_db_spl is not None:
+        NOISE_STD = fdm._noise_std_from_db(float(args.noise_db_spl))
+        NOISE_LABEL = f"noise{int(round(float(args.noise_db_spl)))}dB"
+    elif args.noise_std is not None:
+        NOISE_STD = float(args.noise_std)
+        NOISE_LABEL = f"noise_std_{str(args.noise_std).replace('.', 'p')}"
+    else:
+        NOISE_STD = 0.0
+        NOISE_LABEL = "clean"
+    base_label = f"train{args.train}_val{args.val}_test{args.test}"
+    RUN_LABEL = base_label if NOISE_LABEL == "clean" else f"{base_label}_{NOISE_LABEL}"
     FIGURE_DIR = OUTPUT_DIR / "figures" / RUN_LABEL
     CACHE_PATH = OUTPUT_DIR / f"cache_constrained_0p25_5m_pm45_{RUN_LABEL}.npz"
     RESULTS_PATH = OUTPUT_DIR / f"results_{RUN_LABEL}.json"
@@ -115,6 +132,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset-seed", type=int, default=8_101, help="Random seed for target sampling.")
     parser.add_argument("--training-seed", type=int, default=8_202, help="Random seed for SNN training.")
     parser.add_argument("--force-cache", action="store_true", help="Regenerate features even if the matching cache exists.")
+    parser.add_argument("--noise-db-spl", type=float, default=None, help="Add fixed receiver noise converted from an effective dB SPL value.")
+    parser.add_argument("--noise-std", type=float, default=None, help="Add fixed receiver noise with this waveform standard deviation.")
     return parser.parse_args()
 
 
@@ -312,10 +331,17 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
         angular_bins=ANGULAR_BINS,
         elevation_limit_deg=ELEVATION_LIMIT_DEG,
     ):
-        distance_config = final.make_distance_config(CHANNELS, DISTANCE_MIN_M, DISTANCE_MAX_M)
+        add_noise = NOISE_STD > 0.0
+        distance_config = replace(
+            final.make_distance_config(CHANNELS, DISTANCE_MIN_M, DISTANCE_MAX_M),
+            noise_std=NOISE_STD,
+        )
         distance_variant = final.make_distance_variant(distance_config, CHANNELS, DISTANCE_MIN_M, DISTANCE_MAX_M)
-        azimuth_config = final.make_azimuth_config(CHANNELS, DISTANCE_MAX_M)
-        elevation_config = final.make_elevation_config(CHANNELS, DISTANCE_MIN_M, DISTANCE_MAX_M)
+        azimuth_config = replace(final.make_azimuth_config(CHANNELS, DISTANCE_MAX_M), noise_std=NOISE_STD)
+        elevation_config = replace(
+            final.make_elevation_config(CHANNELS, DISTANCE_MIN_M, DISTANCE_MAX_M),
+            noise_std=NOISE_STD,
+        )
         elevation_params, elevation_baseline = final.tune_elevation_calibration(elevation_config)
         distance_bins = fdm._candidate_distances(distance_config)
         azimuth_bins = az.azimuth_grid(AZIMUTH_LIMIT_DEG)
@@ -344,7 +370,7 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
                 float(azimuth_deg),
                 float(elevation_deg),
                 distance_variant,
-                add_noise=False,
+                add_noise=add_noise,
             )
             distance_population = normalise_population(distance_prediction.ac_activation)
             distance_cann, _, _, _ = dist_cann.run_line_attractor(
@@ -359,7 +385,7 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
                 float(distance_m),
                 float(azimuth_deg),
                 float(elevation_deg),
-                add_noise=False,
+                add_noise=add_noise,
                 limit_deg=AZIMUTH_LIMIT_DEG,
             )
             azimuth_itd_population = normalise_population(azimuth_prediction.itd_activation)
@@ -374,6 +400,8 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
                 float(elevation_deg),
                 elev.DEEP_COMB_DELAYED_COPY_GAIN,
             )
+            if add_noise:
+                receive = receive + elevation_config.noise_std * torch.randn_like(receive)
             cochlea = fdm._run_cochlea_binaural(elevation_config, receive)
             selected_cochleagram = cochlea.right_cochleagram if azimuth_deg >= 0.0 else cochlea.left_cochleagram
             selected_spikes = fdm._dynamic_lif_encode(selected_cochleagram, elevation_config, fdm.DYNAMIC_COHLEA_SCHEDULE)
@@ -456,6 +484,8 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
             "angular_bins": ANGULAR_BINS,
             "splits": SMOKE_SPLITS,
             "dataset_seed": DATASET_SEED,
+            "noise_label": NOISE_LABEL,
+            "noise_std": NOISE_STD,
         },
     }
     np.savez_compressed(CACHE_PATH, **payload)
@@ -698,13 +728,28 @@ def plot_importance(weight_importance: dict[str, float], ablation: dict[str, flo
     return save_figure(fig, path)
 
 
-def markdown_path(path: str | Path) -> str:
-    """Return a markdown-friendly path relative to the report directory."""
-    return Path(os.path.relpath(Path(path), REPORT_PATH.parent)).as_posix()
+def markdown_path(path: str | Path, *, report_path: Path = REPORT_PATH) -> str:
+    """Return a markdown-friendly path relative to a report directory."""
+    return Path(os.path.relpath(Path(path), report_path.parent)).as_posix()
 
 
-def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
-    """Write the smoke-test report."""
+def run_report_path() -> Path:
+    """Return the per-run report path."""
+    return REPORT_PATH.parent / f"trainable_final_readout_{RUN_LABEL}.md"
+
+
+def write_report(results: dict[str, object], artifacts: dict[str, str], report_path: Path | None = None) -> Path:
+    """Write the per-run trainable readout report.
+
+    Args:
+        results: Results payload for the current run.
+        artifacts: Generated figure paths.
+        report_path: Optional destination. Defaults to the run-labelled report.
+
+    Returns:
+        Path to the written report.
+    """
+    report_path = run_report_path() if report_path is None else report_path
     lines = [
         "# Trainable Final SNN Readout",
         "",
@@ -717,6 +762,7 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
         f"| distance range | `{DISTANCE_MIN_M}-{DISTANCE_MAX_M} m` |",
         f"| azimuth range | `+/-{AZIMUTH_LIMIT_DEG} deg` |",
         f"| elevation range | `+/-{ELEVATION_LIMIT_DEG} deg` |",
+        f"| receiver noise | `{NOISE_LABEL}`, `noise_std={NOISE_STD:.6g}` |",
         f"| train / val / test samples | `{SMOKE_SPLITS['train']} / {SMOKE_SPLITS['val']} / {SMOKE_SPLITS['test']}` |",
         f"| run label | `{RUN_LABEL}` |",
         f"| dataset seed | `{DATASET_SEED}` |",
@@ -752,7 +798,7 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
         "",
         "## Loss Function",
         "",
-        "The smoke test uses learned uncertainty weighting over three tasks:",
+        "The readout uses learned uncertainty weighting over three tasks:",
         "",
         "$$",
         "L=\\frac{L_d}{2\\sigma_d^2}+\\log\\sigma_d+\\frac{L_a}{2\\sigma_a^2}+\\log\\sigma_a+\\frac{L_e}{2\\sigma_e^2}+\\log\\sigma_e.",
@@ -760,7 +806,7 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
         "",
         "Here `Ld` is distance MSE, `La` is azimuth sine/cosine MSE, and `Le` is elevation sine/cosine MSE.",
         "",
-        "## Smoke-Test Results",
+        "## Cached Training Results",
         "",
         "| Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |",
         "|---|---:|---:|---:|---:|---:|",
@@ -774,17 +820,17 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
     lines.extend(
         [
             "",
-            f"Mean feature-cache generation time was `{results['cache']['feature_seconds_per_sample']:.3f} s/sample` for this smoke test.",
+            f"Mean feature-cache generation time was `{results['cache']['feature_seconds_per_sample']:.3f} s/sample` for this run.",
             "",
-            f"![Training curves]({markdown_path(artifacts['training_curves'])})",
+            f"![Training curves]({markdown_path(artifacts['training_curves'], report_path=report_path)})",
             "",
-            f"![Prediction scatter]({markdown_path(artifacts['test_prediction_scatter'])})",
+            f"![Prediction scatter]({markdown_path(artifacts['test_prediction_scatter'], report_path=report_path)})",
             "",
             "## Feature Importance",
             "",
             "The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.",
             "",
-            f"![Feature importance]({markdown_path(artifacts['residual_feature_importance'])})",
+            f"![Feature importance]({markdown_path(artifacts['residual_feature_importance'], report_path=report_path)})",
             "",
             "| Feature group | First-layer share | Ablation delta |",
             "|---|---:|---:|",
@@ -811,7 +857,78 @@ def write_report(results: dict[str, object], artifacts: dict[str, str]) -> None:
         lines.append(f"- `{name}`: `{Path(path).relative_to(ROOT)}`")
     lines.append(f"- `cache`: `{CACHE_PATH.relative_to(ROOT)}`")
     lines.append(f"- `results`: `{RESULTS_PATH.relative_to(ROOT)}`")
-    REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+    return report_path
+
+
+def _load_result_file(path: Path) -> dict[str, object] | None:
+    """Load a result JSON if it has the expected schema."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if payload.get("experiment") != "trainable_final_readout":
+        return None
+    if "test_metrics" not in payload or "setup" not in payload:
+        return None
+    return payload
+
+
+def write_comparison_report() -> None:
+    """Aggregate available trainable-readout runs into one comparison report."""
+    result_files = sorted(OUTPUT_DIR.glob("results_*.json"))
+    loaded = [(path, _load_result_file(path)) for path in result_files]
+    runs = [(path, payload) for path, payload in loaded if payload is not None]
+    lines = [
+        "# Trainable Final SNN Readout Comparison",
+        "",
+        "This report is regenerated automatically from available `results_*.json` files. It allows clean and noisy cached runs to coexist without overwriting each other.",
+        "",
+    ]
+    if not runs:
+        lines.extend(["No trainable-readout result files were found.", ""])
+        COMPARISON_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+        return
+
+    lines.extend(
+        [
+            "## Summary Table",
+            "",
+            "| Run | Noise | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error | Results |",
+            "|---|---:|---|---:|---:|---:|---:|---:|---|",
+        ]
+    )
+    for path, payload in runs:
+        setup = payload["setup"]
+        run_label = str(setup.get("run_label", path.stem.removeprefix("results_")))
+        noise_label = str(setup.get("noise_label", "unknown"))
+        metrics = payload["test_metrics"]
+        for readout in ["baseline", "residual", "direct"]:
+            if readout not in metrics:
+                continue
+            metric = metrics[readout]
+            result_link = markdown_path(path, report_path=COMPARISON_REPORT_PATH)
+            lines.append(
+                f"| `{run_label}` | `{noise_label}` | `{readout}` | "
+                f"`{metric['distance_mae_m']:.4f} m` | `{metric['azimuth_mae_deg']:.3f} deg` | "
+                f"`{metric['elevation_mae_deg']:.3f} deg` | `{metric['euclidean_mae_m']:.4f} m` | "
+                f"`{metric['combined_normalised_error']:.4f}` | [json]({result_link}) |"
+            )
+
+    lines.extend(
+        [
+            "",
+            "## Per-Run Reports",
+            "",
+        ]
+    )
+    for _, payload in runs:
+        run_label = str(payload["setup"].get("run_label", "unknown"))
+        report_path = REPORT_PATH.parent / f"trainable_final_readout_{run_label}.md"
+        if report_path.exists():
+            lines.append(f"- `{run_label}`: [{report_path.name}]({markdown_path(report_path, report_path=COMPARISON_REPORT_PATH)})")
+    lines.append("")
+    COMPARISON_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> dict[str, object]:
@@ -887,6 +1004,8 @@ def main() -> dict[str, object]:
             "epochs": EPOCHS,
             "learning_rate": LEARNING_RATE,
             "weight_decay": WEIGHT_DECAY,
+            "noise_label": NOISE_LABEL,
+            "noise_std": NOISE_STD,
         },
         "cache": {
             "path": str(CACHE_PATH),
@@ -901,7 +1020,10 @@ def main() -> dict[str, object]:
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    write_report(results, artifacts)
+    per_run_report = write_report(results, artifacts)
+    if REPORT_PATH != per_run_report:
+        write_report(results, artifacts, report_path=REPORT_PATH)
+    write_comparison_report()
     return results
 
 
@@ -909,4 +1031,6 @@ if __name__ == "__main__":
     configure_run(parse_args())
     main()
     print(REPORT_PATH)
+    print(run_report_path())
+    print(COMPARISON_REPORT_PATH)
     print(RESULTS_PATH)
