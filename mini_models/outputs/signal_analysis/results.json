@@ -1,6 +1,6 @@
 {
   "experiment": "signal_analysis",
-  "elapsed_seconds": 0.9946815418079495,
+  "elapsed_seconds": 3.600041083060205,
   "config": {
     "sample_rate_hz": 64000,
     "chirp_start_hz": 18000.0,

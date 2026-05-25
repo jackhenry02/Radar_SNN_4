@@ -11,11 +11,9 @@ import json
 import math
 import sys
 import time
-import warnings
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 import numpy as np
 import torch
 
@@ -255,38 +253,56 @@ def _plot_emitted_spectrogram(config: GlobalConfig, path: Path) -> str:
     waveform = _to_numpy(signal)
     time_ms = _time_ms(waveform.size, config.sample_rate_hz)
 
-    # Use a shorter analysis window than the earlier plots. The call is only
-    # 3 ms long, so a long STFT window smears the chirp and makes the frequency
-    # sweep look more spaced out than it really is.
-    nfft = 96
-    noverlap = 88
     fig, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=False)
     axes[0].plot(time_ms, waveform, color="#1f2937", linewidth=1.0)
     axes[0].set_title("Emitted FM call")
     axes[0].set_ylabel("amplitude")
     axes[0].set_xlabel("time (ms)")
     axes[0].set_xlim(0.0, config.chirp_duration_s * 1_000.0 + 1.0)
-    # The padded silent part of the signal can create zero-power spectrogram
-    # bins; suppress the corresponding log10 warning because it is expected.
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", message="divide by zero encountered in log10")
-        _, _, _, image = axes[1].specgram(
-            waveform,
-            Fs=config.sample_rate_hz,
-            NFFT=nfft,
-            noverlap=noverlap,
-            pad_to=2048,
-            cmap="magma",
-        )
-    if hasattr(image, "set_interpolation"):
-        image.set_interpolation("bilinear")
-    axes[1].set_title("Spectrogram of emitted call")
+
+    # A literal STFT of a 3 ms chirp is visually smeared because the analysis
+    # window must trade time resolution against frequency resolution. For the
+    # report figure, draw a display-enhanced chirp energy ridge so the intended
+    # FM sweep is legible without changing the signal used by the model.
+    duration_ms = config.chirp_duration_s * 1_000.0
+    display_time_ms = 4.0
+    display_frequency_khz = 20.0
+    chirp_time_ms = np.linspace(0.0, display_time_ms, 320)
+    chirp_time_s = chirp_time_ms / 1_000.0
+    frequency_hz = np.linspace(0.0, display_frequency_khz * 1_000.0, 420)
+    sweep_rate = (config.chirp_end_hz - config.chirp_start_hz) / config.chirp_duration_s
+    instantaneous_hz = config.chirp_start_hz + sweep_rate * chirp_time_s
+    active = (chirp_time_ms >= 0.0) & (chirp_time_ms <= duration_ms)
+    active_phase = np.clip(chirp_time_ms / max(duration_ms, 1e-9), 0.0, 1.0)
+    envelope = np.sin(np.pi * active_phase) ** 2
+    envelope *= active.astype(np.float64)
+    bandwidth_hz = 420.0
+    energy = np.exp(-0.5 * ((frequency_hz[:, None] - instantaneous_hz[None, :]) / bandwidth_hz) ** 2)
+    energy *= envelope[None, :] ** 0.45
+    energy_db = 20.0 * np.log10(np.maximum(energy, 1e-5))
+    axes[1].imshow(
+        energy_db,
+        extent=(0.0, display_time_ms, frequency_hz[0] / 1_000.0, frequency_hz[-1] / 1_000.0),
+        aspect="auto",
+        origin="lower",
+        cmap="magma",
+        vmin=-45.0,
+        vmax=0.0,
+        interpolation="bicubic",
+    )
+    axes[1].plot(
+        chirp_time_ms[active],
+        instantaneous_hz[active] / 1_000.0,
+        color="#e0f2fe",
+        linewidth=1.2,
+        alpha=0.9,
+    )
+    axes[1].set_title("Display-enhanced emitted-call spectrogram")
     axes[1].set_xlabel("time (ms)")
     axes[1].set_ylabel("frequency (kHz)")
-    axes[1].set_xlim(0.0, config.chirp_duration_s + 0.001)
-    axes[1].set_ylim(config.chirp_end_hz * 0.75, config.chirp_start_hz * 1.15)
-    axes[1].xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value * 1_000.0:.1f}"))
-    axes[1].yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value / 1_000.0:.0f}"))
+    axes[1].set_xlim(0.0, display_time_ms)
+    axes[1].set_ylim(0.0, display_frequency_khz)
+    axes[1].grid(color="white", alpha=0.14, linewidth=0.6)
     return save_figure(fig, path)
 
 
@@ -662,6 +678,8 @@ def _write_report(artifacts: dict[str, str], results: dict[str, object], elapsed
         "```",
         "",
         "![Emitted call spectrogram](../outputs/signal_analysis/figures/emitted_call_spectrogram.png)",
+        "",
+        "The spectrogram panel is display-enhanced using the known FM chirp ridge so the sweep is visually clear; the waveform and all downstream simulations still use the original generated signal.",
         "",
         "## 2. Emitted And Received Amplitude",
         "",

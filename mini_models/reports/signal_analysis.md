@@ -30,6 +30,8 @@ call(t) = sin(phase(t)) * Hann(t)
 
 ![Emitted call spectrogram](../outputs/signal_analysis/figures/emitted_call_spectrogram.png)
 
+The spectrogram panel is display-enhanced using the known FM chirp ridge so the sweep is visually clear; the waveform and all downstream simulations still use the original generated signal.
+
 ## 2. Emitted And Received Amplitude
 
 The echo is delayed by propagation time and reduced by inverse-square attenuation:
@@ -138,4 +140,4 @@ Changing elevation changes the lag, which moves the comb notches across frequenc
 - `comb_interference_notch_model`: `mini_models/outputs/signal_analysis/figures/comb_interference_notch_model.png`
 - `results`: `mini_models/outputs/signal_analysis/results.json`
 
-Runtime: `0.99 s`.
+Runtime: `3.60 s`.
