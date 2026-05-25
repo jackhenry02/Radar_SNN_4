@@ -43,6 +43,7 @@ from mini_models.common.plotting import ensure_dir, save_figure
 OUTPUT_DIR = ROOT / "final_model" / "outputs" / "trainable_input_baselines"
 FIGURE_DIR = OUTPUT_DIR / "figures"
 REPORT_PATH = ROOT / "final_model" / "reports" / "trainable_input_baselines.md"
+COMPARISON_REPORT_PATH = ROOT / "final_model" / "reports" / "trainable_input_baselines_comparison.md"
 RESULTS_PATH = OUTPUT_DIR / "results.json"
 CACHE_PATH = OUTPUT_DIR / "cache.npz"
 
@@ -506,6 +507,144 @@ def write_report(results: dict[str, object], artifacts: dict[str, str], report_p
     report_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _load_result_file(path: Path) -> dict[str, object] | None:
+    """Load an input-baseline result file if it has the expected schema."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if payload.get("experiment") != "trainable_input_baselines":
+        return None
+    if "test_metrics" not in payload or "setup" not in payload:
+        return None
+    return payload
+
+
+def _total_samples(payload: dict[str, object]) -> int:
+    """Return total dataset size in a result payload."""
+    splits = payload.get("setup", {}).get("splits", {})
+    return int(sum(int(value) for value in splits.values())) if isinstance(splits, dict) else 0
+
+
+def _markdown_path(path: str | Path, *, report_path: Path = COMPARISON_REPORT_PATH) -> str:
+    """Return a report-relative markdown path."""
+    return Path(os.path.relpath(Path(path), report_path.parent)).as_posix()
+
+
+def write_comparison_report() -> None:
+    """Aggregate all available input-baseline runs into one comparison report."""
+    result_files = sorted(OUTPUT_DIR.glob("results_*.json"))
+    runs = []
+    for path in result_files:
+        payload = _load_result_file(path)
+        if payload is not None:
+            runs.append((path, payload))
+
+    primary_runs = [(path, payload) for path, payload in runs if _total_samples(payload) >= 100]
+    smoke_runs = [(path, payload) for path, payload in runs if _total_samples(payload) < 100]
+    lines = [
+        "# Trainable Input Baseline Comparison",
+        "",
+        "This report aggregates the raw-waveform and cochlear-raster SNN control baselines. These controls use the same target encoding, snnTorch readout class, optimiser, uncertainty-weighted loss, hidden size, and timestep count as the final trainable readout, but remove the crafted distance/azimuth/elevation pathway features.",
+        "",
+        "The projected variants compress the flattened input to the crafted-feature dimension with a fixed non-learned Gaussian projection. The direct variants skip the projection and therefore have larger first-layer parameter counts.",
+        "",
+    ]
+    if not runs:
+        lines.append("No input-baseline result files were found.")
+        COMPARISON_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+        return
+
+    def append_table(selected: list[tuple[Path, dict[str, object]]]) -> None:
+        for path, payload in selected:
+            setup = payload["setup"]
+            run_label = str(setup.get("run_label", path.stem.removeprefix("results_")))
+            acoustic_mode = str(setup.get("acoustic_mode", "clean"))
+            noise_label = str(setup.get("noise_label", "clean"))
+            histories = payload.get("histories", {})
+            result_link = _markdown_path(path)
+            for baseline, metric in payload["test_metrics"].items():
+                history = histories.get(baseline, {})
+                input_dim = int(history.get("input_dim", 0))
+                parameter_count = int(history.get("parameter_count", 0))
+                lines.append(
+                    f"| `{run_label}` | `{acoustic_mode}` | `{noise_label}` | `{baseline}` | "
+                    f"`{input_dim}` | `{parameter_count:,}` | "
+                    f"`{metric['distance_mae_m']:.4f} m` | `{metric['azimuth_mae_deg']:.3f} deg` | "
+                    f"`{metric['elevation_mae_deg']:.3f} deg` | `{metric['euclidean_mae_m']:.4f} m` | "
+                    f"`{metric['combined_normalised_error']:.4f}` | [json]({result_link}) |"
+                )
+
+    lines.extend(
+        [
+            "## Primary Full-Run Summary",
+            "",
+            "| Run | Acoustic mode | Noise | Input baseline | Input dim | Params | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error | Results |",
+            "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+        ]
+    )
+    append_table(primary_runs)
+
+    clean = next((payload for _, payload in primary_runs if payload["setup"].get("noise_label") == "clean"), None)
+    env = next((payload for _, payload in primary_runs if payload["setup"].get("noise_label") == "envnoise50dB"), None)
+    reverb = next((payload for _, payload in primary_runs if payload["setup"].get("noise_label") == "envnoise50dB_reverb"), None)
+    lines.extend(["", "## Interpretation", ""])
+    if clean:
+        best_clean = min(
+            clean["test_metrics"].items(),
+            key=lambda item: item[1]["combined_normalised_error"],
+        )
+        lines.append(
+            f"- In the clean full run, the best input-only baseline is `{best_clean[0]}` with combined error `{best_clean[1]['combined_normalised_error']:.4f}`."
+        )
+    if env:
+        best_env = min(
+            env["test_metrics"].items(),
+            key=lambda item: item[1]["combined_normalised_error"],
+        )
+        lines.append(
+            f"- In environmental noise, the best input-only baseline is `{best_env[0]}` with combined error `{best_env[1]['combined_normalised_error']:.4f}`."
+        )
+    if reverb:
+        best_reverb = min(
+            reverb["test_metrics"].items(),
+            key=lambda item: item[1]["combined_normalised_error"],
+        )
+        lines.append(
+            f"- With environmental noise plus late echoes/reverb, the best input-only baseline is `{best_reverb[0]}` with combined error `{best_reverb[1]['combined_normalised_error']:.4f}`."
+        )
+    lines.extend(
+        [
+            "- Compare these rows against `trainable_final_readout_comparison.md`. The crafted-feature residual SNN keeps the same small readout but starts from structured pathway populations, CANN readouts, and confidence features rather than raw waveform/raster samples.",
+            "- The direct waveform baseline has many more trainable parameters because its first linear layer sees the full flattened waveform. If it does not outperform the projected/crafted versions, that supports the value of structured feature extraction rather than simply increasing input dimensionality.",
+            "",
+            "## Per-Run Reports",
+            "",
+        ]
+    )
+    for _, payload in runs:
+        run_label = str(payload["setup"].get("run_label", "unknown"))
+        report = REPORT_PATH.parent / f"trainable_input_baselines_{run_label}.md"
+        if report.exists():
+            lines.append(f"- `{run_label}`: [{report.name}]({report.name})")
+
+    if smoke_runs:
+        lines.extend(
+            [
+                "",
+                "## Smoke-Test Runs",
+                "",
+                "These rows are retained for reproducibility only. They used fewer than 100 total samples and should not be used for model comparison.",
+                "",
+                "| Run | Acoustic mode | Noise | Input baseline | Input dim | Params | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error | Results |",
+                "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+            ]
+        )
+        append_table(smoke_runs)
+
+    COMPARISON_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> dict[str, object]:
     """Run the input baseline experiment."""
     start = time.perf_counter()
@@ -563,6 +702,7 @@ def main() -> dict[str, object]:
     RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
     write_report(results, artifacts)
     write_report(results, artifacts, report_path=REPORT_PATH)
+    write_comparison_report()
     return results
 
 
@@ -571,4 +711,5 @@ if __name__ == "__main__":
     main()
     print(REPORT_PATH)
     print(run_report_path())
+    print(COMPARISON_REPORT_PATH)
     print(RESULTS_PATH)
