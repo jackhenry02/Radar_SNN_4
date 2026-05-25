@@ -60,6 +60,7 @@ Here `Ld` is distance MSE, `La` is azimuth sine/cosine MSE, and `Le` is elevatio
 
 | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |
 |---|---:|---:|---:|---:|---:|
+| raw | `0.0886 m` | `4.969 deg` | `23.568 deg` | `1.6827 m` | `0.2173` |
 | baseline | `0.0886 m` | `4.969 deg` | `16.502 deg` | `1.2092 m` | `0.1650` |
 | residual | `0.0851 m` | `4.927 deg` | `16.447 deg` | `1.2040 m` | `0.1640` |
 | direct | `0.0240 m` | `149.707 deg` | `57.987 deg` | `7.1811 m` | `1.5401` |
@@ -69,6 +70,10 @@ Mean feature-cache generation time was `0.495 s/sample` for this run.
 ![Training curves](../outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/training_curves.png)
 
 ![Prediction scatter](../outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/test_prediction_scatter.png)
+
+The following diagnostic isolates whether the fixed readout collapse is already present in the raw pathway populations or is introduced by the CANN stage.
+
+![Raw vs baseline scatter](../outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/raw_vs_baseline_scatter.png)
 
 ## Feature Importance
 
@@ -92,6 +97,8 @@ This is best interpreted as a higher-level contextual integration layer. The sen
 The residual variant is especially biologically defensible because it keeps the hand-designed pathway answer as the main estimate and learns a small context-dependent correction.
 
 ## Generated Files
+
+- `raw_vs_baseline_scatter`: `final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/raw_vs_baseline_scatter.png`
 
 - `training_curves`: `final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/training_curves.png`
 - `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/test_prediction_scatter.png`

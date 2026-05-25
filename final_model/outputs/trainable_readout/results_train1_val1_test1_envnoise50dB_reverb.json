@@ -88,6 +88,21 @@
     }
   },
   "test_metrics": {
+    "raw": {
+      "distance_mae_m": 0.09104657173156738,
+      "distance_rmse_m": 0.09104657173156738,
+      "distance_bias_m": 0.09104657173156738,
+      "azimuth_mae_deg": 4.969304084777832,
+      "azimuth_rmse_deg": 4.969304084777832,
+      "azimuth_bias_deg": 4.969304084777832,
+      "elevation_mae_deg": 23.358381748199463,
+      "elevation_rmse_deg": 23.358381748199463,
+      "elevation_bias_deg": -23.358381748199463,
+      "euclidean_mae_m": 1.6693074984186724,
+      "euclidean_rmse_m": 1.6693074984186724,
+      "euclidean_max_m": 1.6693074984186724,
+      "combined_normalised_error": 0.21590448132267703
+    },
     "baseline": {
       "distance_mae_m": 0.09105038642883301,
       "distance_rmse_m": 0.09105038642883301,
@@ -153,6 +168,7 @@
   "artifacts": {
     "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/training_curves.png",
     "test_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/test_prediction_scatter.png",
-    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/residual_feature_importance.png"
+    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/residual_feature_importance.png",
+    "raw_vs_baseline_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/raw_vs_baseline_scatter.png"
   }
 }

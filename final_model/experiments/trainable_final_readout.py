@@ -789,6 +789,20 @@ def population_center_of_mass(populations: np.ndarray, bins: np.ndarray) -> np.n
     return decoded
 
 
+def raw_com_encoded_from_features(features: np.ndarray, feature_groups: dict[str, tuple[int, int]]) -> np.ndarray:
+    """Decode the no-CANN raw populations in a feature matrix by centre of mass."""
+    distance_range = np.linspace(DISTANCE_MIN_M, DISTANCE_MAX_M, DISTANCE_BINS, dtype=np.float64)
+    angle_range = np.linspace(-AZIMUTH_LIMIT_DEG, AZIMUTH_LIMIT_DEG, ANGULAR_BINS, dtype=np.float64)
+
+    d0, d1 = feature_groups["raw_distance_population"]
+    a0, a1 = feature_groups["raw_azimuth_itd_population"]
+    e0, e1 = feature_groups["raw_elevation_population"]
+    raw_distance = population_center_of_mass(features[:, d0:d1], distance_range)
+    raw_azimuth = population_center_of_mass(features[:, a0:a1], angle_range)
+    raw_elevation = population_center_of_mass(features[:, e0:e1], angle_range)
+    return encode_targets(raw_distance, raw_azimuth, raw_elevation)
+
+
 def raw_com_metrics_from_cache(cache_path: Path) -> dict[str, float] | None:
     """Compute the no-CANN raw CoM readout from a cached feature file.
 
@@ -808,16 +822,7 @@ def raw_com_metrics_from_cache(cache_path: Path) -> dict[str, float] | None:
 
     test_features = features[test_mask]
     true_test = true_coordinates[test_mask]
-    distance_range = np.linspace(DISTANCE_MIN_M, DISTANCE_MAX_M, DISTANCE_BINS, dtype=np.float64)
-    angle_range = np.linspace(-AZIMUTH_LIMIT_DEG, AZIMUTH_LIMIT_DEG, ANGULAR_BINS, dtype=np.float64)
-
-    d0, d1 = feature_groups["raw_distance_population"]
-    a0, a1 = feature_groups["raw_azimuth_itd_population"]
-    e0, e1 = feature_groups["raw_elevation_population"]
-    raw_distance = population_center_of_mass(test_features[:, d0:d1], distance_range)
-    raw_azimuth = population_center_of_mass(test_features[:, a0:a1], angle_range)
-    raw_elevation = population_center_of_mass(test_features[:, e0:e1], angle_range)
-    encoded = encode_targets(raw_distance, raw_azimuth, raw_elevation)
+    encoded = raw_com_encoded_from_features(test_features, feature_groups)
     return coordinate_metrics(true_test, encoded)
 
 
@@ -887,6 +892,15 @@ def plot_prediction_scatter(true_coordinates: np.ndarray, predictions: dict[str,
     axes[0].legend(frameon=False)
     fig.tight_layout()
     return save_figure(fig, path)
+
+
+def plot_raw_baseline_scatter(true_coordinates: np.ndarray, raw_encoded: np.ndarray, baseline_encoded: np.ndarray, path: Path) -> str:
+    """Compare no-CANN raw CoM and fixed CANN baseline predictions."""
+    return plot_prediction_scatter(
+        true_coordinates,
+        {"raw no-CANN CoM": raw_encoded, "baseline CANN": baseline_encoded},
+        path,
+    )
 
 
 def plot_importance(weight_importance: dict[str, float], ablation: dict[str, float], path: Path) -> str:
@@ -1008,6 +1022,10 @@ def write_report(results: dict[str, object], artifacts: dict[str, str], report_p
             f"![Training curves]({markdown_path(artifacts['training_curves'], report_path=report_path)})",
             "",
             f"![Prediction scatter]({markdown_path(artifacts['test_prediction_scatter'], report_path=report_path)})",
+            "",
+            "The following diagnostic isolates whether the fixed readout collapse is already present in the raw pathway populations or is introduced by the CANN stage.",
+            "",
+            f"![Raw vs baseline scatter]({markdown_path(artifacts['raw_vs_baseline_scatter'], report_path=report_path)})",
             "",
             "## Feature Importance",
             "",
@@ -1189,6 +1207,8 @@ def main() -> dict[str, object]:
     train_x = apply_normaliser(train_x, mean, std)
     val_x = apply_normaliser(val_x, mean, std)
     test_x = apply_normaliser(test_x, mean, std)
+    feature_groups = dict(cache["feature_groups"].item() if hasattr(cache["feature_groups"], "item") else cache["feature_groups"])
+    raw_test_encoded = raw_com_encoded_from_features(np.asarray(cache["features"])[np.asarray(cache["split_names"]) == "test"], feature_groups)
 
     histories = {}
     models = {}
@@ -1213,8 +1233,8 @@ def main() -> dict[str, object]:
         "residual": predict_encoded(models["residual"], test_x, test_base, "residual"),
         "direct": predict_encoded(models["direct"], test_x, test_base, "direct"),
     }
-    test_metrics = {name: coordinate_metrics(test_true, pred) for name, pred in predictions.items()}
-    feature_groups = dict(cache["feature_groups"].item() if hasattr(cache["feature_groups"], "item") else cache["feature_groups"])
+    test_metrics = {"raw": coordinate_metrics(test_true, raw_test_encoded)}
+    test_metrics.update({name: coordinate_metrics(test_true, pred) for name, pred in predictions.items()})
     residual_weight_importance = first_layer_group_weights(models["residual"], feature_groups)
     residual_ablation_importance = ablation_importance(
         models["residual"],
@@ -1228,6 +1248,12 @@ def main() -> dict[str, object]:
     artifacts = {
         "training_curves": plot_training_curves(histories, FIGURE_DIR / "training_curves.png"),
         "test_prediction_scatter": plot_prediction_scatter(test_true, predictions, FIGURE_DIR / "test_prediction_scatter.png"),
+        "raw_vs_baseline_scatter": plot_raw_baseline_scatter(
+            test_true,
+            raw_test_encoded,
+            test_base,
+            FIGURE_DIR / "raw_vs_baseline_scatter.png",
+        ),
         "residual_feature_importance": plot_importance(
             residual_weight_importance,
             residual_ablation_importance,

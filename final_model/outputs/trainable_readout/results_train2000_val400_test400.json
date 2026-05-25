@@ -399,6 +399,21 @@
     }
   },
   "test_metrics": {
+    "raw": {
+      "distance_mae_m": 0.03651079952716827,
+      "distance_rmse_m": 0.04528142304675222,
+      "distance_bias_m": 0.008709538280963897,
+      "azimuth_mae_deg": 4.580482132649049,
+      "azimuth_rmse_deg": 8.153035770206689,
+      "azimuth_bias_deg": 0.00883591233752668,
+      "elevation_mae_deg": 2.985793021572754,
+      "elevation_rmse_deg": 3.5741698217867275,
+      "elevation_bias_deg": 1.0590950282942504,
+      "euclidean_mae_m": 0.29987996007844436,
+      "euclidean_rmse_m": 0.5124618883335877,
+      "euclidean_max_m": 3.617845620842204,
+      "combined_normalised_error": 0.05848053592567643
+    },
     "baseline": {
       "distance_mae_m": 0.03659981146454811,
       "distance_rmse_m": 0.0450877734224065,
@@ -464,6 +479,7 @@
   "artifacts": {
     "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/training_curves.png",
     "test_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png",
-    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png"
+    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png",
+    "raw_vs_baseline_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/raw_vs_baseline_scatter.png"
   }
 }

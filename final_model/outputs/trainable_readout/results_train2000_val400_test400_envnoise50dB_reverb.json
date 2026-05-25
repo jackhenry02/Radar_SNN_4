@@ -404,6 +404,21 @@
     }
   },
   "test_metrics": {
+    "raw": {
+      "distance_mae_m": 0.0795606204867363,
+      "distance_rmse_m": 0.2683540782461722,
+      "distance_bias_m": 0.0005138476192951203,
+      "azimuth_mae_deg": 7.736484759235754,
+      "azimuth_rmse_deg": 12.174671623252252,
+      "azimuth_bias_deg": 0.5151917929109185,
+      "elevation_mae_deg": 28.96152421154082,
+      "elevation_rmse_deg": 37.258409391872995,
+      "elevation_bias_deg": -26.07687209047377,
+      "euclidean_mae_m": 1.6916573598750444,
+      "euclidean_rmse_m": 2.244168481927243,
+      "euclidean_max_m": 6.068602874745886,
+      "combined_normalised_error": 0.2771411448530163
+    },
     "baseline": {
       "distance_mae_m": 0.07986057884991168,
       "distance_rmse_m": 0.2698847749322598,
@@ -469,6 +484,7 @@
   "artifacts": {
     "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png",
     "test_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png",
-    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png"
+    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png",
+    "raw_vs_baseline_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png"
   }
 }
