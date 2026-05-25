@@ -1,0 +1,177 @@
+{
+  "experiment": "trainable_input_baselines",
+  "elapsed_seconds": 0.7896342081949115,
+  "setup": {
+    "splits": {
+      "train": 2,
+      "val": 1,
+      "test": 1
+    },
+    "dataset_seed": 8101,
+    "projection_seed": 42404,
+    "feature_dim": 474,
+    "cochlear_time_bins": 10,
+    "raw_high_dim": 4608,
+    "cochlear_high_dim": 960,
+    "acoustic_mode": "clean",
+    "noise_label": "clean",
+    "noise_std": 0.0,
+    "environment_noise_db": 0.0,
+    "environment_reverb": false,
+    "run_label": "train2_val1_test1",
+    "training_seed": 8202,
+    "hidden_dim": 96,
+    "num_steps": 12,
+    "batch_size": 16,
+    "epochs": 1,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-05
+  },
+  "cache": {
+    "path": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/cache_train2_val1_test1.npz",
+    "feature_seconds_per_sample": 0.020061135292053223,
+    "raw_high_dim": 4608,
+    "cochlear_high_dim": 960,
+    "feature_dim": 474
+  },
+  "histories": {
+    "raw_waveform_projected": {
+      "train_loss": [
+        0.7784677147865295
+      ],
+      "val_loss": [
+        1.6737372875213623
+      ],
+      "best_epoch": 0,
+      "best_val_loss": 1.6737372875213623,
+      "training_seconds": 0.04699762514792383,
+      "learned_log_vars": [
+        -0.0009999998146668077,
+        -0.0009999996982514858,
+        -0.0009999996982514858
+      ],
+      "input_dim": 474,
+      "parameter_count": 55597
+    },
+    "raw_waveform_direct": {
+      "train_loss": [
+        1.004130244255066
+      ],
+      "val_loss": [
+        0.9740573167800903
+      ],
+      "best_epoch": 0,
+      "best_val_loss": 0.9740573167800903,
+      "training_seconds": 0.013386457925662398,
+      "learned_log_vars": [
+        -0.0009999996982514858,
+        -0.0009999989997595549,
+        0.000999996904283762
+      ],
+      "input_dim": 4608,
+      "parameter_count": 452461
+    },
+    "cochlear_raster_projected": {
+      "train_loss": [
+        0.47126078605651855
+      ],
+      "val_loss": [
+        1.8319971561431885
+      ],
+      "best_epoch": 0,
+      "best_val_loss": 1.8319971561431885,
+      "training_seconds": 0.008154582930728793,
+      "learned_log_vars": [
+        -0.0009999998146668077,
+        -0.0009999998146668077,
+        -0.0009999998146668077
+      ],
+      "input_dim": 474,
+      "parameter_count": 55597
+    },
+    "cochlear_raster_direct": {
+      "train_loss": [
+        0.27867233753204346
+      ],
+      "val_loss": [
+        1.74656343460083
+      ],
+      "best_epoch": 0,
+      "best_val_loss": 1.74656343460083,
+      "training_seconds": 0.008106290828436613,
+      "learned_log_vars": [
+        -0.0009999999310821295,
+        -0.0009999999310821295,
+        -0.0009999998146668077
+      ],
+      "input_dim": 960,
+      "parameter_count": 102253
+    }
+  },
+  "test_metrics": {
+    "raw_waveform_projected": {
+      "distance_mae_m": 1.0016685724258423,
+      "distance_rmse_m": 1.0016685724258423,
+      "distance_bias_m": -1.0016685724258423,
+      "azimuth_mae_deg": 26.806824684143066,
+      "azimuth_rmse_deg": 26.806824684143066,
+      "azimuth_bias_deg": 26.806824684143066,
+      "elevation_mae_deg": 48.504916191101074,
+      "elevation_rmse_deg": 48.504916191101074,
+      "elevation_bias_deg": 48.504916191101074,
+      "euclidean_mae_m": 1.1262266423842482,
+      "euclidean_rmse_m": 1.1262266423842482,
+      "euclidean_max_m": 1.1262266423842482,
+      "combined_normalised_error": 0.6246426520524201
+    },
+    "raw_waveform_direct": {
+      "distance_mae_m": 0.38061201572418213,
+      "distance_rmse_m": 0.38061201572418213,
+      "distance_bias_m": 0.38061201572418213,
+      "azimuth_mae_deg": 169.94303131103516,
+      "azimuth_rmse_deg": 169.94303131103516,
+      "azimuth_bias_deg": 169.94303131103516,
+      "elevation_mae_deg": 116.16268062591553,
+      "elevation_rmse_deg": 116.16268062591553,
+      "elevation_bias_deg": 116.16268062591553,
+      "euclidean_mae_m": 2.098550876094657,
+      "euclidean_rmse_m": 2.098550876094657,
+      "euclidean_max_m": 2.098550876094657,
+      "combined_normalised_error": 2.1446757042849502
+    },
+    "cochlear_raster_projected": {
+      "distance_mae_m": 0.5052990913391113,
+      "distance_rmse_m": 0.5052990913391113,
+      "distance_bias_m": 0.5052990913391113,
+      "azimuth_mae_deg": 137.84964752197266,
+      "azimuth_rmse_deg": 137.84964752197266,
+      "azimuth_bias_deg": -137.84964752197266,
+      "elevation_mae_deg": 64.3810453414917,
+      "elevation_rmse_deg": 64.3810453414917,
+      "elevation_bias_deg": 64.3810453414917,
+      "euclidean_mae_m": 2.7398989313198805,
+      "euclidean_rmse_m": 2.7398989313198805,
+      "euclidean_max_m": 2.7398989313198805,
+      "combined_normalised_error": 1.5316917384112323
+    },
+    "cochlear_raster_direct": {
+      "distance_mae_m": 1.0016685724258423,
+      "distance_rmse_m": 1.0016685724258423,
+      "distance_bias_m": -1.0016685724258423,
+      "azimuth_mae_deg": 85.65007019042969,
+      "azimuth_rmse_deg": 85.65007019042969,
+      "azimuth_bias_deg": -85.65007019042969,
+      "elevation_mae_deg": 33.93900012969971,
+      "elevation_rmse_deg": 33.93900012969971,
+      "elevation_bias_deg": -33.93900012969971,
+      "euclidean_mae_m": 1.218227847247683,
+      "euclidean_rmse_m": 1.218227847247683,
+      "euclidean_max_m": 1.218227847247683,
+      "combined_normalised_error": 0.9526228701626813
+    }
+  },
+  "artifacts": {
+    "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/figures/train2_val1_test1/training_curves.png",
+    "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/figures/train2_val1_test1/prediction_scatter.png"
+  }
+}
