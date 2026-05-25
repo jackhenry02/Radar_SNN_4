@@ -38,6 +38,7 @@ from distance_pathway.experiments import final_distance_pipeline_with_attractor 
 from distance_pathway.experiments import full_distance_pathway_model as fdm
 from elevation_pathway.experiments import elevation_line_attractor as elc
 from elevation_pathway.experiments import elevation_pathway_first_attempt as elev
+from final_model.experiments import environment_noise_diagnostics as envdiag
 from final_model.experiments import final_model_results as final
 from mini_models.common.plotting import ensure_dir, save_figure
 
@@ -70,6 +71,9 @@ RESIDUAL_SCALE = 0.15
 FORCE_CACHE = False
 NOISE_STD = 0.0
 NOISE_LABEL = "clean"
+ACOUSTIC_MODE = "clean"
+ENVIRONMENT_NOISE_DB = 0.0
+ENVIRONMENT_REVERB = False
 
 
 def configure_run(args: argparse.Namespace) -> None:
@@ -88,6 +92,9 @@ def configure_run(args: argparse.Namespace) -> None:
     global FORCE_CACHE
     global NOISE_STD
     global NOISE_LABEL
+    global ACOUSTIC_MODE
+    global ENVIRONMENT_NOISE_DB
+    global ENVIRONMENT_REVERB
     global RUN_LABEL
     global FIGURE_DIR
     global CACHE_PATH
@@ -101,17 +108,37 @@ def configure_run(args: argparse.Namespace) -> None:
     EPOCHS = args.epochs
     LEARNING_RATE = args.lr
     FORCE_CACHE = args.force_cache
+    if args.environment_noise_db is not None and (args.noise_std is not None or args.noise_db_spl is not None):
+        raise ValueError("Use either receiver-noise flags or --environment-noise-db, not both.")
+    if args.environment_reverb and args.environment_noise_db is None:
+        raise ValueError("--environment-reverb requires --environment-noise-db.")
     if args.noise_std is not None and args.noise_db_spl is not None:
         raise ValueError("Use either --noise-std or --noise-db-spl, not both.")
-    if args.noise_db_spl is not None:
+    if args.environment_noise_db is not None:
+        NOISE_STD = 0.0
+        ACOUSTIC_MODE = "environment_noise_reverb" if args.environment_reverb else "environment_noise"
+        ENVIRONMENT_NOISE_DB = float(args.environment_noise_db)
+        ENVIRONMENT_REVERB = bool(args.environment_reverb)
+        base = f"envnoise{int(round(ENVIRONMENT_NOISE_DB))}dB"
+        NOISE_LABEL = f"{base}_reverb" if ENVIRONMENT_REVERB else base
+    elif args.noise_db_spl is not None:
         NOISE_STD = fdm._noise_std_from_db(float(args.noise_db_spl))
         NOISE_LABEL = f"noise{int(round(float(args.noise_db_spl)))}dB"
+        ACOUSTIC_MODE = "receiver_noise"
+        ENVIRONMENT_NOISE_DB = 0.0
+        ENVIRONMENT_REVERB = False
     elif args.noise_std is not None:
         NOISE_STD = float(args.noise_std)
         NOISE_LABEL = f"noise_std_{str(args.noise_std).replace('.', 'p')}"
+        ACOUSTIC_MODE = "receiver_noise"
+        ENVIRONMENT_NOISE_DB = 0.0
+        ENVIRONMENT_REVERB = False
     else:
         NOISE_STD = 0.0
         NOISE_LABEL = "clean"
+        ACOUSTIC_MODE = "clean"
+        ENVIRONMENT_NOISE_DB = 0.0
+        ENVIRONMENT_REVERB = False
     base_label = f"train{args.train}_val{args.val}_test{args.test}"
     RUN_LABEL = base_label if NOISE_LABEL == "clean" else f"{base_label}_{NOISE_LABEL}"
     FIGURE_DIR = OUTPUT_DIR / "figures" / RUN_LABEL
@@ -134,6 +161,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-cache", action="store_true", help="Regenerate features even if the matching cache exists.")
     parser.add_argument("--noise-db-spl", type=float, default=None, help="Add fixed receiver noise converted from an effective dB SPL value.")
     parser.add_argument("--noise-std", type=float, default=None, help="Add fixed receiver noise with this waveform standard deviation.")
+    parser.add_argument(
+        "--environment-noise-db",
+        type=float,
+        default=None,
+        help="Add call-referenced environmental noise before head-shadow/elevation filtering.",
+    )
+    parser.add_argument(
+        "--environment-reverb",
+        action="store_true",
+        help="Add delayed echo copies in the environmental-noise simulator.",
+    )
     return parser.parse_args()
 
 
@@ -302,6 +340,61 @@ def random_targets(samples: int, seed: int) -> tuple[np.ndarray, np.ndarray, np.
     return distance, azimuth, elevation
 
 
+def environment_condition() -> envdiag.AcousticCondition:
+    """Return the environmental acoustic condition for the current run."""
+    return envdiag.AcousticCondition(
+        key=ACOUSTIC_MODE,
+        name=NOISE_LABEL,
+        add_environment_noise=ACOUSTIC_MODE in {"environment_noise", "environment_noise_reverb"},
+        add_reverb=ENVIRONMENT_REVERB,
+    )
+
+
+def azimuth_features_from_receive(config, receive: torch.Tensor, bins: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute ITD/ILD azimuth populations from one shared binaural waveform."""
+    cochlea = fdm._run_cochlea_binaural(config, receive)
+    left_spikes, right_spikes = az.run_dynamic_cochlea_spikes(cochlea, config)
+    vcn_left = az.vcn_consensus_single_ear(left_spikes, config)
+    vcn_right = az.vcn_consensus_single_ear(right_spikes, config)
+    itd = az.jeffress_lif_itd_activation(vcn_left, vcn_right, config, bins)
+    ild, _, _, _, _ = az.lso_mntb_ild_activation(left_spikes, right_spikes, bins)
+    azimuth_cann, _, _, _ = azc.run_cann_readout(itd[None, :], bins)
+    return itd, ild, azimuth_cann
+
+
+def elevation_features_from_receive(
+    config,
+    receive: torch.Tensor,
+    azimuth_deg: float,
+    baseline_profile: np.ndarray,
+    gain_matrix: np.ndarray,
+    centres_hz: np.ndarray,
+    elevation_bins: np.ndarray,
+    calibration_params: dict[str, float],
+) -> tuple[np.ndarray, np.ndarray, torch.Tensor]:
+    """Compute the elevation population and CANN readout from one shared waveform."""
+    cochlea = fdm._run_cochlea_binaural(config, receive)
+    selected_cochleagram = cochlea.right_cochleagram if azimuth_deg >= 0.0 else cochlea.left_cochleagram
+    selected_spikes = fdm._dynamic_lif_encode(selected_cochleagram, config, fdm.DYNAMIC_COHLEA_SCHEDULE)
+    profile = elev.dynamic_wideband_inhibited_profile(
+        selected_cochleagram,
+        selected_spikes,
+        elev.DynamicInhibitionParams(),
+    )
+    equalized = profile / np.maximum(baseline_profile, 1e-4)
+    equalized = equalized / np.maximum(equalized.max(), 1e-12)
+    elevation_population = elev.dcn_signal_weighted_transfer_response(
+        equalized,
+        baseline_profile,
+        gain_matrix,
+        centres_hz,
+    )
+    elevation_attractor = elc.run_attractor_variants(elevation_population[None, :], elevation_bins)
+    elevation_raw = np.asarray(elevation_attractor["reflected"]["prediction"], dtype=np.float64)
+    elevation_cann = elc.apply_tuned_inverse_sigmoid(elevation_raw, calibration_params)
+    return elevation_population, elevation_cann, selected_spikes
+
+
 def build_cached_features(force: bool = False) -> dict[str, object]:
     """Generate or load the smoke-test feature cache.
 
@@ -331,7 +424,7 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
         angular_bins=ANGULAR_BINS,
         elevation_limit_deg=ELEVATION_LIMIT_DEG,
     ):
-        add_noise = NOISE_STD > 0.0
+        add_noise = ACOUSTIC_MODE == "receiver_noise" and NOISE_STD > 0.0
         distance_config = replace(
             final.make_distance_config(CHANNELS, DISTANCE_MIN_M, DISTANCE_MAX_M),
             noise_std=NOISE_STD,
@@ -351,6 +444,12 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
             elevation_bins,
             elev.DEEP_COMB_DELAYED_COPY_GAIN,
         )
+        env_noise_std = (
+            envdiag._call_referenced_noise_std(distance_config, ENVIRONMENT_NOISE_DB)
+            if ACOUSTIC_MODE in {"environment_noise", "environment_noise_reverb"}
+            else 0.0
+        )
+        env_condition = environment_condition()
 
         features = np.zeros((total, spec.input_dim), dtype=np.float32)
         baseline_encoded = np.zeros((total, 5), dtype=np.float32)
@@ -364,83 +463,117 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
                 print(f"  cached {index + 1}/{total} samples")
             start = time.perf_counter()
 
-            distance_prediction = fdm._predict_one_3d(
-                distance_config,
-                float(distance_m),
-                float(azimuth_deg),
-                float(elevation_deg),
-                distance_variant,
-                add_noise=add_noise,
-            )
-            distance_population = normalise_population(distance_prediction.ac_activation)
-            distance_cann, _, _, _ = dist_cann.run_line_attractor(
-                distance_prediction.ac_activation[None, :],
-                distance_bins,
-                dist_cann.SC_ATTRACTOR_VARIANTS[1],
-                keep_history=False,
-            )
+            if ACOUSTIC_MODE in {"environment_noise", "environment_noise_reverb"}:
+                waveform_rng = torch.Generator().manual_seed(DATASET_SEED + 50_000 + index)
+                receive = envdiag._simulate_environment_echo(
+                    distance_config,
+                    float(distance_m),
+                    float(azimuth_deg),
+                    float(elevation_deg),
+                    condition=env_condition,
+                    noise_std=env_noise_std,
+                    rng=waveform_rng,
+                )
+                _, distance_cann, distance_ac = envdiag._distance_prediction_from_receive(
+                    distance_config,
+                    distance_variant,
+                    receive,
+                )
+                distance_cann = np.asarray([distance_cann], dtype=np.float64)
+                distance_population = normalise_population(distance_ac)
+                distance_cochlea = fdm._run_cochlea_binaural(distance_config, receive)
 
-            azimuth_prediction = azc.predict_one_3d(
-                azimuth_config,
-                float(distance_m),
-                float(azimuth_deg),
-                float(elevation_deg),
-                add_noise=add_noise,
-                limit_deg=AZIMUTH_LIMIT_DEG,
-            )
-            azimuth_itd_population = normalise_population(azimuth_prediction.itd_activation)
-            azimuth_ild_population = normalise_population(azimuth_prediction.ild_activation)
-            _, itd_population_batch = azc.itd_population_dataset([azimuth_prediction], azimuth_bins)
-            azimuth_cann, _, _, _ = azc.run_cann_readout(itd_population_batch, azimuth_bins)
+                itd_population, ild_population, azimuth_cann = azimuth_features_from_receive(
+                    azimuth_config,
+                    receive,
+                    azimuth_bins,
+                )
+                azimuth_itd_population = normalise_population(itd_population)
+                azimuth_ild_population = normalise_population(ild_population)
 
-            receive = elev.simulate_full_3d_scene(
-                elevation_config,
-                float(distance_m),
-                float(azimuth_deg),
-                float(elevation_deg),
-                elev.DEEP_COMB_DELAYED_COPY_GAIN,
-            )
-            if add_noise:
-                receive = receive + elevation_config.noise_std * torch.randn_like(receive)
-            cochlea = fdm._run_cochlea_binaural(elevation_config, receive)
-            selected_cochleagram = cochlea.right_cochleagram if azimuth_deg >= 0.0 else cochlea.left_cochleagram
-            selected_spikes = fdm._dynamic_lif_encode(selected_cochleagram, elevation_config, fdm.DYNAMIC_COHLEA_SCHEDULE)
-            profile = elev.dynamic_wideband_inhibited_profile(
-                selected_cochleagram,
-                selected_spikes,
-                elev.DynamicInhibitionParams(),
-            )
-            equalized = profile / np.maximum(elevation_baseline, 1e-4)
-            equalized = equalized / np.maximum(equalized.max(), 1e-12)
-            elevation_population = elev.dcn_signal_weighted_transfer_response(
-                equalized,
-                elevation_baseline,
-                elevation_gain_matrix,
-                centres_hz,
-            )
-            elevation_attractor = elc.run_attractor_variants(elevation_population[None, :], elevation_bins)
-            elevation_raw = np.asarray(elevation_attractor["reflected"]["prediction"], dtype=np.float64)
-            elevation_cann = elc.apply_tuned_inverse_sigmoid(elevation_raw, elevation_params)
+                elevation_population, elevation_cann, selected_spikes = elevation_features_from_receive(
+                    elevation_config,
+                    receive,
+                    float(azimuth_deg),
+                    elevation_baseline,
+                    elevation_gain_matrix,
+                    centres_hz,
+                    elevation_bins,
+                    elevation_params,
+                )
+            else:
+                distance_prediction = fdm._predict_one_3d(
+                    distance_config,
+                    float(distance_m),
+                    float(azimuth_deg),
+                    float(elevation_deg),
+                    distance_variant,
+                    add_noise=add_noise,
+                )
+                distance_ac = distance_prediction.ac_activation
+                distance_population = normalise_population(distance_ac)
+                distance_cann, _, _, _ = dist_cann.run_line_attractor(
+                    distance_ac[None, :],
+                    distance_bins,
+                    dist_cann.SC_ATTRACTOR_VARIANTS[1],
+                    keep_history=False,
+                )
+                distance_cochlea = distance_prediction.cochlea
+
+                azimuth_prediction = azc.predict_one_3d(
+                    azimuth_config,
+                    float(distance_m),
+                    float(azimuth_deg),
+                    float(elevation_deg),
+                    add_noise=add_noise,
+                    limit_deg=AZIMUTH_LIMIT_DEG,
+                )
+                azimuth_itd_population = normalise_population(azimuth_prediction.itd_activation)
+                azimuth_ild_population = normalise_population(azimuth_prediction.ild_activation)
+                _, itd_population_batch = azc.itd_population_dataset([azimuth_prediction], azimuth_bins)
+                azimuth_cann, _, _, _ = azc.run_cann_readout(itd_population_batch, azimuth_bins)
+                itd_population = azimuth_prediction.itd_activation
+                ild_population = azimuth_prediction.ild_activation
+
+                receive = elev.simulate_full_3d_scene(
+                    elevation_config,
+                    float(distance_m),
+                    float(azimuth_deg),
+                    float(elevation_deg),
+                    elev.DEEP_COMB_DELAYED_COPY_GAIN,
+                )
+                if add_noise:
+                    receive = receive + elevation_config.noise_std * torch.randn_like(receive)
+                elevation_population, elevation_cann, selected_spikes = elevation_features_from_receive(
+                    elevation_config,
+                    receive,
+                    float(azimuth_deg),
+                    elevation_baseline,
+                    elevation_gain_matrix,
+                    centres_hz,
+                    elevation_bins,
+                    elevation_params,
+                )
 
             confidence = np.array(
                 [
-                    float(distance_prediction.ac_activation.max()),
-                    float(distance_prediction.ac_activation.sum()),
-                    margin(distance_prediction.ac_activation),
-                    entropy(distance_prediction.ac_activation),
-                    float(azimuth_prediction.itd_activation.max()),
-                    float(azimuth_prediction.itd_activation.sum()),
-                    margin(azimuth_prediction.itd_activation),
-                    entropy(azimuth_prediction.itd_activation),
-                    float(azimuth_prediction.ild_activation.max()),
-                    float(azimuth_prediction.ild_activation.sum()),
-                    margin(azimuth_prediction.ild_activation),
-                    entropy(azimuth_prediction.ild_activation),
+                    float(distance_ac.max()),
+                    float(distance_ac.sum()),
+                    margin(distance_ac),
+                    entropy(distance_ac),
+                    float(itd_population.max()),
+                    float(itd_population.sum()),
+                    margin(itd_population),
+                    entropy(itd_population),
+                    float(ild_population.max()),
+                    float(ild_population.sum()),
+                    margin(ild_population),
+                    entropy(ild_population),
                     float(elevation_population.max()),
                     float(elevation_population.sum()),
                     margin(elevation_population),
                     entropy(elevation_population),
-                    float(distance_prediction.cochlea.left_spikes.sum() + distance_prediction.cochlea.right_spikes.sum()),
+                    float(distance_cochlea.left_spikes.sum() + distance_cochlea.right_spikes.sum()),
                     float(selected_spikes.sum()),
                 ],
                 dtype=np.float64,
@@ -484,8 +617,12 @@ def build_cached_features(force: bool = False) -> dict[str, object]:
             "angular_bins": ANGULAR_BINS,
             "splits": SMOKE_SPLITS,
             "dataset_seed": DATASET_SEED,
+            "acoustic_mode": ACOUSTIC_MODE,
             "noise_label": NOISE_LABEL,
             "noise_std": NOISE_STD,
+            "environment_noise_db": ENVIRONMENT_NOISE_DB,
+            "environment_noise_std": env_noise_std,
+            "environment_reverb": ENVIRONMENT_REVERB,
         },
     }
     np.savez_compressed(CACHE_PATH, **payload)
@@ -762,7 +899,10 @@ def write_report(results: dict[str, object], artifacts: dict[str, str], report_p
         f"| distance range | `{DISTANCE_MIN_M}-{DISTANCE_MAX_M} m` |",
         f"| azimuth range | `+/-{AZIMUTH_LIMIT_DEG} deg` |",
         f"| elevation range | `+/-{ELEVATION_LIMIT_DEG} deg` |",
-        f"| receiver noise | `{NOISE_LABEL}`, `noise_std={NOISE_STD:.6g}` |",
+        f"| acoustic mode | `{ACOUSTIC_MODE}` |",
+        f"| noise label | `{NOISE_LABEL}` |",
+        f"| receiver noise std | `{NOISE_STD:.6g}` |",
+        f"| environmental noise | `{ENVIRONMENT_NOISE_DB:.1f} dB`, reverb `{ENVIRONMENT_REVERB}` |",
         f"| train / val / test samples | `{SMOKE_SPLITS['train']} / {SMOKE_SPLITS['val']} / {SMOKE_SPLITS['test']}` |",
         f"| run label | `{RUN_LABEL}` |",
         f"| dataset seed | `{DATASET_SEED}` |",
@@ -879,10 +1019,46 @@ def write_comparison_report() -> None:
     result_files = sorted(OUTPUT_DIR.glob("results_*.json"))
     loaded = [(path, _load_result_file(path)) for path in result_files]
     runs = [(path, payload) for path, payload in loaded if payload is not None]
+
+    def total_samples(payload: dict[str, object]) -> int:
+        splits = payload.get("setup", {}).get("splits", {})
+        return int(sum(int(value) for value in splits.values())) if isinstance(splits, dict) else 0
+
+    def noise_label(payload: dict[str, object]) -> str:
+        setup = payload["setup"]
+        return str(setup.get("noise_label", "clean"))
+
+    def acoustic_mode(payload: dict[str, object]) -> str:
+        setup = payload["setup"]
+        if "acoustic_mode" in setup:
+            return str(setup["acoustic_mode"])
+        return "clean" if noise_label(payload) in {"clean", "unknown"} else "receiver_noise"
+
+    def append_metric_rows(selected_runs: list[tuple[Path, dict[str, object]]]) -> None:
+        for path, payload in selected_runs:
+            setup = payload["setup"]
+            run_label = str(setup.get("run_label", path.stem.removeprefix("results_")))
+            metrics = payload["test_metrics"]
+            result_link = markdown_path(path, report_path=COMPARISON_REPORT_PATH)
+            for readout in ["baseline", "residual", "direct"]:
+                if readout not in metrics:
+                    continue
+                metric = metrics[readout]
+                lines.append(
+                    f"| `{run_label}` | `{acoustic_mode(payload)}` | `{noise_label(payload)}` | `{readout}` | "
+                    f"`{metric['distance_mae_m']:.4f} m` | `{metric['azimuth_mae_deg']:.3f} deg` | "
+                    f"`{metric['elevation_mae_deg']:.3f} deg` | `{metric['euclidean_mae_m']:.4f} m` | "
+                    f"`{metric['combined_normalised_error']:.4f}` | [json]({result_link}) |"
+                )
+
+    primary_runs = [(path, payload) for path, payload in runs if total_samples(payload) >= 100]
+    smoke_runs = [(path, payload) for path, payload in runs if total_samples(payload) < 100]
     lines = [
         "# Trainable Final SNN Readout Comparison",
         "",
-        "This report is regenerated automatically from available `results_*.json` files. It allows clean and noisy cached runs to coexist without overwriting each other.",
+        "This report is regenerated automatically from available `results_*.json` files. It allows clean, environmental-noise, and environmental-noise-plus-reverb cached runs to coexist without overwriting each other.",
+        "",
+        "Primary rows use the full cached setup (`2000/400/400` train/validation/test samples). Tiny smoke-test runs are separated because they only verify execution and should not be interpreted as accuracy results.",
         "",
     ]
     if not runs:
@@ -892,28 +1068,34 @@ def write_comparison_report() -> None:
 
     lines.extend(
         [
-            "## Summary Table",
+            "## Primary Full-Run Summary",
             "",
-            "| Run | Noise | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error | Results |",
-            "|---|---:|---|---:|---:|---:|---:|---:|---|",
+            "| Run | Acoustic mode | Noise | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error | Results |",
+            "|---|---|---|---|---:|---:|---:|---:|---:|---|",
         ]
     )
-    for path, payload in runs:
-        setup = payload["setup"]
-        run_label = str(setup.get("run_label", path.stem.removeprefix("results_")))
-        noise_label = str(setup.get("noise_label", "unknown"))
-        metrics = payload["test_metrics"]
-        for readout in ["baseline", "residual", "direct"]:
-            if readout not in metrics:
-                continue
-            metric = metrics[readout]
-            result_link = markdown_path(path, report_path=COMPARISON_REPORT_PATH)
-            lines.append(
-                f"| `{run_label}` | `{noise_label}` | `{readout}` | "
-                f"`{metric['distance_mae_m']:.4f} m` | `{metric['azimuth_mae_deg']:.3f} deg` | "
-                f"`{metric['elevation_mae_deg']:.3f} deg` | `{metric['euclidean_mae_m']:.4f} m` | "
-                f"`{metric['combined_normalised_error']:.4f}` | [json]({result_link}) |"
-            )
+    append_metric_rows(primary_runs)
+
+    full_by_label = {payload["setup"].get("run_label", path.stem.removeprefix("results_")): payload for path, payload in primary_runs}
+    clean = full_by_label.get("train2000_val400_test400")
+    env = full_by_label.get("train2000_val400_test400_envnoise50dB")
+    reverb = full_by_label.get("train2000_val400_test400_envnoise50dB_reverb")
+    if clean and env and reverb:
+        clean_res = clean["test_metrics"]["residual"]
+        env_res = env["test_metrics"]["residual"]
+        reverb_res = reverb["test_metrics"]["residual"]
+        lines.extend(
+            [
+                "",
+                "## Interpretation",
+                "",
+                f"- The hand-designed baseline is strongly affected by environmental noise: elevation MAE rises to `{env['test_metrics']['baseline']['elevation_mae_deg']:.3f} deg` because the spectral notch cue is corrupted before cochlear/DCN processing.",
+                f"- The residual SNN substantially recovers the environmental-noise case, reducing combined error from `{env['test_metrics']['baseline']['combined_normalised_error']:.4f}` to `{env_res['combined_normalised_error']:.4f}`.",
+                f"- Adding the simple late-echo/reverb tail does not destroy the trained residual readout in this setup: residual combined error is `{reverb_res['combined_normalised_error']:.4f}`, close to the environmental-noise-only value `{env_res['combined_normalised_error']:.4f}`.",
+                f"- Clean residual performance remains best overall, with combined error `{clean_res['combined_normalised_error']:.4f}` and Euclidean MAE `{clean_res['euclidean_mae_m']:.4f} m`.",
+                "",
+            ]
+        )
 
     lines.extend(
         [
@@ -927,6 +1109,19 @@ def write_comparison_report() -> None:
         report_path = REPORT_PATH.parent / f"trainable_final_readout_{run_label}.md"
         if report_path.exists():
             lines.append(f"- `{run_label}`: [{report_path.name}]({markdown_path(report_path, report_path=COMPARISON_REPORT_PATH)})")
+    if smoke_runs:
+        lines.extend(
+            [
+                "",
+                "## Smoke-Test Runs",
+                "",
+                "These rows are retained for reproducibility only. They used fewer than 100 total samples and should not be used for model comparison.",
+                "",
+                "| Run | Acoustic mode | Noise | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error | Results |",
+                "|---|---|---|---|---:|---:|---:|---:|---:|---|",
+            ]
+        )
+        append_metric_rows(smoke_runs)
     lines.append("")
     COMPARISON_REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
@@ -1004,8 +1199,11 @@ def main() -> dict[str, object]:
             "epochs": EPOCHS,
             "learning_rate": LEARNING_RATE,
             "weight_decay": WEIGHT_DECAY,
+            "acoustic_mode": ACOUSTIC_MODE,
             "noise_label": NOISE_LABEL,
             "noise_std": NOISE_STD,
+            "environment_noise_db": ENVIRONMENT_NOISE_DB,
+            "environment_reverb": ENVIRONMENT_REVERB,
         },
         "cache": {
             "path": str(CACHE_PATH),

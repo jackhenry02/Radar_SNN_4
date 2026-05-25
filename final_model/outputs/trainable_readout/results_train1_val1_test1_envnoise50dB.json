@@ -1,0 +1,158 @@
+{
+  "experiment": "trainable_final_readout",
+  "elapsed_seconds": 4.946761958068237,
+  "setup": {
+    "run_label": "train1_val1_test1_envnoise50dB",
+    "splits": {
+      "train": 1,
+      "val": 1,
+      "test": 1
+    },
+    "dataset_seed": 8101,
+    "training_seed": 8202,
+    "hidden_dim": 96,
+    "num_steps": 12,
+    "batch_size": 1,
+    "epochs": 1,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-05,
+    "acoustic_mode": "environment_noise",
+    "noise_label": "envnoise50dB",
+    "noise_std": 0.0,
+    "environment_noise_db": 50.0,
+    "environment_reverb": false
+  },
+  "cache": {
+    "path": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train1_val1_test1_envnoise50dB.npz",
+    "feature_seconds_per_sample": 0.49459434727517265,
+    "feature_dim": 474,
+    "feature_groups": {
+      "raw_distance_population": [
+        0,
+        180
+      ],
+      "raw_azimuth_itd_population": [
+        180,
+        271
+      ],
+      "raw_azimuth_ild_population": [
+        271,
+        362
+      ],
+      "raw_elevation_population": [
+        362,
+        453
+      ],
+      "cann_readouts": [
+        453,
+        456
+      ],
+      "confidence_features": [
+        456,
+        474
+      ]
+    }
+  },
+  "histories": {
+    "residual": {
+      "train_loss": [
+        0.06745818257331848
+      ],
+      "val_loss": [
+        0.019819192588329315
+      ],
+      "best_epoch": 0,
+      "best_val_loss": 0.019819192588329315,
+      "training_seconds": 0.04676108295097947,
+      "learned_log_vars": [
+        -0.0009999999310821295,
+        -0.0009999998146668077,
+        -0.0009999999310821295
+      ]
+    },
+    "direct": {
+      "train_loss": [
+        0.34230130910873413
+      ],
+      "val_loss": [
+        2.0638270378112793
+      ],
+      "best_epoch": 0,
+      "best_val_loss": 2.0638270378112793,
+      "training_seconds": 0.007973624859005213,
+      "learned_log_vars": [
+        -0.0009999999310821295,
+        -0.0009999998146668077,
+        -0.0009999999310821295
+      ]
+    }
+  },
+  "test_metrics": {
+    "baseline": {
+      "distance_mae_m": 0.0885765552520752,
+      "distance_rmse_m": 0.0885765552520752,
+      "distance_bias_m": 0.0885765552520752,
+      "azimuth_mae_deg": 4.969304084777832,
+      "azimuth_rmse_deg": 4.969304084777832,
+      "azimuth_bias_deg": 4.969304084777832,
+      "elevation_mae_deg": 16.502140522003174,
+      "elevation_rmse_deg": 16.502140522003174,
+      "elevation_bias_deg": -16.502140522003174,
+      "euclidean_mae_m": 1.2092393535569934,
+      "euclidean_rmse_m": 1.2092393535569934,
+      "euclidean_max_m": 1.2092393535569934,
+      "combined_normalised_error": 0.16495284151147913
+    },
+    "residual": {
+      "distance_mae_m": 0.0850670337677002,
+      "distance_rmse_m": 0.0850670337677002,
+      "distance_bias_m": 0.0850670337677002,
+      "azimuth_mae_deg": 4.926944084465504,
+      "azimuth_rmse_deg": 4.926944084465504,
+      "azimuth_bias_deg": 4.926944084465504,
+      "elevation_mae_deg": 16.446587085723877,
+      "elevation_rmse_deg": 16.446587085723877,
+      "elevation_bias_deg": -16.446587085723877,
+      "euclidean_mae_m": 1.2039912981800183,
+      "euclidean_rmse_m": 1.2039912981800183,
+      "euclidean_max_m": 1.2039912981800183,
+      "combined_normalised_error": 0.1639935886970273
+    },
+    "direct": {
+      "distance_mae_m": 0.023962736129760742,
+      "distance_rmse_m": 0.023962736129760742,
+      "distance_bias_m": -0.023962736129760742,
+      "azimuth_mae_deg": 149.7067518234253,
+      "azimuth_rmse_deg": 149.7067518234253,
+      "azimuth_bias_deg": -149.7067518234253,
+      "elevation_mae_deg": 57.98739767074585,
+      "elevation_rmse_deg": 57.98739767074585,
+      "elevation_bias_deg": 57.98739767074585,
+      "euclidean_mae_m": 7.181070192324947,
+      "euclidean_rmse_m": 7.181070192324947,
+      "euclidean_max_m": 7.181070192324947,
+      "combined_normalised_error": 1.540072697180289
+    }
+  },
+  "residual_weight_importance": {
+    "raw_distance_population": 0.16587718779252075,
+    "raw_azimuth_itd_population": 0.16809420787221557,
+    "raw_azimuth_ild_population": 0.16740272907419726,
+    "raw_elevation_population": 0.16637508769620338,
+    "cann_readouts": 0.16406178541611158,
+    "confidence_features": 0.16818900214875143
+  },
+  "residual_ablation_importance": {
+    "raw_distance_population": 0.0,
+    "raw_azimuth_itd_population": 0.0,
+    "raw_azimuth_ild_population": 0.0,
+    "raw_elevation_population": 0.0,
+    "cann_readouts": 0.0,
+    "confidence_features": 0.0
+  },
+  "artifacts": {
+    "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/training_curves.png",
+    "test_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/test_prediction_scatter.png",
+    "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB/residual_feature_importance.png"
+  }
+}

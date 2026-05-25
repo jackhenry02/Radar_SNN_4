@@ -13,8 +13,8 @@ This report tests whether the fixed biologically structured pathways can be foll
 | noise label | `envnoise50dB_reverb` |
 | receiver noise std | `0` |
 | environmental noise | `50.0 dB`, reverb `True` |
-| train / val / test samples | `2000 / 400 / 400` |
-| run label | `train2000_val400_test400_envnoise50dB_reverb` |
+| train / val / test samples | `1 / 1 / 1` |
+| run label | `train1_val1_test1_envnoise50dB_reverb` |
 | dataset seed | `8101` |
 | training seed | `8202` |
 | cochlear channels | `48` |
@@ -23,8 +23,8 @@ This report tests whether the fixed biologically structured pathways can be foll
 | SNN hidden neurons | `96` |
 | SNN timesteps | `12` |
 | optimiser | `AdamW`, lr `0.001`, weight decay `1e-05` |
-| batch size | `16` |
-| epochs | `80` |
+| batch size | `1` |
+| epochs | `1` |
 | residual scale | `0.15` |
 
 The cached input vector is:
@@ -60,30 +60,30 @@ Here `Ld` is distance MSE, `La` is azimuth sine/cosine MSE, and `Le` is elevatio
 
 | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |
 |---|---:|---:|---:|---:|---:|
-| baseline | `0.0799 m` | `8.147 deg` | `25.975 deg` | `1.5674 m` | `0.2581` |
-| residual | `0.0202 m` | `3.898 deg` | `3.341 deg` | `0.3103 m` | `0.0550` |
-| direct | `0.0731 m` | `3.883 deg` | `4.028 deg` | `0.3431 m` | `0.0635` |
+| baseline | `0.0911 m` | `4.969 deg` | `16.230 deg` | `1.1917 m` | `0.1631` |
+| residual | `0.0875 m` | `4.927 deg` | `16.208 deg` | `1.1887 m` | `0.1624` |
+| direct | `0.6558 m` | `149.267 deg` | `55.258 deg` | `6.6677 m` | `1.5587` |
 
-Mean feature-cache generation time was `0.519 s/sample` for this run.
+Mean feature-cache generation time was `0.430 s/sample` for this run.
 
-![Training curves](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png)
+![Training curves](../outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/training_curves.png)
 
-![Prediction scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png)
+![Prediction scatter](../outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/test_prediction_scatter.png)
 
 ## Feature Importance
 
 The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.
 
-![Feature importance](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png)
+![Feature importance](../outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/residual_feature_importance.png)
 
 | Feature group | First-layer share | Ablation delta |
 |---|---:|---:|
-| raw_distance_population | `0.1422` | `0.0390` |
-| raw_azimuth_itd_population | `0.1158` | `0.0154` |
-| raw_azimuth_ild_population | `0.1164` | `0.0228` |
-| raw_elevation_population | `0.1984` | `0.1083` |
-| cann_readouts | `0.1837` | `-0.0000` |
-| confidence_features | `0.2435` | `0.0305` |
+| raw_distance_population | `0.1659` | `0.0000` |
+| raw_azimuth_itd_population | `0.1681` | `0.0000` |
+| raw_azimuth_ild_population | `0.1674` | `0.0000` |
+| raw_elevation_population | `0.1664` | `0.0000` |
+| cann_readouts | `0.1641` | `0.0000` |
+| confidence_features | `0.1682` | `0.0000` |
 
 ## Biological Interpretation
 
@@ -93,8 +93,8 @@ The residual variant is especially biologically defensible because it keeps the 
 
 ## Generated Files
 
-- `training_curves`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png`
-- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png`
-- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png`
-- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400_envnoise50dB_reverb.npz`
-- `results`: `final_model/outputs/trainable_readout/results_train2000_val400_test400_envnoise50dB_reverb.json`
+- `training_curves`: `final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/training_curves.png`
+- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/test_prediction_scatter.png`
+- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train1_val1_test1_envnoise50dB_reverb/residual_feature_importance.png`
+- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train1_val1_test1_envnoise50dB_reverb.npz`
+- `results`: `final_model/outputs/trainable_readout/results_train1_val1_test1_envnoise50dB_reverb.json`
