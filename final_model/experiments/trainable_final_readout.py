@@ -778,6 +778,49 @@ def coordinate_metrics(true_coordinates: np.ndarray, encoded_prediction: np.ndar
     return final.localisation_metrics(rows, DISTANCE_MAX_M, AZIMUTH_LIMIT_DEG, ELEVATION_LIMIT_DEG)
 
 
+def population_center_of_mass(populations: np.ndarray, bins: np.ndarray) -> np.ndarray:
+    """Decode a batch of non-negative population codes by centre of mass."""
+    values = np.maximum(np.asarray(populations, dtype=np.float64), 0.0)
+    totals = values.sum(axis=1)
+    fallback = float(bins[len(bins) // 2])
+    decoded = np.full(values.shape[0], fallback, dtype=np.float64)
+    valid = totals > 1e-12
+    decoded[valid] = (values[valid] * bins[None, :]).sum(axis=1) / totals[valid]
+    return decoded
+
+
+def raw_com_metrics_from_cache(cache_path: Path) -> dict[str, float] | None:
+    """Compute the no-CANN raw CoM readout from a cached feature file.
+
+    The raw readout uses the distance AC population, azimuth ITD population,
+    and elevation DCN population. It is evaluated on the cached test split.
+    """
+    if not cache_path.exists():
+        return None
+    loaded = np.load(cache_path, allow_pickle=True)
+    features = np.asarray(loaded["features"], dtype=np.float64)
+    true_coordinates = np.asarray(loaded["true_coordinates"], dtype=np.float64)
+    split_names = np.asarray(loaded["split_names"])
+    feature_groups = loaded["feature_groups"].item()
+    test_mask = split_names == "test"
+    if not np.any(test_mask):
+        return None
+
+    test_features = features[test_mask]
+    true_test = true_coordinates[test_mask]
+    distance_range = np.linspace(DISTANCE_MIN_M, DISTANCE_MAX_M, DISTANCE_BINS, dtype=np.float64)
+    angle_range = np.linspace(-AZIMUTH_LIMIT_DEG, AZIMUTH_LIMIT_DEG, ANGULAR_BINS, dtype=np.float64)
+
+    d0, d1 = feature_groups["raw_distance_population"]
+    a0, a1 = feature_groups["raw_azimuth_itd_population"]
+    e0, e1 = feature_groups["raw_elevation_population"]
+    raw_distance = population_center_of_mass(test_features[:, d0:d1], distance_range)
+    raw_azimuth = population_center_of_mass(test_features[:, a0:a1], angle_range)
+    raw_elevation = population_center_of_mass(test_features[:, e0:e1], angle_range)
+    encoded = encode_targets(raw_distance, raw_azimuth, raw_elevation)
+    return coordinate_metrics(true_test, encoded)
+
+
 def first_layer_group_weights(model: SmallSNNReadout, feature_groups: dict[str, tuple[int, int]]) -> dict[str, float]:
     """Summarise absolute first-layer weights by feature group."""
     weights = model.fc_in.weight.detach().cpu().numpy()
@@ -1038,9 +1081,13 @@ def write_comparison_report() -> None:
         for path, payload in selected_runs:
             setup = payload["setup"]
             run_label = str(setup.get("run_label", path.stem.removeprefix("results_")))
-            metrics = payload["test_metrics"]
+            metrics = dict(payload["test_metrics"])
+            cache_path = Path(str(payload.get("cache", {}).get("path", "")))
+            raw_metrics = raw_com_metrics_from_cache(cache_path)
+            if raw_metrics is not None:
+                metrics = {"raw": raw_metrics, **metrics}
             result_link = markdown_path(path, report_path=COMPARISON_REPORT_PATH)
-            for readout in ["baseline", "residual", "direct"]:
+            for readout in ["raw", "baseline", "residual", "direct"]:
                 if readout not in metrics:
                     continue
                 metric = metrics[readout]
@@ -1059,6 +1106,8 @@ def write_comparison_report() -> None:
         "This report is regenerated automatically from available `results_*.json` files. It allows clean, environmental-noise, and environmental-noise-plus-reverb cached runs to coexist without overwriting each other.",
         "",
         "Primary rows use the full cached setup (`2000/400/400` train/validation/test samples). Tiny smoke-test runs are separated because they only verify execution and should not be interpreted as accuracy results.",
+        "",
+        "`raw` is the no-CANN centre-of-mass readout computed directly from the cached raw distance, ITD azimuth, and elevation populations. `baseline` is the fixed CANN readout. `residual` and `direct` are the trained SNN readouts.",
         "",
     ]
     if not runs:
