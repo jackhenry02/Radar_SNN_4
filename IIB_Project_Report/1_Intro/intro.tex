@@ -87,19 +87,22 @@ Second, the intermediate representations should be inspectable. The model should
 
 Third, training should be used only where it is most useful. The final system includes a small trainable spiking readout, but the lower pathways remain largely fixed and interpretable. This preserves the explanatory value of the model while allowing the final stage to learn systematic corrections between cues. This is analogous to biological contextual integration: lower auditory pathways extract structured evidence, while higher areas combine it depending on context.
 
-\section{Aims and Contributions}
+\section{Aims and Objectives}
 
-The overall aim of the project is to design, implement, and evaluate a neuromorphic model for bat-inspired three-dimensional echolocation. The specific objectives are:
+The overall aim of the project is to test whether a three-dimensional echolocation problem can be solved using a structured neuromorphic model inspired by the bat auditory system, rather than by an end-to-end black-box regressor. More specifically, the project asks whether biologically motivated pathways can provide useful intermediate representations for distance, azimuth, and elevation, and whether these representations can improve a small trainable SNN readout.
+
+The main objectives are:
 \begin{itemize}
-    \item to construct an acoustic simulation that produces distance, azimuth, and elevation cues from a transmitted FM call;
-    \item to develop a cochlear spike front end suitable for downstream neuromorphic processing;
-    \item to build separate distance, azimuth, and elevation pathways using biologically motivated computations;
-    \item to investigate continuous attractor neural networks as population-code readouts;
-    \item to compare fixed hand-designed readouts with a small trainable SNN fusion layer;
-    \item to evaluate accuracy, robustness, and runtime tradeoffs under constrained and expanded test spaces.
+    \item to construct a simulated active-acoustic environment in which an emitted FM call produces distance, azimuth, and elevation cues in the returning binaural echo;
+    \item to develop a cochlear spike front end that converts the acoustic waveform into a tonotopic event-based representation suitable for downstream neuromorphic processing;
+    \item to build separate distance, azimuth, and elevation pathways using simplified but interpretable biological computations, including delay coincidence, binaural comparison, and spectral-template matching;
+    \item to investigate CANNs as SC-like population readouts, and to determine when attractor dynamics improve, stabilise, or distort the pathway populations;
+    \item to compare direct pathway readouts, CANN readouts, calibrated readouts, and trainable SNN fusion in the same constrained localisation task;
+    \item to test whether the pathway-derived feature set outperforms SNN baselines trained from less structured inputs such as raw binaural waveforms or cochlear spike rasters;
+    \item to evaluate the final model under clean, environmental-noise, and reverberant conditions, while also identifying the limits of the constrained operating region.
 \end{itemize}
 
-The main contribution is therefore not a single isolated algorithm, but a complete modelling pipeline. The work shows how a complex active sensing task can be decomposed into interpretable neuromorphic components, how those components can be tested individually, and how a limited amount of training can be added without discarding the structure of the model.
+The contribution of the project is therefore a complete modelling pipeline rather than a single isolated algorithm. The work shows how a complex active sensing task can be decomposed into interpretable neuromorphic components, how those components can be tested individually, and how a limited trainable readout can be added without discarding the biological structure. The final result supports a hybrid design principle: fixed biomimetic pathways are useful for feature extraction and interpretability, while a small trainable SNN is effective for contextual integration and residual correction.
 
 \section{Scope and Limitations}
 
