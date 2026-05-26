@@ -30,6 +30,50 @@ Primary rows use the full cached setup (`2000/400/400` train/validation/test sam
 - Adding the simple late-echo/reverb tail does not destroy the trained residual readout in this setup: residual combined error is `0.0550`, close to the environmental-noise-only value `0.0548`.
 - Clean residual performance remains best overall, with combined error `0.0223` and Euclidean MAE `0.1247 m`.
 
+## Combined Feature Importance
+
+These plots combine the three full `2000/400/400` runs so that feature use can be compared directly across clean, environmental-noise, and noise-plus-reverb conditions.
+
+![Combined first-layer weight importance](../outputs/trainable_readout/figures/comparison/combined_residual_first_layer_weight_importance.png)
+
+![Combined zero-ablation importance](../outputs/trainable_readout/figures/comparison/combined_residual_zero_ablation_importance.png)
+
+The first-layer plot measures parameter magnitude, while the zero-ablation plot measures the change in test combined error when a normalised feature group is set to zero. The ablation plot is therefore the more useful diagnostic for whether the trained residual SNN depends on a feature group.
+
+## Scatter Plot Gallery
+
+These are the per-run scatter plots collected in one place. For each condition, the first plot compares the raw no-CANN readout against the fixed CANN baseline, and the second compares the fixed baseline with the residual and direct trainable SNN readouts.
+
+### clean
+
+Raw no-CANN readout versus fixed CANN baseline:
+
+![clean raw versus baseline scatter](../outputs/trainable_readout/figures/train2000_val400_test400/raw_vs_baseline_scatter.png)
+
+Fixed baseline, residual SNN, and direct SNN:
+
+![clean trainable readout scatter](../outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png)
+
+### environment noise
+
+Raw no-CANN readout versus fixed CANN baseline:
+
+![environment noise raw versus baseline scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB/raw_vs_baseline_scatter.png)
+
+Fixed baseline, residual SNN, and direct SNN:
+
+![environment noise trainable readout scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB/test_prediction_scatter.png)
+
+### noise + reverb
+
+Raw no-CANN readout versus fixed CANN baseline:
+
+![noise + reverb raw versus baseline scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png)
+
+Fixed baseline, residual SNN, and direct SNN:
+
+![noise + reverb trainable readout scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png)
+
 
 ## Per-Run Reports
 

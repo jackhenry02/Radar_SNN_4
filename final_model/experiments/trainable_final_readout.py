@@ -922,6 +922,53 @@ def plot_importance(weight_importance: dict[str, float], ablation: dict[str, flo
     return save_figure(fig, path)
 
 
+def _short_feature_name(name: str) -> str:
+    """Return compact labels for feature-group plots."""
+    return {
+        "raw_distance_population": "distance pop.",
+        "raw_azimuth_itd_population": "ITD pop.",
+        "raw_azimuth_ild_population": "ILD pop.",
+        "raw_elevation_population": "elevation pop.",
+        "cann_readouts": "CANN readouts",
+        "confidence_features": "confidence",
+    }.get(name, name)
+
+
+def plot_combined_importance(
+    named_payloads: list[tuple[str, dict[str, object]]],
+    result_key: str,
+    title: str,
+    ylabel: str,
+    path: Path,
+) -> str:
+    """Plot one feature-importance metric across the full trainable runs."""
+    if not named_payloads:
+        raise ValueError("No payloads supplied for combined feature-importance plot.")
+    first = named_payloads[0][1].get(result_key, {})
+    if not isinstance(first, dict) or not first:
+        raise ValueError(f"Missing feature-importance key: {result_key}")
+    names = list(first.keys())
+    x = np.arange(len(names), dtype=np.float64)
+    width = 0.78 / max(1, len(named_payloads))
+    fig, ax = plt.subplots(figsize=(11.6, 5.2))
+    for index, (label, payload) in enumerate(named_payloads):
+        values_by_name = payload.get(result_key, {})
+        if not isinstance(values_by_name, dict):
+            values_by_name = {}
+        values = [float(values_by_name.get(name, 0.0)) for name in names]
+        offset = (index - (len(named_payloads) - 1) / 2.0) * width
+        ax.bar(x + offset, values, width=width, label=label)
+    ax.axhline(0.0, color="#111827", linewidth=0.8)
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x)
+    ax.set_xticklabels([_short_feature_name(name) for name in names], rotation=25, ha="right")
+    ax.grid(True, axis="y", alpha=0.25)
+    ax.legend(frameon=False, ncols=3)
+    fig.tight_layout()
+    return save_figure(fig, path)
+
+
 def markdown_path(path: str | Path, *, report_path: Path = REPORT_PATH) -> str:
     """Return a markdown-friendly path relative to a report directory."""
     return Path(os.path.relpath(Path(path), report_path.parent)).as_posix()
@@ -1147,6 +1194,12 @@ def write_comparison_report() -> None:
     clean = full_by_label.get("train2000_val400_test400")
     env = full_by_label.get("train2000_val400_test400_envnoise50dB")
     reverb = full_by_label.get("train2000_val400_test400_envnoise50dB_reverb")
+    full_named_payloads = [
+        ("clean", clean),
+        ("environment noise", env),
+        ("noise + reverb", reverb),
+    ]
+    full_named_payloads = [(label, payload) for label, payload in full_named_payloads if payload is not None]
     if clean and env and reverb:
         clean_res = clean["test_metrics"]["residual"]
         env_res = env["test_metrics"]["residual"]
@@ -1163,6 +1216,65 @@ def write_comparison_report() -> None:
                 "",
             ]
         )
+        comparison_figure_dir = OUTPUT_DIR / "figures" / "comparison"
+        ensure_dir(comparison_figure_dir)
+        weight_path = plot_combined_importance(
+            full_named_payloads,
+            "residual_weight_importance",
+            "Residual SNN first-layer feature-group weight share",
+            "normalised absolute weight share",
+            comparison_figure_dir / "combined_residual_first_layer_weight_importance.png",
+        )
+        ablation_path = plot_combined_importance(
+            full_named_payloads,
+            "residual_ablation_importance",
+            "Residual SNN zero-ablation feature-group importance",
+            "increase in combined error",
+            comparison_figure_dir / "combined_residual_zero_ablation_importance.png",
+        )
+        lines.extend(
+            [
+                "## Combined Feature Importance",
+                "",
+                "These plots combine the three full `2000/400/400` runs so that feature use can be compared directly across clean, environmental-noise, and noise-plus-reverb conditions.",
+                "",
+                f"![Combined first-layer weight importance]({markdown_path(weight_path, report_path=COMPARISON_REPORT_PATH)})",
+                "",
+                f"![Combined zero-ablation importance]({markdown_path(ablation_path, report_path=COMPARISON_REPORT_PATH)})",
+                "",
+                "The first-layer plot measures parameter magnitude, while the zero-ablation plot measures the change in test combined error when a normalised feature group is set to zero. The ablation plot is therefore the more useful diagnostic for whether the trained residual SNN depends on a feature group.",
+                "",
+                "## Scatter Plot Gallery",
+                "",
+                "These are the per-run scatter plots collected in one place. For each condition, the first plot compares the raw no-CANN readout against the fixed CANN baseline, and the second compares the fixed baseline with the residual and direct trainable SNN readouts.",
+                "",
+            ]
+        )
+        for label, payload in full_named_payloads:
+            artifacts = payload.get("artifacts", {})
+            if not isinstance(artifacts, dict):
+                continue
+            raw_vs_baseline = artifacts.get("raw_vs_baseline_scatter")
+            prediction_scatter = artifacts.get("test_prediction_scatter")
+            lines.extend([f"### {label}", ""])
+            if raw_vs_baseline:
+                lines.extend(
+                    [
+                        "Raw no-CANN readout versus fixed CANN baseline:",
+                        "",
+                        f"![{label} raw versus baseline scatter]({markdown_path(raw_vs_baseline, report_path=COMPARISON_REPORT_PATH)})",
+                        "",
+                    ]
+                )
+            if prediction_scatter:
+                lines.extend(
+                    [
+                        "Fixed baseline, residual SNN, and direct SNN:",
+                        "",
+                        f"![{label} trainable readout scatter]({markdown_path(prediction_scatter, report_path=COMPARISON_REPORT_PATH)})",
+                        "",
+                    ]
+                )
 
     lines.extend(
         [
