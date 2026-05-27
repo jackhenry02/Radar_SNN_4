@@ -79,6 +79,7 @@ Fixed baseline, residual SNN, and direct SNN:
 
 - `train1_val1_test1_envnoise50dB`: [trainable_final_readout_train1_val1_test1_envnoise50dB.md](trainable_final_readout_train1_val1_test1_envnoise50dB.md)
 - `train1_val1_test1_envnoise50dB_reverb`: [trainable_final_readout_train1_val1_test1_envnoise50dB_reverb.md](trainable_final_readout_train1_val1_test1_envnoise50dB_reverb.md)
+- `train2000_val400_test400`: [trainable_final_readout_train2000_val400_test400.md](trainable_final_readout_train2000_val400_test400.md)
 - `train2000_val400_test400_envnoise50dB`: [trainable_final_readout_train2000_val400_test400_envnoise50dB.md](trainable_final_readout_train2000_val400_test400_envnoise50dB.md)
 - `train2000_val400_test400_envnoise50dB_reverb`: [trainable_final_readout_train2000_val400_test400_envnoise50dB_reverb.md](trainable_final_readout_train2000_val400_test400_envnoise50dB_reverb.md)
 

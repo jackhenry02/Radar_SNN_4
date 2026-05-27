@@ -1078,7 +1078,9 @@ def write_report(results: dict[str, object], artifacts: dict[str, str], report_p
             "",
             "The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.",
             "",
-            f"![Feature importance]({markdown_path(artifacts['residual_feature_importance'], report_path=report_path)})",
+            "### Residual SNN",
+            "",
+            f"![Residual feature importance]({markdown_path(artifacts['residual_feature_importance'], report_path=report_path)})",
             "",
             "| Feature group | First-layer share | Ablation delta |",
             "|---|---:|---:|",
@@ -1088,6 +1090,22 @@ def write_report(results: dict[str, object], artifacts: dict[str, str], report_p
         lines.append(
             f"| {name} | `{value:.4f}` | `{results['residual_ablation_importance'][name]:.4f}` |"
         )
+    if "direct_weight_importance" in results and "direct_ablation_importance" in results:
+        lines.extend(
+            [
+                "",
+                "### Direct SNN",
+                "",
+                f"![Direct feature importance]({markdown_path(artifacts['direct_feature_importance'], report_path=report_path)})",
+                "",
+                "| Feature group | First-layer share | Ablation delta |",
+                "|---|---:|---:|",
+            ]
+        )
+        for name, value in results["direct_weight_importance"].items():
+            lines.append(
+                f"| {name} | `{value:.4f}` | `{results['direct_ablation_importance'][name]:.4f}` |"
+            )
     lines.extend(
         [
             "",
@@ -1232,6 +1250,23 @@ def write_comparison_report() -> None:
             "increase in combined error",
             comparison_figure_dir / "combined_residual_zero_ablation_importance.png",
         )
+        direct_weight_path = None
+        direct_ablation_path = None
+        if all("direct_weight_importance" in payload and "direct_ablation_importance" in payload for _, payload in full_named_payloads):
+            direct_weight_path = plot_combined_importance(
+                full_named_payloads,
+                "direct_weight_importance",
+                "Direct SNN first-layer feature-group weight share",
+                "normalised absolute weight share",
+                comparison_figure_dir / "combined_direct_first_layer_weight_importance.png",
+            )
+            direct_ablation_path = plot_combined_importance(
+                full_named_payloads,
+                "direct_ablation_importance",
+                "Direct SNN zero-ablation feature-group importance",
+                "increase in combined error",
+                comparison_figure_dir / "combined_direct_zero_ablation_importance.png",
+            )
         lines.extend(
             [
                 "## Combined Feature Importance",
@@ -1242,6 +1277,21 @@ def write_comparison_report() -> None:
                 "",
                 f"![Combined zero-ablation importance]({markdown_path(ablation_path, report_path=COMPARISON_REPORT_PATH)})",
                 "",
+            ]
+        )
+        if direct_weight_path is not None and direct_ablation_path is not None:
+            lines.extend(
+                [
+                    "### Direct SNN",
+                    "",
+                    f"![Combined direct first-layer weight importance]({markdown_path(direct_weight_path, report_path=COMPARISON_REPORT_PATH)})",
+                    "",
+                    f"![Combined direct zero-ablation importance]({markdown_path(direct_ablation_path, report_path=COMPARISON_REPORT_PATH)})",
+                    "",
+                ]
+            )
+        lines.extend(
+            [
                 "The first-layer plot measures parameter magnitude, while the zero-ablation plot measures the change in test combined error when a normalised feature group is set to zero. The ablation plot is therefore the more useful diagnostic for whether the trained residual SNN depends on a feature group.",
                 "",
                 "## Scatter Plot Gallery",
@@ -1356,6 +1406,15 @@ def main() -> dict[str, object]:
         feature_groups,
         mode="residual",
     )
+    direct_weight_importance = first_layer_group_weights(models["direct"], feature_groups)
+    direct_ablation_importance = ablation_importance(
+        models["direct"],
+        test_x,
+        test_base,
+        test_true,
+        feature_groups,
+        mode="direct",
+    )
 
     artifacts = {
         "training_curves": plot_training_curves(histories, FIGURE_DIR / "training_curves.png"),
@@ -1370,6 +1429,11 @@ def main() -> dict[str, object]:
             residual_weight_importance,
             residual_ablation_importance,
             FIGURE_DIR / "residual_feature_importance.png",
+        ),
+        "direct_feature_importance": plot_importance(
+            direct_weight_importance,
+            direct_ablation_importance,
+            FIGURE_DIR / "direct_feature_importance.png",
         ),
     }
     results = {
@@ -1402,6 +1466,8 @@ def main() -> dict[str, object]:
         "test_metrics": test_metrics,
         "residual_weight_importance": residual_weight_importance,
         "residual_ablation_importance": residual_ablation_importance,
+        "direct_weight_importance": direct_weight_importance,
+        "direct_ablation_importance": direct_ablation_importance,
         "artifacts": artifacts,
     }
     RESULTS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
