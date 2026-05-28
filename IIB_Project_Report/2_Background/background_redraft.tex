@@ -71,7 +71,7 @@ then the magnitude response is
     |H(f)| = \frac{\sqrt{1+g^2+2g\cos(2\pi f\tau)}}{1+g}.
     \label{eq:comb_filter_background_redraft}
 \end{equation}
-Changing $\tau$ moves the notch pattern. This is not a complete HRTF model, but it creates the same kind of computational problem: elevation must be inferred from a frequency-dependent spectral shape rather than from a simple time delay.
+Changing $\tau$ moves the notch pattern. This is not a complete HRTF model, but it creates the same kind of computational problem: elevation must be inferred from a frequency-dependent spectral shape rather than from a simple time delay. Figure~\ref{fig:elevation_cues_redraft} shows the biological pinna mechanism and the kind of elevation-dependent HRTF map that motivates this abstraction.
 
 \begin{figure}[H]
     \centering
@@ -148,7 +148,7 @@ The superior colliculus (SC) is involved in spatial orienting and sensorimotor m
 
 Coincidence detection is central to the distance and azimuth pathways, so it is worth defining carefully. A coincidence detector is a neuron or circuit that fires strongly only when two inputs arrive close together in time. If one input arrives too early, its membrane voltage decays before the second arrives. If it arrives too late, the same happens in reverse. When the inputs are aligned, their effects add and can cross the firing threshold.
 
-This turns timing comparison into a spatial neural code. Suppose the brain has an internal copy of the emitted call and a bank of internal delay lines. Each delay line shifts the copy by a different candidate delay. The echo is compared with each delayed copy. The neuron whose internal delay best matches the true echo delay receives near-simultaneous inputs and therefore has the strongest response. ``Maximal firing'' in this context means the largest spike count or membrane response within the candidate population, not a mysterious property of a single neuron.
+This turns timing comparison into a spatial neural code. Suppose the brain has an internal copy of the emitted call and a bank of internal delay lines. Each delay line shifts the copy by a different candidate delay. The echo is compared with each delayed copy. The neuron whose internal delay best matches the true echo delay receives near-simultaneous inputs and therefore has the strongest response. ``Maximal firing'' in this context means the largest spike count or membrane response within the candidate population, not a mysterious property of a single neuron. Figure~\ref{fig:delay_line_coincidence_population_redraft} gives the corresponding delay-line population example.
 
 \begin{figure}[H]
     \centering
@@ -165,7 +165,7 @@ Rate coding is the other important abstraction. A fully spiking population produ
 
 \section{Spiking Computation}
 
-Spiking neural networks (SNNs) use event-like spikes rather than continuously valued activations. A standard leaky integrate-and-fire (LIF) neuron integrates input current into a membrane state. The membrane leaks over time, and when it crosses a threshold the neuron emits a spike and resets. In discrete time this can be written as
+Spiking neural networks (SNNs) use event-like spikes rather than continuously valued activations. In the model, a spike is a binary event at a timestep, effectively a discrete Kronecker-delta impulse rather than a continuous analogue value. Figure~\ref{fig:lif_spike_population_encoding_redraft} shows the basic spike-generation and population-code ideas. A standard leaky integrate-and-fire (LIF) neuron integrates input current into a membrane state. The membrane leaks over time, and when it crosses a threshold the neuron emits a spike and resets. In discrete time this can be written as
 \begin{equation}
     v[t] = \beta v[t-1] + I[t] - S[t]V_{\mathrm{th}},
     \qquad
@@ -181,7 +181,7 @@ where $v[t]$ is membrane voltage, $I[t]$ is input, $\beta$ is the leak factor, $
     \label{fig:lif_spike_population_encoding_redraft}
 \end{figure}
 
-The engineering attraction of spikes is that computation can be event-driven. If no spikes arrive, little needs to be updated. Neuromorphic hardware exploits this sparsity by implementing large numbers of spiking neurons and synapses with asynchronous communication; large digital neuromorphic chips such as TrueNorth demonstrated million-neuron spiking systems with low-power event-driven operation \cite{Merolla2014AInterface}. This does not automatically mean every SNN is efficient, but it motivates building models whose data representation and computations could be mapped to neuromorphic hardware.
+The engineering attraction of spikes is that computation can be event-driven. Event-driven processing means that downstream computation is triggered by discrete events, such as incoming spikes, rather than by updating every unit with dense synchronous operations at every timestep. If no spikes arrive, little needs to be updated. Neuromorphic hardware exploits this sparsity by implementing large numbers of spiking neurons and synapses with asynchronous communication; large digital neuromorphic chips such as TrueNorth demonstrated million-neuron spiking systems with low-power event-driven operation \cite{Merolla2014AInterface}. This does not automatically mean every SNN is efficient, but it motivates building models whose data representation and computations could be mapped to neuromorphic hardware.
 
 Modern trainable SNNs often use surrogate gradients. The spike function is non-differentiable, so during backpropagation its derivative is replaced with a smooth approximation. Forward simulation still uses spikes, while the backward pass uses a differentiable surrogate. This allows SNNs to be trained using deep-learning tools while retaining spiking dynamics \cite{Eshraghian2023TRAININGLEARNING}. In this project, the final trainable model uses SNN readouts to test whether the biologically structured pathway features are more useful than raw waveform or cochlear-raster inputs.
 

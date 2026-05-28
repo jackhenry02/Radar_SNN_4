@@ -27,22 +27,22 @@
     
     % ==================== LINEAR SIMULATION PIPELINE ====================
     \node (source) [nobox] at (0,0) {Source\\Signal};
-    \node (delay)  [block, right=0.35cm of source] {Time\\Delay};
-    \node (atten)  [block, right=0.35cm of delay]  {Distance\\Attenuation};
-    \node (shadow) [block, right=0.35cm of atten]  {Head\\Shadow};
-    \node (spec)   [block, right=0.35cm of shadow] {Spectral\\Filtering};
-    \node (noise)  [block, right=0.35cm of spec]   {Noise\\Addition};
-    \node (wave)   [nobox, right=0.35cm of noise]  {Received\\Waveform};
+    \node (delay)  [block, right=0.30cm of source] {Time\\Delay};
+    \node (atten)  [block, right=0.30cm of delay]  {Distance\\Attenuation};
+    \node (noise)  [block, right=0.30cm of atten]  {Noise \&\\Delayed Echoes};
+    \node (shadow) [block, right=0.30cm of noise]  {Binaural\\Head Shadow};
+    \node (spec)   [block, right=0.30cm of shadow] {Elevation\\Filtering};
+    \node (wave)   [nobox, right=0.30cm of spec]   {Received\\Waveform};
 
     % ==================== CONNECTIONS ====================
     \draw [arrow] (source) -- (delay);
     \draw [arrow] (delay)  -- (atten);
-    \draw [arrow] (atten)  -- (shadow);
+    \draw [arrow] (atten)  -- (noise);
+    \draw [arrow] (noise)  -- (shadow);
     \draw [arrow] (shadow) -- (spec);
-    \draw [arrow] (spec)   -- (noise);
-    \draw [arrow] (noise)  -- (wave);
+    \draw [arrow] (spec)   -- (wave);
 
     \end{tikzpicture}
-    \caption{Monaural signal transformation pipeline demonstrating the sequential processing stages required to generate a localized acoustic waveform instance.}
+    \caption{Signal transformation pipeline used to generate a simulated received waveform. Environmental noise and delayed echo components are inserted before binaural head-shadow and elevation filtering, so these disturbances can distort the cues used by later pathway models.}
     \label{fig:monaural_simulation_pipeline}
 \end{figure}

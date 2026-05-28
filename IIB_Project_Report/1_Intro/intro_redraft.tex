@@ -14,7 +14,7 @@ The localisation task considered in this report is to estimate the spherical coo
 \begin{equation}
     \mathbf{x} = (r, \theta, \psi),
 \end{equation}
-where $r$ is target distance, $\theta$ is azimuth, and $\psi$ is elevation. The model observes the echo produced when an emitted acoustic signal reflects from a target. This can be viewed as a state-estimation problem: the hidden state is the target location, and the observation is a time-varying binaural waveform.
+where $r$ is target distance, $\theta$ is azimuth, and $\psi$ is elevation. Figure~\ref{fig:intro_spherical_coordinates_redraft} shows this coordinate convention. The model observes the echo produced when an emitted acoustic signal reflects from a target. This can be viewed as a state-estimation problem: the hidden state is the target location, and the observation is a time-varying binaural waveform.
 
 \begin{figure}[H]
     \centering
@@ -23,7 +23,7 @@ where $r$ is target distance, $\theta$ is azimuth, and $\psi$ is elevation. The 
     \label{fig:intro_spherical_coordinates_redraft}
 \end{figure}
 
-Conventional radar and sonar systems usually solve related localisation problems through explicit signal-processing pipelines. A radar system may perform range processing, Doppler processing, thresholding such as constant false alarm rate (CFAR) detection, and angle estimation, producing representations such as range-Doppler maps. These approaches are powerful and mathematically well understood, but they often rely on dense numerical operations over sampled signals. For high-performance radar or cloud-connected systems this cost may be acceptable. For small edge systems, it motivates asking whether a more event-driven and task-structured representation can reduce unnecessary computation.
+Conventional radar and sonar systems usually solve related localisation problems through explicit signal-processing pipelines, as illustrated in Figure~\ref{fig:intro_radar_redraft}. A radar system may perform range processing, Doppler processing, thresholding such as constant false alarm rate (CFAR) detection, and angle estimation, producing representations such as range-Doppler maps. These approaches are powerful and mathematically well understood, but they often rely on dense numerical operations over sampled signals. For high-performance radar or cloud-connected systems this cost may be acceptable. For small edge systems, it motivates asking whether a more event-driven and task-structured representation can reduce unnecessary computation.
 
 \begin{figure}[H]
     \centering
@@ -55,7 +55,7 @@ The main objectives are:
     \item to build separate distance, azimuth, and elevation pathways using simplified biological computations, including delay coincidence, binaural comparison, and spectral-template matching;
     \item to compare direct centre-of-mass readouts, calibrated readouts, and SC-style continuous-attractor readouts for pathway population codes;
     \item to train SNN readouts on the pathway-derived feature set and compare them with SNN baselines trained from less structured inputs such as raw binaural waveforms or cochlear spike rasters;
-    \item to evaluate the final model under clean, environmental-noise, and reverberant conditions, while identifying the limits of the constrained operating region.
+    \item to evaluate the final model under noise-free, environmental-noise, and delayed-echo conditions, while identifying the limits of the constrained operating region.
 \end{itemize}
 
 The contribution is therefore a complete modelling pipeline rather than a single isolated algorithm. The work shows how an active sensing task can be decomposed into interpretable neuromorphic components, how those components can be tested individually, and how a limited trainable readout can be added without discarding the biological structure. The final design principle is hybrid: fixed biomimetic pathways provide interpretable feature extraction, while a small trainable SNN performs contextual integration and residual correction.
@@ -66,6 +66,6 @@ Chapter 2 provides the biological and neuromorphic background needed to understa
 
 Chapter 3 describes the modelling and implementation. It explains the acoustic simulation, cochlear front end, distance pathway, azimuth pathway, elevation pathway, SC-style readouts, and trainable fusion network.
 
-Chapter 4 presents the results. It evaluates the fixed pathway readouts, trainable SNN readouts, input baselines, robustness to noise and reverberation, and the main error structure of the final model.
+Chapter 4 presents the results. It evaluates the fixed pathway readouts, trainable SNN readouts, input baselines, robustness to noise and delayed echo components, and the main error structure of the final model.
 
 Chapter 5 concludes the report by summarising the main findings, discussing limitations, and identifying future work needed to move from this prototype toward a more complete neuromorphic echolocation system.

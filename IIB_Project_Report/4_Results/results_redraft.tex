@@ -12,7 +12,7 @@ The individual pathways produce useful but imperfect population codes. Distance 
 
 \section{Full Model Comparison}
 
-Figure~\ref{fig:headline_combined_error} shows the main comparison. The residual SNN using pathway features is the best overall readout in all three acoustic conditions. The input-only SNN baselines show that cochlear preprocessing is useful, but the best performance is obtained when the SNN receives the structured distance, azimuth, elevation, CANN, and confidence features.
+Figure~\ref{fig:headline_combined_error} shows the main comparison, and Table~\ref{tab:full_model_results_redraft} gives the corresponding coordinate-specific values and confidence intervals. The residual SNN using pathway features is the best overall readout in all three acoustic conditions. The input-only SNN baselines show that cochlear preprocessing is useful, but the best performance is obtained when the SNN receives the structured distance, azimuth, elevation, CANN, and confidence features.
 
 \begin{figure}[H]
     \centering
@@ -30,7 +30,7 @@ Figure~\ref{fig:headline_combined_error} shows the main comparison. The residual
 \toprule
 Condition & Readout & Distance MAE & Azimuth MAE & Elevation MAE & Euclidean MAE & Combined error \\
 \midrule
-Clean & Raw pathway COM & 0.037 [0.034, 0.039] & 4.58 [3.96, 5.28] & 2.99 [2.80, 3.18] & 0.300 [0.263, 0.343] & 0.058 [0.054, 0.064] \\
+Noise-free & Raw pathway COM & 0.037 [0.034, 0.039] & 4.58 [3.96, 5.28] & 2.99 [2.80, 3.18] & 0.300 [0.263, 0.343] & 0.058 [0.054, 0.064] \\
  & Fixed CANN/calibrated & 0.037 [0.034, 0.039] & 4.92 [4.29, 5.59] & 0.91 [0.85, 0.97] & 0.244 [0.204, 0.287] & 0.046 [0.041, 0.051] \\
  & Best input-only SNN & 0.068 [0.063, 0.073] & 4.29 [3.81, 4.81] & 6.28 [5.52, 7.07] & 0.258 [0.244, 0.272] & 0.083 [0.075, 0.091] \\
  & Direct pathway-feature SNN & 0.062 [0.057, 0.068] & 2.45 [2.21, 2.71] & 1.13 [1.05, 1.22] & 0.161 [0.147, 0.177] & 0.031 [0.029, 0.033] \\
@@ -42,7 +42,7 @@ Environmental noise & Raw pathway COM & 0.079 [0.056, 0.106] & 7.69 [6.77, 8.64]
  & Direct pathway-feature SNN & 0.069 [0.063, 0.075] & 3.83 [3.42, 4.25] & 4.02 [3.68, 4.36] & 0.321 [0.291, 0.355] & 0.063 [0.059, 0.067] \\
  & Residual pathway-feature SNN & 0.021 [0.018, 0.025] & 3.71 [3.31, 4.15] & 3.51 [3.17, 3.85] & 0.297 [0.266, 0.332] & 0.055 [0.051, 0.059] \\
 \midrule
-Noise + reverb & Raw pathway COM & 0.080 [0.057, 0.108] & 7.74 [6.82, 8.71] & 28.96 [26.71, 31.19] & 1.692 [1.545, 1.838] & 0.277 [0.259, 0.296] \\
+Noise + delayed echoes & Raw pathway COM & 0.080 [0.057, 0.108] & 7.74 [6.82, 8.71] & 28.96 [26.71, 31.19] & 1.692 [1.545, 1.838] & 0.277 [0.259, 0.296] \\
  & Fixed CANN/calibrated & 0.080 [0.058, 0.107] & 8.15 [7.27, 9.08] & 25.97 [23.95, 27.96] & 1.567 [1.439, 1.700] & 0.258 [0.242, 0.275] \\
  & Best input-only SNN & 0.077 [0.071, 0.083] & 5.41 [4.95, 5.91] & 3.81 [3.42, 4.24] & 0.300 [0.280, 0.322] & 0.073 [0.068, 0.079] \\
  & Direct pathway-feature SNN & 0.073 [0.068, 0.079] & 3.88 [3.47, 4.34] & 4.03 [3.62, 4.50] & 0.343 [0.309, 0.380] & 0.063 [0.059, 0.068] \\
@@ -52,7 +52,7 @@ Noise + reverb & Raw pathway COM & 0.080 [0.057, 0.108] & 7.74 [6.82, 8.71] & 28
 }
 \end{table}
 
-The clean-condition result shows that the fixed pathway model is already functional, but that trainable residual fusion gives a large additional improvement. Under environmental noise, the fixed readout suffers a severe elevation failure, while the residual SNN substantially corrects this by using the wider feature set. Noise plus reverberation produces a similar residual error to noise alone, suggesting that the tested late echoes are less damaging than corruption of the elevation spectral cue.
+The noise-free result shows that the fixed pathway model is already functional, but that trainable residual fusion gives a large additional improvement. Under environmental noise, the fixed readout suffers a severe elevation failure, while the residual SNN substantially corrects this by using the wider feature set. Adding delayed echo components produces a similar residual error to environmental noise alone, suggesting that the tested late echoes are less damaging than corruption of the elevation spectral cue. Figure~\ref{fig:coordinate_mae_summary} separates the headline comparison into distance, azimuth, elevation, and Euclidean position error.
 
 \begin{figure}[H]
     \centering
@@ -72,6 +72,8 @@ Figure~\ref{fig:noisy_elevation_curve} isolates the dominant environmental-noise
     \label{fig:noisy_elevation_curve}
 \end{figure}
 
+Figure~\ref{fig:residual_binned_errors} shows the remaining coordinate-dependent error structure of the residual SNN. This is useful because a single mean error can hide whether the model is failing uniformly or only near particular regions of the tested coordinate space.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.98\textwidth]{4_Results/trained/residual_binned_error_curves.png}
@@ -89,6 +91,8 @@ Feature-group ablation provides a more useful interpretation than first-layer we
     \caption{Residual SNN feature-group ablation. Positive values indicate an increase in combined error when a feature group is zeroed on the test set.}
     \label{fig:residual_feature_ablation}
 \end{figure}
+
+Figure~\ref{fig:residual_feature_ablation} summarises this ablation test across feature groups.
 
 \section{Discussion}
 
