@@ -1,0 +1,302 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[margin=25mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead[L]{Jack Henry}
+\fancyhead[R]{Spiking Neural Networks}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\setlist{nosep}
+\usepackage[numbers]{natbib} % optional, but recommended
+
+
+% Configuration for Python code
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small, % Typewriter font, slightly smaller
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!50!black},
+    numbers=left,               % Line numbers on the left
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,               % Number every line
+    breaklines=true,            % Wrap long lines automatically
+    breakatwhitespace=true,
+    frame=single,               % Draw a frame around the code
+    tabsize=4,
+    showstringspaces=false,
+    captionpos=b                % Caption at the bottom
+}
+
+\lstdefinelanguage{markdown}{
+  morecomment=[l]{\#},           % Headers
+  morecomment=[s]{**}{**},       % Bold text
+  morecomment=[s]{*}{*},         % Italic text
+  morestring=[b]`,               % Inline code
+  morestring=[b]",               % Strings
+  sensitive=false
+}
+
+
+
+% --- Space-Saving and Formatting Preamble ---
+%\usepackage[T1]{fontenc}
+%\usepackage{lmodern} % Professional Latin Modern font
+
+% 2. Font Selection (11pt is the standard minimum for engineering)
+% To set the global size, ensure your document class starts with:
+% \documentclass[11pt]{article}
+
+% 3. Line Spacing (Custom stretch for 10-page limit)
+\usepackage{setspace}
+\setstretch{1} % Slightly tighter than 1.2; saves ~0.5 pages
+
+% 4. Paragraph Spacing (Reduces large vertical gaps)
+%\setlength{\parskip}{4pt}
+
+% Main Title:
+\usepackage{titling}
+\setlength{\droptitle}{0cm}  % space above the title
+%\posttitle{\vspace{-0.2cm}}
+
+
+
+% 5. Section Heading Optimization (Requires titlesec)
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{3pt}{2pt}
+\titlespacing*{\subsection}{0pt}{2pt}{1pt}
+\titlespacing*{\paragraph}{15pt}{0pt}{2pt}
+
+% 6. Figure Captions (Standard practice to use small font)
+\usepackage[font=small,labelfont=bf]{caption}
+
+
+\setlength{\textfloatsep}{5pt}   % space between figure and text
+\setlength{\floatsep}{5pt}       % space between two floats
+\setlength{\intextsep}{5pt}      % space for figures inside text
+
+\usepackage[skip=2pt]{caption}
+
+
+\graphicspath{{report_figures/}}
+
+\newcommand{\writingbox}[1]{
+  \vspace{0.5em}
+  \noindent\fbox{\parbox{0.96\linewidth}{\textbf{Writing space:} #1\\[6em]}}
+  \vspace{0.8em}
+}
+
+
+\newcommand{\figuretodo}[3]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=#1\linewidth]{#2}
+    \caption{#3}
+  \end{figure}
+}
+
+
+\begin{document}
+
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Large University of Cambridge Department of Engineering\par}
+  \vspace{1.5cm}
+  {\Huge\bfseries Spiking Neural Networks Neuromorphic \par}
+    \vspace{1.5cm}
+  {\LARGE Bat-Inspired 3D Echolocation for Object Localisation \par}
+  \vspace{1.5cm}
+  {\Large IIB Project\par}
+  \vfill
+  \begin{tabular}{ll}
+    Name: & \textit{Jack Henry}\\
+    College: & \textit{Churchill College}\\
+    Supervisor: & \textit{Tim O'Leary}\\
+    Date: & \today
+  \end{tabular}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+
+
+\chapter*{Technical Abstract Plan}
+\addcontentsline{toc}{chapter}{Technical Abstract Plan}
+\textbf{Required length:} no more than two pages. Include name, College, and project title because this is submitted separately.
+
+\writingbox{Write this last. Summarise the problem, the biomimetic approach, the neuromorphic primitives, the three parallel pathways, the CANN readout, headline results, and limitations/future work.}
+
+\tableofcontents
+
+\chapter*{Acronyms}
+\addcontentsline{toc}{chapter}{Chapter 0: Acronyms}
+\begin{tabular}{ll}
+  AC & Auditory cortex\\
+  CANN & Continuous attractor neural network\\
+  CD & Corollary discharge\\
+  COM & Centre of mass\\
+  DCN & Dorsal cochlear nucleus\\
+  DNLL & Dorsal nucleus of the lateral lemniscus\\
+  FFT & Fast Fourier transform\\
+  IC & Inferior colliculus\\
+  IIR & Infinite impulse response\\
+  ILD & Interaural level difference\\
+  ITD & Interaural time difference\\
+  LIF & Leaky integrate-and-fire\\
+  LSO & Lateral superior olive\\
+  MNTB & Medial nucleus of the trapezoid body\\
+  PSD & Power spectral density\\
+  RF & Resonate-and-fire\\
+  SC & Superior colliculus\\
+  SNN & Spiking neural network\\
+  VCN & Ventral cochlear nucleus
+\end{tabular}
+
+\chapter*{List of Acronyms}
+\addcontentsline{toc}{chapter}{List of Acronyms}
+
+\begin{tabbing}
+    \textbf{CANN} \qquad \= Continuous Attractor Neural Network \\
+    \textbf{CD} \> Corollary Discharge \\
+    \textbf{DSP} \> Digital Signal Processing \\
+    \textbf{FM} \> Frequency Modulation \\
+    \textbf{HRTF} \> Head-Related Transfer Function \\
+    \textbf{IC} \> Inferior Colliculus \\
+    \textbf{ILD} \> Interaural Level Difference \\
+    \textbf{ITD} \> Interaural Time Difference \\
+    \textbf{LIF} \> Leaky Integrate-and-Fire \\
+    \textbf{RF} \> Receptive Field \\
+    \textbf{SNN} \> Spiking Neural Network \\
+    \textbf{SNR} \> Signal-to-Noise Ratio \\
+    \textbf{ToF} \> Time-of-Flight \\
+    \textbf{VCN} \> Ventral Cochlear Nucleus
+\end{tabbing}
+
+\clearpage
+
+\pagenumbering{arabic}
+
+\chapter{Introduction and Motivation}
+\section{The Engineering Problem}
+\writingbox{Describe 3D sound localisation as estimating range, azimuth, and elevation from echoes under edge-system constraints. Explain why low latency, low power, and robustness matter.}
+
+\figuretodo{0.82}{ch1_emitted_call_spectrogram.png}{Suggested introductory figure: emitted frequency-modulated call spectrogram.}
+\figuretodo{0.82}{ch1_binaural_head_shadow.png}{Suggested figure: binaural received signals and head-shadow cue.}
+
+\section{Radar/Sonar Context}
+\writingbox{Explain classical ranging, matched filtering, beamforming, ITD/ILD analogues, and where conventional approaches become expensive.}
+
+\section{Biomimetic Pivot}
+\writingbox{Explain why bat echolocation is the biological reference system: small power budget, real-time performance, frequency sweeps, parallel auditory pathways, and spike-based computation.}
+
+\section{Architectural Philosophy}
+\writingbox{State the report's design thesis: bottom-up functional tuning first, then targeted training if needed. Contrast this with opaque end-to-end training.}
+
+\chapter{Neuromorphic Primitives and Classical Algorithmic Parallels}
+\section{Spikes and Neuron Models}
+\figuretodo{0.8}{ch2_lif_microdynamics.png}{LIF microdynamics.}
+\figuretodo{0.8}{ch2_rf_microdynamics.png}{RF microdynamics.}
+\figuretodo{0.8}{ch2_frequency_gain.png}{LIF, RF, and level-crossing frequency response comparison.}
+\writingbox{Explain LIF, RF, and level-crossing neurons. Include equations and functional interpretation.}
+
+\section{Neurons as Algorithms}
+\writingbox{Map RF banks to band-pass/Fourier-like analysis, LIF coincidence banks to cross-correlation, synaptic weights to matched filters, and population spikes to probabilistic samples.}
+
+\section{Preliminary Coincidence-Detection Control}
+\figuretodo{0.82}{ch2_sustained_pitch_response.png}{Suggested control result: sustained-pitch response of LIF/RF/binary coincidence detectors.}
+\writingbox{Present the LIF/RF/binary distance coincidence tests. Use this to justify why LIF/binary coincidence is used for precise timing and RF is not used as the primary range detector.}
+
+\chapter{System Architecture and Peripheral Frontend}
+\section{End-to-End Pipeline}
+\writingbox{Introduce the full architecture: signal generation, echo simulation, cochlea, VCN preparation, distance/azimuth/elevation pathways, IC/SC readout.}
+
+\section{Signal Model}
+\writingbox{Describe the FM call, propagation delay, inverse-square attenuation, head shadow, noise/jitter, and spectral cue insertion.}
+
+\section{Cochlea and Squelch Frontend}
+\figuretodo{0.82}{ch3_final_cochlea_output.png}{Final optimised cochlea output.}
+\figuretodo{0.82}{ch3_channel_scaling_runtime.png}{Runtime scaling of optimised IIR cochlea against FFT baseline.}
+\writingbox{Explain the final IIR + TorchScript LIF + active-window-gated cochlea. Describe why this replaced FFT/IFFT per channel.}
+
+\section{VCN and Latency Calibration}
+\figuretodo{0.82}{ch3_cochlea_latency_vector.png}{Cochlea latency vector used to align CD and sensory sweeps.}
+\figuretodo{0.82}{ch3_dynamic_schedule.png}{Dynamic threshold and beta schedule for noisy distance cochlea.}
+\writingbox{Explain onset detection, cochlear latency correction, dynamic threshold/beta, and why these are needed before pathway processing.}
+
+\chapter{Parallel Processing Pathways}
+\section{Distance Pathway: Temporal Coding}
+\figuretodo{0.9}{ch4_distance_pipeline.png}{Final distance pathway pipeline.}
+\figuretodo{0.9}{ch4_distance_rasters.png}{Frequency-time rasters through the distance pathway.}
+\figuretodo{0.72}{ch4_distance_readout_scatter.png}{Distance pathway readout scatter.}
+\writingbox{Follow the structure: biological mechanism, neuromorphic abstraction, parameter tuning, isolated validation. Include FM sweep corollary discharge, VCN onset sharpening, DNLL suppression, IC coincidence detection, AC population map, SC readout.}
+
+\section{Azimuth Pathway: Binaural Level and Time}
+\figuretodo{0.88}{ch4_azimuth_pipeline.png}{Azimuth pathway pipeline.}
+\figuretodo{0.82}{ch4_azimuth_warped_ild.png}{Inverse-sigmoid ILD warping.}
+\figuretodo{0.82}{ch4_azimuth_full3d_pm45.png}{Azimuth full-3D test in the tuned $\pm45^\circ$ range.}
+\writingbox{Describe ITD and ILD branches, why ILD dominated in the tuned space, the inverse-sigmoid synaptic warp, and the effect of full 3D tests.}
+
+\section{Elevation Pathway: Spectral Shaping}
+\figuretodo{0.82}{ch4_elevation_deep_psd.png}{Received PSD before/after deep comb-filter notch.}
+\figuretodo{0.82}{ch4_elevation_synaptic_weights.png}{Signal-and-notch synaptic weight matrix.}
+\figuretodo{0.72}{ch4_elevation_full3d_scatter.png}{Elevation full-3D prediction scatter.}
+\writingbox{Explain comb-filter pinna cue, DCN-style signal-and-notch weighting, first-notch diagnostic, lateral inhibition attempt, dynamic wideband inhibition attempt, and full-3D elevation result.}
+
+\chapter{Cortical Integration and Continuous Attractor Dynamics}
+\section{Population Codes and Readout}
+\writingbox{Explain why distance, azimuth, and elevation are represented as population codes rather than direct scalar regression.}
+
+\section{Line Attractor Theory}
+\figuretodo{0.82}{ch5_cann_chosen_matrices.png}{Chosen finite-line attractor input and recurrence matrices.}
+\figuretodo{0.82}{ch5_energy_landscape.png}{Energy landscape visualisation for the line attractor.}
+\writingbox{Explain conversion from ring to line attractor, boundary handling, balanced E/I recurrence, Fisher-information-guided input choices, and biological limits on alpha/rate.}
+
+\section{Pathway Integration}
+\figuretodo{0.82}{ch5_line_attractor_dynamics.png}{Distance SC line-attractor dynamics.}
+\figuretodo{0.7}{ch5_readout_mae_comparison.png}{Comparison of simple COM and line-attractor readouts.}
+\writingbox{Discuss where CANN helped, where it did not, and why attractors may be more useful for temporal tracking/noise filtering than for single-frame clean decoding.}
+
+\chapter{System-Level Performance and Discussion}
+\section{Distance Results}
+\figuretodo{0.75}{ch6_distance_full_test_accuracy.png}{Distance pathway full 3D test result.}
+\writingbox{Summarise clean/noisy/full-3D distance performance and compare with old trained models.}
+
+\section{Azimuth Results}
+\writingbox{Summarise tuned $\pm45^\circ$ performance, full $\pm90^\circ$ degradation, ILD vs ITD, and biological interpretation.}
+
+\section{Elevation Results}
+\figuretodo{0.82}{ch6_elevation_tuning_sweep.png}{Elevation dynamic/lateral inhibition tuning sweep.}
+\writingbox{Summarise 1D and full-3D elevation performance. Explain why lateral/dynamic inhibition did not improve clean COM decoding.}
+
+\section{Environmental, Social, and Ethical Considerations}
+\writingbox{Discuss low-power sensing, surveillance/dual-use implications, environmental impact of edge sensors, and animal-inspired design.}
+
+\section{Limitations}
+\writingbox{Discuss missing full end-to-end integrated 3D test, simplified acoustics, idealised azimuth-gated ear selection, simulated noise, no multi-object clutter handling yet, and limited biological validation.}
+
+\chapter{Conclusions and Future Work}
+\writingbox{State the main findings and future steps: integrate all pathways, stress-test under noise/clutter, add object classification, multi-object tracking, and targeted learning.}
+
+\appendix
+
+
+\end{document}
+
+
+
+\end{document}
