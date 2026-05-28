@@ -1,0 +1,94 @@
+Final report
+
+Technical abstract
+
+The final report must begin with a technical abstract of not more than two pages in length. This should be designed as a self-contained document and should provide a concise overview of the report structure and the key features of your work (e.g. the problem being addressed, techniques used, main results, and conclusions).
+
+NB. as well as being submitted as part of your final report, you will be required to submit a separate copy of your technical abstract, which will be archived by the Department. Thus it is important that you include your name, College and project title in your abstract.
+
+Risk assessment retrospective
+
+Your report should include a brief appendix (maximum one side of A4) commenting on the risk assessment you submitted to the Safety Office at the start of the Michaelmas term. How well did this reflect the hazards actually encountered during the course of the project? In retrospect, how might you go about assessing risk differently if starting the project again?
+
+Style
+
+The final report should not exceed 53 A4 pages in total, comprising the title page, no more than two pages for the technical abstract and no more than 50 pages for everything else. The main text must be typeset in 12-point font, though ancillary material that does not form part of the central narrative (e.g. the bibliography, appendices with code listings) may be typset in a smaller font if necessary. Margins are to be approximately 25mm all round.
+
+ 
+
+A copy of the standard departmental coversheet is available online as a word document. Students should make sure that they fill in all the information and sign/date the declaration at the foot of the coversheet.
+
+Planning the report
+
+Leave plenty of time for writing-up.  A good plan would be to produce a first draft before the module examinations commence at the start of the Easter Term. Your supervisor can then read the draft while you are doing the examinations and meet you to provide feedback immediately the examinations end.
+
+Before you start writing, it is essential that, from the start, you have a clear view of the technical level at which the report should be pitched. Remember that you are writing for two readers:
+
+your project supervisor, who should know the aims and the technical background of your project; and
+an assessor, who will know something about the subject area (e.g. an information engineering report will not be examined by a lecturer in structures), but will not be familiar with details. i.e. do not fill the report with elementary theory and descriptions of standard processes.
+There are no set rules for how a technical report should be structured and the pattern may depend on whether the work being reported is theoretical, experimental, computational or on design. What is certain is that you must have a technical abstract, an introduction and conclusions. Between the introduction and conclusions, the theme of the report should be developed in the manner which you judge to be most clear and logical.
+
+You should, in your report, consider what potential enviromental and social impact your project might have and what ethical issues the work you have carried out might raise. You should also reflect on how well you identified risks to the project at the TMR stage.
+
+A typical plan for a report on an experimental project might be:
+
+Technical abstract
+A self-contained summary in not more than 2 sides. Write this last.
+Introduction
+An important section in which you can point out what has been done before and put the project into context. Many students seem to confuse introduction and summary. In this section you explain why you are doing the work. If you don't know, ask your supervisor.
+Theory and design of experiment
+Explain the assumptions behind the theoretical development you are using and the application of the theory to your particular problem. Any heavy algebra or details of computing work should go into an appendix.
+Apparatus and experimental techniques
+This section should describe the running of the experiment or experiments and what equipment was used, but should not be a blow by blow account of your work. Experimental accuracy could be discussed here.
+Results and discussion
+This could be split into two separate sections but it may be easier to present the results and your discussion of them in the one section. This is the most difficult part of the report: you must present the results, interpret them and compare them with any theory or other published results.
+Conclusions
+This should contain the main findings and possibly ideas for future work. You should reflect on your work in the project considering what elements you think worked well, which did not and how you could have improved your work.
+References
+List the sources of information which you have quoted in your background material, theory, or experimental methods in sufficient detail for anyone else to find the sources in a library or online.
+All figures and graphs in the report should be clearly labelled with figure numbers and captions. Make sure that you show scales and label the axes on all your graphs.
+You may find the CUED Guide to Report Writing helpful.
+
+Code listings
+
+In the same way that it is a mistake to include in a report every detail of standard experimental procedures, it is inappropriate to reproduce an entire computer program, which will inevitably contain much which is of little intrinsic interest. If there are elements in a program which are novel, these should be selected for proper discussion in the text, perhaps with pseudo-code provided in a figure or appendix.
+
+Writing the final report
+
+You should expect to make at least one and probably more revisions to your first draft. So, make sure that you complete that draft well before the deadline. Then leave it for a few days and read it through. Does it make sense? Make your revisions and prepare the next version.
+
+If you are using departmental facilities for word processing, note that you may have to share with other users. In particular, the Part IIA Easter term projects start before the submission date of your report and at certain times the Part IIA projects have priority.
+
+If you are using your own computer for word processing, be careful to keep plenty of backup copies of your work on an external drive and/or the cloud. Computer failure is not an acceptable excuse for handing in your report late, and if you fail to hand in your main report, you will fail the MEng.
+
+Assessment of the final report
+
+The following criteria will be considered in the assessment:
+
+A. Effort:
+
+Practical skill in experimental, computational, design or theoretical work.
+Diligence.
+Persistence in overcoming difficulties and achieving objectives.
+B. Achievement:
+
+Appreciation of significance of project.
+Competence in planning attack on problems and managing risk. 
+Initiative and generation of ideas.
+Ingenuity and perspicacity.
+Deductive power and judgement.
+Appreciation of environmental, social and ethical issues.
+C. Communication:
+
+Overall planning of the account - the logic of its development.
+Clarity of technical abstract.
+Clarity of main text and analysis.
+Quality of language, readability, freedom from errors.
+Clarity of diagrams and graphs.
+Feedback
+
+Feedback on the marking of the final report is provided by the project supervisor on request.
+
+Archiving
+
+There is no central archive of final reports, although individual supervisors may keep a copy of their students' work. Copies of technical abstracts will be collected at the time of the submission of final reports and archived by the Department after the projects are finished.
