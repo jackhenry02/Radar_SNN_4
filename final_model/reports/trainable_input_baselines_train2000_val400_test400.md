@@ -71,5 +71,6 @@ Mean cache generation time was `0.006 s/sample`.
 
 - `training_curves`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400/training_curves.png`
 - `prediction_scatter`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400/prediction_scatter.png`
+- `test_predictions`: `final_model/outputs/trainable_input_baselines/test_predictions_train2000_val400_test400.npz`
 - `cache`: `final_model/outputs/trainable_input_baselines/cache_train2000_val400_test400.npz`
 - `results`: `final_model/outputs/trainable_input_baselines/results_train2000_val400_test400.json`

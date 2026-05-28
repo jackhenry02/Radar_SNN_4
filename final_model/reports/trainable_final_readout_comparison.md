@@ -38,6 +38,12 @@ These plots combine the three full `2000/400/400` runs so that feature use can b
 
 ![Combined zero-ablation importance](../outputs/trainable_readout/figures/comparison/combined_residual_zero_ablation_importance.png)
 
+### Direct SNN
+
+![Combined direct first-layer weight importance](../outputs/trainable_readout/figures/comparison/combined_direct_first_layer_weight_importance.png)
+
+![Combined direct zero-ablation importance](../outputs/trainable_readout/figures/comparison/combined_direct_zero_ablation_importance.png)
+
 The first-layer plot measures parameter magnitude, while the zero-ablation plot measures the change in test combined error when a normalised feature group is set to zero. The ablation plot is therefore the more useful diagnostic for whether the trained residual SNN depends on a feature group.
 
 ## Scatter Plot Gallery

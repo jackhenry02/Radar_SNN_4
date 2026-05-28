@@ -1,0 +1,93 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % --- Attractor Layer Styles ---
+        neuron/.style={
+            draw=gray!80, circle, minimum size=0.9cm, line width=1.0pt, fill=white,
+            font=\small\sffamily\bfseries
+        },
+        activeNode/.style={
+            draw=blue!80!black, circle, minimum size=0.9cm, line width=1.8pt, fill=blue!5,
+            font=\small\sffamily\bfseries
+        },
+        % --- Input Layer Styles ---
+        inputNode/.style={
+            draw=gray!50, circle, minimum size=0.8cm, line width=1.0pt, fill=gray!5,
+            text=gray!60, font=\small\sffamily\bfseries
+        },
+        activeInput/.style={
+            draw=teal!80!black, circle, minimum size=0.8cm, line width=1.5pt, fill=teal!5,
+            text=teal!90!black, font=\small\sffamily\bfseries
+        },
+        % --- Connection Styles ---
+        excite/.style={-{Stealth[scale=1.1]}, line width=1.3pt, blue!80!black},
+        inhibit/.style={-{Circle[open, scale=1.2]}, line width=1.3pt, red!80!black},
+        feedforward/.style={-{Stealth[scale=1.1]}, line width=1.2pt, gray!70!black},
+        activeFF/.style={-{Stealth[scale=1.2]}, line width=1.6pt, teal!80!black}
+    ]
+
+    % ================= LAYER 1: SENSORY INPUT PATHWAY (BOTTOM) =================
+    \node (indots1) at (-4.5, -2.0) {\Large $\dots$};
+    \node (in1)     [inputNode] at (-3.0, -2.0) {$I_{i-2}$};
+    \node (in2)     [inputNode] at (-1.5, -2.0) {$I_{i-1}$};
+    \node (in3)     [activeInput] at (0, -2.0) {$I_{i}$}; % The driving sensory input channel
+    \node (in4)     [inputNode] at (1.5, -2.0) {$I_{i+1}$};
+    \node (in5)     [inputNode] at (3.0, -2.0) {$I_{i+2}$};
+    \node (indots2) at (4.5, -2.0) {\Large $\dots$};
+    
+    % Layer Label Left
+    \node[anchor=east, font=\small\sffamily\bfseries, gray!80!black] at (-4.8, -2.0) {Afferent Pathway Input:};
+
+    % ================= LAYER 2: ATTRACTOR NETWORK MANIFOLD (MIDDLE) =================
+    \node (dots1) at (-4.5, 0) {\Large $\dots$};
+    \node (n1)    [neuron] at (-3.0, 0) {$N_{i-2}$};
+    \node (n2)    [neuron] at (-1.5, 0) {$N_{i-1}$};
+    \node (n3)    [activeNode] at (0, 0) {$N_{i}$}; % The central active target node
+    \node (n4)    [neuron] at (1.5, 0) {$N_{i+1}$};
+    \node (n5)    [neuron] at (3.0, 0) {$N_{i+2}$};
+    \node (dots2) at (4.5, 0) {\Large $\dots$};
+    
+    % Layer Label Left
+    \node[anchor=east, font=\small\sffamily\bfseries, blue!80!black] at (-4.8, 0) {CANN Attractor Layer:};
+
+    % --- INTER-LAYER FEEDFORWARD CONNECTIONS ---
+    \draw [feedforward] (in1) -- (n1);
+    \draw [feedforward] (in2) -- (n2);
+    \draw [activeFF]    (in3) -- node[right, midway, font=\scriptsize\sffamily\bfseries, text=teal!80!black, align=left] {Driving\\Feed} (n3); % Highlighted target drive
+    \draw [feedforward] (in4) -- (n4);
+    \draw [feedforward] (in5) -- (n5);
+
+    % --- INTRA-LAYER ATTRACTOR DYNAMICS (MEXICAN HAT) ---
+    
+    % 1. Self-Recurrent Excitation (Moved safely to the top loop)
+    \draw [excite] (n3) to[loop above, looseness=6] 
+        node[above=0.1cm, font=\scriptsize\sffamily\bfseries, text=blue!80!black] {Self-Excitation} (n3);
+
+    % 2. Short-Range Local Excitation (To immediate horizontal neighbors)
+    \draw [excite] (n3) to[bend right=30] (n2);
+    \draw [excite] (n3) to[bend left=30] (n4);
+
+    % 3. Long-Range Lateral Inhibition (To distal units)
+    \draw [inhibit] (n3) to[bend right=40] node[above, pos=0.7, font=\scriptsize\sffamily\bfseries, text=red!80!black] {Lateral Inhibition} (n1);
+    \draw [inhibit] (n3) to[bend left=40] (n5);
+
+
+    % ================= THE EMERGENT STABILIZED ACTIVITY BUMP (TOP) =================
+    
+    % Manifold Reference Baseline Line
+    \draw[line width=0.6pt, gray!40, dashed] (-4.8, 1.4) -- (4.8, 1.4);
+    
+    % Smooth Gaussian Activity Envelope
+    \draw[line width=1.6pt, blue!70!black, smooth] 
+        (-4.5, 1.4) .. controls (-2.0, 1.4) and (-1.2, 1.5) .. 
+        (-0.8, 2.2) .. controls (-0.4, 2.9) and (-0.3, 3.0) .. 
+        (0.0, 3.0)  .. controls (0.3, 3.0) and (0.4, 2.9) .. 
+        (0.8, 2.2)  .. controls (1.2, 1.5) and (2.0, 1.4) .. (4.5, 1.4);
+        
+    % Label for the activity bump
+    \node[anchor=south, font=\small\sffamily\bfseries\itshape, blue!80!black] at (0, 3.1) {Emergent Coordinate Bump $\mathcal{A}(x)$};
+
+    \end{tikzpicture}
+    \caption{Topographic mapping framework of the 1D Continuous Attractor Neural Network (CANN). Raw spatial coordinate approximations from upstream auditory pathways ($I_i$) project topographically into the recurrent attractor layer. Localized feedback networks compress this input into a single sharp Gaussian profile, tracking target position smoothly across the continuous neural manifold.}
+    \label{fig:cann_topographic_mapping}
+\end{figure}

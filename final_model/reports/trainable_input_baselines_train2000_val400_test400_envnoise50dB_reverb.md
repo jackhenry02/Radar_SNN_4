@@ -71,5 +71,6 @@ Mean cache generation time was `0.046 s/sample`.
 
 - `training_curves`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png`
 - `prediction_scatter`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/prediction_scatter.png`
+- `test_predictions`: `final_model/outputs/trainable_input_baselines/test_predictions_train2000_val400_test400_envnoise50dB_reverb.npz`
 - `cache`: `final_model/outputs/trainable_input_baselines/cache_train2000_val400_test400_envnoise50dB_reverb.npz`
 - `results`: `final_model/outputs/trainable_input_baselines/results_train2000_val400_test400_envnoise50dB_reverb.json`

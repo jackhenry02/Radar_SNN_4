@@ -9,8 +9,8 @@ This report tests control inputs for the same small SNN readout used in the fina
 | distance range | `0.25-5.0 m` |
 | azimuth/elevation range | `+/-45.0 deg` |
 | train / val / test samples | `2000 / 400 / 400` |
-| acoustic mode | `environment_noise_reverb` |
-| noise label | `envnoise50dB_reverb` |
+| acoustic mode | `environment_noise` |
+| noise label | `envnoise50dB` |
 | feature dimension after projection | `474` |
 | raw waveform dimension before projection | `4608` |
 | cochlear raster dimension before projection | `960` |
@@ -49,16 +49,16 @@ The direct variants skip this projection and feed the flattened waveform or time
 
 | Input baseline | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |
 |---|---:|---:|---:|---:|---:|
-| raw_waveform_projected | `0.3945 m` | `22.349 deg` | `22.307 deg` | `1.7023 m` | `0.3571` |
-| raw_waveform_direct | `0.9414 m` | `21.990 deg` | `22.471 deg` | `1.9033 m` | `0.3921` |
-| cochlear_raster_projected | `0.0772 m` | `5.415 deg` | `3.811 deg` | `0.3001 m` | `0.0735` |
-| cochlear_raster_direct | `0.0632 m` | `5.900 deg` | `4.704 deg` | `0.2685 m` | `0.0828` |
+| raw_waveform_projected | `0.4113 m` | `23.106 deg` | `22.667 deg` | `1.7410 m` | `0.3665` |
+| raw_waveform_direct | `0.9794 m` | `23.847 deg` | `23.836 deg` | `2.0059 m` | `0.4185` |
+| cochlear_raster_projected | `0.0733 m` | `6.235 deg` | `4.987 deg` | `0.2977 m` | `0.0880` |
+| cochlear_raster_direct | `0.0699 m` | `5.991 deg` | `4.678 deg` | `0.2830 m` | `0.0837` |
 
-Mean cache generation time was `0.046 s/sample`.
+Mean cache generation time was `0.035 s/sample`.
 
-![Training curves](../outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png)
+![Training curves](../outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB/training_curves.png)
 
-![Prediction scatter](../outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/prediction_scatter.png)
+![Prediction scatter](../outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB/prediction_scatter.png)
 
 ## Interpretation Template
 
@@ -69,7 +69,8 @@ Mean cache generation time was `0.046 s/sample`.
 
 ## Generated Files
 
-- `training_curves`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png`
-- `prediction_scatter`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/prediction_scatter.png`
-- `cache`: `final_model/outputs/trainable_input_baselines/cache_train2000_val400_test400_envnoise50dB_reverb.npz`
-- `results`: `final_model/outputs/trainable_input_baselines/results_train2000_val400_test400_envnoise50dB_reverb.json`
+- `training_curves`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB/training_curves.png`
+- `prediction_scatter`: `final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB/prediction_scatter.png`
+- `test_predictions`: `final_model/outputs/trainable_input_baselines/test_predictions_train2000_val400_test400_envnoise50dB.npz`
+- `cache`: `final_model/outputs/trainable_input_baselines/cache_train2000_val400_test400_envnoise50dB.npz`
+- `results`: `final_model/outputs/trainable_input_baselines/results_train2000_val400_test400_envnoise50dB.json`

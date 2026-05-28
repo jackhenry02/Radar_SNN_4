@@ -1,0 +1,75 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \begin{tikzpicture}[
+            % Define professional block styles
+            block/.style={
+                draw, 
+                rectangle, 
+                minimum height=1.2cm, 
+                minimum width=2.6cm, 
+                rounded corners=3pt, 
+                line width=0.8pt,
+                align=center,
+                fill=white,
+                font=\small\sffamily\bfseries
+            },
+            % Define special style for the parallel track components
+            pathway/.style={
+                block,
+                minimum width=3.2cm,
+                fill=gray!5 % Subtle shading to group them visually
+            },
+            % Clean arrow style matching journal standards
+            arrow/.style={
+                -{Stealth[scale=1.2]},
+                line width=0.8pt
+            }
+        ]
+        
+        % --- Node Placements ---
+        
+        % External Motor / Environment Layer
+        \node (siggen) [block] {Signal\\Generation};
+        
+        % 1. Input Stage (Positioned directly below Signal Generation)
+        \node (signal) [block, below=1.6cm of siggen] {Received\\Echo};
+        
+        % 2. Frontend Pre-processing
+        \node (cochlea) [block, right=1.0cm of signal] {Cochlea};
+        
+        % 3. Parallel Processing Pathways 
+        \node (azimuth) [pathway, right=1.4cm of cochlea] {Azimuth\\Pathway};
+        \node (distance) [pathway, above=0.6cm of azimuth] {Distance\\Pathway};
+        \node (elevation) [pathway, below=0.6cm of azimuth] {Elevation\\Pathway};
+        
+        % 4. Output / Integration Stage
+        \node (readout) [block, right=1.4cm of azimuth] {Combined\\Readout};
+        
+        % --- Signal Routing Arrows ---
+        
+        % New Connections from Signal Generation
+        \draw [arrow] (siggen) -- node[right, midway, font=\scriptsize\sffamily\bfseries] {Environment} (signal);
+        
+        % L-shaped routing for Corollary Discharge over the top of the frontend
+        \draw [arrow] (siggen.east) -| node[above, pos=0.4, font=\scriptsize\sffamily\bfseries] {Corollary Discharge} (distance.north);
+        
+        % Main entry paths
+        \draw [arrow] (signal) -- (cochlea);
+        
+        % Demultiplexing split from Cochlea out to the three parallel paths
+        \draw [arrow] ([yshift=0.2cm]cochlea.east) -- ++(0.4,0) |- (distance.west);
+        \draw [arrow] (cochlea.east) -- (azimuth.west);
+        \draw [arrow] ([yshift=-0.2cm]cochlea.east) -- ++(0.4,0) |- (elevation.west);
+        
+        % Multiplexing merge from the paths back down into the Readout matrix
+        \draw [arrow] (distance.east) -- ++(0.4,0) |- ([yshift=0.2cm]readout.west);
+        \draw [arrow] (azimuth.east) -- (readout.west);
+        \draw [arrow] (elevation.east) -- ++(0.4,0) |- ([yshift=-0.2cm]readout.west);
+        
+        \end{tikzpicture}
+    \end{subfigure}
+    \caption{Top-level computational architecture of the neuromorphic 3D localisation pipeline. Active vocalisation triggers an internal corollary discharge to prime the distance pathway's temporal arithmetic, while the acoustic emission interacts with the environment to form the incoming sensory signal.}
+    \label{fig:top_level_system_block}
+\end{figure}

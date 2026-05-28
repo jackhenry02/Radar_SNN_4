@@ -9,12 +9,12 @@ This report tests whether the fixed biologically structured pathways can be foll
 | distance range | `0.25-5.0 m` |
 | azimuth range | `+/-45.0 deg` |
 | elevation range | `+/-45.0 deg` |
-| acoustic mode | `clean` |
-| noise label | `clean` |
+| acoustic mode | `environment_noise_reverb` |
+| noise label | `envnoise50dB_reverb` |
 | receiver noise std | `0` |
-| environmental noise | `0.0 dB`, reverb `False` |
+| environmental noise | `50.0 dB`, reverb `True` |
 | train / val / test samples | `2000 / 400 / 400` |
-| run label | `train2000_val400_test400` |
+| run label | `train2000_val400_test400_envnoise50dB_reverb` |
 | dataset seed | `8101` |
 | training seed | `8202` |
 | cochlear channels | `48` |
@@ -60,20 +60,20 @@ Here `Ld` is distance MSE, `La` is azimuth sine/cosine MSE, and `Le` is elevatio
 
 | Readout | Distance MAE | Azimuth MAE | Elevation MAE | Euclidean MAE | Combined error |
 |---|---:|---:|---:|---:|---:|
-| raw | `0.0365 m` | `4.580 deg` | `2.986 deg` | `0.2999 m` | `0.0585` |
-| baseline | `0.0366 m` | `4.925 deg` | `0.910 deg` | `0.2435 m` | `0.0457` |
-| residual | `0.0139 m` | `2.619 deg` | `0.267 deg` | `0.1247 m` | `0.0223` |
-| direct | `0.0624 m` | `2.449 deg` | `1.133 deg` | `0.1612 m` | `0.0307` |
+| raw | `0.0796 m` | `7.736 deg` | `28.962 deg` | `1.6917 m` | `0.2771` |
+| baseline | `0.0799 m` | `8.147 deg` | `25.975 deg` | `1.5674 m` | `0.2581` |
+| residual | `0.0202 m` | `3.898 deg` | `3.341 deg` | `0.3103 m` | `0.0550` |
+| direct | `0.0731 m` | `3.883 deg` | `4.028 deg` | `0.3431 m` | `0.0635` |
 
-Mean feature-cache generation time was `0.628 s/sample` for this run.
+Mean feature-cache generation time was `0.519 s/sample` for this run.
 
-![Training curves](../outputs/trainable_readout/figures/train2000_val400_test400/training_curves.png)
+![Training curves](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png)
 
-![Prediction scatter](../outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png)
+![Prediction scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png)
 
 The following diagnostic isolates whether the fixed readout collapse is already present in the raw pathway populations or is introduced by the CANN stage.
 
-![Raw vs baseline scatter](../outputs/trainable_readout/figures/train2000_val400_test400/raw_vs_baseline_scatter.png)
+![Raw vs baseline scatter](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png)
 
 ## Feature Importance
 
@@ -81,29 +81,29 @@ The first diagnostic sums the absolute first-layer weights by feature group. The
 
 ### Residual SNN
 
-![Residual feature importance](../outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png)
+![Residual feature importance](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png)
 
 | Feature group | First-layer share | Ablation delta |
 |---|---:|---:|
-| raw_distance_population | `0.1602` | `0.0040` |
-| raw_azimuth_itd_population | `0.1451` | `0.0115` |
-| raw_azimuth_ild_population | `0.1493` | `0.0107` |
-| raw_elevation_population | `0.1768` | `0.0053` |
-| cann_readouts | `0.1617` | `0.0000` |
-| confidence_features | `0.2067` | `0.0011` |
+| raw_distance_population | `0.1422` | `0.0390` |
+| raw_azimuth_itd_population | `0.1158` | `0.0154` |
+| raw_azimuth_ild_population | `0.1164` | `0.0228` |
+| raw_elevation_population | `0.1984` | `0.1083` |
+| cann_readouts | `0.1837` | `-0.0000` |
+| confidence_features | `0.2435` | `0.0305` |
 
 ### Direct SNN
 
-![Direct feature importance](../outputs/trainable_readout/figures/train2000_val400_test400/direct_feature_importance.png)
+![Direct feature importance](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/direct_feature_importance.png)
 
 | Feature group | First-layer share | Ablation delta |
 |---|---:|---:|
-| raw_distance_population | `0.1564` | `0.0356` |
-| raw_azimuth_itd_population | `0.1183` | `0.0242` |
-| raw_azimuth_ild_population | `0.1334` | `0.0239` |
-| raw_elevation_population | `0.1806` | `0.1139` |
-| cann_readouts | `0.1923` | `-0.0001` |
-| confidence_features | `0.2190` | `0.0051` |
+| raw_distance_population | `0.1451` | `0.0656` |
+| raw_azimuth_itd_population | `0.1123` | `0.0374` |
+| raw_azimuth_ild_population | `0.1163` | `0.0338` |
+| raw_elevation_population | `0.1986` | `0.1018` |
+| cann_readouts | `0.1858` | `-0.0000` |
+| confidence_features | `0.2419` | `0.0387` |
 
 ## Biological Interpretation
 
@@ -113,10 +113,11 @@ The residual variant is especially biologically defensible because it keeps the 
 
 ## Generated Files
 
-- `training_curves`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/training_curves.png`
-- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png`
-- `raw_vs_baseline_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/raw_vs_baseline_scatter.png`
-- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png`
-- `direct_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/direct_feature_importance.png`
-- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400.npz`
-- `results`: `final_model/outputs/trainable_readout/results_train2000_val400_test400.json`
+- `training_curves`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png`
+- `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png`
+- `raw_vs_baseline_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png`
+- `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png`
+- `direct_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/direct_feature_importance.png`
+- `test_predictions`: `final_model/outputs/trainable_readout/test_predictions_train2000_val400_test400_envnoise50dB_reverb.npz`
+- `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400_envnoise50dB_reverb.npz`
+- `results`: `final_model/outputs/trainable_readout/results_train2000_val400_test400_envnoise50dB_reverb.json`

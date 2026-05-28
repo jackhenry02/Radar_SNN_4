@@ -1,0 +1,95 @@
+\chapter{Results and Discussion} \label{ch:results}
+
+This chapter evaluates whether the biologically structured pathway model provides useful intermediate representations for three-dimensional localisation. The final comparisons use the constrained operating region of 0.25--5~m and $\pm45^\circ$ azimuth/elevation. Each trainable run used 2000 training, 400 validation, and 400 held-out test samples. Reported confidence intervals are bootstrap 95\% intervals over the held-out test set.
+
+\section{Evaluation Metrics}
+
+Distance errors are reported in metres and angular errors in degrees. Spherical predictions are also converted to Cartesian coordinates to compute Euclidean position error. The combined error is a dimensionless comparison metric formed from normalised distance, azimuth, and elevation absolute errors; it is used only to compare models within this constrained test setup.
+
+\section{Pathway and Readout Summary}
+
+The individual pathways produce useful but imperfect population codes. Distance is the most stable cue in the tuned range, azimuth depends on the balance between ITD and ILD cues, and elevation is most sensitive to spectral-cue distortion. The SC-style CANN readout is therefore treated as a population readout and stabiliser rather than as a general error-correction stage. Its empirical effect is mixed, so the final trainable readout receives both raw pathway populations and fixed readout estimates.
+
+\section{Full Model Comparison}
+
+Figure~\ref{fig:headline_combined_error} shows the main comparison. The residual SNN using pathway features is the best overall readout in all three acoustic conditions. The input-only SNN baselines show that cochlear preprocessing is useful, but the best performance is obtained when the SNN receives the structured distance, azimuth, elevation, CANN, and confidence features.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{4_Results/trained/headline_combined_error.png}
+    \caption{Combined normalised error for the main readout variants. Error bars show bootstrap 95\% confidence intervals over the 400-sample test set.}
+    \label{fig:headline_combined_error}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Final model comparison with bootstrap 95\% confidence intervals.}
+\label{tab:full_model_results_redraft}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llrrrrr}
+\toprule
+Condition & Readout & Distance MAE & Azimuth MAE & Elevation MAE & Euclidean MAE & Combined error \\
+\midrule
+Clean & Raw pathway COM & 0.037 [0.034, 0.039] & 4.58 [3.96, 5.28] & 2.99 [2.80, 3.18] & 0.300 [0.263, 0.343] & 0.058 [0.054, 0.064] \\
+ & Fixed CANN/calibrated & 0.037 [0.034, 0.039] & 4.92 [4.29, 5.59] & 0.91 [0.85, 0.97] & 0.244 [0.204, 0.287] & 0.046 [0.041, 0.051] \\
+ & Best input-only SNN & 0.068 [0.063, 0.073] & 4.29 [3.81, 4.81] & 6.28 [5.52, 7.07] & 0.258 [0.244, 0.272] & 0.083 [0.075, 0.091] \\
+ & Direct pathway-feature SNN & 0.062 [0.057, 0.068] & 2.45 [2.21, 2.71] & 1.13 [1.05, 1.22] & 0.161 [0.147, 0.177] & 0.031 [0.029, 0.033] \\
+ & Residual pathway-feature SNN & 0.014 [0.013, 0.015] & 2.62 [2.36, 2.89] & 0.27 [0.25, 0.29] & 0.125 [0.110, 0.140] & 0.022 [0.020, 0.024] \\
+\midrule
+Environmental noise & Raw pathway COM & 0.079 [0.056, 0.106] & 7.69 [6.77, 8.64] & 29.98 [27.69, 32.28] & 1.705 [1.564, 1.855] & 0.284 [0.266, 0.302] \\
+ & Fixed CANN/calibrated & 0.079 [0.056, 0.107] & 8.09 [7.19, 9.00] & 26.64 [24.58, 28.71] & 1.577 [1.447, 1.707] & 0.263 [0.246, 0.279] \\
+ & Best input-only SNN & 0.070 [0.064, 0.075] & 5.99 [5.32, 6.77] & 4.68 [3.92, 5.48] & 0.283 [0.266, 0.301] & 0.084 [0.074, 0.093] \\
+ & Direct pathway-feature SNN & 0.069 [0.063, 0.075] & 3.83 [3.42, 4.25] & 4.02 [3.68, 4.36] & 0.321 [0.291, 0.355] & 0.063 [0.059, 0.067] \\
+ & Residual pathway-feature SNN & 0.021 [0.018, 0.025] & 3.71 [3.31, 4.15] & 3.51 [3.17, 3.85] & 0.297 [0.266, 0.332] & 0.055 [0.051, 0.059] \\
+\midrule
+Noise + reverb & Raw pathway COM & 0.080 [0.057, 0.108] & 7.74 [6.82, 8.71] & 28.96 [26.71, 31.19] & 1.692 [1.545, 1.838] & 0.277 [0.259, 0.296] \\
+ & Fixed CANN/calibrated & 0.080 [0.058, 0.107] & 8.15 [7.27, 9.08] & 25.97 [23.95, 27.96] & 1.567 [1.439, 1.700] & 0.258 [0.242, 0.275] \\
+ & Best input-only SNN & 0.077 [0.071, 0.083] & 5.41 [4.95, 5.91] & 3.81 [3.42, 4.24] & 0.300 [0.280, 0.322] & 0.073 [0.068, 0.079] \\
+ & Direct pathway-feature SNN & 0.073 [0.068, 0.079] & 3.88 [3.47, 4.34] & 4.03 [3.62, 4.50] & 0.343 [0.309, 0.380] & 0.063 [0.059, 0.068] \\
+ & Residual pathway-feature SNN & 0.020 [0.017, 0.024] & 3.90 [3.46, 4.36] & 3.34 [2.92, 3.82] & 0.310 [0.277, 0.348] & 0.055 [0.050, 0.060] \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The clean-condition result shows that the fixed pathway model is already functional, but that trainable residual fusion gives a large additional improvement. Under environmental noise, the fixed readout suffers a severe elevation failure, while the residual SNN substantially corrects this by using the wider feature set. Noise plus reverberation produces a similar residual error to noise alone, suggesting that the tested late echoes are less damaging than corruption of the elevation spectral cue.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{4_Results/trained/coordinate_mae_summary.png}
+    \caption{Coordinate-specific errors for the fixed readout, best input-only SNN baseline, and residual pathway-feature SNN.}
+    \label{fig:coordinate_mae_summary}
+\end{figure}
+
+\section{Error Structure}
+
+Figure~\ref{fig:noisy_elevation_curve} isolates the dominant environmental-noise failure. The fixed baseline has large elevation errors across much of the vertical field, while the residual SNN reduces the error substantially. This supports the interpretation that the trainable readout is learning context-dependent corrections from the pathway populations rather than replacing the entire localisation system.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{4_Results/elevation/noisy_elevation_error_by_true_elevation.png}
+    \caption{Median absolute elevation error binned by true elevation under environmental noise. Shaded regions show the interquartile range within each bin.}
+    \label{fig:noisy_elevation_curve}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{4_Results/trained/residual_binned_error_curves.png}
+    \caption{Residual SNN error structure across the coordinate range. Lines show median absolute error in coordinate bins; shaded regions show the interquartile range.}
+    \label{fig:residual_binned_errors}
+\end{figure}
+
+\section{Feature Ablation}
+
+Feature-group ablation provides a more useful interpretation than first-layer weight magnitude alone. Under noisy conditions, the residual SNN depends strongly on raw elevation and distance population features, while CANN scalar readouts contribute little when ablated in isolation. This is consistent with the final model using the CANN as one readout feature rather than relying on it as the main source of accuracy.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{4_Results/trained/residual_feature_ablation.png}
+    \caption{Residual SNN feature-group ablation. Positive values indicate an increase in combined error when a feature group is zeroed on the test set.}
+    \label{fig:residual_feature_ablation}
+\end{figure}
+
+\section{Discussion}
+
+The results support three main conclusions. First, the fixed auditory pathways perform meaningful feature extraction: raw waveform baselines are weak, cochlear-raster baselines are better, and pathway-feature SNNs are best. Second, the CANN should be interpreted conservatively as an SC-like population readout, not as a universal optimiser. Third, residual fusion is the strongest final architecture because it preserves the hand-designed estimate while learning systematic corrections for cue interactions.

@@ -411,6 +411,18 @@ def plot_training(histories: dict[str, dict[str, object]], path: Path) -> str:
     return save_figure(fig, path)
 
 
+def save_test_predictions(true_coordinates: np.ndarray, predictions: dict[str, np.ndarray], path: Path) -> str:
+    """Save per-sample baseline predictions for downstream report analysis."""
+    ensure_dir(path.parent)
+    payload: dict[str, np.ndarray] = {"true_coordinates": np.asarray(true_coordinates, dtype=np.float32)}
+    for name, encoded in predictions.items():
+        payload[f"{name}_encoded"] = np.asarray(encoded, dtype=np.float32)
+        decoded = readout.decode_outputs(np.asarray(encoded, dtype=np.float64))
+        payload[f"{name}_coordinates"] = np.stack(decoded, axis=1).astype(np.float32)
+    np.savez_compressed(path, **payload)
+    return str(path)
+
+
 def run_report_path() -> Path:
     """Return the run-labelled report path."""
     return REPORT_PATH.parent / f"trainable_input_baselines_{RUN_LABEL}.md"
@@ -672,6 +684,11 @@ def main() -> dict[str, object]:
     artifacts = {
         "training_curves": plot_training(histories, FIGURE_DIR / "training_curves.png"),
         "prediction_scatter": readout.plot_prediction_scatter(test_true, predictions, FIGURE_DIR / "prediction_scatter.png"),
+        "test_predictions": save_test_predictions(
+            test_true,
+            predictions,
+            OUTPUT_DIR / f"test_predictions_{RUN_LABEL}.npz",
+        ),
     }
     setup = dict(cache["setup"].item() if hasattr(cache["setup"], "item") else cache["setup"])
     results = {

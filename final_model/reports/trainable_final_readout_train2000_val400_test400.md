@@ -118,5 +118,6 @@ The residual variant is especially biologically defensible because it keeps the 
 - `raw_vs_baseline_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/raw_vs_baseline_scatter.png`
 - `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png`
 - `direct_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400/direct_feature_importance.png`
+- `test_predictions`: `final_model/outputs/trainable_readout/test_predictions_train2000_val400_test400.npz`
 - `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400.npz`
 - `results`: `final_model/outputs/trainable_readout/results_train2000_val400_test400.json`

@@ -1,0 +1,48 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % Compact dimensions to ensure a clean horizontal fit on a single page
+        block/.style={
+            draw, rectangle, 
+            minimum height=1.1cm, 
+            minimum width=1.8cm, 
+            rounded corners=3pt, 
+            line width=0.8pt, 
+            align=center, 
+            fill=white, 
+            font=\scriptsize\sffamily\bfseries
+        },
+        nobox/.style={
+            rectangle, 
+            minimum height=1.1cm, 
+            minimum width=1.8cm, 
+            align=center, 
+            font=\scriptsize\sffamily\bfseries
+        },
+        arrow/.style={
+            -{Stealth[scale=1.2]}, 
+            line width=0.8pt
+        }
+    ]
+    
+    % ==================== LINEAR SIMULATION PIPELINE ====================
+    \node (source) [nobox] at (0,0) {Source\\Signal};
+    \node (delay)  [block, right=0.35cm of source] {Time\\Delay};
+    \node (atten)  [block, right=0.35cm of delay]  {Distance\\Attenuation};
+    \node (shadow) [block, right=0.35cm of atten]  {Head\\Shadow};
+    \node (spec)   [block, right=0.35cm of shadow] {Spectral\\Filtering};
+    \node (noise)  [block, right=0.35cm of spec]   {Noise\\Addition};
+    \node (wave)   [nobox, right=0.35cm of noise]  {Received\\Waveform};
+
+    % ==================== CONNECTIONS ====================
+    \draw [arrow] (source) -- (delay);
+    \draw [arrow] (delay)  -- (atten);
+    \draw [arrow] (atten)  -- (shadow);
+    \draw [arrow] (shadow) -- (spec);
+    \draw [arrow] (spec)   -- (noise);
+    \draw [arrow] (noise)  -- (wave);
+
+    \end{tikzpicture}
+    \caption{Monaural signal transformation pipeline demonstrating the sequential processing stages required to generate a localized acoustic waveform instance.}
+    \label{fig:monaural_simulation_pipeline}
+\end{figure}

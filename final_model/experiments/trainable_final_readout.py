@@ -903,6 +903,28 @@ def plot_raw_baseline_scatter(true_coordinates: np.ndarray, raw_encoded: np.ndar
     )
 
 
+def save_test_predictions(
+    true_coordinates: np.ndarray,
+    raw_encoded: np.ndarray,
+    predictions: dict[str, np.ndarray],
+    path: Path,
+) -> str:
+    """Save per-sample test predictions for downstream report analysis."""
+    ensure_dir(path.parent)
+    payload: dict[str, np.ndarray] = {
+        "true_coordinates": np.asarray(true_coordinates, dtype=np.float32),
+        "raw_encoded": np.asarray(raw_encoded, dtype=np.float32),
+    }
+    for name, encoded in predictions.items():
+        payload[f"{name}_encoded"] = np.asarray(encoded, dtype=np.float32)
+        decoded = decode_outputs(np.asarray(encoded, dtype=np.float64))
+        payload[f"{name}_coordinates"] = np.stack(decoded, axis=1).astype(np.float32)
+    raw_decoded = decode_outputs(np.asarray(raw_encoded, dtype=np.float64))
+    payload["raw_coordinates"] = np.stack(raw_decoded, axis=1).astype(np.float32)
+    np.savez_compressed(path, **payload)
+    return str(path)
+
+
 def plot_importance(weight_importance: dict[str, float], ablation: dict[str, float], path: Path) -> str:
     """Plot first-layer weight share and ablation importance."""
     names = list(weight_importance.keys())
@@ -1434,6 +1456,12 @@ def main() -> dict[str, object]:
             direct_weight_importance,
             direct_ablation_importance,
             FIGURE_DIR / "direct_feature_importance.png",
+        ),
+        "test_predictions": save_test_predictions(
+            test_true,
+            raw_test_encoded,
+            predictions,
+            OUTPUT_DIR / f"test_predictions_{RUN_LABEL}.npz",
         ),
     }
     results = {

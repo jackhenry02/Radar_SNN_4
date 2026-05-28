@@ -79,7 +79,9 @@ The following diagnostic isolates whether the fixed readout collapse is already 
 
 The first diagnostic sums the absolute first-layer weights by feature group. The second zeroes each normalised feature group on the test set and measures the increase in combined error. These are not perfect causal explanations, but they show whether the trained SNN is using the CANN readouts or mostly ignoring them.
 
-![Feature importance](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png)
+### Residual SNN
+
+![Residual feature importance](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png)
 
 | Feature group | First-layer share | Ablation delta |
 |---|---:|---:|
@@ -90,6 +92,19 @@ The first diagnostic sums the absolute first-layer weights by feature group. The
 | cann_readouts | `0.1837` | `-0.0000` |
 | confidence_features | `0.2435` | `0.0305` |
 
+### Direct SNN
+
+![Direct feature importance](../outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/direct_feature_importance.png)
+
+| Feature group | First-layer share | Ablation delta |
+|---|---:|---:|
+| raw_distance_population | `0.1451` | `0.0656` |
+| raw_azimuth_itd_population | `0.1123` | `0.0374` |
+| raw_azimuth_ild_population | `0.1163` | `0.0338` |
+| raw_elevation_population | `0.1986` | `0.1018` |
+| cann_readouts | `0.1858` | `-0.0000` |
+| confidence_features | `0.2419` | `0.0387` |
+
 ## Biological Interpretation
 
 This is best interpreted as a higher-level contextual integration layer. The sensory pathways still produce structured population codes. The small SNN receives raw cue populations, stabilised CANN readouts, and confidence signals, then learns how to combine them when cues are distorted by distance, azimuth, elevation, and pathway confidence.
@@ -98,10 +113,11 @@ The residual variant is especially biologically defensible because it keeps the 
 
 ## Generated Files
 
-- `raw_vs_baseline_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png`
-
 - `training_curves`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png`
 - `test_prediction_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png`
+- `raw_vs_baseline_scatter`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png`
 - `residual_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png`
+- `direct_feature_importance`: `final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/direct_feature_importance.png`
+- `test_predictions`: `final_model/outputs/trainable_readout/test_predictions_train2000_val400_test400_envnoise50dB_reverb.npz`
 - `cache`: `final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400_envnoise50dB_reverb.npz`
 - `results`: `final_model/outputs/trainable_readout/results_train2000_val400_test400_envnoise50dB_reverb.json`

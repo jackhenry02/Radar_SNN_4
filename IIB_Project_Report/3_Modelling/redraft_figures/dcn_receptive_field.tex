@@ -1,0 +1,64 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % Define styles for the two distinct columns
+        inNode/.style={
+            draw, circle, minimum size=0.8cm, line width=1.0pt, fill=white,
+            font=\small\sffamily\bfseries
+        },
+        outNode/.style={
+            draw, circle, minimum size=1.1cm, line width=1.6pt, fill=white,
+            font=\small\sffamily\bfseries
+        },
+        % Faded ghost nodes to represent the rest of the column structure
+        ghostNode/.style={
+            draw=gray!25, circle, minimum size=1.1cm, line width=1.0pt, dashed, fill=white,
+            text=gray!35, font=\small\sffamily\bfseries
+        },
+        % Custom connection styles to form the color/functional gradient
+        exciteFar/.style={-{Stealth[scale=1.2]}, line width=1.6pt, blue!85!black},
+        exciteMid/.style={-{Stealth[scale=1.1]}, line width=1.3pt, blue!45!red!85!black}, % Purple transition
+        inhibitCenter/.style={-{Circle[scale=1.3]}, line width=2.0pt, red!85!black} % Heavy inhibition
+    ]
+
+    % --- LEFT COLUMN: INPUT TONOTOPIC CHANNELS ---
+    \node (in1) [inNode] at (0, 2.4) {$f_1$};
+    \node (in2) [inNode] at (0, 1.2) {$f_2$};
+    \node (in3) [inNode] at (0, 0.0) {$f_3$}; % The "Opposite" Center Frequency
+    \node (in4) [inNode] at (0,-1.2) {$f_4$};
+    \node (in5) [inNode] at (0,-2.4) {$f_5$};
+    
+    % Column Label
+    \node[align=center, font=\small\sffamily\bfseries, gray] at (0, 3.4) {Cochlear Input\\(Tonotopic Channels)};
+
+    % --- RIGHT COLUMN: DCN OUTPUT LAYER ---
+    \node (outTop) [ghostNode]  at (4, 1.5) {DCN};
+    \node (outTarget)[outNode]  at (4, 0.0) {DCN$_j$}; % Our arbitrary target node
+    \node (outBot) [ghostNode]  at (4,-1.5) {DCN};
+    
+    % Column Label
+    \node[align=center, font=\small\sffamily\bfseries, gray] at (4, 3.2) {Output Layer\\(Principal Neurons)};
+
+    % --- GRADIENT CONNECTIVITY LAYER ---
+    
+    % Top Excitatory Sideband (Far away = Blue)
+    \draw [exciteFar] (in1.east) to[bend left=15] 
+        node[above, pos=0.5, font=\scriptsize\sffamily\bfseries, text=blue!80!black, yshift=0.35cm] {Excitation} (outTarget.west);
+        
+    % Upper Transition Zone (Closer = Purple)
+    \draw [exciteMid] (in2.east) to[bend left=10] (outTarget.west);
+    
+    % Center Inhibitory Core (Opposite = Deep Red with Circle termination)
+    \draw [inhibitCenter] (in3.east) -- 
+        node[above, pos=0.5, font=\scriptsize\sffamily\bfseries, text=red!85!black] {Inhibition} (outTarget.west);
+        
+    % Lower Transition Zone (Closer = Purple)
+    \draw [exciteMid] (in4.east) to[bend right=10] (outTarget.west);
+    
+    % Bottom Excitatory Sideband (Far away = Blue)
+    \draw [exciteFar] (in5.east) to[bend right=15] (outTarget.west);
+
+    \end{tikzpicture}
+    \caption{Receptive field topology of an arbitrary DCN principal neuron ($\text{DCN}_j$). The unit exhibits a spectral notch response profile, combining narrow-band central inhibition from directly opposing tonotopic channels with broad lateral excitation from distal (further away) frequencies to track pinna-induced comb filter notches.}
+    \label{fig:dcn_receptive_field}
+\end{figure}

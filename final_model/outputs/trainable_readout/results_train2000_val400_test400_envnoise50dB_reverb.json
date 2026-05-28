@@ -1,6 +1,6 @@
 {
   "experiment": "trainable_final_readout",
-  "elapsed_seconds": 1559.3906763340347,
+  "elapsed_seconds": 181.00710554200123,
   "setup": {
     "run_label": "train2000_val400_test400_envnoise50dB_reverb",
     "splits": {
@@ -221,7 +221,7 @@
       ],
       "best_epoch": 74,
       "best_val_loss": -7.676762104034424,
-      "training_seconds": 50.98138541704975,
+      "training_seconds": 89.57362400000056,
       "learned_log_vars": [
         -7.246797561645508,
         -5.992911338806152,
@@ -395,7 +395,7 @@
       ],
       "best_epoch": 78,
       "best_val_loss": -7.309335451126099,
-      "training_seconds": 50.04252291703597,
+      "training_seconds": 88.22252829200079,
       "learned_log_vars": [
         -6.553813457489014,
         -5.619426727294922,
@@ -481,10 +481,28 @@
     "cann_readouts": -2.981514754463871e-05,
     "confidence_features": 0.03054923088205288
   },
+  "direct_weight_importance": {
+    "raw_distance_population": 0.1450941692941218,
+    "raw_azimuth_itd_population": 0.11228150792886363,
+    "raw_azimuth_ild_population": 0.11634307621911456,
+    "raw_elevation_population": 0.19859895288062898,
+    "cann_readouts": 0.1858263232844184,
+    "confidence_features": 0.24185597039285264
+  },
+  "direct_ablation_importance": {
+    "raw_distance_population": 0.06559120410095245,
+    "raw_azimuth_itd_population": 0.037380243803251584,
+    "raw_azimuth_ild_population": 0.03383909488730219,
+    "raw_elevation_population": 0.10178303156076518,
+    "cann_readouts": -4.1063159669715854e-05,
+    "confidence_features": 0.038745976267667084
+  },
   "artifacts": {
     "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png",
     "test_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/test_prediction_scatter.png",
+    "raw_vs_baseline_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png",
     "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/residual_feature_importance.png",
-    "raw_vs_baseline_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/raw_vs_baseline_scatter.png"
+    "direct_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400_envnoise50dB_reverb/direct_feature_importance.png",
+    "test_predictions": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/test_predictions_train2000_val400_test400_envnoise50dB_reverb.npz"
   }
 }

@@ -1,6 +1,6 @@
 {
   "experiment": "trainable_input_baselines",
-  "elapsed_seconds": 464.8892081249505,
+  "elapsed_seconds": 422.29518870899847,
   "setup": {
     "splits": {
       "train": 2000,
@@ -202,7 +202,7 @@
       ],
       "best_epoch": 21,
       "best_val_loss": -2.4275182819366456,
-      "training_seconds": 65.71962995803915,
+      "training_seconds": 86.94507987499674,
       "learned_log_vars": [
         -2.592740058898926,
         -2.566138982772827,
@@ -378,7 +378,7 @@
       ],
       "best_epoch": 21,
       "best_val_loss": -2.0916972255706785,
-      "training_seconds": 123.55803458299488,
+      "training_seconds": 162.20591941699968,
       "learned_log_vars": [
         -2.4232046604156494,
         -2.422977924346924,
@@ -554,7 +554,7 @@
       ],
       "best_epoch": 77,
       "best_val_loss": -6.952481994628906,
-      "training_seconds": 72.46197099983692,
+      "training_seconds": 83.45269474999805,
       "learned_log_vars": [
         -6.710719108581543,
         -4.634833812713623,
@@ -730,7 +730,7 @@
       ],
       "best_epoch": 77,
       "best_val_loss": -6.627850303649902,
-      "training_seconds": 70.62760691693984,
+      "training_seconds": 87.82906462499886,
       "learned_log_vars": [
         -6.765519142150879,
         -4.377475738525391,
@@ -804,6 +804,7 @@
   },
   "artifacts": {
     "training_curves": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/training_curves.png",
-    "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/prediction_scatter.png"
+    "prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/figures/train2000_val400_test400_envnoise50dB_reverb/prediction_scatter.png",
+    "test_predictions": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/test_predictions_train2000_val400_test400_envnoise50dB_reverb.npz"
   }
 }

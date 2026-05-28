@@ -1,6 +1,6 @@
 {
   "experiment": "trainable_final_readout",
-  "elapsed_seconds": 188.49703970807604,
+  "elapsed_seconds": 113.91056291699715,
   "setup": {
     "run_label": "train2000_val400_test400",
     "splits": {
@@ -221,7 +221,7 @@
       ],
       "best_epoch": 78,
       "best_val_loss": -10.002155742645265,
-      "training_seconds": 93.78319108299911,
+      "training_seconds": 47.33314833300028,
       "learned_log_vars": [
         -8.4425048828125,
         -7.4335832595825195,
@@ -395,7 +395,7 @@
       ],
       "best_epoch": 78,
       "best_val_loss": -8.941750373840332,
-      "training_seconds": 90.31348079117015,
+      "training_seconds": 63.8516356250002,
       "learned_log_vars": [
         -6.684515953063965,
         -6.383704662322998,
@@ -502,6 +502,7 @@
     "test_prediction_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/test_prediction_scatter.png",
     "raw_vs_baseline_scatter": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/raw_vs_baseline_scatter.png",
     "residual_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/residual_feature_importance.png",
-    "direct_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/direct_feature_importance.png"
+    "direct_feature_importance": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/figures/train2000_val400_test400/direct_feature_importance.png",
+    "test_predictions": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/test_predictions_train2000_val400_test400.npz"
   }
 }

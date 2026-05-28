@@ -1,0 +1,198 @@
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        font=\sffamily\small,
+        line width=1.0pt,
+        % --- Node Styles ---
+        io/.style={circle, draw=gray!60, fill=gray!5, minimum size=0.9cm, align=center, font=\scriptsize\sffamily\bfseries},
+        spike/.style={circle, draw=teal!80!black, fill=teal!10, minimum size=0.6cm, font=\tiny\sffamily\bfseries},
+        nospike/.style={circle, draw=gray!30, fill=white, minimum size=0.6cm},
+        op/.style={circle, draw=black, fill=gray!10, minimum size=0.7cm, font=\large},
+        block/.style={rectangle, draw, rounded corners=4pt, thick, minimum width=1.4cm, minimum height=1.0cm, align=center, font=\scriptsize\sffamily},
+        % --- Path Styles ---
+        pathWire/.style={->, thick},
+        maskWire/.style={->, thick, gray!40, dashed},
+        spikeWire/.style={->, thick, teal!80!black},
+        consensusWire/.style={->, thick, purple!80!black},
+        % --- Grid/Matrix Style ---
+        gridNode/.style={rectangle, draw=gray!20, fill=white, minimum size=0.35cm, inner sep=0pt}
+    ]
+
+    % =========================================================================
+    % 1. INPUT TONOTOPIC CHANNEL SPIKES (S_c[t])
+    % =========================================================================
+    \node[align=center, font=\small\sffamily\bfseries] at (0, 3.2) {1) Raw Input Paths};
+    
+    \node[spike]    (s1) at (0,  2.2) {$1$};
+    \node[nospike]  (s2) at (0,  1.4) {};
+    \node[spike]    (s3) at (0,  0.6) {$1$};
+    \node[spike]    (s4) at (0, -0.2) {$1$};
+    \node[nospike]  (s5) at (0, -1.0) {};
+    \node[spike]    (s6) at (0, -1.8) {$1$};
+    
+    % Labels for frequencies
+    \node[left=0.1cm of s1, font=\tiny\sffamily] {$f_1 = 8\text{ kHz}$};
+    \node[left=0.1cm of s3, font=\tiny\sffamily] {$f_3 = 5\text{ kHz}$};
+    \node[left=0.1cm of s4, font=\tiny\sffamily] {$f_4 = 4\text{ kHz}$};
+    \node[left=0.1cm of s6, font=\tiny\sffamily] {$f_C = 2\text{ kHz}$};
+
+    % Brackets isolating groups
+    \draw[line width=0.8pt, decorate, decoration={brace, amplitude=4pt}] 
+        (0.8, 2.4) -- (0.8, -0.4) node[midway, right=6pt, font=\tiny\sffamily, text=teal!80!black] {Passband};
+    \draw[line width=0.8pt, decorate, decoration={brace, amplitude=4pt}] 
+        (0.8, -0.8) -- (0.8, -2.0) node[midway, right=6pt, font=\tiny\sffamily, text=gray] {Masked};
+
+    % =========================================================================
+    % 2. HIGH-PASS FREQUENCY MASK (R_c[t])
+    % =========================================================================
+    \node (mask) [block, fill=blue!5, draw=blue!70!black] at (2.6, 0.2) {
+        \textbf{Frequency}\\\textbf{Mask}};
+
+    % Connections to mask
+    \draw[spikeWire] (s1.east) -- ++(0.4,0) |- ([yshift=0.3cm]mask.west);
+    \draw[spikeWire] (s3.east) -- ++(0.2,0) |- ([yshift=0.1cm]mask.west);
+    \draw[spikeWire] (s4.east) -- (mask.west);
+    \draw[maskWire]  (s6.east) -- ++(0.4,0) |- ([yshift=-0.3cm]mask.west);
+
+    % =========================================================================
+    % 3. 2D SPATIOTEMPORAL NEIGHBORHOOD WINDOW (N_c[t])
+    % =========================================================================
+    \node[align=center, font=\small\sffamily\bfseries] at (6.5, 3.2) {2) Spatiotemporal Consensus\\$N_c[t] = \sum\sum R_{c+i}[t+j]$};
+
+    % Drawing a mini convolving grid canvas 
+    \begin{scope}[shift={(6.5, 0.2)}]
+        % Base background grid
+        \foreach \x in {-1.0, -0.6, -0.2, 0.2, 0.6, 1.0} {
+            \foreach \y in {-1.2, -0.8, -0.4, 0.0, 0.4, 0.8, 1.2} {
+                \node [gridNode] at (\x, \y) {};
+            }
+        }
+        % Highlighted kernel window bounded box (\pm 2 channels, \pm 8 samples)
+        \draw[draw=purple!80!black, fill=purple!10, fill opacity=0.4, line width=1.2pt, rounded corners=2pt] 
+            (-0.8, -1.0) rectangle (0.8, 1.0);
+            
+        % Core targeted event node at the absolute center of kernel array
+        \node[circle, draw=teal, fill=teal, minimum size=0.15cm, inner sep=0pt] (centerPixel) at (0,0) {};
+        
+        % Co-occurring neighborhood spikes triggering consensus inside the kernel
+        \node[circle, draw=purple, fill=purple, minimum size=0.12cm, inner sep=0pt] at (-0.4, 0.4) {};
+        \node[circle, draw=purple, fill=purple, minimum size=0.12cm, inner sep=0pt] at (0.4, -0.4) {};
+        \node[circle, draw=purple, fill=purple, minimum size=0.12cm, inner sep=0pt] at (0.0, 0.8) {};
+        
+        % Dimension indicators
+        \draw[<->, line width=0.6pt, purple!80!black] (-1.2, -1.0) -- node[left, font=\tiny\sffamily\bfseries] {$\pm 2\ \Delta c$} (-1.2, 1.0);
+        \draw[<->, line width=0.6pt, purple!80!black] (-0.8, -1.4) -- node[below, font=\tiny\sffamily\bfseries] {$\pm 8\ \Delta t$} (0.8, -1.4);
+    \end{scope}
+
+    % Connect Mask to Grid
+    \draw[pathWire] (mask.east) -- (4.9, 0.2);
+
+    % =========================================================================
+    % 4. DENSITY THRESHOLD GATE (C_c[t])
+    % =========================================================================
+    \node (gate) [op] at (9.0, 0.2) {$\geq$};
+    \node[above=0.1cm of gate, font=\tiny\sffamily\bfseries, align=center] {Threshold\\$\Theta_{\text{consensus}} = 3$};
+
+    % Connect Grid output to Gate input
+    \draw[consensusWire] (8.1, 0.2) -- (gate.west);
+
+    % =========================================================================
+    % 5. FIRST-ARRIVAL ONSET FILTER (t_VCN)
+    % =========================================================================
+    \node (firstArrival) [block, fill=purple!5, draw=purple!70!black] at (11.5, 0.2) {
+        \textbf{First-Arrival Gate}\\
+        $t_{\text{VCN}, c} = \min \{ t \mid C_c = 1 \}$\\
+        Absolute Refractory
+    };
+
+    \draw[pathWire] (gate.east) -- node[above, font=\tiny\sffamily\bfseries] {$C_c[t]$} (firstArrival.west);
+
+    % =========================================================================
+    % 6. OUTPUT VALIDATED ONSET TIMESTAMP
+    % =========================================================================
+    \node (outSpike) [spike, minimum size=0.8cm, right=1.0cm of firstArrival] {$t_{\text{VCN}}$};
+    \node[below=0.1cm of outSpike, font=\tiny\sffamily\bfseries, align=center, text=teal!80!black] {Clean Output\\Timestamp};
+
+    \draw[spikeWire] (firstArrival.east) -- (outSpike.west);
+
+    \end{tikzpicture}
+    \caption{Computational layout of the Ventral Cochlear Nucleus (VCN) spatiotemporal consensus tracking model. Raw input channel spikes $S_c[t]$ are first passed through a high-pass frequency mask ($\geq 4$~kHz). Surviving events enter a two-dimensional rolling filter window ($\pm 2$ channels, $\pm 8$ time steps). A candidate spike is passed to the output layer only if it co-occurs with at least 3 neighboring spikes within the kernel. Finally, a first-arrival optimization rule strips out subsequent trailing noise reflections, leaving a single clean timing edge ($t_{\text{VCN}}$) for spatial cross-correlation.}
+    \label{fig:vcn_consensus_model}
+\end{figure}
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        font=\sffamily\small,
+        line width=1.0pt,
+        % --- Node Styles ---
+        nodeBase/.style={circle, draw, thick, fill=white, align=center},
+        vcnStyle/.style={nodeBase, draw=gray!70, fill=gray!5, minimum size=1.0cm, font=\small\sffamily\bfseries},
+        mntbStyle/.style={nodeBase, draw=red!70!black, fill=red!5, minimum size=1.1cm, font=\small\sffamily\bfseries},
+        lsoStyle/.style={nodeBase, draw=blue!70!black, fill=blue!5, minimum size=1.4cm, font=\small\sffamily\bfseries},
+        % --- Connection Styles ---
+        exciteWire/.style={->, draw=blue!80!black, line width=1.5pt},
+        inhibitWire/.style={-{Circle[scale=1.4]}, draw=red!80!black, line width=1.8pt}
+    ]
+
+    % --- MAIN CELL BODIES ---
+    % Ipsilateral Channel Source (Left Side)
+    \node (LVCN) [vcnStyle, text=blue!80!black] at (0, 2.5) {Left\\VCN};
+    
+    % Contralateral Channel Source (Right Side)
+    \node (RVCN) [vcnStyle, text=red!70!black] at (6, 0.0) {Right\\VCN};
+    
+    % Contralateral Inverting Relay Station
+    \node (LMNTB) [mntbStyle] at (3.5, 0.0) {Left\\MNTB};
+    
+    % The Subtractive Computing Hub
+    \node (LLSO) [lsoStyle] at (3.5, 2.5) {Left\\LSO};
+
+    % --- CONNECTIVITY & SYNAPTIC JNCUTURES ---
+    
+    % 1. Direct Ipsilateral Excitation (+)
+    \draw [exciteWire] (LVCN.east) -- node[above, pos=0.4, font=\scriptsize\sffamily\bfseries, text=blue!80!black] {Excitation (+)} (LLSO.west);
+    
+    % 2. Contralateral Crossing Excitation (+) to MNTB via Calyx of Held
+    \draw [exciteWire] (RVCN.west) -- (LMNTB.east);
+    
+    % Visual decoration representing the massive Calyx of Held wrapping around the MNTB cell body
+    \draw[draw=blue!80!black, fill=blue!20, fill opacity=0.4, line width=1pt] 
+        ($(LMNTB.east)+(-0.05, 0.35)$) coordinate (c1)
+        .. controls +(0.2, -0.2) and +(0.2, 0.2) .. 
+        ($(LMNTB.east)+(-0.05, -0.35)$) coordinate (c2)
+        -- ($(LMNTB.east)+(0.1, 0)$) -- cycle;
+    \node[above=0.15cm of c1, font=\tiny\sffamily\bfseries, text=blue!80!black, xshift=0.2cm] {Calyx of Held};
+
+    % 3. Local Glycinergic Inhibition (-) from MNTB up into LSO
+    \draw [inhibitWire] (LMNTB.north) -- node[left, pos=0.5, font=\scriptsize\sffamily\bfseries, text=red!85!black] {Inhibition ($-$)} (LLSO.south);
+
+    % --- MATHEMATICAL COMPUTATION INSIDE LSO ---
+    \node[below=0.1cm of LLSO, font=\tiny\sffamily\bfseries, text=blue!60!, align=center] {Output $\propto$ \\ $I_{\text{Ipsi}} - I_{\text{Contra}}$};
+
+    % --- BRAIN SYMMETRIC DIVIDE (MIDLINE INDICATOR) ---
+    \draw[dashed, line width=0.6pt, gray!50] (1.8, -0.8) -- (1.8, 3.8) 
+        node[above, font=\tiny\sffamily\bfseries, text=gray!60] {Brain Midline};
+
+    \node[above left=0.1cm of LVCN, font=\tiny\sffamily\bfseries, text=gray] {Ipsilateral Ear};
+    \node[above right=0.1cm of RVCN, font=\tiny\sffamily\bfseries, text=gray] {Contralateral Ear};
+
+    \end{tikzpicture}
+    \caption{Detailed schematic layout of the subtractive Interaural Level Difference (ILD) network, focusing on the Left Lateral Superior Olive (LSO). The principal cells of the LSO integrate direct tonotopic excitation from the ipsilateral (left) ear via the VCN. Concurrently, acoustic inputs from the contralateral (right) ear drive excitatory projections that cross the midline to terminate at the left Medial Nucleus of the Trapezoid Body (MNTB) via the highly accelerated Calyx of Held giant synapse. The MNTB subsequently converts this signal into a glycinergic inhibitory projection to the LSO, yielding a net output rate that encodes the intensity difference across the ears.}
+    \label{fig:lso_mntb_circuit}
+\end{figure}
+
+
+
+\subsection{Notes on ILD}
+
+Potentially for the results section
+
+The ILD population is still important. The trainable fusion network receives both raw ITD and raw ILD populations. This allows the final readout to learn when each cue is informative. This is more biologically plausible than choosing a single cue rigidly, because real auditory systems combine multiple uncertain cues depending on context.
+
+
+In isolated azimuth tests, an inverse-sigmoid warp corrected the saturating ILD response. However, in full 3D the ILD cue was confounded by distance and elevation-dependent spectral filtering. For this reason, the final hand-designed baseline uses the ITD+CANN pathway rather than the warped ILD readout. The ILD population is still retained as a feature for the trainable fusion network, where it can provide complementary level information when reliable.

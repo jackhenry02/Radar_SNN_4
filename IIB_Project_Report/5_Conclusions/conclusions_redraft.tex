@@ -1,0 +1,61 @@
+\chapter{Conclusions and Future Work} \label{ch:conclusions}
+
+This project investigated whether a biologically inspired neuromorphic model could perform three-dimensional active acoustic localisation in a way that was both functional and interpretable. The final system estimates target distance, azimuth, and elevation from a simulated echolocation call using a cochlear spike front end, separate distance/azimuth/elevation pathway models, SC-style population readouts, and a small trainable SNN fusion stage.
+
+The main conclusion is that biological structure was useful, but not sufficient on its own. The best performance was not obtained by training a small SNN directly from the waveform, nor by relying only on the fixed hand-designed pathway outputs. Instead, the strongest architecture used the biomimetic pathways as structured feature extraction, then added a residual SNN readout to learn context-dependent corrections. This supports the central argument of the report: simplified biological pathways can provide useful intermediate representations for neuromorphic localisation, while limited training can improve final integration without removing interpretability.
+
+\section{Summary of Contributions}
+
+The first contribution was a complete simulated active-acoustic localisation pipeline. A frequency-modulated call was emitted, reflected from a target, and returned as a binaural echo containing distance delay, attenuation, binaural azimuth cues, and elevation-dependent spectral shaping. This provided a controlled environment in which the physical cues for distance, azimuth, and elevation could be tested separately before being combined.
+
+The second contribution was a set of interpretable neuromorphic pathway models. The cochlear front end produced a frequency-organised spike representation; the distance pathway used pulse-echo coincidence; the azimuth pathway used ITD coincidence and ILD opponent comparison; and the elevation pathway used a DCN-like spectral-template model for comb-filter cues. These pathway models were simplified, but each was tied to a clear acoustic cue and a plausible biological computation.
+
+The third contribution was the comparison of fixed and trainable readouts. Direct centre-of-mass decoding, calibrated decoding, and SC-style continuous-attractor readouts were tested as population-code readouts. The final residual SNN then used the raw pathway populations, fixed readout estimates, and confidence features to improve the coordinate estimate. In the constrained clean test region, this residual pathway-feature SNN achieved a combined normalised error of 0.022 and a Euclidean MAE of 0.125~m. Under environmental noise, it reduced the combined error from 0.263 for the fixed CANN/calibrated baseline to 0.055, and under noise plus reverberation it maintained a similar combined error of 0.055.
+
+\section{Main Findings}
+
+\subsection{Biomimetic Pathways Provide Useful Feature Extraction}
+
+The results show that the biological structure was not merely decorative. Raw waveform SNN baselines performed poorly in the tested regime, cochlear-raster baselines performed better, and the best results were obtained when the trainable SNN received the full pathway-derived feature set. This suggests that the hand-designed pathways performed meaningful feature extraction: time-of-flight estimation, binaural comparison, and spectral-template matching were represented explicitly, allowing the trainable readout to focus on residual errors and cue interactions.
+
+\subsection{The Pathways Have Distinct Failure Modes}
+
+The three coordinate pathways did not fail in the same way. Distance was the most stable in the tuned 0.25--5~m operating region, azimuth depended on the balance between ITD and ILD information, and elevation was most sensitive to modelling choices and environmental noise because it depended on spectral shaping rather than a direct timing cue. This explains why the final model benefits from retaining several intermediate representations. A single scalar readout can hide uncertainty and cue-specific failure; raw pathway populations and confidence features preserve information that would be lost in a purely fixed coordinate estimate.
+
+\subsection{The SC-Style CANN Is a Readout, Not a Universal Optimiser}
+
+The CANN results should be interpreted conservatively. The attractor readout improved some estimates, made little difference to others, and could slightly worsen a readout when the upstream population was already sharp. It should therefore not be presented as an optimisation stage that automatically improves accuracy. Its more defensible role is as a neural population readout and stabiliser: it converts pathway populations into a common coordinate representation and provides a mechanism that could later be extended to temporal tracking.
+
+\subsection{Residual Fusion Was the Best Final Architecture}
+
+The residual SNN readout was the strongest final architecture. This design preserves the fixed pathway estimate and only asks the SNN to learn a correction, which matches the modelling philosophy of the project: use biological structure where the computation is understood, and use training where manual calibration of cue interactions becomes difficult. The environmental-noise results illustrate this clearly. The fixed model suffered a large elevation failure when noise was added before the HRTF and elevation-filtering stages, while the residual SNN substantially reduced this error using the wider feature set.
+
+\section{Limitations}
+
+The model remains a prototype. The strongest results were obtained in the constrained region for which the system was tuned: 0.25--5~m and $\pm45^\circ$ azimuth/elevation. This is a meaningful operating region for evaluating the proposed architecture, but it is not a general solution to all acoustic localisation.
+
+The acoustic environment is also simplified. The model uses simulated calls, simplified head-shadow effects, and a comb-filter elevation cue rather than measured bat HRTFs or measured target reflections. This was appropriate for controlled model development, but it means the results should be interpreted as proof-of-principle evidence rather than direct evidence of real-world performance.
+
+Many biological mechanisms are represented functionally rather than biophysically. The cochlea is an engineered IIR filterbank, the VCN/VNLL stages are simplified onset processors, and the DCN, IC, AC, and SC are compact computational abstractions. The model should therefore not be claimed to reproduce bat auditory neurophysiology in detail.
+
+The final limitation is that the system remains largely hand tuned and single-object. Many pathway parameters were selected through iterative testing, with training restricted to the fusion readout. This preserved interpretability, but the resulting model is unlikely to be globally optimal. Mechanisms such as DNLL-like suppression also assume one dominant echo, so cluttered scenes and multiple reflectors would require further development.
+
+\section{Future Work}
+
+The most important next step is to move from single-pulse localisation to continuous active sensing. A more complete system would retain state across calls, allowing the SC-style population readout to act as a temporal estimator rather than a static decoder. This would support smoothing, rejection of transient errors, velocity estimation, and short-term prediction of moving targets. It would also allow feedback control, where the estimated target state influences sensor orientation, call timing, or steering. This would be a more faithful model of echolocation, because bats repeatedly sample the scene and use those estimates to guide behaviour.
+
+A second direction is to improve realism and trainability without discarding interpretability. More realistic acoustic tests should use measured HRTFs, more physical reflections, larger datasets, and more varied noise and reverberation conditions. Within the model, selected parameters could be made trainable while preserving pathway structure, such as cochlear gains, coincidence thresholds, ILD opponent weights, elevation-template weights, CANN gains, or calibration parameters. The key question should be which added biological or trainable details improve robustness, efficiency, or interpretability enough to justify their complexity.
+
+Finally, the neuromorphic motivation should be tested directly. This project was motivated partly by low-power edge sensing, but it evaluated accuracy and robustness in simulation rather than energy use. Future work should therefore measure spike counts, synaptic operations, memory movement, latency, and deployment cost on embedded or neuromorphic hardware. A biologically inspired SNN is only compelling as an engineering system if its structure leads to useful trade-offs in accuracy, power, latency, or debuggability.
+
+\section{Environmental, Social, and Ethical Considerations}
+
+The most immediate environmental relevance of this work is energy efficiency, although this was not measured directly. Edge sensing systems are increasingly deployed in battery-powered or remote devices, and reducing computation can reduce energy use. A sparse neuromorphic acoustic localiser could be useful where cameras are undesirable, unreliable, or too power-intensive, but this remains a motivation rather than a demonstrated result.
+
+There are also social and ethical considerations. Acoustic sensing can be more privacy-preserving than cameras because it does not directly record visual identity, but it can still reveal movement, occupancy, and behaviour. Any practical deployment would need careful consideration of consent, data storage, and surveillance risk. Active acoustic systems also emit signals into the environment, so real-world versions would need to choose frequencies and power levels that avoid disturbing humans, animals, or other sensors.
+
+\section{Final Remarks}
+
+The project demonstrates a workable route between two unsatisfactory extremes. A purely hand-designed model is interpretable but struggles with complex cue interactions. A purely trained model can fit data but gives little insight into how localisation is being performed. The best system developed here combines both approaches: fixed biomimetic pathways extract meaningful auditory features, and a small trainable SNN performs contextual fusion and residual correction.
+
+The final conclusion is therefore not that this model proves neuromorphic sensing is lower power, or that it reproduces a bat brain in detail. The defensible conclusion is more specific: biologically structured neuromorphic modelling provided a practical and interpretable feature-extraction strategy for three-dimensional active acoustic localisation. The model remains a prototype, but it establishes a clear foundation for more realistic, continuous, and hardware-aware neuromorphic echolocation systems.

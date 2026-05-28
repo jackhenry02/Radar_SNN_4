@@ -1,0 +1,178 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % --- General Styles ---
+        neuron/.style={
+            draw, circle, minimum size=0.6cm, line width=0.8pt, fill=white,
+            font=\tiny\sffamily\bfseries
+        },
+        lifNeuron/.style={
+            neuron, draw=teal!80!black, fill=teal!5
+        },
+        intNeuron/.style={
+            neuron, draw=purple!80!black, fill=purple!5 % Distinct style for non-spiking integrator
+        },
+        vectorNode/.style={
+            draw, rectangle, minimum height=0.6cm, minimum width=2.4cm, rounded corners=2pt,
+            line width=0.8pt, fill=white, font=\scriptsize\sffamily\bfseries, align=center
+        },
+        opNode/.style={
+            draw, circle, minimum size=0.5cm, line width=0.8pt, fill=gray!10, font=\large
+        },
+        nobox/.style={
+            rectangle, align=left, font=\scriptsize\sffamily
+        },
+        % --- Pathway Styles ---
+        fixedPath/.style={line width=1.1pt, blue!70!black, -{Stealth[scale=1.1]}},
+        trainablePath/.style={line width=1.1pt, teal!80!black, -{Stealth[scale=1.1]}},
+        outputPath/.style={line width=1.1pt, black, -{Stealth[scale=1.1]}},
+        gradientFlow/.style={line width=0.8pt, red!70!black, dashed, -{Stealth[scale=0.9]}},
+        dots/.style={font=\large, gray}
+    ]
+
+    % =========================================================================
+    % 1. BACKGROUND CONTAINER BOX (SNN Boundary)
+    % =========================================================================
+    \draw[draw=gray!30, fill=teal!2, fill opacity=0.15, rounded corners=6pt, line width=1.0pt] (3.4, -2.1) rectangle (10.5, 3.7);
+    \node[anchor=north, font=\scriptsize\sffamily\bfseries, gray!60!black] at (6.4, 4.2) {snntorch Fusion Network ($f_{\text{SNN}}$)};
+
+    % =========================================================================
+    % 2. CACHED INPUT FEATURE VECTOR (z)
+    % =========================================================================
+    \node (pr)   [vectorNode, fill=blue!5]   at (0, 3.1)  {Distance\\Pop ($P_r$)};
+    \node (paz)  [vectorNode, fill=blue!5]   at (0, 2.3)  {Azimuth\\Pops ($P^{\text{ITD, ILD}}_{\theta}$)};
+    \node (pel)  [vectorNode, fill=blue!5]   at (0, 1.5)  {Elevation\\Pop ($P_{\psi}$)};
+    \node (rcann) [vectorNode, fill=cyan!15]   at (0, 0.4)  {CANN $\hat{r}$\\readout};
+    \node (acann) [vectorNode, fill=cyan!15]   at (0, -0.4) {CANN $\hat{a}$\\readout};
+    \node (ecann) [vectorNode, fill=cyan!15]   at (0, -1.2) {CANN $\hat{e}$\\readout};
+    \node (q)     [vectorNode, fill=gray!5]   at (0, -2.4) {Confidence\\($q$)};
+
+    % Feature Vector z Structural Bracket
+    \draw[line width=1.0pt, gray!60!black] (-1.4, 3.4) -- (-1.6, 3.4) -- (-1.6, -2.7) -- (-1.4, -2.7);
+    \node[anchor=east, font=\scriptsize\sffamily\bfseries, gray!80!black, align=center] at (-1.8, 0.35) {Input\\Feature\\Vector $z$};
+    \node[align=center, font=\small\sffamily\bfseries, gray!90] at (0, 4) {Feature Cached Inputs};
+
+    % =========================================================================
+    % 3. THE SNN LAYERS & NEURONS
+    % =========================================================================
+    
+    % Hidden Layer 1 (Spiking LIF)
+    \foreach \y [count=\i] in {2.5, 1.6, 0.7, -1.3} {
+        \node (h1-\i) [lifNeuron] at (4.2, \y) {};
+    }
+    \node at (4.2, -0.2) [dots, rotate=90] {\dots};
+    \node at (4.2, 3.2) [align=center, font=\tiny\sffamily\bfseries] {Hidden L1\\`snn.Leaky`\\(Spiking LIF)};
+
+    % Hidden Layer 2 (Spiking LIF)
+    \foreach \y [count=\i] in {2.5, 1.6, 0.7, -1.3} {
+        \node (h2-\i) [lifNeuron] at (6.5, \y) {};
+    }
+    \node at (6.5, -0.2) [dots, rotate=90] {\dots};
+    \node at (6.5, 3.2) [align=center, font=\tiny\sffamily\bfseries] {Hidden L2\\`snn.Leaky`\\(Spiking LIF)};
+
+    % Output Integrator Layer (Non-spiking, 3 output tasks)
+    \node (outI-1) [intNeuron] at (8.8, 1.8) {};
+    \node (outI-2) [intNeuron] at (8.8, 0.0) {};
+    \node (outI-3) [intNeuron] at (8.8, -1.2) {};
+    \node at (8.8, 0.9) [dots, rotate=90] {\dots};
+    \node at (8.8, 3.2) [align=center, font=\tiny\sffamily\bfseries, text=purple!90!black] {Output Integrator\\`snn.Leaky`\\(no reset)};
+
+    % Temporal Mean Reduction Block
+    \node (meanBlock) [vectorNode, fill=purple!5, minimum width=1.5cm, minimum height=1.0cm] at (11.5, 0) {Temporal Mean\\$\frac{1}{T}\sum_t U_{\text{out}}(t)$};
+
+    % Scaling Block
+    \node (scaler) [vectorNode, fill=teal!5, minimum width=1.0cm] at (11.5, -1.5) {Scale\\$\lambda$};
+
+
+    % =========================================================================
+    % 4. WEIGHT MATRIX PROJECTIONS (Linear Layers)
+    % =========================================================================
+    
+    % Linear 1 Mesh (Input -> Hidden 1)
+    \node[font=\tiny\sffamily\bfseries, teal!60!black] at (2.9, 0.8) {`Linear`};
+    
+    % Linear 2 Mesh (Hidden 1 -> Hidden 2)
+    \foreach \i in {1,2,3,4} {
+        \foreach \j in {1,2,3,4} {
+            \draw[line width=0.4pt, teal!20] (h1-\i.east) -- (h2-\j.west);
+        }
+    }
+    \node[font=\tiny\sffamily\bfseries, teal!60!black] at (5.35, -1.8) {`Linear` $W_{\text{hid2}}$};
+
+    % Linear 3 Mesh (Hidden 2 -> Output Integrator)
+    \foreach \i in {1,2,3,4} {
+        \foreach \j in {1,2,3} {
+            \draw[line width=0.4pt, purple!20] (h2-\i.east) -- (outI-\j.west);
+        }
+    }
+    \node[font=\tiny\sffamily\bfseries, purple!70!black] at (7.65, -1.8) {`Linear` $W_{\text{out}}$};
+
+
+    % =========================================================================
+    % 5. CONNECTIONS, RESIDUAL BYPASS & SUMMATION
+    % =========================================================================
+    \node (sum) [opNode] at (11.5, -3) {$\oplus$};
+    \node (fixedEst) [vectorNode, fill=cyan!5, minimum width=2.8cm] at (6, -3) {Hand-Designed Estimates ($\hat{y}_{\text{pathway}}$)};
+    
+    % Feature connections from Cache to Hidden L1
+    \draw[trainablePath] (pr.east) -- (h1-1.west);
+    \draw[trainablePath] (paz.east) -- (h1-1.west);
+    \draw[trainablePath] (pel.east) -- (h1-2.west);
+    \draw[trainablePath] (rcann.east) -- (h1-2.west);
+    \draw[trainablePath] (acann.east) -- (h1-3.west);
+    \draw[trainablePath] (ecann.east) -- (h1-3.west);
+    \draw[trainablePath] (q.east) -- (h1-4.west);
+
+    % Connect Integrator units to Temporal Mean block
+    \draw[trainablePath, purple] (outI-1.east) -- ++(0.3,0) |- ([yshift=0.3cm]meanBlock.west);
+    \draw[trainablePath, purple] (outI-2.east) -- (meanBlock.west);
+    \draw[trainablePath, purple] (outI-3.east) -- ++(0.3,0) |- ([yshift=-0.3cm]meanBlock.west);
+
+    % Mean output -> Scaler -> Summation
+    \draw[trainablePath] (meanBlock.south) -- (scaler.north);
+    \draw[trainablePath] (scaler.south) -- node[right, font=\tiny\sffamily\bfseries, text=teal!90!black] {$\lambda f_{\text{SNN}}(z)$} (sum.north);
+
+    % Feed CANN streams to the hand-designed estimator block
+    \draw[fixedPath] (rcann.east) -- ++(0.3, 0) |- (fixedEst.west);
+    \draw[fixedPath] (acann.east) -- ++(0.3, 0) |- (fixedEst.west);
+    \draw[fixedPath] (ecann.east) -- ++(0.3, 0) |- (fixedEst.west);
+
+    % Long Residual Bypass Routing track
+    \draw[fixedPath] (fixedEst.east) -- node[above, pos=0.5, font=\tiny\sffamily\bfseries, text=blue!70!black] {Residual Bypass Path} (sum.west);
+
+
+    % =========================================================================
+    % 6. COORDINATE RECOVERY READOUTS (Smooth analog vectors)
+    % =========================================================================
+    \node (ytargets) [draw=black, rectangle, rounded corners=4pt, line width=1.0pt, fill=gray!5, anchor=north, font=\small\sffamily, inner sep=6pt] at (5, -4) {
+    \textbf{Final Targets } $\mathbf{y} = [ \, r_{\text{norm}}, \ \sin \theta, \ \cos \theta, \ \sin \psi, \ \cos \psi \, ]$};
+    
+    % Analog Membrane Potential Tracking Plot Canvas (Replacing old spike raster)
+    \node (finalPlot) [nobox] at (11.0, 1.6) {};
+    \begin{scope}[shift={(finalPlot.center)}]
+        \draw[gray!30, line width=0.5pt] (-0.6, 0.2) -- (0.6, 0.2);
+        \draw[gray!30, line width=0.5pt] (-0.6, 0.0) -- (0.6, 0.0);
+        \draw[gray!30, line width=0.5pt] (-0.6, -0.2) -- (0.6, -0.2);
+        % Continuous analog potential signals
+        \draw[line width=0.7pt, purple] (-0.6, 0.15) .. controls (-0.3, 0.3) and (0.1, 0.1) .. (0.6, 0.25);
+        \draw[line width=0.7pt, purple!70!black] (-0.6, -0.05) .. controls (-0.2, -0.15) and (0.2, 0.15) .. (0.6, -0.02);
+        \draw[line width=0.7pt, purple!40!black] (-0.6, -0.25) .. controls (-0.4, -0.1) and (0.0, -0.3) .. (0.6, -0.18);
+    \end{scope}
+    \node[anchor=south, font=\tiny\sffamily\bfseries, text=purple!90!black, align=center] at (11.0, 2.1) {Un-reset Membrane\\Potentials $U_{\text{out}}(t)$\\(continuous)};
+    
+    % Structural connection lines for terminal tracking
+    \draw[outputPath] (sum.south) |- (ytargets.east);
+    \draw[purple!40!gray, dashed, line width=0.6pt] (9.1, 0.9) -- (finalPlot.west);
+
+
+    % =========================================================================
+    % 7. BACKPROPAGATION THROUGH TIME (BPTT) GRADIENT FLOWS
+    % =========================================================================
+    %\draw[gradientFlow] ([yshift=0.15cm]outI-1.west) -- node[above, font=\tiny\sffamily\bfseries, text=red!80!black] {BPTT Gradients} ([yshift=0.15cm]h2-1.east);
+    %\draw[gradientFlow] ([yshift=0.15cm]h2-1.west) -- ([yshift=0.15cm]h1-1.east);
+    %\draw[gradientFlow] ([yshift=0.15cm]h1-3.west) -- ([yshift=0.15cm]paz.east);
+
+    \end{tikzpicture}
+    \caption{Functional computational architecture of the Residual Fusion SNN. Pre-calculated features from the cached vector $z$ project through successive linear weight transformations and spiking hidden layers. The output linear layer drives non-spiking leaky integration units (no reset mechanism). The raw historical membrane values ($U_{\text{out}}$) are averaged over all operational timesteps, scaled via $\lambda$, and combined with hand-designed baseline path estimates ($\hat{y}_{\text{pathway}}$) to generate final coordinate readouts.}
+    \label{fig:fusion_snn_architecture}
+\end{figure}
