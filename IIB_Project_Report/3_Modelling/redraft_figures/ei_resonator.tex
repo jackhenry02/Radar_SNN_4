@@ -39,7 +39,7 @@
         % --- Coupling Loops (The Rotation Matrix) ---
         % Forward Excitation: E -> I
         \path[line] ($(E.south east)!0.3!(E.south)$) -- 
-            node[right, pos=0.5] {$+r\sin(\phi)$} 
+            node[right, pos=0.5] {$+p\sin(\phi)$}
             ($(I.north east)!0.3!(I.north)$);
             
         % Delayed Negative Feedback: I -> E
@@ -57,6 +57,6 @@
             node[below, midway] {$p\cos(\phi)$};
 
     \end{tikzpicture}
-    \caption{Architectural topology of the linear Excitatory/Inhibitory (E/I) population loop configured as a state-space resonator. The system implements a two-dimensional rotation matrix where self-decay properties are governed by $\cos(\phi)$ scaling, and orthogonal coupling is established via balanced phase-delayed feedback lines scaling by $\pm\sin(\phi)$. This network architecture maps an identical complex-conjugate pole profile to the direct-form second-order IIR filter template.}
+    \caption{Equivalent excitatory/inhibitory population interpretation of the implemented cochlear resonator. The recurrent E/I loop is a state-space interpretation of the second-order IIR resonator. Self-decay is scaled by $p\cos(\phi)$, while balanced cross-coupling scales with $\pm p\sin(\phi)$. Together these terms reproduce the same complex-conjugate pole pair as the direct-form filter.}
     \label{fig:ei_population_resonator}
 \end{figure}

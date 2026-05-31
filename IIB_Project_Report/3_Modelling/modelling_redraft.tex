@@ -58,7 +58,7 @@ where $A$ is amplitude, $w(t)$ is the Hann window, $f_0$ is the starting frequen
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\textwidth]{3_Modelling/signals/modelled_call.png}
+    \includegraphics[width=\textwidth]{3_Modelling/signals/modelled_call.png}
     \caption{Amplitude-time plot and artificial spectrogram of the modelled emitted signal.}
     \label{fig:modelled_call_redraft}
 \end{figure}
@@ -127,7 +127,7 @@ Figure~\ref{fig:environment_waveform_redraft} shows the resulting time-domain si
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.65\textwidth]{3_Modelling/signals/comb_filter.png}
+    \includegraphics[width=\textwidth]{3_Modelling/signals/comb_filter.png}
     \caption{Gain and elevation encoding using comb filtering with varying lags.}
     \label{fig:comb_filter_redraft}
 \end{figure}
@@ -188,12 +188,12 @@ Figure~\ref{fig:schedule_redraft} shows the effect of this adaptive schedule in 
     (\beta_{\mathrm{end}}-\beta_{\mathrm{start}})
     \left(1-e^{-t/\tau_{\beta}}\right).
 \end{equation}
-The final schedule uses a threshold multiplier that falls from $16$ to $2.5$ with $\tau_{\mathrm{th}}=16$~ms, and a leak factor that rises from $\beta_{\mathrm{start}}=0.20$ to $\beta_{\mathrm{end}}=0.60$ with $\tau_{\beta}=24$~ms.
+The final schedule uses a threshold multiplier that falls asymptotically from $16$ to $2.5$ with $\tau_{\mathrm{th}}=16$~ms, and a leak factor that rises asymptotically from $\beta_{\mathrm{start}}=0.20$ to $\beta_{\mathrm{end}}=0.60$ with $\tau_{\beta}=24$~ms.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.85\textwidth]{3_Modelling/cochlea/schedule.png}
-    \caption{Adaptive cochlear spike-encoding example at 5~m, comparing a high fixed-threshold LIF encoder with a time-varying threshold/leak encoder. The dotted line marks the 4~kHz VCN passband cutoff.}
+    \includegraphics[width=\textwidth]{3_Modelling/cochlea/schedule.png}
+    \caption{Adaptive cochlear spike-encoding example at 5~m, comparing a high fixed-threshold LIF encoder with a time-varying threshold/leak encoder. The schedule panel plots the implemented threshold multiplier and leak factor; dotted lines mark their asymptotic values. During the finite trial the curves move towards, but do not fully reach, these asymptotes. The dotted horizontal line in each raster marks the 4~kHz VCN passband cutoff.}
     \label{fig:schedule_redraft}
 \end{figure}
 
@@ -271,6 +271,15 @@ The DNLL stage adds delayed suppression after the first accepted echo onset. Thi
 \end{equation}
 Accepted onset activity after this point is set to zero. This is intentionally a single-target assumption. A future multi-object model would require decaying or resettable suppression rather than permanent inhibition for the remainder of the trial.
 
+Figure~\ref{fig:distance_raster_flow_redraft} shows the signal progression up to this point. Cropped panels make the retained FM sweep visible without allowing inactive portions of the trial to dominate the figure, while the overview preserves the absolute timing relationship between the internal call reference and the received echo.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{3_Modelling/redraft_figures/generated/condensed_raster_flow.png}
+    \caption{Condensed distance-pathway signal progression. The overview preserves the absolute timing relationship between the corollary-discharge reference and received echo, while the cropped panels show the cochlear raster, VCN/VNLL onset extraction, and DNLL-gated onset raster.}
+    \label{fig:distance_raster_flow_redraft}
+\end{figure}
+
 \subsection{IC Coincidence and Sweep Facilitation}
 
 The IC abstraction compares the observed echo sweep with delayed copies of the corollary-discharge sweep. Each comparison unit is associated with one channel $c$ and candidate distance $r_k$:
@@ -338,22 +347,13 @@ Figure~\ref{fig:AC_MH_redraft} shows the kernel used for this sharpening stage.
     \label{fig:AC_MH_redraft}
 \end{figure}
 
-\subsection{Worked Distance Example}
-
-Figures~\ref{fig:worked_example_rasters_redraft} and \ref{fig:worked_example_pipeline_redraft} show one representative distance-pathway trial. The first figure uses cropped panels while retaining absolute time axes, making the sweep progression visible without the inactive portions of the trial dominating the plot. The second shows how channel-wise coincidence evidence is collapsed and sharpened into a readout-ready distance population.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{3_Modelling/redraft_figures/generated/condensed_raster_flow.png}
-    \caption{Condensed worked distance-pathway example. The overview preserves the absolute timing relationship between the corollary-discharge reference and received echo, while the cropped panels show the cochlear raster, VCN/VNLL onset extraction, and DNLL-gated onset raster.}
-    \label{fig:worked_example_rasters_redraft}
-\end{figure}
+Figure~\ref{fig:distance_population_flow_redraft} shows the corresponding population progression. Channel-wise IC coincidence evidence forms a broad response over candidate ranges; AC frequency collapse and lateral sharpening then produce the readout-ready distance population.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{3_Modelling/redraft_figures/generated/condensed_ic_ac_population_flow.png}
-    \caption{Worked distance-pathway example showing the IC coincidence population and its conversion into a sharpened AC distance population.}
-    \label{fig:worked_example_pipeline_redraft}
+    \caption{Distance-pathway population progression showing the IC coincidence population and its conversion into a sharpened AC distance population.}
+    \label{fig:distance_population_flow_redraft}
 \end{figure}
 
 \section{Azimuth Pathway}
@@ -491,24 +491,17 @@ Figure~\ref{fig:elevation_mechanics_redraft} shows this progression from pinna f
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{3_Modelling/redraft_figures/generated/condensed_elevation_mechanics.png}
-    \caption{Worked elevation example. The pinna model introduces an elevation-dependent spectral notch, the selected-ear cochlear response is compared with the expected template, and the resulting DCN activity forms a population over candidate elevations.}
+    \caption{Worked elevation example. The pinna model introduces an elevation-dependent spectral notch, the selected-ear cochlear response is equalised and compared with candidate comb-filter templates, and the best spectral match produces the strongest DCN evidence over candidate elevations.}
     \label{fig:elevation_mechanics_redraft}
 \end{figure}
 
 \input{3_Modelling/redraft_figures/dcn_receptive_field}
 
-Figure~\ref{fig:dcn_receptive_field} illustrates the local inhibitory and broader excitatory structure used to turn a spectral notch into a candidate-elevation response.
+Figure~\ref{fig:dcn_receptive_field} illustrates the local inhibitory and broader excitatory topology used to turn a spectral notch into a candidate-elevation response, alongside the final signal-weighted synaptic matrix.
 
 The elevation pathway should therefore be interpreted as a spectral-template population model rather than as a single-notch detector. The first notch is informative, but the full transfer shape gives a more stable population response and reduces large errors in the isolated elevation tests.
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.85\textwidth]{3_Modelling/elevation/weights.png}
-    \caption{Synaptic weights of the final signal-weighted DCN elevation model.}
-    \label{fig:elevation_weights_redraft}
-\end{figure}
-
-Figure~\ref{fig:elevation_weights_redraft} shows the final weight matrix. The strongest weights concentrate where the emitted signal has energy and where the candidate elevation predicts informative spectral notches.
+The strongest weights concentrate where the emitted signal has energy and where the candidate elevation predicts informative spectral notches.
 
 \section{The SC Model Readout}
 

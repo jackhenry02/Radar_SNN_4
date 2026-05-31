@@ -31,7 +31,7 @@ def apply_style() -> None:
     plt.rcParams.update(
         {
             "figure.dpi": 120,
-            "savefig.dpi": 240,
+            "savefig.dpi": 480,
             "font.size": 13,
             "axes.titlesize": 14,
             "axes.labelsize": 13,
@@ -501,7 +501,7 @@ def plot_elevation_mechanics() -> None:
     fig, axes = plt.subplots(
         1,
         3,
-        figsize=(13.4, 3.9),
+        figsize=(13.4, 4.5),
         gridspec_kw={"width_ratios": [1.45, 1.22, 1.15]},
     )
     fig.suptitle("Elevation cue: pinna filtering becomes a DCN spectral-template population", fontsize=15)
@@ -515,7 +515,13 @@ def plot_elevation_mechanics() -> None:
     ax.set_title("1. Elevation-dependent spectral notch", loc="left")
     ax.set_xlabel("Frequency (kHz)")
     ax.set_ylabel("Relative spectral power (dB)")
-    ax.legend(loc="lower left", frameon=False)
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.30),
+        frameon=True,
+        framealpha=0.95,
+        edgecolor="0.75",
+    )
 
     ax = axes[1]
     ax.plot(
@@ -539,7 +545,13 @@ def plot_elevation_mechanics() -> None:
     ax.set_title("2. Cochlear spectral profile", loc="left")
     ax.set_xlabel("Channel centre frequency (kHz)")
     ax.set_ylabel("Normalised response")
-    ax.legend(loc="lower left", frameon=False)
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.30),
+        frameon=True,
+        framealpha=0.95,
+        edgecolor="0.75",
+    )
 
     ax = axes[2]
     ax.fill_between(bins, population, color="#a6cfaa", alpha=0.56)
@@ -557,19 +569,17 @@ def plot_elevation_mechanics() -> None:
     ax.set_title("3. DCN template population", loc="left")
     ax.set_xlabel("Candidate elevation (degrees)")
     ax.set_ylabel("Normalised activity")
-    ax.legend(loc="upper left", frameon=False)
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.30),
+        frameon=True,
+        framealpha=0.95,
+        edgecolor="0.75",
+    )
 
     axes[0].text(1.045, 0.50, r"$\rightarrow$", transform=axes[0].transAxes, fontsize=23, ha="center")
     axes[1].text(1.060, 0.50, r"$\rightarrow$", transform=axes[1].transAxes, fontsize=23, ha="center")
-    fig.text(
-        0.5,
-        0.005,
-        "The selected-ear spectrum is equalised and compared with candidate comb-filter templates; "
-        "the best spectral match produces the strongest elevation evidence.",
-        ha="center",
-        fontsize=11,
-    )
-    fig.tight_layout(rect=(0.0, 0.07, 1.0, 0.93))
+    fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.93))
     save(fig, "condensed_elevation_mechanics.png")
 
 

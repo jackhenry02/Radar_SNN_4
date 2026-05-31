@@ -1,5 +1,9 @@
 \begin{figure}[htbp]
     \centering
+    \begin{subfigure}[t]{0.47\textwidth}
+    \textbf{\large A}\\[0.5ex]
+    \centering
+    \resizebox{\linewidth}{!}{%
     \begin{tikzpicture}[
         % Define styles for the two distinct columns
         inNode/.style={
@@ -58,7 +62,15 @@
     % Bottom Excitatory Sideband (Far away = Blue)
     \draw [exciteFar] (in5.east) to[bend right=15] (outTarget.west);
 
-    \end{tikzpicture}
-    \caption{Receptive field topology of an arbitrary DCN principal neuron ($\text{DCN}_j$). The unit exhibits a spectral notch response profile, combining narrow-band central inhibition from directly opposing tonotopic channels with broad lateral excitation from distal (further away) frequencies to track pinna-induced comb filter notches.}
+    \end{tikzpicture}%
+    }
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.50\textwidth}
+    \textbf{\large B}\\[0.5ex]
+    \centering
+    \includegraphics[width=\linewidth]{3_Modelling/elevation/weights.png}
+    \end{subfigure}
+    \caption{DCN spectral-cue model. A: receptive-field topology of an arbitrary DCN principal neuron ($\text{DCN}_j$), combining narrow-band central inhibition with broader lateral excitation. B: final signal-weighted DCN synaptic matrix; the boxed legend identifies the first spectral-notch trajectory.}
     \label{fig:dcn_receptive_field}
 \end{figure}

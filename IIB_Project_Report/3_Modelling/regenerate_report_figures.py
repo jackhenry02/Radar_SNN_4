@@ -32,13 +32,13 @@ def apply_style() -> None:
     plt.rcParams.update(
         {
             "figure.dpi": 120,
-            "savefig.dpi": 240,
-            "font.size": 12,
+            "savefig.dpi": 480,
+            "font.size": 13,
             "axes.titlesize": 14,
-            "axes.labelsize": 12,
+            "axes.labelsize": 13,
             "xtick.labelsize": 11,
             "ytick.labelsize": 11,
-            "legend.fontsize": 10,
+            "legend.fontsize": 11,
             "axes.linewidth": 0.8,
         }
     )
@@ -71,9 +71,10 @@ def plot_modelled_call(path: Path) -> None:
     energy *= envelope[None, :] ** 0.45
     energy_db = 20.0 * np.log10(np.maximum(energy, 1e-5))
 
-    fig, axes = plt.subplots(2, 1, figsize=(7.0, 5.9), gridspec_kw={"height_ratios": [1.0, 1.25]})
+    fig, axes = plt.subplots(1, 2, figsize=(11.8, 3.5), gridspec_kw={"width_ratios": [1.0, 1.08]})
     axes[0].plot(time_ms, waveform, color="#111827", linewidth=1.1)
     axes[0].set_xlim(0.0, 4.0)
+    axes[0].set_xlabel("time (ms)")
     axes[0].set_ylabel("amplitude")
     axes[0].set_title("Emitted FM call")
     axes[0].grid(True, alpha=0.18)
@@ -111,7 +112,7 @@ def plot_comb_filter(path: Path) -> None:
     example_gain, example_lag_s = sig._comb_interference_gain(config, example_elevations, frequency_hz)
     contour_gain, _ = sig._comb_interference_gain(config, contour_elevations, frequency_hz)
 
-    fig, axes = plt.subplots(2, 1, figsize=(7.8, 6.0), gridspec_kw={"height_ratios": [1.0, 1.15]})
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 3.9), gridspec_kw={"width_ratios": [1.0, 1.12]})
     for elevation, lag_s, gain, color in zip(
         example_elevations.detach().cpu().numpy(),
         example_lag_s.detach().cpu().numpy(),
@@ -126,6 +127,7 @@ def plot_comb_filter(path: Path) -> None:
             linewidth=2.0,
             label=f"{elevation:+.0f} deg, {lag_s * 1e6:.1f} us",
         )
+    axes[0].set_xlabel("frequency (kHz)")
     axes[0].set_ylabel("gain (dB)")
     axes[0].set_title("Elevation-dependent comb-filter cue")
     axes[0].legend(loc="lower left", frameon=True)
@@ -178,12 +180,27 @@ def plot_adaptive_cochlea(path: Path) -> None:
     echo_window, noise_window = dnd._echo_and_noise_windows(noisy_config, distance_m, receive.shape[-1])
 
     fig, axes = plt.subplots(3, 1, figsize=(8.6, 6.8), sharex=True, gridspec_kw={"height_ratios": [0.8, 1.0, 1.0]})
-    axes[0].plot(time_ms, threshold_t, color="#dc2626", linewidth=2.0, label="spike threshold")
+    threshold_mult = threshold_t / float(noisy_config.spike_threshold)
+    axes[0].plot(time_ms, threshold_mult, color="#dc2626", linewidth=2.0, label="threshold multiplier")
+    axes[0].axhline(
+        schedule["threshold_floor_mult"],
+        color="#dc2626",
+        linestyle=":",
+        linewidth=1.4,
+        label=f"threshold asymptote: {schedule['threshold_floor_mult']:.1f}x",
+    )
     twin = axes[0].twinx()
     twin.plot(time_ms, beta_t, color="#2563eb", linewidth=2.0, label="membrane leak beta")
-    axes[0].set_ylabel("threshold")
+    twin.axhline(
+        schedule["beta_end"],
+        color="#2563eb",
+        linestyle=":",
+        linewidth=1.4,
+        label=f"beta asymptote: {schedule['beta_end']:.2f}",
+    )
+    axes[0].set_ylabel("threshold multiplier")
     twin.set_ylabel("beta")
-    axes[0].set_title("Adaptive cochlear spike-encoding schedule")
+    axes[0].set_title("Implemented adaptive cochlear schedule")
     handles, labels = axes[0].get_legend_handles_labels()
     twin_handles, twin_labels = twin.get_legend_handles_labels()
     axes[0].legend(handles + twin_handles, labels + twin_labels, loc="center right", frameon=True)
@@ -261,7 +278,7 @@ def plot_dcn_weights(path: Path) -> None:
         baseline_profile,
         elev.DEEP_COMB_DELAYED_COPY_GAIN,
     )
-    fig, ax = plt.subplots(figsize=(8.3, 4.8))
+    fig, ax = plt.subplots(figsize=(7.2, 6.5))
     image = ax.imshow(
         weights,
         aspect="auto",
@@ -273,7 +290,7 @@ def plot_dcn_weights(path: Path) -> None:
     ax.set_xlabel("cochlear centre frequency (kHz)")
     ax.set_ylabel("candidate elevation (deg)")
     ax.set_title("Signal-weighted DCN synaptic matrix")
-    ax.legend(frameon=False, loc="upper right")
+    ax.legend(frameon=True, loc="upper left", fontsize=13)
     colorbar = fig.colorbar(image, ax=ax, pad=0.02)
     colorbar.set_label("normalised weight")
     fig.tight_layout()
