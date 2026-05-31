@@ -369,7 +369,7 @@ def plot_feature_ablation() -> Path:
     names = list(payloads[0][1].keys())
     x = np.arange(len(names), dtype=np.float64)
     width = 0.28
-    fig, ax = plt.subplots(figsize=(10.3, 4.8))
+    fig, ax = plt.subplots(figsize=(10.3, 4.0))
     for index, (label, values, color) in enumerate(payloads):
         offset = (index - (len(payloads) - 1) / 2.0) * width
         ax.bar(x + offset, [values[name] for name in names], width=width, color=color, label=label)
