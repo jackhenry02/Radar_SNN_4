@@ -1,6 +1,6 @@
 # Results Redraft Figure Previews
 
-These files are inspection previews only. The report source has not been changed.
+These previews are generated from the final model outputs. The corresponding report assets are stored in `../redraft_figures/`.
 
 ## Figures
 
@@ -15,6 +15,8 @@ These files are inspection previews only. The report source has not been changed
 - `05_residual_feature_ablation.png`: Existing final-model zero-ablation results for all three acoustic conditions.
 
 - `06_training_loss_curves.png`: Training and validation losses combined into one three-panel figure. The baseline panel includes direct inputs only; dots mark retained validation epochs.
+
+- `07_residual_binned_error_curves.png`: Coordinate-dependent error structure of the residual SNN for all three acoustic conditions.
 
 ## Calibration Figure Interpretation
 

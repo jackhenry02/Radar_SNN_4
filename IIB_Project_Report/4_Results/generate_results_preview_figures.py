@@ -49,13 +49,14 @@ def setup_style() -> None:
     """Apply print-readable matplotlib defaults."""
     plt.rcParams.update(
         {
-            "font.size": 10.5,
-            "axes.titlesize": 11.5,
-            "axes.labelsize": 10.5,
-            "xtick.labelsize": 9.5,
-            "ytick.labelsize": 9.5,
-            "legend.fontsize": 9.0,
-            "figure.titlesize": 13.0,
+            "font.size": 16.0,
+            "axes.titlesize": 17.0,
+            "axes.labelsize": 16.0,
+            "xtick.labelsize": 14.0,
+            "ytick.labelsize": 14.0,
+            "legend.fontsize": 14.0,
+            "legend.title_fontsize": 14.0,
+            "figure.titlesize": 19.0,
             "axes.grid": True,
             "grid.alpha": 0.22,
             "grid.linewidth": 0.7,
@@ -369,18 +370,41 @@ def plot_feature_ablation() -> Path:
     names = list(payloads[0][1].keys())
     x = np.arange(len(names), dtype=np.float64)
     width = 0.28
-    fig, ax = plt.subplots(figsize=(10.3, 4.0))
+    fig, ax = plt.subplots(figsize=(10.3, 5.0))
     for index, (label, values, color) in enumerate(payloads):
         offset = (index - (len(payloads) - 1) / 2.0) * width
         ax.bar(x + offset, [values[name] for name in names], width=width, color=color, label=label)
     ax.axhline(0.0, color="#111827", linewidth=0.9)
     ax.set_xticks(x)
     ax.set_xticklabels([feature_labels[name] for name in names])
-    ax.set_ylabel("increase in combined error after zero-ablation")
+    ax.set_ylabel("increase in combined error\nafter zero-ablation")
     ax.set_title("Residual SNN dependence on pathway feature groups")
     ax.legend(frameon=True, loc="upper left")
     fig.tight_layout()
     return save(fig, "05_residual_feature_ablation.png")
+
+
+def plot_residual_binned_errors(runs: dict[str, dict[str, object]]) -> Path:
+    """Plot coordinate-dependent residual-SNN errors."""
+    specs = [
+        (0, np.linspace(0.25, 5.0, 11), "true distance (m)", "abs. distance error (m)"),
+        (1, np.linspace(-45.0, 45.0, 11), "true azimuth (deg)", "abs. azimuth error (deg)"),
+        (2, np.linspace(-45.0, 45.0, 11), "true elevation (deg)", "abs. elevation error (deg)"),
+    ]
+    fig, axes = plt.subplots(1, 3, figsize=(13.2, 4.2))
+    for axis_index, (coordinate, bins, xlabel, ylabel) in enumerate(specs):
+        ax = axes[axis_index]
+        for key, label, _ in CONDITIONS:
+            run = runs[key]
+            errors = absolute_errors(np.asarray(run["true"]), np.asarray(run["residual"]))[coordinate]
+            centres, med, q25, q75 = binned_stats(np.asarray(run["true"])[:, coordinate], errors, bins)
+            ax.plot(centres, med, marker="o", linewidth=1.8, markersize=4, color=COLORS[key], label=label)
+            ax.fill_between(centres, q25, q75, color=COLORS[key], alpha=0.13, linewidth=0)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+    axes[0].legend(frameon=True, loc="upper left")
+    fig.tight_layout()
+    return save(fig, "07_residual_binned_error_curves.png")
 
 
 def plot_training_loss_curves() -> Path:
@@ -395,7 +419,7 @@ def plot_training_loss_curves() -> Path:
         "raw_waveform_direct": "#475569",
         "cochlear_raster_direct": "#2563eb",
     }
-    fig, axes = plt.subplots(1, 3, figsize=(14.2, 4.7))
+    fig, axes = plt.subplots(1, 3, figsize=(14.8, 5.0))
     ax = axes[0]
     for name, label in baseline_labels.items():
         for loss_key, loss_label, linestyle in [
@@ -405,13 +429,14 @@ def plot_training_loss_curves() -> Path:
             history = baseline_data["histories"][name]
             loss = np.asarray(history[loss_key], dtype=np.float64)
             best_epoch = int(history["best_epoch"])
-            ax.plot(loss, linewidth=1.9, linestyle=linestyle, color=baseline_colors[name], label=f"{label}: {loss_label}")
+            series_label = label if loss_key == "val_loss" else "_nolegend_"
+            ax.plot(loss, linewidth=1.9, linestyle=linestyle, color=baseline_colors[name], label=series_label)
             if loss_key == "val_loss":
                 ax.scatter([best_epoch], [loss[best_epoch]], color=baseline_colors[name], s=32, zorder=3)
     ax.set_xlabel("training epoch")
     ax.set_ylabel("uncertainty-weighted loss")
     ax.set_title("Direct input-only baselines\nfull noise")
-    ax.legend(frameon=True, loc="upper left")
+    ax.legend(frameon=True, loc="upper left", fontsize=13.0)
 
     for ax, (mode, title) in zip(axes[1:], [("direct", "Direct fusion SNN"), ("residual", "Residual fusion SNN")]):
         for key, label, suffix in LOSS_CONDITIONS:
@@ -423,13 +448,14 @@ def plot_training_loss_curves() -> Path:
                 history = data["histories"][mode]
                 loss = np.asarray(history[loss_key], dtype=np.float64)
                 best_epoch = int(history["best_epoch"])
-                ax.plot(loss, linewidth=1.9, linestyle=linestyle, color=COLORS[key], label=f"{label}: {loss_label}")
+                series_label = label if loss_key == "val_loss" else "_nolegend_"
+                ax.plot(loss, linewidth=1.9, linestyle=linestyle, color=COLORS[key], label=series_label)
                 if loss_key == "val_loss":
                     ax.scatter([best_epoch], [loss[best_epoch]], color=COLORS[key], s=32, zorder=3)
         ax.set_xlabel("training epoch")
         ax.set_ylabel("uncertainty-weighted loss")
         ax.set_title(title)
-        ax.legend(frameon=True, loc="upper right")
+        ax.legend(frameon=True, loc="upper right", fontsize=13.0)
     fig.suptitle("Training and validation loss curves")
     fig.tight_layout()
     return save(fig, "06_training_loss_curves.png")
@@ -440,7 +466,7 @@ def write_readme(paths: list[Path], runs: dict[str, dict[str, object]]) -> None:
     lines = [
         "# Results Redraft Figure Previews",
         "",
-        "These files are inspection previews only. The report source has not been changed.",
+        "These previews are generated from the final model outputs. The corresponding report assets are stored in `../redraft_figures/`.",
         "",
         "## Figures",
         "",
@@ -452,6 +478,7 @@ def write_readme(paths: list[Path], runs: dict[str, dict[str, object]]) -> None:
         "04_trained_fusion_delayed_echo_scatter.png": "Overlay of fixed, direct-SNN, and residual-SNN predictions with environmental noise and delayed echo copies.",
         "05_residual_feature_ablation.png": "Existing final-model zero-ablation results for all three acoustic conditions.",
         "06_training_loss_curves.png": "Training and validation losses combined into one three-panel figure. The baseline panel includes direct inputs only; dots mark retained validation epochs.",
+        "07_residual_binned_error_curves.png": "Coordinate-dependent error structure of the residual SNN for all three acoustic conditions.",
     }
     for path in paths:
         lines.extend([f"- `{path.name}`: {descriptions[path.name]}", ""])
@@ -506,6 +533,7 @@ def main() -> None:
     paths.append(plot_trained_correction_gallery(runs))
     paths.append(plot_feature_ablation())
     paths.append(plot_training_loss_curves())
+    paths.append(plot_residual_binned_errors(runs))
     write_readme(paths, runs)
     print(f"Generated {len(paths)} preview figures in {OUTPUT_DIR}")
     for path in paths:
