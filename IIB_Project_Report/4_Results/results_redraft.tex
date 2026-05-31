@@ -145,22 +145,22 @@ The fixed-pathway failures motivate a trainable fusion stage. The direct SNN pre
         Condition & Readout & Distance MAE & Azimuth MAE & Elevation MAE & Euclidean MAE & Combined error \\
         \midrule
         Noise-free & Fixed calibrated CANN & 0.0366~m & 4.925$^\circ$ & 0.910$^\circ$ & 0.244~m & 0.0457 [0.041, 0.051] \\
-         & Direct SNN & 0.0624~m & \textbf{$2.449^\circ$} & 1.133$^\circ$ & 0.161~m & 0.0307 [0.029, 0.033] \\
-         & Residual SNN & \textbf{0.0139~m} & 2.619$^\circ$ & \textbf{$0.267^\circ$} & \textbf{0.125~m} & \textbf{0.0223 [0.020, 0.024]} \\
+         & Direct SNN & 0.0624~m & $\mathbf{2.449^\circ}$ & 1.133$^\circ$ & 0.161~m & 0.0307 [0.029, 0.033] \\
+         & Residual SNN & \textbf{0.0139~m} & 2.619$^\circ$ & $\mathbf{0.267^\circ}$ & \textbf{0.125~m} & \textbf{0.0223 [0.020, 0.024]} \\
         \midrule
         Environmental noise & Fixed calibrated CANN & 0.0789~m & 8.094$^\circ$ & 26.642$^\circ$ & 1.577~m & 0.2626 [0.246, 0.279] \\
          & Direct SNN & 0.0690~m & 3.831$^\circ$ & 4.018$^\circ$ & 0.321~m & 0.0627 [0.059, 0.067] \\
-         & Residual SNN & \textbf{0.0213~m} & \textbf{$3.705^\circ$} & \textbf{$3.505^\circ$} & \textbf{0.297~m} & \textbf{0.0548 [0.051, 0.059]} \\
+         & Residual SNN & \textbf{0.0213~m} & $\mathbf{3.705^\circ}$ & $\mathbf{3.505^\circ}$ & \textbf{0.297~m} & \textbf{0.0548 [0.051, 0.059]} \\
         \midrule
         Noise + delayed echoes & Fixed calibrated CANN & 0.0799~m & 8.147$^\circ$ & 25.975$^\circ$ & 1.567~m & 0.2581 [0.242, 0.275] \\
-         & Direct SNN & 0.0731~m & \textbf{$3.883^\circ$} & 4.028$^\circ$ & 0.343~m & 0.0635 [0.059, 0.068] \\
-         & Residual SNN & \textbf{0.0202~m} & 3.898$^\circ$ & \textbf{$3.341^\circ$} & \textbf{0.310~m} & \textbf{0.0550 [0.050, 0.060]} \\
+         & Direct SNN & 0.0731~m & $\mathbf{3.883^\circ}$ & 4.028$^\circ$ & 0.343~m & 0.0635 [0.059, 0.068] \\
+         & Residual SNN & \textbf{0.0202~m} & 3.898$^\circ$ & $\mathbf{3.341^\circ}$ & \textbf{0.310~m} & \textbf{0.0550 [0.050, 0.060]} \\
         \bottomrule
     \end{tabular}%
     }
 \end{table}
 
-The residual SNN gives the lowest combined error in every condition. Its largest effect is on the fixed elevation breakdown: under environmental noise, elevation MAE falls from $26.642^\circ$ to $3.505^\circ$. Figure~\ref{fig:trained_scatter} shows that the trainable models correct most of the obvious collapse cases in the full-noise condition.
+The residual SNN gives the lowest combined error in every condition. Its largest effect is on the fixed elevation breakdown: under environmental noise, elevation MAE falls from $26.642^\circ$ to $3.505^\circ$. Figure~\ref{fig:trained_scatter} shows that the trainable models correct most of the obvious collapse cases in the full-noise condition. The direct SNN gives the lowest azimuth MAE in the noise-free condition, at $2.449^\circ$ compared with $2.619^\circ$ for residual fusion. It is also marginally lower with delayed echoes, although the difference is only $0.015^\circ$. Residual fusion is therefore not the best coordinate-specific readout in every case. One possible explanation is that the direct SNN can construct its azimuth estimate directly from both the ITD and ILD populations, whereas the residual SNN is anchored to an ITD-based fixed estimate and must learn a correction around it. This may make it harder for the residual readout to exploit both azimuth cues fully, although the small differences mean that this remains a hypothesis rather than a firm conclusion.
 
 \begin{figure}[H]
     \centering
@@ -206,6 +206,7 @@ The trainable readout must be compared with simpler trained models. Otherwise, i
     \caption{Direct input-only SNN baselines. These models use the same output target and loss structure as the fusion SNN but do not receive the hand-designed cue populations.}
     \label{tab:input_only_baselines}
     \small
+    \resizebox{\linewidth}{!}{%
     \begin{tabular}{llrrrr}
         \toprule
         Condition & Input & Distance MAE & Azimuth MAE & Elevation MAE & Combined error \\
@@ -219,7 +220,8 @@ The trainable readout must be compared with simpler trained models. Otherwise, i
         Noise + delayed echoes & Raw waveform & 0.9414~m & 21.990$^\circ$ & 22.471$^\circ$ & 0.3921 \\
          & Cochlear raster & 0.0632~m & 5.900$^\circ$ & 4.704$^\circ$ & 0.0828 \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}%
+    }
 \end{table}
 
 \begin{figure}[H]
@@ -246,6 +248,7 @@ The population spacing provides a reference for readout precision. Table~\ref{ta
     \caption{Population resolution and clean-condition readout error. Residual-SNN values are system-level results after fusion and should not be interpreted as the acuity of one pathway alone.}
     \label{tab:population_resolution}
     \small
+    \resizebox{\linewidth}{!}{%
     \begin{tabular}{llrrl}
         \toprule
         Coordinate & Population & Bin spacing & Clean fixed error & Clean residual error \\
@@ -254,7 +257,8 @@ The population spacing provides a reference for readout precision. Table~\ref{ta
         Azimuth & MSO/ITD population & $1.00^\circ$ & $4.925^\circ$ & $2.619^\circ$ \\
         Elevation & DCN template population & $1.00^\circ$ & $0.910^\circ$ & $0.267^\circ$ \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}%
+    }
 \end{table}
 
 The residual system achieves sub-bin precision for distance and elevation in the clean condition, while the fixed elevation readout is also slightly below its $1^\circ$ spacing. Azimuth does not achieve sub-bin error. These values show that population decoding preserves more information than a nearest-bin classifier, but they do not demonstrate that the model reproduces bat perception.
@@ -270,14 +274,18 @@ Direct comparison with published systems is difficult because the tasks differ s
     \caption{Context from related localisation systems. Values for Dalmas et al.\ and Roozbehi et al.\ are reported by the review in \cite{Danneville2024ASystems}; their tasks are not directly matched to this project.}
     \label{tab:literature_context}
     \small
-    \begin{tabular}{p{0.25\linewidth}p{0.25\linewidth}p{0.21\linewidth}p{0.23\linewidth}}
+    \begin{tabular}{p{0.1\linewidth}p{0.25\linewidth}p{0.21\linewidth}p{0.32\linewidth}}
         \toprule
         Reference & Task and environment & Reported result & Relevance \\
         \midrule
         Dalmas et al., reported in \cite{Danneville2024ASystems} & Direction-of-arrival localisation using natural sounds in a quiet simulated setting & 71.3\% accuracy at $1^\circ$ resolution & Demonstrates fine angular bins, but uses classification accuracy rather than continuous 3D error. \\
+        \midrule
         Roozbehi et al., reported in \cite{Danneville2024ASystems} & Simulated noisy localisation with a reservoir SNN & 69.8\% accuracy, $3.4^\circ$ MAE, and 0.38~m MAE & Provides a noisy trained-SNN comparator, but the array geometry and task differ. \\
+        \midrule
         Matsuo \cite{Matsuo2013EcholocationSound} & FM-echo localisation using model-based signal processing & Sub-millimetre ranging reported in a controlled simulation & Shows the precision available from idealised FM timing, while this project focuses on a spiking, modular pathway under noise. \\
+        \midrule
         Moro et al.\ \cite{Moro2022NeuromorphicTransducers} & Physical ultrasonic localisation with resistive memories & Hardware demonstration of neuromorphic object localisation & Demonstrates physical feasibility, but is not a matched software-accuracy benchmark. \\
+        \midrule
         This project & Simulated active 3D localisation with fixed pathways and residual SNN fusion & 1.39~cm, $2.619^\circ$, and $0.267^\circ$ clean MAEs; 0.0548 combined error with environmental noise & Tests the value of explicit biological pathway structure before trainable fusion. \\
         \bottomrule
     \end{tabular}
