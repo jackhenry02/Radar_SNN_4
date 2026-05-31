@@ -6,9 +6,9 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{float}
+\usepackage[font=small,labelfont=bf,skip=2pt]{caption}
+\usepackage{subcaption}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
-\usepackage{listings}
-\usepackage{xcolor}
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage{fancyhdr}
@@ -16,15 +16,11 @@
 \fancyhead[L]{Jack Henry}
 \fancyhead[R]{Spiking Neural Networks}
 \usepackage{pdfpages}
-\usepackage{graphicx}
-\usepackage{subcaption}
 \usepackage{enumitem}
 \setlist{nosep}
 \usepackage[numbers]{natbib} % optional, but recommended
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, shapes.geometric, backgrounds, calc, decorations, decorations.pathreplacing}
-\usepackage{subcaption}
-\usepackage{booktabs}
 \usepackage{gensymb}
 
 % 1. Tell LaTeX to use capital letters (A, B, C) for subfigures
@@ -93,16 +89,9 @@
 \titlespacing*{\subsection}{0pt}{2pt}{1pt}
 \titlespacing*{\paragraph}{15pt}{0pt}{2pt}
 
-% 6. Figure Captions (Standard practice to use small font)
-\usepackage[font=small,labelfont=bf]{caption}
-
-
 \setlength{\textfloatsep}{5pt}   % space between figure and text
 \setlength{\floatsep}{5pt}       % space between two floats
 \setlength{\intextsep}{5pt}      % space for figures inside text
-
-\usepackage[skip=2pt]{caption}
-
 
 \graphicspath{{report_figures/}}
 
@@ -175,10 +164,6 @@
 
 
 \appendix
-
-
-\end{document}
-
 
 
 \end{document}
