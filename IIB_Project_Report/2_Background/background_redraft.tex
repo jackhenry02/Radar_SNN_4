@@ -172,8 +172,15 @@ This turns timing comparison into a spatial neural code. Suppose the brain has a
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{2_Background/background_figures/coincidence/Jeffress.png}
+    \includegraphics[width=\textwidth]{2_Background/background_figures/coincidence/Jeffress.jpg}
     \caption{Jeffress' model. For each direction of arrival or ITD, the highest neuronal response is produced by the corresponding coincidence detector.\cite{Mosadeghzad2015SaliencyHumanoids}}
+    \label{fig:Jeffress}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/coincidence/population.jpg}
+    \caption{Population decoding schemes. A, In a place code, azimuth (red arrow) is read out from the location of greatest activity along a topographic map of azimuth. B, For the population-vector decoder, the activity of each neuron is represented as a vector with magnitude equal to its firing rate and direction equal to its best azimuth (black lines). Azimuth is estimated as the direction of the vector sum. C, For the two-channel difference decoder, azimuth is estimated from the difference between the summed firing rates on the left and right sides. D, For the population-pattern decoder, each azimuth is estimated from the pattern of activity across the population. This can be visualized as a second layer of neurons associated with each azimuth that sum population activity weighted by different synaptic strengths. Azimuth is estimated as that associated with the neuron in the second layer with greatest activity.\cite{Day2013DecodingPatterns}}
     \label{fig:Jeffress}
 \end{figure}
 
@@ -238,6 +245,13 @@ Modern trainable SNNs often use surrogate gradients. The spike function is non-d
 
 \writingbox{TO DO:
 Need better equations and explaination of LIF neuron. Use equations from TMR and tutorial, i.e. under bracktes. Use circuit comparison too. Also put before coincidence detection
+
+Would also like to add the 3 Ss potentially:
+Spikes: (a-b) Biological neurons process and communicate via spikes, which are electrical impulses of approximately 100 mV in amplitude. (c) Many computational models of neurons simplify this voltage burst to a discrete, single-bit event: a ‘1’ or a ‘0’. This is far simpler to represent in hardware than a high precision value.
+Sparsity: (c) Neurons spend most of their time at rest, silencing most activations to zero at any given time. Not only are sparse vectors/tensors (with loads of zeros) cheap to store, but say we need to multiply sparse activations with synaptic weights. If most values are multiplied by ‘0’, then we don’t need to read many of the network parameters from memory. This means neuromorphic hardware can be extremely efficient.
+Static-Suppression (a.k.a, event-driven processing: (d-e) The sensory periphery only processes information when there is new information to process. Each pixel in (e) responds to changes in illuminance, so most of the image is blocked out. Conventional signal processing requires all channels/pixels to adhere to a global sampling/shutter rate, which slows down how frequently sensing can take place. Event-driven processing now only contributes to sparsity and power-efficiency by blocking unchanging input, but it often allows for much faster processing speeds.
+
+This was marked highly in Ahmads TMR report. This can pair with the electrical circuit idea of LIFs as well
 }
 
 \section{Current Models and Project Gap}
