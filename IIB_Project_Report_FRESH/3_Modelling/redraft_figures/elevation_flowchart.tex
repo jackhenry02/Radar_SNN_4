@@ -1,0 +1,25 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.2cm, minimum width=2.6cm, rounded corners=3pt, line width=0.8pt, align=center, fill=white, font=\small\sffamily\bfseries},
+        nobox/.style={rectangle, minimum height=1.2cm, minimum width=2.6cm, align=center, font=\small\sffamily\bfseries},
+        arrow/.style={-{Stealth[scale=1.2]}, line width=0.8pt}
+    ]
+    
+    % Nodes
+    \node (raster) [nobox] {Cochleagram};
+    \node (dcn) [block, right=0.8cm of raster] {DCN};
+    \node (ic) [block, right=0.8cm of dcn] {IC};
+    \node (sc) [block, right=0.8cm of ic] {SC};
+    \node (readout) [nobox, right=0.8cm of sc] {Elevation\\Readout};
+    
+    % Connections
+    \draw [arrow] (raster) -- (dcn);
+    \draw [arrow] (dcn) -- (ic);
+    \draw [arrow] (ic) -- (sc);
+    \draw [arrow] (sc) -- (readout);
+    
+    \end{tikzpicture}
+    \caption{Monaural Elevation pathway isolating pinna-induced spectral notches.}
+    \label{fig:elevation_flowchart}
+\end{figure}

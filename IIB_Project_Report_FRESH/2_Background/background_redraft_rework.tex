@@ -1,0 +1,381 @@
+\chapter{Background} \label{ch:background}
+
+This chapter introduces the biological and neuromorphic ideas used in the model. The aim is not to reproduce bat auditory biology in full anatomical detail. Instead, the background is organised around the key computations needed for active acoustic localisation: 
+\begin{enumerate}
+    \item extracting timing, level, and spectral cues from an echo,
+    \item converting them into neural population codes, and what this means,
+    \item decoding those populations into distance, azimuth, and elevation estimates.
+\end{enumerate}
+These are discussed in relation to the model developed, with the true anatomy and systems being much more complex.
+
+
+\section{Echolocation as Active Localisation}
+
+Echolocating bats localise objects by emitting an acoustic call and analysing the returning echo. This is an active sensing problem rather than passive listening. The animal knows approximately what signal it emitted, when it emitted it, and how that signal should change after reflection from a target. The returning echo, therefore, carries cues for distance, azimuth, and elevation. These cues are not independent, as the same echo amplitude, frequency content, and arrival time are affected by target range, head geometry, ear shape, and environmental noise. The biological problem is to separate these interacting effects quickly enough to guide flight.
+
+Bats are a useful inspiration because their sensing problem is similar to a radar problem, but is solved by a compact, event-driven nervous system. Many echolocating species use frequency-modulated (FM) sweeps, sometimes with constant-frequency (CF) components, as shown in Figure~\ref{fig:bat_call_redraft}. The FM sweep is important for this project because it produces a broadband time-frequency pattern. A delayed echo can be matched against an internal copy (or efference copy) of the emitted sweep, while the echo spectrum can also carry elevation information. The bat is essentially listening out for its own call and measuring the changes that the call has undergone. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.86\linewidth]{2_Background/background_figures/Auditory_localisation/bat_call.png}
+    \caption{Echolocation signal structures. (a) Examples of FM and CF components used by echolocating bats. (b) Signal sequences produced while pursuing prey; pulse rate increases and call duration decreases as the bat approaches the target \cite{MossANeurobiologyBats}.}
+    \label{fig:bat_call_redraft}
+\end{figure}
+
+Species using CF-FM signals typically forage in dense foliage, utilising doppler shifts and an acoustic fovea in their auditory cortex to measure velocity to improve object tracking \cite{MossANeurobiologyBats} \cite{Ulanovsky2008WhatBrain}. By contrast, many FM-bats forage in the open, using shorter duration, broadband signals that are well suited for three-dimensional (3-D) target localisation \cite{MossANeurobiologyBats}. It is for this reason that we will use the FM sweep signal in our model, as we are estimating 3D position, and not velocity. 
+
+\section{Auditory Cues for 3D Position}
+
+\subsection{Distance}
+
+In passive listening, absolute range is difficult because the original source intensity is unknown. Active echolocation provides a stronger cue: time-of-flight (ToF). If an emitted call reflects from a target and returns after delay $\Delta t$, the target range is approximately
+\begin{equation}
+    r = \frac{c\Delta t}{2},
+    \label{eq:tof_distance_redraft}
+\end{equation}
+where $c$ is the speed of sound and the factor of two accounts for the outward and return path. This is the main distance cue used in the model. Echo amplitude also decreases with propagation distance, but intensity is less reliable because it depends on target reflectivity, call intensity, ear direction, and environmental conditions.
+
+The biological complication is that the brain does not contain a simple digital clock. It must represent delay using neural signals. In bats, delay-sensitive neurons respond selectively to particular pulse-echo delays, so range can be represented as activity over a bank of candidate delays rather than as a single stopwatch value \cite{Suzuki2017AcuityBats}.
+
+\subsection{Azimuth}
+
+Azimuth is the horizontal angle of the target. It is mainly estimated using binaural differences: the difference between the signals at the two ears. The first cue is interaural time difference (ITD), the arrival-time difference between ears. In a simple straight-line approximation,
+\begin{equation}
+    \theta = \arcsin\left(\frac{c\,\mathrm{ITD}}{d}\right),
+    \label{eq:itd_azimuth_redraft}
+\end{equation}
+where $\theta$ is azimuth and $d$ is the interaural distance. This ignores diffraction around the head, but it captures the key computational idea: a timing difference maps monotonically to horizontal angle over the frontal region.
+
+The second cue is interaural level difference (ILD), the amplitude difference between the two ears. At high frequencies the head casts an acoustic shadow, reducing sound level at the far ear. Because bat calls are high frequency, ILD can be a strong azimuth cue, although its reliability depends on head size, frequency, and source direction. The classical duplex theory states that ITD is most useful at low frequencies and ILD at high frequencies \cite{Rayleigh1907Direction}; for this project the important point is simpler: timing and level comparisons provide complementary azimuth evidence.
+
+ITD alone is ambiguous. A cone of directions can share the same interaural delay, as shown in Figure~\ref{fig:azimuth_cues_redraft}. This is one reason why elevation-dependent spectral cues and multiple cue pathways are needed.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.5\textwidth}
+        \textbf{\large A}\\[0.5ex]
+        \includegraphics[height=4.8cm]{2_Background/background_figures/Auditory_localisation/itd_ild.png}
+        \caption{}
+    \end{subfigure}
+    \hspace{0.1cm}
+    \begin{subfigure}[t]{0.32\textwidth}
+        \textbf{\large B}\\[0.5ex]
+        \includegraphics[height=4.8cm]{2_Background/background_figures/Auditory_localisation/cone.png}
+        \caption{}
+    \end{subfigure}
+    \caption{A: ITD and ILD cues. B: cone of confusion for constant ITD \cite{Sun2015DynamicListeners,Carlini2024AuditoryReview}.}
+    \label{fig:azimuth_cues_redraft}
+\end{figure}
+
+\subsection{Elevation}
+
+Elevation is the vertical angle of the target. Because the left and right ears are mostly separated horizontally, binaural timing and level differences are weaker vertical cues. Instead, elevation is strongly linked to spectral filtering by the outer ear, or pinna. A sound arriving from different vertical angles reflects from the ridges of the pinna in different ways, producing direction-dependent peaks and notches in the spectrum. The full direction-dependent filtering of the head, torso, and outer ears is called the head-related transfer function (HRTF) \cite{Carlini2024AuditoryReview,Zonooz2019SpectralElevation}.
+
+For this project, the relevant abstraction is a comb-filter cue: the received signal is combined with a delayed copy of itself, producing spectral notches whose frequencies depend on the delay. If the filtered signal is
+\begin{equation}
+    y(t) = x(t) + g x(t-\tau),
+\end{equation}
+then the magnitude response is
+\begin{equation}
+    |H(f)| = \frac{\sqrt{1+g^2+2g\cos(2\pi f\tau)}}{1+g}.
+    \label{eq:comb_filter_background_redraft}
+\end{equation}
+Changing $\tau$ moves the notch pattern. This is not a complete HRTF model, but it creates the same kind of computational problem: elevation must be inferred from a frequency-dependent spectral shape rather than from a simple time delay. Figure~\ref{fig:elevation_cues_redraft} shows the biological pinna mechanism and the kind of elevation-dependent HRTF map that motivates this abstraction.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \textbf{\large A}\\[0.5ex]
+        \includegraphics[height=3.8cm]{2_Background/background_figures/Auditory_localisation/pinna_1.png}
+        \caption{}
+    \end{subfigure}
+    \hspace{0.1cm}
+    \begin{subfigure}[t]{0.45\textwidth}
+        \textbf{\large B}\\[0.5ex]
+        \includegraphics[height=3.8cm]{2_Background/background_figures/Auditory_localisation/pinna_map.png}
+        \caption{}
+    \end{subfigure}
+    \caption{A: pinna-based HRTF mechanism. B: measured elevation-dependent HRTF structure, with red indicating high gain and blue indicating low gain \cite{Carlini2024AuditoryReview,Zonooz2019SpectralElevation}.}
+    \label{fig:elevation_cues_redraft}
+\end{figure}
+
+\section{Biological Auditory Pathways as Computation}
+\label{sec:biology}
+
+The bat auditory system is highly specialised, but the model in this report uses a functional abstraction rather than a full anatomical simulation. Figure~\ref{fig:overall_pathway_redraft} is the key biological scaffold. The left side shows the ascending auditory pathway, where acoustic signals are transformed into neural representations. The right side shows descending and vocalisation pathways, which are simplified here into an emitted call and a corollary discharge. A corollary discharge is an internal copy of a self-generated motor command or expected sensory signal; in echolocation it provides a reference against which the returning echo can be compared.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/biology/overall_brain.png}
+    \caption{Major ascending auditory connections and descending vocalisation circuitry in bat echolocation \cite{MossANeurobiologyBats}. In this project the detailed vocalisation pathway is simplified to an emitted call and a corollary-discharge copy, while the ascending pathway motivates the cochlea, distance, azimuth, elevation, and SC readout modules.}
+    \label{fig:overall_pathway_redraft}
+\end{figure}
+
+The modelling principle is that each biological region is treated as a computing block. A neuron can be viewed, loosely, as an analogue switch with memory: it integrates weighted inputs through synapses, compares its internal state with a threshold, and emits a spike when the threshold is crossed. Inhibitory neurons act like suppressive switches, reducing activity elsewhere. This logic-gate analogy is imperfect because real neurons are noisy, adaptive, and chemical, but it is useful for engineering: networks of excitatory and inhibitory spiking units can implement filtering, comparison, coincidence detection, and population decoding.
+
+\subsection{Cochlea and Tonotopic Encoding}
+
+The cochlea converts air-pressure waveforms into neural activity. It is tonotopic, meaning different positions along the cochlea respond preferentially to different frequencies. High frequencies peak near the base, lower frequencies further along the basilar membrane. This spatial frequency decomposition is shown in Figure~\ref{fig:cochlea_redraft}. The output is not a continuous spectrogram but a set of neural signals from frequency-selective channels.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.45\textwidth}
+        \textbf{\large A}\\[0.5ex]
+        \includegraphics[height=3.8cm]{2_Background/background_figures/biology/cochlea.png}
+        \caption{}
+    \end{subfigure}
+    \hspace{0.1cm}
+    \begin{subfigure}[t]{0.45\textwidth}
+        \textbf{\large B}\\[0.5ex]
+        \includegraphics[height=3.8cm]{2_Background/background_figures/biology/spiral.png}
+        \caption{}
+    \end{subfigure}
+    \caption{A: outer, middle, and inner ear. B: tonotopic frequency organisation along the cochlea \cite{CochleaStudy.com,HumanBritannica}.}
+    \label{fig:cochlea_redraft}
+\end{figure}
+
+In the model, this motivates a cochlear filterbank followed by spike encoding. The exact biophysics of basilar-membrane fluid mechanics are not simulated. Instead, the cochlea is abstracted as a bank of frequency-selective filters whose outputs are converted into cochlear spike rasters. This retains the computational features needed later: frequency selectivity, timing, and sparse events.
+
+\subsection{Cochlear Nuclei, Onset Cleaning, and Pathway Splitting}
+
+After the cochlea, auditory nerve fibres project to the cochlear nuclei (CN). The CN can be understood as an early router and feature extractor. Ventral cochlear nucleus (VCN) neurons are specialised for preserving precise timing and onset information. This matters for distance and ITD, where sub-millisecond timing errors can shift the inferred position. The dorsal cochlear nucleus (DCN) is more closely associated with spectral processing and is therefore relevant to elevation cues.
+
+The biological details are richer than this abstraction, but the functional split is the important part for the report. The model uses VCN/VNLL-inspired onset processing to clean the cochlear spike raster before distance and azimuth coincidence detection. For elevation, the model uses a DCN-like spectral population that compares the observed frequency profile with expected comb-filter templates.
+
+\subsection{Midbrain and Cortical Population Maps}
+
+The inferior colliculus (IC) and auditory cortex (AC) contain neurons sensitive to combinations of timing, frequency, and binaural cues. For distance, FM-FM delay-tuned neurons respond strongly when an emitted-call component and an echo component arrive with a particular delay. For azimuth, Jeffress-style delay-line models provide a useful abstraction: signals from the two ears are passed through different internal delays, and coincidence neurons respond when the delayed inputs align \cite{Jeffress1948ALocalization}. For elevation, spectral shape can be mapped into a population of candidate elevations.
+
+The key modelling choice is therefore to represent each coordinate as a population code. A population code stores a value as a pattern of activity across many neurons, each tuned to a candidate coordinate. A single neuron might represent ``about 3 ms delay'' or ``about +20 degrees elevation'', but the final estimate is decoded from the whole activity pattern. This matters because biological precision can exceed the spacing of individual neurons: a smooth population peak can be decoded between the centres of neighbouring neurons.
+
+\subsection{The SC as a Readout Abstraction}
+
+The superior colliculus (SC) is involved in spatial orienting and sensorimotor maps. In this project it is treated as the final coordinate-readout stage rather than as a detailed motor-control model. The detailed descending vocalisation pathway is collapsed into two model components: the emitted call and the corollary-discharge copy used by the distance pathway. This is a deliberate simplification. It keeps the model focused on localisation while preserving the core active-sensing idea: the brain compares an internally available reference with the returning echo.
+
+\writingbox{TO DO:
+
+Still to review properly, but use paper of CANNs in the auditory cortex as justification for this use}
+
+\section{Coincidence Detection, Population Codes, and Biological Baselines}
+\label{sec:coincidence_background}
+
+Coincidence detection is central to the distance and azimuth pathways, so it is worth defining carefully. A coincidence detector is a neuron or circuit that fires strongly only when two inputs arrive close together in time. If one input arrives too early, its membrane voltage decays before the second arrives. If it arrives too late, the same happens in reverse. When the inputs are aligned, their effects add and can cross the firing threshold.
+
+This turns timing comparison into a spatial neural code. Suppose the brain has an internal copy of the emitted call and a bank of internal delay lines. Each delay line shifts the copy by a different candidate delay. The echo is compared with each delayed copy. The neuron whose internal delay best matches the true echo delay receives near-simultaneous inputs and therefore has the strongest response. ``Maximal firing'' in this context means the largest spike count or membrane response within the candidate population, not a mysterious property of a single neuron. Figure~\ref{fig:delay_line_coincidence_population_redraft} gives the corresponding delay-line population example.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/neuromorphic/delay_line_coincidence_population.png}
+    \caption{Delay-line coincidence detection. An internal call copy is passed through candidate delays and compared with the echo. Matched timing produces the largest membrane response, creating a delay population that can be decoded by centre of mass (COM) or an SC-style readout.}
+    \label{fig:delay_line_coincidence_population_redraft}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/coincidence/Jeffress.jpg}
+    \caption{Jeffress' model. For each direction of arrival or ITD, the highest neuronal response is produced by the corresponding coincidence detector.\cite{Mosadeghzad2015SaliencyHumanoids}}
+    \label{fig:Jeffress}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/coincidence/population.jpg}
+    \caption{Population decoding schemes. A, In a place code, azimuth (red arrow) is read out from the location of greatest activity along a topographic map of azimuth. B, For the population-vector decoder, the activity of each neuron is represented as a vector with magnitude equal to its firing rate and direction equal to its best azimuth (black lines). Azimuth is estimated as the direction of the vector sum. C, For the two-channel difference decoder, azimuth is estimated from the difference between the summed firing rates on the left and right sides. D, For the population-pattern decoder, each azimuth is estimated from the pattern of activity across the population. This can be visualized as a second layer of neurons associated with each azimuth that sum population activity weighted by different synaptic strengths. Azimuth is estimated as that associated with the neuron in the second layer with greatest activity.\cite{Day2013DecodingPatterns}}
+    \label{fig:Jeffress}
+\end{figure}
+
+This population-code view connects the Suga and Simmons perspectives on bat ranging. Suga-style delay-tuned neurons support the idea of discrete biological delay channels, while behavioural hyperacuity suggests that bats can achieve finer precision than a simple nearest-neuron readout would imply \cite{Suzuki2017AcuityBats}. A natural compromise is population decoding: use the full pattern of responses across delay-tuned neurons rather than only the index of the largest one. This is why the model later uses centre-of-mass decoding and SC-style continuous attractor readouts.
+
+Continuous attractor neural networks (CANNs) also fit here. A CANN is a recurrent population in which local excitation and broader inhibition can stabilise a bump of activity. In this report, CANNs are not treated as the main source of intelligence. They are used as one possible SC-like readout for a population code: the upstream pathway produces an activity bump, and the recurrent readout can smooth or stabilise it before decoding.
+
+Rate coding is the other important abstraction. A fully spiking population produces individual spike trains, but many downstream computations can use average spike count or firing rate over a short window. This is still biologically meaningful: rate is a summary of spiking activity, not a replacement for it. In the model, this justifies using explicit spike rasters where timing matters, and rate-coded population vectors where the relevant information is the strength of activity across candidate coordinates.
+
+\writingbox{TO DO: Hyperacuity and biological baseline? Use population code as leading theory. Discuss simomons vs suga.
+
+It has been shown that FM-bats can discriminate differences in echo delay, the cue for target distance, of less than 60 microseconds \cite{Simmons1973TheBats}. This gives us a biological baseline for distance
+
+Tho others have shown lower:
+0.3mm \cite{Kanwal2007AuditoryCommunication}
+less than 0.1mm \cite{Ulanovsky2009IntroductionSemester}
+1-2 degrees for azimuth \cite{Ulanovsky2009IntroductionSemester}
+3 degrees for elevation \cite{Lawrence1982EcholocationTargets}
+
+You can string this together nices, since the mechnism is coincidence detection for most of these, and the suga idea says it should be limited by this, but population codes fix this
+
+Jeffress original \cite{Jeffress1948ALocalization}
+
+Maybe put coincidence detection after spiking computation so can use LIF theory
+
+Also explain Jeffress model
+
+Also use switches theory with original paper: \cite{Mcculloch1990AN}. Coincidence detection can be used with different thresholds to set various arrangements. i.e. OR, AND, 3 out of 5
+
+Also need to remove the comb filter from the background
+Also need references for the biology
+}
+
+\section{Spiking Computation}
+
+Spiking neural networks (SNNs) use event-like spikes rather than continuously valued activations. In the model, a spike is a binary event at a timestep, effectively a discrete Kronecker-delta impulse rather than a continuous analogue value. Figure~\ref{fig:lif_spike_population_encoding_redraft} shows the basic spike-generation and population-code ideas. A standard leaky integrate-and-fire (LIF) neuron integrates input current into a membrane state. The membrane leaks over time, and when it crosses a threshold the neuron emits a spike and resets. In discrete time this can be written as
+\begin{equation}
+    v[t] = \beta v[t-1] + I[t] - S[t]V_{\mathrm{th}},
+    \qquad
+    S[t] = \mathbb{I}\left[v[t]\geq V_{\mathrm{th}}\right],
+    \label{eq:lif_background_redraft}
+\end{equation}
+where $v[t]$ is membrane voltage, $I[t]$ is input, $\beta$ is the leak factor, $V_{\mathrm{th}}$ is threshold, and $S[t]$ is the emitted spike. This is the basic circuit element used throughout the report.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/neuromorphic/lif_spike_population_encoding.png}
+    \caption{Spiking computation primitives. A LIF neuron integrates input until threshold crossing, stronger inputs can be encoded by earlier or denser spike trains, and a population of neurons can represent a continuous coordinate through average activity.}
+    \label{fig:lif_spike_population_encoding_redraft}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/neuromorphic/LIF_diagram.png}
+    \caption{Dynamics of a Leaky-Integrate and Fire (LIF) neuron. The firing threshold ($v_{th}^l$) and the leak factor ($\lambda$) are learnable parameters and get updated during training to attain the best possible performance. Note that this report uses $\beta$ as the leak factor, or decay rate \cite{Kosta2023Adaptive-SpikeNet:Dynamics}}
+    \label{fig:lif_diagram}
+\end{figure}
+
+The engineering attraction of spikes is that computation can be event-driven. Event-driven processing means that downstream computation is triggered by discrete events, such as incoming spikes, rather than by updating every unit with dense synchronous operations at every timestep. If no spikes arrive, little needs to be updated. Neuromorphic hardware exploits this sparsity by implementing large numbers of spiking neurons and synapses with asynchronous communication; large digital neuromorphic chips such as TrueNorth demonstrated million-neuron spiking systems with low-power event-driven operation \cite{Merolla2014AInterface}. This does not automatically mean every SNN is efficient, but it motivates building models whose data representation and computations could be mapped to neuromorphic hardware.
+
+Modern trainable SNNs often use surrogate gradients. The spike function is non-differentiable, so during backpropagation its derivative is replaced with a smooth approximation. Forward simulation still uses spikes, while the backward pass uses a differentiable surrogate. This allows SNNs to be trained using deep-learning tools while retaining spiking dynamics \cite{Eshraghian2023TRAININGLEARNING}. In this project, the final trainable model uses SNN readouts to test whether the biologically structured pathway features are more useful than raw waveform or cochlear-raster inputs.
+
+\writingbox{TO DO:
+Need better equations and explaination of LIF neuron. Use equations from TMR and tutorial, i.e. under bracktes. Use circuit comparison too. Also put before coincidence detection
+
+Would also like to add the 3 Ss potentially:
+Spikes: (a-b) Biological neurons process and communicate via spikes, which are electrical impulses of approximately 100 mV in amplitude. (c) Many computational models of neurons simplify this voltage burst to a discrete, single-bit event: a ‘1’ or a ‘0’. This is far simpler to represent in hardware than a high precision value.
+Sparsity: (c) Neurons spend most of their time at rest, silencing most activations to zero at any given time. Not only are sparse vectors/tensors (with loads of zeros) cheap to store, but say we need to multiply sparse activations with synaptic weights. If most values are multiplied by ‘0’, then we don’t need to read many of the network parameters from memory. This means neuromorphic hardware can be extremely efficient.
+Static-Suppression (a.k.a, event-driven processing: (d-e) The sensory periphery only processes information when there is new information to process. Each pixel in (e) responds to changes in illuminance, so most of the image is blocked out. Conventional signal processing requires all channels/pixels to adhere to a global sampling/shutter rate, which slows down how frequently sensing can take place. Event-driven processing now only contributes to sparsity and power-efficiency by blocking unchanging input, but it often allows for much faster processing speeds.
+
+This was marked highly in Ahmads TMR report. This can pair with the electrical circuit idea of LIFs as well
+}
+
+\section{Current Models and Project Gap}
+
+Existing sound-localisation models span conventional signal processing, probabilistic localisation, artificial neural networks, and neuromorphic systems. Reviews of auditory localisation identify ITD, ILD, and HRTF cues as the main physical basis for human and animal spatial hearing \cite{Carlini2024AuditoryReview}. Neuromorphic sound-source localisation systems often focus on one or two binaural cues, particularly ITD and ILD, and many are motivated by the biological MSO/LSO structure of the auditory brainstem \cite{Danneville2024ASystems}. Earlier computational models also used Bayesian or probabilistic cue integration for binaural localisation \cite{Li2003ALocalization,Willert2006ALocalization}.
+
+The gap addressed here is narrower and more specific. This project is not simply applying an SNN to audio. It asks whether a biologically structured, modular echolocation pathway can produce useful intermediate representations for 3D active localisation. The model therefore includes an emitted FM call, echo simulation, cochlear spike encoding, separate distance/azimuth/elevation pathways, population-code readouts, and a final trainable SNN fusion stage. The results can then distinguish between two explanations: either the final SNN succeeds because any trainable network could solve the task, or it succeeds because the biologically inspired pathways provide useful features.
+
+This framing also explains the level of biological simplification used in the modelling chapter. Detailed anatomical realism is not the objective. The objective is to identify biological computations that are useful and implementable: tonotopic filtering, onset preservation, coincidence detection, spectral template matching, lateral inhibition, population coding, recurrent readout stabilisation, and trainable spike-based fusion.
+
+
+\writingbox{TO DO
+
+Need much more here
+
+Try to collect evidence or spicific models but no end to end of bat model.
+
+From the researc conducted, there is limited evidence of an end to end simulation yadadad
+
+Models to look at:
+
+
+
+
+Lots of mammalian or human models
+}
+
+
+
+\section{Current Models}
+
+Biological sensing systems have long served as inspiration for engineered localisation systems. Echolocating bats in particular demonstrate the ability to estimate object position using active acoustic sensing while operating under severe power and computational constraints. The potential engineering value of these biological strategies has motivated a substantial body of work in biologically-inspired radar and sonar systems \cite{Balleri2017Biologically-inspiredNature}.
+
+Computational models of auditory localisation can broadly be divided into two categories: end-to-end localisation systems and biologically-inspired subsystem models. End-to-end systems focus on achieving accurate localisation performance, often using machine learning techniques trained directly on acoustic data. In contrast, biologically-inspired models typically aim to reproduce specific auditory computations observed in animals, such as cochlear transduction, binaural cue extraction, or neural coincidence detection. While both approaches have achieved significant progress, relatively few systems combine biologically-motivated auditory processing with end-to-end localisation in a unified spiking framework.
+
+Recent advances in machine learning have demonstrated that localisation can be learned directly from binaural audio. Deep neural network models trained on large acoustic datasets have achieved accurate estimates of sound source position and have been shown to reproduce aspects of human localisation behaviour \cite{Francl2022DeepEnvironments,Baby2021AApplications}. Similar approaches have been applied to active echolocation. BatVision \cite{ChristensenBatVision:Ears} and BatGNet \cite{HwangBat-GEchoes} both use bat-inspired sensing principles to estimate spatial properties of the environment, demonstrating that machine learning systems can exploit binaural echo information for localisation and scene understanding. However, these systems rely primarily on conventional artificial neural networks and learned feature representations rather than explicitly modelling the biological auditory pathways that generate these cues. These models can be powerful and high resolution, with full 3D reconstruction capabilities. Bat-G net in particular, despite primarily using convolutional neural networks, structures these layers based on the neurobiology of the bats auditory system, much like what has been done in the model developed in this report, and was used as an inspiration for the model. This is shown in Figure \ref{fig:bat-G_net}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/neuromorphic/bat-G_net.png}
+    \caption{Simplified diagram of the anatomical connections of a bat's auditory system and architecture
+of the proposed Bat-G network \cite{HwangBat-GEchoes}}
+    \label{fig:bat-G_net}
+\end{figure}
+
+
+Alongside these end-to-end approaches, a large body of work has focused on modelling individual stages of the auditory system. Cochlear models remain one of the most extensively studied components, ranging from efficient filterbank approximations to highly detailed biophysical simulations of basilar membrane mechanics and auditory nerve responses \cite{deBoer1980AuditoryI,Sieroka2006SemirealisticCochlea,Pennington2023ACortex,ApplyingAudiology}. Although these models differ substantially in biological fidelity and computational complexity, most perform a similar sequence of operations consisting of frequency decomposition, nonlinear transduction, rectification, and spike generation. Such models have become widely used as front-ends for neuromorphic auditory processing and auditory machine learning systems \cite{Cramer2022TheNetworks}.
+
+Beyond the cochlea, numerous studies have modelled the neural mechanisms responsible for extracting localisation cues. These include interaural time difference (ITD) processing through coincidence detection, interaural level difference (ILD) processing through opponent neural populations, and spectral cue processing for elevation estimation \cite{Lazar2008FaithfulNeurons,Moro2022NeuromorphicTransducers,Tanveer2021EstimateStudy,OssesVecchiAProcessing}. Several spiking neural network implementations of these mechanisms have also been proposed \cite{Wall2012SpikingDifference,Goldsworthy2022ComputationalStimulation,Biswas2022ModelingOscillators}, often inspired by the auditory pathways of birds and mammals. These studies demonstrate that biologically plausible neural circuits can represent localisation cues effectively and, in some cases, achieve localisation directly. However, most focus on isolated localisation subproblems such as azimuth estimation or sound source localisation rather than complete active echolocation-based object localisation. 
+
+More recently, neuromorphic sound localisation systems such as COMOB have demonstrated that biologically-inspired spiking architectures can achieve competitive sound source localisation performance using auditory cues derived from binaural recordings \cite{SpikingProject, Dalmas2024ASystems}. This collaborative modelling project is likely the closest existing work to this project, however, these studies generally focus on passive sound localisation based on humans rather than active echolocation-based object localisation.
+
+Neuromorphic sound localisation has received increasing attention in recent years, leading to a variety of spiking and event-based localisation systems \cite{Dalmas2024ASystems}. Many of these systems utilise auditory front-ends combined with trainable spiking networks, while others employ engineered signal-processing pipelines followed by machine learning classifiers. Although these approaches demonstrate the feasibility of localisation using spike-based computation, the majority remain largely black-box systems in which learned representations replace interpretable auditory processing stages.
+
+A complementary line of research has focused specifically on bat echolocation and biologically-inspired sonar. Acoustic simulation environments such as SonoTraceLab \cite{Jansen2024SonoTraceLabBats} provide tools for generating realistic echolocation scenarios, while studies of bat group echolocation and robotic sonar systems have improved understanding of the acoustic cues available to active sensing systems \cite{Mazar2026Agent-basedEmergences,Schillebeeckx2011BiomimeticPinnae}.
+
+Consequently, a gap exists between detailed biological auditory models and end-to-end localisation systems. The former often provide mechanistic insight into individual auditory computations but are rarely integrated into complete localisation architectures. The latter achieve localisation performance but frequently rely on learned black-box representations with limited biological interpretability. To the author's knowledge, there are few examples of end-to-end active echolocation systems that combine biologically-motivated auditory feature extraction, explicit representations of known localisation cues, and spiking neural computation throughout the processing pipeline.
+
+The approach proposed in this project occupies an intermediate position between these two research directions. Rather than attempting a detailed anatomical simulation of the bat auditory system, it models the principal computations associated with distance, azimuth, and elevation estimation using simplified spiking pathway abstractions. These pathways provide interpretable intermediate representations that remain linked to specific acoustic cues. A small trainable spiking network is then used only for feature fusion and residual correction. This design aims to preserve the interpretability and modularity of biologically-inspired processing while retaining the flexibility and performance benefits of learned neural models.
+
+
+\writingbox{
+Cites:
+1. \cite{Francl2022DeepEnvironments}
+2. \cite{Baby2021AApplications}
+3. \cite{ChristensenBatVision:Ears}
+4. \cite{HwangBat-GEchoes}
+5. \cite{deBoer1980AuditoryI}
+6. \cite{Sieroka2006SemirealisticCochlea}
+7. \cite{Pennington2023ACortex}
+8. \cite{ApplyingAudiology}
+9. \cite{Cramer2022TheNetworks}
+10. \cite{Lazar2008FaithfulNeurons}
+11. \cite{Moro2022NeuromorphicTransducers}
+12. \cite{Tanveer2021EstimateStudy}
+13. \cite{OssesVecchiAProcessing}
+14. \cite{Wall2012SpikingDifference}
+15. \cite{Goldsworthy2022ComputationalStimulation}
+16. \cite{Biswas2022ModelingOscillators}
+17. \cite{Dalmas2024ASystems}
+18. \cite{Jansen2024SonoTraceLabBats}
+19. \cite{Mazar2026Agent-basedEmergences}
+20. \cite{Schillebeeckx2011BiomimeticPinnae}
+extra. \cite{SpikingProject}
+extra. \cite{Balleri2017Biologically-inspiredNature}
+
+
+}
+
+\section{Current Models and Project Gap}
+
+Biological sensing systems have long served as inspiration for engineered localisation systems. Echolocating bats are particularly relevant because they perform active acoustic sensing using compact biological hardware in complex environments. The potential engineering value of these strategies has motivated substantial work in biologically inspired radar and sonar \cite{Balleri2017Biologically-inspiredNature}. Existing models span conventional signal processing, probabilistic cue integration, artificial neural networks, and neuromorphic systems \cite{Li2003ALocalization,Willert2006ALocalization,Carlini2024AuditoryReview}. They can be organised into several complementary research directions.
+
+\subsection{Learned End-to-End Localisation and Reconstruction}
+
+Recent machine-learning systems show that spatial information can be inferred directly from binaural audio. Deep neural networks trained on large acoustic datasets can estimate sound-source location and reproduce aspects of human localisation behaviour \cite{Francl2022DeepEnvironments,Baby2021AApplications}. Related active-echolocation systems solve richer reconstruction tasks. BatVision uses emitted chirps and binaural echoes to predict scene depth maps and grayscale images, while Bat-G net reconstructs high-resolution three-dimensional target representations from ultrasonic echoes \cite{ChristensenBatVision,HwangBat-GEchoes}.
+
+These systems demonstrate that learned models can exploit the spatial information contained in echoes. Bat-G net is a particularly relevant conceptual comparator because its encoder is organised around an abstraction of the bat central auditory pathway, as shown in Figure~\ref{fig:bat-G_net}. However, its internal representations are implemented primarily through learned convolutional operations rather than explicit spiking cue pathways. Such models prioritise reconstruction performance, whereas this project asks whether interpretable distance, azimuth, and elevation populations remain useful before the final trainable stage.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{2_Background/background_figures/neuromorphic/bat-G_net.png}
+    \caption{Simplified diagram of the anatomical connections of a bat's auditory system and the architecture of the proposed Bat-G network \cite{HwangBat-GEchoes}.}
+    \label{fig:bat-G_net}
+\end{figure}
+
+\subsection{Biophysical and Functional Auditory Subsystem Models}
+
+A second body of work models individual stages of auditory processing in greater biological detail. Cochlear models range from efficient filterbank approximations to detailed simulations of basilar-membrane mechanics, nonlinear transduction, and auditory-nerve responses \cite{deBoer1980AuditoryI,Sieroka2006SemirealisticCochlea,Pennington2023ACortex,ApplyingAudiology}. Neuromorphic cochlear front ends commonly decompose a waveform into frequency channels, apply nonlinear transduction or rectification, and encode the resulting activity as spikes. For example, the Heidelberg spiking datasets use a biologically motivated artificial cochlea to convert audio waveforms into temporally structured spike trains \cite{Cramer2022TheNetworks}.
+
+Beyond the cochlea, numerous models isolate particular localisation computations. These include ITD processing through delay lines and coincidence detection, ILD processing through opponent neural populations, and spectral-cue processing for elevation estimation \cite{Lazar2008FaithfulNeurons,Moro2022NeuromorphicTransducers,Tanveer2021EstimateStudy,OssesVecchiAProcessing}. Spiking implementations of auditory mechanisms have also been proposed, often drawing on pathways studied in birds or mammals \cite{Wall2012SpikingDifference,Goldsworthy2022ComputationalStimulation,Biswas2022ModelingOscillators}. This work provides useful mechanistic insight, but the models often address an individual component or a restricted localisation subproblem rather than a complete active three-dimensional echolocation pipeline.
+
+The modular approach used in this report is designed to sit above this level of detail. Each simplified pathway can be inspected independently and could later be replaced with a more biophysically detailed subsystem where that additional complexity is justified.
+
+\subsection{Neuromorphic Sound Localisation}
+
+Neuromorphic sound-source localisation has received increasing attention, particularly for binaural azimuth estimation from ITD and ILD cues. Reviews identify a range of spiking and event-based systems motivated by MSO/LSO-style auditory-brainstem processing \cite{Danneville2024ASystems}. Some use engineered auditory front ends followed by trainable networks, while others implement specific neural mechanisms more directly.
+
+The COMOB sound-localisation project is one of the closest methodological comparators to this work. It provides a public framework for training spiking neural networks to solve a binaural sound-localisation task using surrogate-gradient learning \cite{SpikingProject}. Its focus is passive sound-source localisation and ITD extraction rather than active pulse-echo object localisation. More generally, many neuromorphic systems prioritise task performance over an explicit, inspectable mapping between known acoustic cues and successive neural populations. This leaves room for models that retain interpretable cue-specific representations while still using trainable spiking networks where manual integration becomes difficult.
+
+\subsection{Active Echolocation Simulation and the Remaining Gap}
+
+A complementary research direction focuses on the acoustic environment experienced by an echolocating system. SonoTraceLab provides an open-source ray-tracing framework for simulating technical and biological sonar in complex scenes \cite{Jansen2024SonoTraceLabBats}. Studies of bat group echolocation and robotic sonar systems further illustrate the importance of realistic echoes, pinna effects, and environmental interference when evaluating active sensing \cite{Mazar2026Agent-basedEmergences,Schillebeeckx2011BiomimeticPinnae}.
+
+Consequently, a gap remains between detailed subsystem models and learned end-to-end localisation systems. The former offer mechanistic insight but are rarely integrated into complete object-localisation architectures. The latter can achieve impressive localisation or reconstruction performance but often replace explicit auditory computations with learned internal representations. To the author's knowledge, few systems combine active three-dimensional echolocation, explicit cue-specific auditory pathway abstractions, intermediate spike representations, interpretable population codes, and a trainable spiking fusion stage within one modular localisation pipeline.
+
+The model developed in this report occupies this intermediate position. It does not attempt a detailed anatomical simulation of the bat auditory system. Instead, it implements the principal computations associated with distance, azimuth, and elevation estimation using simplified pathway abstractions. These pathways expose intermediate representations linked to specific acoustic cues. A small trainable SNN is then used for feature fusion and residual correction. This design aims to preserve the interpretability and modularity of biologically inspired processing while retaining the flexibility of learned neural models.

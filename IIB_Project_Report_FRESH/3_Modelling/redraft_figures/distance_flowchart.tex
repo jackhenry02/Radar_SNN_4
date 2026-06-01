@@ -1,0 +1,39 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.2cm, minimum width=2.6cm, rounded corners=3pt, line width=0.8pt, align=center, fill=white, font=\small\sffamily\bfseries},
+        nobox/.style={rectangle, minimum height=1.2cm, minimum width=2.6cm, align=center, font=\small\sffamily\bfseries},
+        arrow/.style={-{Stealth[scale=1.2]}, line width=0.8pt}
+    ]
+    
+    % Main Horizontal Chain
+    \node (raster) [nobox, minimum width =1.5cm] {CSR};
+    \node (vcn) [block, right=0.8cm of raster] {VCN/VNLL\\Model};
+    \node (ic) [block, minimum width =1.5cm, right=1.5cm of vcn] {IC};
+    \node (ac) [block, minimum width =1.5cm, right=0.8cm of ic] {AC};
+    \node (sc) [block, minimum width =1.5cm, right=0.8cm of ac] {SC};
+    \node (readout) [nobox, right=0.8cm of sc] {Distance\\Readout};
+    
+    % Detour Node (Below and slightly right of VCN)
+    \node (dnll) [block, below=1.0cm of vcn, xshift=1.8cm] {DNLL};
+    \node (cd) [block, minimum width =1.5cm, below=1.0cm of ac] {CD};
+    
+    % Connections
+    \draw [arrow] (raster) -- (vcn);
+    \draw [arrow] (vcn) -- (ic); % Direct feed
+    
+    % Detour Routing
+    \draw [arrow] (vcn.south) |- (dnll.west);
+    \draw [arrow, dashed] (dnll.east) -| ([xshift=-0.2cm]ic.south);
+    \draw [arrow] (cd.west) -| ([xshift=+0.2cm]ic.south);
+    
+    
+    % Remaining Chain
+    \draw [arrow] (ic) -- (ac);
+    \draw [arrow] (ac) -- (sc);
+    \draw [arrow] (sc) -- (readout);
+    
+    \end{tikzpicture}
+    \caption{Distance mapping pipeline. The VCN/VNLL stage extracts reliable onsets, the DNLL branch suppresses late repeated responses, and the IC compares the received sweep with the corollary-discharge reference before AC population formation and SC readout.}
+    \label{fig:distance_flowchart}
+\end{figure}

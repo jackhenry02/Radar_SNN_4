@@ -1,0 +1,123 @@
+\chapter{Introduction and Motivation}
+
+
+Autonomous sensing systems increasingly need to make spatial decisions at the edge: on small robots, wearable devices, embedded monitors, and low-power platforms that cannot rely on continuous cloud computation. A typical spatial sensing problem is to estimate where an object is in three-dimensional space from a stream of physical measurements. In acoustic or radar-like systems this means estimating range, bearing, and elevation from reflected waves. The engineering challenge is not simply to make this estimate accurately in an ideal environment, but to do so under tight constraints on latency, memory, and power.
+
+
+
+This project investigates a biomimetic approach to that problem. Instead of treating three-dimensional localisation as a generic black-box regression task, the model is built from functional analogues of the biological auditory system used by echolocating bats. Bats solve a closely related task with remarkable speed and efficiency: they emit short acoustic calls, receive returning echoes, and infer the three-dimensional structure of their environment in real time. The aim of this project is not to reproduce a bat brain in biophysical detail, but to identify the computational principles that make the biological solution attractive for engineered sensing.
+
+The resulting system is a neuromorphic, bat-inspired model for active acoustic localisation. It emits a frequency-modulated call, simulates the returning binaural echo, converts the waveform into cochlear spike trains, processes distance, azimuth, and elevation through separate pathway models, and then combines the resulting population codes using continuous attractor readouts and a small trainable spiking network. The central question is whether a bottom-up, interpretable, pathway-based architecture can provide a useful alternative to an opaque end-to-end neural network.
+
+\section{The Engineering Problem}
+
+The localisation task considered in this report is to estimate the spherical coordinate vector
+\begin{equation}
+    \mathbf{x} = (r, a, e),
+\end{equation}
+where $r$ is target distance, $a$ is azimuth, and $e$ is elevation. The system observes one or more acoustic echoes produced by a known transmitted call and must recover these coordinates from the received signal. In Cartesian form, this corresponds to estimating
+\begin{equation}
+    \mathbf{p} =
+    \begin{bmatrix}
+        r\cos(e)\cos(a)\\
+        r\cos(e)\sin(a)\\
+        r\sin(e)
+    \end{bmatrix}.
+\end{equation}
+This representation makes clear why the problem is genuinely three-dimensional: errors in any coordinate change the final spatial estimate, and errors in angle become more significant as distance increases.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\linewidth]{1_Intro/intro_figures/polar_coords.png}
+    \caption{Spherical coordinate representation of the localisation problem. The model estimates distance, azimuth, and elevation from the returning acoustic echo.}
+    \label{fig:intro_spherical_coordinates}
+\end{figure}
+
+Conventional radar and sonar systems usually approach this problem through explicit signal processing. A transmitted waveform is compared with the received waveform, and target range is inferred from the time-of-flight delay:
+\begin{equation}
+    r = \frac{c\Delta t}{2},
+\end{equation}
+where $c$ is the wave speed and $\Delta t$ is the round-trip delay. Direction can be estimated using multiple receivers, beamforming, phase differences, or amplitude differences across an aperture. These methods are powerful and mathematically well understood. However, they often rely on dense numerical operations such as filtering, Fourier transforms, cross-correlation, matrix operations, and floating-point optimisation.
+
+For large radars, high-performance sonars, or cloud-connected systems, this computational cost may be acceptable. For edge systems it is more restrictive. A small autonomous device may need to localise targets while operating from a battery, with limited memory bandwidth and strict real-time latency. The relevant design question is therefore not only ``what is the most accurate algorithm?'', but also ``what computations are worth paying for?''.
+
+This motivates neuromorphic sensing. Spiking neural systems replace continuous dense computation with sparse event-driven communication. If the signal is mostly silent, the system can also remain mostly silent. If information arrives as discrete events, downstream processing can be triggered only when needed. This is particularly attractive for echolocation, where the important signal is a short returning echo in a longer time window.
+
+\section{Why Biomimetic Echolocation?}
+
+Biology provides a useful existence proof. Echolocating bats solve a difficult active sensing problem using compact, low-power neural hardware. They estimate distance from echo delay, azimuth from binaural differences, and elevation from spectral shaping by the outer ear. They do this while flying, avoiding obstacles, and tracking prey in cluttered acoustic environments.
+
+The biological solution is not a single generic classifier. It is a structured set of specialised pathways. The cochlea decomposes sound into frequency channels. The cochlear nuclei sharpen timing and route information into parallel streams. Brainstem and midbrain circuits compare left and right ears for azimuth, detect echo delays for range, and extract spectral notches for elevation. Higher structures then combine these uncertain cues into spatial behaviour.
+
+This structure is important for engineering. It suggests that the localisation problem can be decomposed into several simpler computations:
+\begin{itemize}
+    \item frequency decomposition and spike encoding in a cochlear front end;
+    \item onset extraction for precise temporal comparison;
+    \item delay coincidence for distance;
+    \item binaural time and level comparison for azimuth;
+    \item spectral-template matching for elevation;
+    \item population-code readout for robust coordinate estimation.
+\end{itemize}
+
+Each of these computations has a classical signal-processing analogue. Coincidence detection resembles cross-correlation. A bank of frequency-selective neurons resembles a filterbank. Synaptic weights can act as matched filters. Population codes can represent not only a point estimate but also uncertainty and confidence. This project uses those parallels deliberately: biological mechanisms are translated into computational modules whose behaviour can be inspected, tested, and modified.
+
+\section{Neuromorphic Motivation}
+
+Modern artificial neural networks have achieved impressive performance in perception tasks, but they often require dense arithmetic and large training datasets. In many cases the trained model solves the task without exposing a clear explanation of the intermediate computations. That is not ideal for a project whose aim is to understand how a localisation system works.
+
+Spiking neural networks offer a different design philosophy. In an SNN, information is transmitted through binary spikes. Neurons integrate incoming events over time and fire only when their membrane state crosses a threshold. A simple leaky integrate-and-fire update can be written as
+\begin{equation}
+    v[t+1] = \beta v[t] + I[t],
+\end{equation}
+\begin{equation}
+    s[t] = \mathbb{1}\left[v[t+1]\geq \theta\right],
+\end{equation}
+where $v$ is membrane voltage, $I$ is input current, $\beta$ is leak or retention, $\theta$ is threshold, and $s[t]$ is the output spike.
+
+This model is simple, but it gives useful computational primitives. A neuron can accumulate evidence, detect temporal coincidence, implement a threshold, or generate a sparse event stream. Networks of such neurons can implement filtering, competition, inhibition, and population coding. These operations are not automatically more accurate than conventional digital signal processing, but they can be more naturally event-driven and may map well onto neuromorphic hardware.
+
+The key claim of this project is not that spikes are always better. The claim is narrower: for active acoustic localisation, many of the required operations have natural spiking interpretations, and a pathway-based SNN can make the computation more interpretable than a black-box regressor.
+
+\section{Project Philosophy}
+
+The model developed in this report follows a bottom-up design strategy. Rather than training a large network directly from waveform to coordinates, the system is built from interpretable pathway models. Each pathway is first tested in isolation, then integrated into the full system. This creates a clear link between biological mechanism, mathematical abstraction, and engineering performance.
+
+The approach has three guiding principles.
+
+First, the model should be functionally biomimetic rather than anatomically exhaustive. The auditory system contains many specialised cell types, feedback loops, and nonlinear mechanisms. Modelling all of them would create a large number of poorly constrained parameters. Instead, each biological structure is represented by the simplest mechanism that preserves its main computational role. For example, the cochlea is represented as a filterbank and spike encoder; the VCN is represented as an onset detector; the IC is represented as a coincidence and population-code stage.
+
+Second, the intermediate representations should be inspectable. The model should produce meaningful cochleagrams, spike rasters, delay maps, azimuth maps, elevation maps, and attractor states. This makes it possible to diagnose failures. If the azimuth estimate fails, for example, one can inspect whether the issue came from the binaural cochlea, the ITD population, the ILD population, or the final fusion layer.
+
+Third, training should be used only where it is most useful. The final system includes a small trainable spiking readout, but the lower pathways remain largely fixed and interpretable. This preserves the explanatory value of the model while allowing the final stage to learn systematic corrections between cues. This is analogous to biological contextual integration: lower auditory pathways extract structured evidence, while higher areas combine it depending on context.
+
+\section{Aims and Contributions}
+
+The overall aim of the project is to design, implement, and evaluate a neuromorphic model for bat-inspired three-dimensional echolocation. The specific objectives are:
+\begin{itemize}
+    \item to construct an acoustic simulation that produces distance, azimuth, and elevation cues from a transmitted FM call;
+    \item to develop a cochlear spike front end suitable for downstream neuromorphic processing;
+    \item to build separate distance, azimuth, and elevation pathways using biologically motivated computations;
+    \item to investigate continuous attractor neural networks as population-code readouts;
+    \item to compare fixed hand-designed readouts with a small trainable SNN fusion layer;
+    \item to evaluate accuracy, robustness, and runtime tradeoffs under constrained and expanded test spaces.
+\end{itemize}
+
+The main contribution is therefore not a single isolated algorithm, but a complete modelling pipeline. The work shows how a complex active sensing task can be decomposed into interpretable neuromorphic components, how those components can be tested individually, and how a limited amount of training can be added without discarding the structure of the model.
+
+\section{Scope and Limitations}
+
+Several deliberate simplifications are made. The acoustic model uses a controlled simulated environment rather than measured bat calls or measured head-related transfer functions. The cochlea is implemented as an engineered filterbank rather than a biophysical basilar-membrane simulation. The elevation cue is generated using a comb-filter notch rather than a measured pinna. The biological nuclei are represented by functional abstractions rather than detailed cell-by-cell models.
+
+These simplifications are not accidental. They are used to keep the system analyzable. The purpose of the project is to test whether the computational structure of the biological solution is useful, not to claim biological realism at every level. Where a simplification creates an important limitation, this is treated as part of the analysis. For example, the azimuth pathway performs differently under narrow and wide angular ranges, and the elevation pathway depends strongly on the quality of the spectral cue.
+
+The model is also primarily a single-target localiser. Some mechanisms, such as DNLL-like suppression, intentionally reject later echoes. This improves robustness for one dominant object but would need to be revisited for multi-object localisation or cluttered scene reconstruction.
+
+\section{Report Structure}
+
+Chapter 2 provides the biological and signal-processing background needed to understand the model. It introduces auditory localisation cues, echolocation, spiking neurons, cochlear processing, and the major auditory pathways used as inspiration.
+
+Chapter 3 describes the modelling and implementation. It explains the acoustic simulation, cochlear front end, distance pathway, azimuth pathway, elevation pathway, continuous attractor readouts, and trainable fusion network.
+
+Chapter 4 presents the results. It evaluates the isolated pathways, the full fixed model, the effect of attractor readouts, the trainable residual readout, and the main runtime and scaling tradeoffs.
+
+Chapter 5 concludes the report by summarising the main findings, discussing the limitations of the approach, and identifying future work needed to move from this prototype toward a more complete neuromorphic echolocation system.

@@ -1,0 +1,1175 @@
+\chapter{System Modelling and Implementation} \label{ch:modelling}
+
+The previous chapter introduced the biological and neuromorphic principles that are the foundations of this project. This chapter describes how those principles were converted into an implementable model for three-dimensional echolocation. The emphasis is not on reproducing every anatomical detail of a bat's auditory system, but on extracting the functional computations that appear useful for an engineered localisation system.
+
+The final model follows a bottom-up design philosophy. Each major biological subsystem was first reduced to a computational role, then tested in isolation before being connected into a full pipeline. This led to a hybrid architecture. Most of the sensory pathways are fixed, interpretable, and hand-designed from biological principles, while a small trainable spiking readout was added at the end to learn residual context-dependent corrections. This is a deliberate compromise. A fully hand-designed model is easy to interpret but struggles when cues interact in full 3D. A fully trained black-box model can fit these interactions, but obscures the mechanism. The model developed here attempts to keep the pathway computations explicit while allowing limited training where biological integration would also be expected. This also lays the foundation for future work, which can use an expanded trainable model, using the results found from this project's model to make targeted training rather than a black-box approach.
+
+\section{Modelling Methodology}
+
+The modelling process used throughout the project was iterative rather than monolithic. Each stage was developed by following a similar sequence:
+\begin{enumerate}
+    \item identify the biological mechanism and its likely computational purpose,
+    \item replace the detailed anatomy with the simplest useful mathematical abstraction that remains biologically grounded,
+    \item test that abstraction in a small, isolated mini-model,
+    \item integrate the abstraction into the relevant pathway,
+    \item measure the resulting failure modes and add complexity only when needed.
+\end{enumerate}
+
+This process was important because the biological system is much more complex than the model can or should be. The cochlea, cochlear nuclei, lateral lemniscus, inferior colliculus, auditory cortex, and superior colliculus all contain many cell types and recurrent loops. Modelling all of these directly would produce a large simulation with many unconstrained parameters. Instead, the model treats biological structures as functional blocks. For example, the cochlea is treated as a tonotopic filterbank and spike encoder, the VCN as an onset-sharpening stage, the IC as a coincidence and population-code construction stage, and the SC as a population readout.
+
+The main design tradeoff was therefore between biological detail and engineering clarity. Wherever the biology offered a clear algorithmic principle, that principle was retained. Examples include Jeffress-style timing comparison, LSO/MNTB excitation-inhibition comparison, DCN-like spectral notch detection, and attractor-based population stabilisation. Wherever the biology was poorly constrained or too detailed for the scope of the project, a simpler abstraction was used. For instance, the true cochlear mechanics were replaced by an IIR filterbank, the detailed VCN/VNLL latency-compensation circuitry was replaced by onset detection and a calibrated latency vector, and the final cortical integration was represented by a small trainable SNN rather than a full auditory cortical model.
+
+This modelling strategy also separates two kinds of performance. The fixed pathway model tests whether the biological abstractions contain enough information to solve the task. The trainable readout tests whether remaining systematic errors are due to missing sensory information or simply imperfect calibration between available cues. This separation makes the model more interpretable than an end-to-end trained system.
+
+\section{Full System Overview}
+
+The final model estimates a target's distance, azimuth, and elevation from a single active echolocation call. The input scene is specified by spherical coordinates:
+\begin{equation}
+    (r, \theta, \psi),
+\end{equation}
+where $r$ is distance, $\theta$ is azimuth, and $\psi$ is elevation. These coordinates define the acoustic echo received at the ears. The model then processes the echo through three parallel pathways, each designed around a different localisation cues, as discussed in Chapter \ref{ch:background}.
+
+The high-level computational flow is shown in Figure \ref{fig:top_level_system_block}.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \begin{tikzpicture}[
+            % Define professional block styles
+            block/.style={
+                draw, 
+                rectangle, 
+                minimum height=1.2cm, 
+                minimum width=2.6cm, 
+                rounded corners=3pt, 
+                line width=0.8pt,
+                align=center,
+                fill=white,
+                font=\small\sffamily\bfseries
+            },
+            % Define special style for the parallel track components
+            pathway/.style={
+                block,
+                minimum width=3.2cm,
+                fill=gray!5 % Subtle shading to group them visually
+            },
+            % Clean arrow style matching journal standards
+            arrow/.style={
+                -{Stealth[scale=1.2]},
+                line width=0.8pt
+            }
+        ]
+        
+        % --- Node Placements ---
+        
+        % External Motor / Environment Layer
+        \node (siggen) [block] {Signal\\Generation};
+        
+        % 1. Input Stage (Positioned directly below Signal Generation)
+        \node (signal) [block, below=1.6cm of siggen] {Received\\Echo};
+        
+        % 2. Frontend Pre-processing
+        \node (cochlea) [block, right=1.0cm of signal] {Cochlea};
+        
+        % 3. Parallel Processing Pathways 
+        \node (azimuth) [pathway, right=1.4cm of cochlea] {Azimuth\\Pathway};
+        \node (distance) [pathway, above=0.6cm of azimuth] {Distance\\Pathway};
+        \node (elevation) [pathway, below=0.6cm of azimuth] {Elevation\\Pathway};
+        
+        % 4. Output / Integration Stage
+        \node (readout) [block, right=1.4cm of azimuth] {Combined\\Readout};
+        
+        % --- Signal Routing Arrows ---
+        
+        % New Connections from Signal Generation
+        \draw [arrow] (siggen) -- node[right, midway, font=\scriptsize\sffamily\bfseries] {Environment} (signal);
+        
+        % L-shaped routing for Corollary Discharge over the top of the frontend
+        \draw [arrow] (siggen.east) -| node[above, pos=0.4, font=\scriptsize\sffamily\bfseries] {Corollary Discharge} (distance.north);
+        
+        % Main entry paths
+        \draw [arrow] (signal) -- (cochlea);
+        
+        % Demultiplexing split from Cochlea out to the three parallel paths
+        \draw [arrow] ([yshift=0.2cm]cochlea.east) -- ++(0.4,0) |- (distance.west);
+        \draw [arrow] (cochlea.east) -- (azimuth.west);
+        \draw [arrow] ([yshift=-0.2cm]cochlea.east) -- ++(0.4,0) |- (elevation.west);
+        
+        % Multiplexing merge from the paths back down into the Readout matrix
+        \draw [arrow] (distance.east) -- ++(0.4,0) |- ([yshift=0.2cm]readout.west);
+        \draw [arrow] (azimuth.east) -- (readout.west);
+        \draw [arrow] (elevation.east) -- ++(0.4,0) |- ([yshift=-0.2cm]readout.west);
+        
+        \end{tikzpicture}
+    \end{subfigure}
+    \caption{Top-level computational architecture of the neuromorphic 3D localisation pipeline. Active vocalisation triggers an internal corollary discharge to prime the distance pathway's temporal arithmetic, while the acoustic emission interacts with the environment to form the incoming sensory signal.}
+    \label{fig:top_level_system_block}
+\end{figure}
+
+The initial signal generated produced a CD spiking efference copy by design, and the acoustic waveform is simulated through a virtual environment. This is received and encoded into spikes by the cochlea, which sends multiple channels (a frequency bank) of spike trains to three separate pathways. We will refer to this collection of spiking signals as the cochlear spike raster, or CSR.
+
+Each pathway processes the CSR in parallel to the others, and produces both a raw population code and a decoded coordinate. This population code refers to the spiking activity of each neuron in the final population of neurons at the end of the pathway. The population code is important because it contains uncertainty and ambiguity that is lost in a single scalar prediction. 
+
+Initially, the readouts from these pathways were kept independent, each with an independent parallel SC model, which will act as our readout. We will explore the different SC models tested and discuss the benefits of each. The final model uses a CANN model at the end of each pathway, and then uses a trainable SNN ``fusion'' combined readout. This final trainable readout receives the raw pathway populations as well as the CANN-decoded coordinate estimates.
+
+This section will discuss the workings of the final model, as well as some of the key experiments and testing done to develop it, highlighting and motivating key design choices.
+
+\section{Initial Exploratory Modelling and Testing}
+
+Before the final architecture was assembled, several smaller models were built to understand which primitives were useful. These experiments were not intended to be final localisation systems. Their purpose was to establish which neural mechanisms should be used in the full model and which could be simplified.
+
+\subsection{Neuron and Coincidence Primitives}
+
+The first tests compared leaky integrate-and-fire (LIF), resonate-and-fire (RF), and level-crossing neurons. The LIF neuron was treated as a low-pass temporal accumulator:
+\begin{equation}
+    v[t+1] = \beta v[t] + I[t],
+\end{equation}
+\begin{equation}
+    s[t] =
+    \begin{cases}
+        1, & v[t+1] \geq \theta,\\
+        0, & v[t+1] < \theta,
+    \end{cases}
+    \qquad
+    v[t+1] \leftarrow v[t+1] - s[t]\theta.
+\end{equation}
+This makes the LIF neuron well suited to evidence accumulation and coincidence detection: two inputs that arrive close together can jointly exceed threshold, while isolated inputs decay before becoming significant.
+
+RF neurons were tested because they behave more like band-pass detectors. They can respond strongly to repeated or periodic stimulation near a preferred frequency, which is attractive for auditory modelling. However, in simple distance coincidence tests, the RF response was often too selective for isolated transient pulses. It produced sharp activity profiles, but this did not always translate into better distance accuracy because the task required robust detection of a single delay rather than resonance to a sustained rhythm.
+
+Level-crossing neurons were also tested as a possible event-based front end. They emit spikes when the input changes by a fixed increment rather than when its absolute level crosses a fixed threshold. This is computationally attractive because it can produce sparse events and reduce redundant processing. In the final model, however, level crossing was kept as a possible optimisation rather than the main pathway mechanism. LIF-style encoding remained the more interpretable and robust choice for the main cochlear spike representation.
+
+Simple coincidence experiments then compared LIF, RF, and binary coincidence detectors. The binary detector was the fastest and could be optimised using event-coordinate accumulation, but it was more brittle. The LIF detector gave a better balance of biological plausibility, noise tolerance, and interpretability. These tests motivated the final distance pathway: use biologically meaningful onset spikes and coincidence populations, but reserve binary/event-based methods as an implementation optimisation for future neuromorphic hardware.
+
+\paragraph{Recommended figure:} Neuron primitive comparison showing LIF membrane integration, RF resonance response, and level-crossing events, followed by a simple delay coincidence schematic.
+
+\section{Neuron Primitives and Coincidence Optimization}
+
+To isolate the optimal computational foundation for echo-delay estimation, this section evaluates three distinct neural coincidence primitives: Leaky Integrate-and-Fire (LIF), Resonate-and-Fire (RF), and Binary delay-line detectors. 
+
+\begin{nodebox}
+\noindent\textbf{Critical Architectural Baseline Note:} \\
+To isolate core delay-estimation capabilities from down-stream tuning artifacts, the primitives evaluated in these benchmarks are configured as time-domain soft-coincidence scoring profiles rather than full threshold-crossing spiking neuron simulations. This configuration intentionally removes secondary hyperparameters---such as synaptic weights, threshold resets, and refractory windows---to evaluate how effectively each mathematical decay landscape natively filters noise and timing jitter.
+\end{nodebox}
+
+\subsection{Mathematical Primitive Formulations}
+
+For an incoming signal with sampled amplitude $a_k$ and a timing mismatch $\delta_k = |t_{\text{echo}} - t_{\text{candidate}[k]}|$, the internal coincidence scoring engines are modeled as:
+
+\begin{itemize}
+    \item \textbf{LIF-Inspired Soft Coincidence:} Evaluated as an exponential decay window modeled after passive membrane leakiness:
+    \begin{equation}
+        \text{Score}_{\text{LIF}} = a_k \cdot w \cdot (1 + \beta^{\delta_k})
+    \end{equation}
+    This profile provides an active temporal integration window where near-coincident inputs yield graded, sub-threshold accumulation.
+    
+    \item \textbf{RF-Inspired Resonance:} Modeled as a damped oscillatory second-order system designed to evaluate frequency selectivity:
+    \begin{equation}
+        \text{Score}_{\text{RF}} = a_k \cdot w \cdot \left(1 + e^{-\frac{\delta_k}{\tau_{\text{rf}}}} \cos(\omega_{\text{rf}} \delta_k)\right)
+    \end{equation}
+    
+    \item \textbf{Binary Match Execution:} A strict, non-graded event-gated window optimization parameter:
+    \begin{equation}
+        \text{Score}_{\text{Bin}} = 
+        \begin{cases} 
+            1, & \text{if } a_k \geq \theta \text{ and } \delta_k \leq \text{tolerance} \\ 
+            0, & \text{otherwise}
+        \end{cases}
+    \end{equation}
+\end{itemize}
+
+\subsection{Single-Channel Constraints vs. Tonotopic Redundancy}
+
+When restricted to a single processing channel, both waveform and spiking inputs are highly vulnerable to environmental noise. Under heavy noise and timing jitter, single-channel tracking collapses across all primitives. Binary detectors suffer from catastrophic omissions due to strict hard-threshold clipping, while RF detectors generate spurious side-lobes from random phase alignments with white noise. LIF primitives perform marginally better due to their soft exponential decay profile, but single-channel processing remains fundamentally unviable for robust distance estimation.
+
+The critical architectural breakthrough is realized by introducing \textbf{Multi-Channel FM-Sweep Integration}. By cross-correlating a 32-channel swept corollary discharge reference against the incoming echo, the network exploits tonotopic redundancy. Because stochastic white noise and isolated false spikes are independent across frequency bands, they fail to form a coherent alignment vector across channels. When these per-channel alignment scores are averaged, the true target delay emerges as a reinforced global maximum, compressed back to sub-centimeter mean absolute error (MAE).
+
+\subsection{Condensed Performance Synthesis}
+
+Table~\ref{tab:coincidence_benchmark} summarizes the performance vectors of each neural primitive across the most critical benchmark conditions, highlighting the computational footprints required to achieve localization accuracy.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Coincidence Detector Performance Matrix Across Processing Regimes}
+\label{tab:coincidence_benchmark}
+\begin{tabular}{p{2.8cm} p{2.8cm} p{2.2cm} r p{3.8cm}}
+\hline
+\textbf{Input Tracking Mode} & \textbf{Signal Condition} & \textbf{Coincidence Detector} & \textbf{MAE (cm)} & \textbf{Computational Footprint} \\ \hline
+\textbf{Single-Channel} & Heavy Noise + Jitter & LIF Detector & 50.98 & 1,280,000 FLOPs / 320,000 SOPs \\
+\textit{(Waveform Input)} & & RF Detector & 91.64 & 2,240,000 FLOPs / 320,000 SOPs \\
+ & & Binary Detector & 100.78 & \textbf{160,000 FLOPs / 160,000 SOPs} \\ \hline
+\textbf{32-Channel FM Sweep} & Heavy Noise + Jitter & \textbf{LIF Detector} & \textbf{0.89} & 163,840,000 FLOPs / 40,960,000 SOPs \\
+\textit{(Spiking Input)} & & Binary Detector & 0.90 & 20,480,000 FLOPs / 40,960,000 SOPs \\
+ & & RF Detector & 2.30 & 286,720,000 FLOPs / 40,960,000 SOPs \\ \hline
+\textbf{12-Channel Pitch} & Clean Baseline & LIF Detector & 0.77 & 983,040,000 FLOPs / 245,760,000 SOPs \\
+\textit{(Sustained Spiking)} & & Binary Detector & 0.81 & 122,880,000 FLOPs / 122,880,000 SOPs \\
+ & & RF Detector & 5.81 & 1,720,320,000 FLOPs / 245,760,000 SOPs \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Primary Architectural Conclusions}
+
+\begin{enumerate}
+    \item \textbf{The Multi-Channel Imperative:} Single-channel delay tracking is fundamentally brittle under realistic signal conditions ($\sim$50~cm MAE). Transitioning to an integrated 32-channel FM sweep compresses localization error down to 0.89~cm, proving that spatial tracking accuracy depends on cross-channel voting redundancy rather than single-unit precision.
+    \item \textbf{The Failure of Resonate-and-Fire for Ranging:} Despite its biological prominence in central auditory pathway modeling, the RF primitive is structurally unsuited for echo-ranging tasks. Its oscillatory side-lobes introduce profound delay aliasing, generating secondary ghost peaks that compromise accuracy even under clean, sustained-pitch conditions (5.81~cm MAE).
+    \item \textbf{Hardware vs. Accuracy Trade-Off:} While the Binary primitive offers the smallest computational footprint (requiring only bitwise operations), the LIF primitive provides superior noise filtering in single-channel environments. This demonstrates that an exponential membrane integration window is essential for front-end processing, while binary optimizations are best reserved for downstream neuromorphic hardware deployments.
+\end{enumerate}
+
+\subsection{Signal and Cochlea Tests}
+
+The signal analysis experiments tested whether the simulated echo contained the required physical cues. The emitted call was represented as a short downward FM chirp, the received echo was delayed and attenuated according to propagation distance, and binaural differences were introduced through path-length differences and head shadow. Additional tests added receiver noise, timing jitter, and spectral notches for elevation.
+
+The cochlea experiments compared several front-end options. The original model used a frequency-domain filterbank with FFT and inverse FFT operations, followed by rectification, envelope smoothing, downsampling, and LIF spike encoding. This was effective but computationally expensive. The final front-end instead used an IIR filterbank, inspired by gammatone-like auditory filters, followed by dynamic LIF spike encoding. This kept the computation in the time domain and allowed future event-based optimisation.
+
+One important problem was the amplitude-latency trap. Close echoes are louder and can trigger spikes earlier than distant echoes, so a naive first-spike detector can confuse amplitude with time-of-flight. The final cochlea therefore uses a dynamic threshold and leak schedule. The spike threshold starts high and decays over time, while the membrane retention factor starts low and increases:
+\begin{equation}
+    \theta(t) = \theta_{\infty} + (\theta_0 - \theta_{\infty})e^{-t/\tau_{\theta}},
+\end{equation}
+\begin{equation}
+    \beta(t) = \beta_{\infty} - (\beta_{\infty}-\beta_0)e^{-t/\tau_{\beta}}.
+\end{equation}
+This suppresses early noise and prevents the nearest, loudest echoes from dominating purely through amplitude. The final values used in the distance model were a threshold schedule from approximately $16$ times the base threshold to $2.5$ times the base threshold, and a beta schedule from $0.20$ to $0.60$.
+
+\paragraph{Recommended figure:} Cochlea filterbank and spike raster example showing the chirp sweep through frequency channels, with dynamic threshold/beta annotated.
+
+
+\section{The Auditory Front End}
+
+\subsection{Signals and Acoustic Environment}
+
+The emitted call is modelled as a Hann-windowed frequency-modulated chirp. In the main experiments, the chirp sweeps downward from $18$~kHz to $2$~kHz over $3$~ms at a sampling frequency of $64$~kHz. The use of lower frequencies than real microbat ultrasound is an engineering simplification. It reduces sample-rate requirements and keeps the model computationally manageable while preserving the key structure of the problem: a broadband time-varying signal whose echo can be matched against an internal reference.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % Compact dimensions to ensure a clean horizontal fit on a single page
+        block/.style={
+            draw, rectangle, 
+            minimum height=1.1cm, 
+            minimum width=1.8cm, 
+            rounded corners=3pt, 
+            line width=0.8pt, 
+            align=center, 
+            fill=white, 
+            font=\scriptsize\sffamily\bfseries
+        },
+        nobox/.style={
+            rectangle, 
+            minimum height=1.1cm, 
+            minimum width=1.8cm, 
+            align=center, 
+            font=\scriptsize\sffamily\bfseries
+        },
+        arrow/.style={
+            -{Stealth[scale=1.2]}, 
+            line width=0.8pt
+        }
+    ]
+    
+    % ==================== LINEAR SIMULATION PIPELINE ====================
+    \node (source) [nobox] at (0,0) {Source\\Signal};
+    \node (delay)  [block, right=0.35cm of source] {Time\\Delay};
+    \node (atten)  [block, right=0.35cm of delay]  {Distance\\Attenuation};
+    \node (shadow) [block, right=0.35cm of atten]  {Head\\Shadow};
+    \node (spec)   [block, right=0.35cm of shadow] {Spectral\\Filtering};
+    \node (noise)  [block, right=0.35cm of spec]   {Noise\\Addition};
+    \node (wave)   [nobox, right=0.35cm of noise]  {Received\\Waveform};
+
+    % ==================== CONNECTIONS ====================
+    \draw [arrow] (source) -- (delay);
+    \draw [arrow] (delay)  -- (atten);
+    \draw [arrow] (atten)  -- (shadow);
+    \draw [arrow] (shadow) -- (spec);
+    \draw [arrow] (spec)   -- (noise);
+    \draw [arrow] (noise)  -- (wave);
+
+    \end{tikzpicture}
+    \caption{Monaural signal transformation pipeline demonstrating the sequential processing stages required to generate a localized acoustic waveform instance.}
+    \label{fig:monaural_simulation_pipeline}
+\end{figure}
+
+The instantaneous chirp can be written as:
+\begin{equation}
+    s(t) = A w(t)\sin\left(2\pi\left[f_0 t + \frac{1}{2}kt^2\right]\right),
+\end{equation}
+where $A$ is the transmitted amplitude, $w(t)$ is the Hann window, $f_0$ is the starting frequency, and $k$ is the sweep rate. The transmitted gain is treated as a $140$~dB call relative to an $80$~dB reference convention. This is not intended as a precise acoustic calibration of a bat call, but provides a consistent amplitude scale for testing attenuation and noise.
+
+For a target at distance $r$, the dominant echo delay is approximately:
+\begin{equation}
+    \Delta t \approx \frac{2r}{c},
+\end{equation}
+where $c$ is the speed of sound. In the binaural simulator the path length is computed separately for each ear, so azimuth also creates a small interaural timing difference. Echo amplitude is attenuated using an inverse-square law:
+\begin{equation}
+    A_{\text{echo}} = \frac{0.7}{L^2}A_{\text{call}},
+\end{equation}
+where $L$ is the total acoustic path length. The constant $0.7$ is an empirical reflection/gain factor used to keep echo amplitudes in a useful numerical range. It is a simplification of target reflectivity, atmospheric losses, and microphone/ear gain.
+
+Azimuth is also encoded through a multiplicative head-shadow term. The model does not use a full frequency-dependent head-related transfer function for azimuth; instead it applies a smooth left/right gain asymmetry. This keeps the binaural cue interpretable while still producing realistic ILD-like information.
+
+Elevation is encoded using a comb-filter spectral cue. The received signal is combined with a delayed copy of itself:
+\begin{equation}
+    y(t)=x(t)+g x(t-\tau),
+\end{equation}
+where $g$ is the delayed-copy gain and $\tau$ is an elevation-dependent delay. The corresponding magnitude response is:
+\begin{equation}
+    |H(f)| = \frac{\sqrt{1+g^2+2g\cos(2\pi f \tau)}}{1+g}.
+\end{equation}
+Changing $\tau$ moves the spectral notches across frequency, creating a simplified pinna-like elevation cue. This is not a detailed pinna model, but it produces a controlled, analyzable spectral feature for testing the elevation pathway.
+
+\paragraph{Recommended figure:} FM chirp and echo timing schematic showing emitted call, delayed attenuated echo, binaural head shadow, and elevation comb-filter notch.
+
+\subsection{Cochlea}
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % Style for the big overarching stage columns
+        colBlock/.style={
+            draw=white, rectangle, 
+            minimum height=4cm, 
+            minimum width=2.8cm, 
+            rounded corners=6pt, 
+            line width=1.0pt, 
+            fill=white
+        },
+        % Clean arrow standard
+        arrow/.style={
+            -{Stealth[scale=1.2]}, 
+            line width=0.8pt
+        }
+    ]
+    
+    % ==================== STAGE 1: INPUT ZONE (NO BOX) ====================
+    \node (wave_title) at (-1.5, 2.0) [align=center, font=\small\sffamily\bfseries] {Received\\Waveform};
+    
+    % Mixed Input Waveform Plot (Ends at X = -0.9)
+    \draw[line width=1.0pt, blue!85!black] 
+        (-2.1,0.0) sin (-1.95,0.25) cos (-1.8,0.0) sin (-1.65,-0.25) cos (-1.5,0.0) 
+        sin (-1.35,0.15) cos (-1.2,0.0) sin (-1.05,-0.15) cos (-0.9,0.0);
+
+    % ==================== OVERARCHING COLUMNS (COMPACTED SPACING) ====================
+    
+    % Column 2: Filterbank (Centered at X = 2.0)
+    \node (col1) [colBlock] at (2.0, 0) {};
+    \node[anchor=south, align=center, font=\small\sffamily\bfseries, text=black] at (2.0, 2.0) {Filterbank\\Channels};
+    
+    % Column 3: Half-Wave Rectification (Shifted left from X=6.0 to X=5.3)
+    \node (col2) [colBlock] at (5.3, 0) {};
+    \node[anchor=south, align=center, font=\small\sffamily\bfseries, text=black] at (5.3, 2.0) {Half-Wave\\Rectification};
+    
+    % Column 4: LIF Spiking Layer (Shifted left from X=10.0 to X=8.6)
+    \node (col3) [colBlock] at (8.6, 0) {};
+    \node[anchor=south, align=center, font=\small\sffamily\bfseries, text=black] at (8.6, 2.0) {LIF Spikes};
+
+
+    % ==================== THREE HORIZONTAL FREQUENCY CHANNELS ====================
+
+    % --- CHANNEL 1: HIGH FREQUENCY (Y = 1.3) ---
+    \node[anchor=south west, font=\tiny\sffamily\bfseries, gray!70!black] at (0.7, 1.45) {Channel 1 (High Freq)};
+    % Filterbank Output
+    \draw[line width=0.7pt, blue!70!black] 
+        (1.0,1.3) sin (1.1,1.5) cos (1.2,1.3) sin (1.3,1.1) cos (1.4,1.3) sin (1.5,1.5) cos (1.6,1.3) 
+        sin (1.7,1.1) cos (1.8,1.3) sin (1.9,1.5) cos (2.0,1.3) sin (2.1,1.1) cos (2.2,1.3) 
+        sin (2.3,1.5) cos (2.4,1.3) sin (2.5,1.1) cos (2.6,1.3) sin (2.7,1.5) cos (2.8,1.3) 
+        sin (2.9,1.1) cos (3.0,1.3);
+    % HWR Output (Shifted to center on X=5.3)
+    \draw[line width=0.7pt, purple!80!black] 
+        (4.3,1.3) sin (4.4,1.5) cos (4.5,1.3) -- (4.7,1.3) sin (4.8,1.5) cos (4.9,1.3) 
+        -- (5.1,1.3) sin (5.2,1.5) cos (5.3,1.3) -- (5.5,1.3) sin (5.6,1.5) cos (5.7,1.3) 
+        -- (5.9,1.3) sin (6.0,1.5) cos (6.1,1.3) -- (6.3,1.3);
+    % LIF Spikes (Shifted to center on X=8.6)
+    \draw[gray!30, line width=0.5pt] (7.6,1.3) -- (9.6,1.3);
+    \foreach \x in {7.7, 8.0, 8.3, 8.6, 8.9, 9.2, 9.5} \draw[line width=0.9pt, teal!90!black] (\x, 1.15) -- (\x, 1.45);
+
+
+    % --- CHANNEL 2: MID FREQUENCY (Y = 0.0) ---
+    \node[anchor=south west, font=\tiny\sffamily\bfseries, gray!70!black] at (0.7, 0.15) {Channel 2 (Mid Freq)};
+    % Filterbank Output
+    \draw[line width=0.9pt, blue!70!black] 
+        (1.0,0) sin (1.25,0.25) cos (1.5,0) sin (1.75,-0.25) cos (2.0,0) 
+        sin (2.25,0.25) cos (2.5,0) sin (2.75,-0.25) cos (3.0,0);
+    % HWR Output (Shifted to center on X=5.3)
+    \draw[line width=0.9pt, purple!80!black] 
+        (4.3,0) sin (4.55,0.25) cos (4.8,0) -- (5.3,0) sin (5.55,0.25) cos (5.8,0) -- (6.3,0);
+    % LIF Spikes (Shifted to center on X=8.6)
+    \draw[gray!30, line width=0.5pt] (7.6,0.0) -- (9.6,0.0);
+    \foreach \x in {7.8, 8.3, 8.8, 9.3} \draw[line width=1.1pt, teal!90!black] (\x, -0.15) -- (\x, 0.15);
+
+
+    % --- CHANNEL 3: LOW FREQUENCY (Y = -1.3) ---
+    \node[anchor=south west, font=\tiny\sffamily\bfseries, gray!70!black] at (0.7, -1.15) {Channel 3 (Low Freq)};
+    % Filterbank Output
+    \draw[line width=1.1pt, blue!70!black] 
+        (1.0,-1.3) sin (1.5,-1.05) cos (2.0,-1.3) sin (2.5,-1.55) cos (3.0,-1.3);
+    % HWR Output (Shifted to center on X=5.3)
+    \draw[line width=1.1pt, purple!80!black] 
+        (4.3,-1.3) sin (4.8,-1.05) cos (5.3,-1.3) -- (6.3,-1.3);
+    % LIF Spikes (Shifted to center on X=8.6)
+    \draw[gray!30, line width=0.5pt] (7.6,-1.3) -- (9.6,-1.3);
+    \foreach \x in {8.0, 9.0} \draw[line width=1.3pt, teal!90!black] (\x, -1.45) -- (\x, -1.15);
+
+
+    % ==================== STAGE 5: COMPOSITE RASTER OUTPUT (NO BOX) ====================
+    % Moved left to match compacted columns
+    \node (raster_title) at (11.5, 2.0) [align=center, font=\small\sffamily\bfseries] {Cochlear\\Spike Raster\\(CSR)};
+    
+    % Multi-channel Raster Grid
+    \draw[gray!30, line width=0.5pt] (10.9, 0.3) -- (12.1, 0.3);
+    \draw[gray!30, line width=0.5pt] (10.9, 0.0) -- (12.1, 0.0);
+    \draw[gray!30, line width=0.5pt] (10.9, -0.3) -- (12.1, -0.3);
+    
+    % High Channel spikes
+    \foreach \x in {11.0, 11.3, 11.6, 11.9} \draw[teal] (\x, 0.22) -- (\x, 0.38);
+    % Mid Channel spikes
+    \foreach \x in {11.1, 11.5, 12.0} \draw[teal] (\x, -0.08) -- (\x, 0.08);
+    % Low Channel spikes
+    \foreach \x in {11.3, 11.8} \draw[teal] (\x, -0.38) -- (\x, -0.22);
+
+
+    % ==================== LINE ROUTING & ARROWS ====================
+    
+    % Input Demultiplexing Split: Starts at X=-0.5 (leaving a gap from the waveform) 
+    % and cuts directly/diagonally into the Filterbank column boundary (X=0.6)
+    \draw [arrow] (-0.5, 0.0) -- (0.6, 1.3);
+    \draw [arrow] (-0.5, 0.0) -- (0.6, 0.0);
+    \draw [arrow] (-0.5, 0.0) -- (0.6, -1.3);
+    
+    % Inter-Column Interconnects (Updated to bridge the smaller 0.5cm gaps)
+    \draw [arrow] (3.4, 1.3) -- (3.9, 1.3);
+    \draw [arrow] (3.4, 0.0) -- (3.9, 0.0);
+    \draw [arrow] (3.4, -1.3) -- (3.9, -1.3);
+    
+    \draw [arrow] (6.7, 1.3) -- (7.2, 1.3);
+    \draw [arrow] (6.7, 0.0) -- (7.2, 0.0);
+    \draw [arrow] (6.7, -1.3) -- (7.2, -1.3);
+    
+    % Output Multiplexing Merge (Updated for the compressed Column 4 edge)
+    \draw [arrow] (10.0, 1.3)  -- ++(0.3, 0) |- (10.9, 0.3);
+    \draw [arrow] (10.0, 0.0)  -- (10.9, 0.0);
+    \draw [arrow] (10.0, -1.3) -- ++(0.3, 0) |- (10.9, -0.3);
+
+    \end{tikzpicture}
+    \caption{Parallel architectural stages of the neuromorphic cochlear transduction model. Continuous incoming acoustic waveforms are distributed across a matrix of parallel frequency-selective channels. Each independent stream undergoes half-wave rectification to mimic inner hair cell shearing behavior, providing localized analog driving potentials to separate Leaky Integrate-and-Fire layers to build a multi-channel spike raster.}
+    \label{fig:cochlea_columnar_transduction}
+\end{figure}
+
+
+The cochlea converts the continuous acoustic waveform into a tonotopic spike representation. A detailed cochlear model would require modelling basilar membrane mechanics, hair-cell transduction, and auditory nerve adaptation. This project instead uses a discrete IIR filterbank. Each channel is tuned to a centre frequency, producing a time-domain cochleagram:
+\begin{equation}
+    z_c[t] = \mathcal{F}_c\{x[t]\},
+\end{equation}
+where $\mathcal{F}_c$ is the IIR filter for frequency channel $c$.
+
+The filtered signal is rectified and passed to a dynamic LIF spike encoder. The encoder is:
+\begin{equation}
+    v_c[t] = \beta(t)v_c[t-1] + I_c[t],
+\end{equation}
+\begin{equation}
+    S_c[t] = \mathbb{1}\left[v_c[t] \geq \theta(t)\right],
+\end{equation}
+\begin{equation}
+    v_c[t] \leftarrow \max(0, v_c[t] - S_c[t]\theta(t)).
+\end{equation}
+This produces a binary spike raster $S_c[t]$ indexed by frequency channel and time. Channels below approximately $4$~kHz are ignored in the final distance/onset processing because the useful call energy and modelled cue structure lie above this range.
+
+The dynamic threshold and beta schedule is a major simplification of several biological effects: hair-cell adaptation, cochlear nerve dynamic range, and central gain control. Rather than modelling each of these separately, the model uses a time-dependent excitability schedule that suppresses early noise and stabilises spike timing across target distances.
+
+
+
+\subsection{VCN Onset Processing}
+
+Downstream pathways require sharper timing than the raw cochlear spike raster provides. The VCN/VNLL stage is therefore simplified to an onset detector. In the distance pathway, a consensus detector requires activity across neighbouring frequency channels before accepting an onset. This helps reject isolated noise spikes and creates a cleaner sweep-like onset representation.
+
+The biological VCN/VNLL system is more complex than this. In particular, real circuits include latency encoding, inhibitory timing compensation, and multiple parallel projections. The model replaces this with calibrated onset extraction because the goal is not to reproduce the full hindbrain circuit, but to deliver the computational object needed by the IC: a reliable estimate of when each frequency component of the echo arrived.
+
+\section{The Distance Pathway}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.2cm, minimum width=2.6cm, rounded corners=3pt, line width=0.8pt, align=center, fill=white, font=\small\sffamily\bfseries},
+        nobox/.style={rectangle, minimum height=1.2cm, minimum width=2.6cm, align=center, font=\small\sffamily\bfseries},
+        arrow/.style={-{Stealth[scale=1.2]}, line width=0.8pt}
+    ]
+    
+    % Main Horizontal Chain
+    \node (raster) [nobox, minimum width =1.5cm] {CSR};
+    \node (vcn) [block, right=0.8cm of raster] {VCN/VNLL\\Model};
+    \node (ic) [block, minimum width =1.5cm, right=1.5cm of vcn] {IC};
+    \node (ac) [block, minimum width =1.5cm, right=0.8cm of ic] {AC};
+    \node (sc) [block, minimum width =1.5cm, right=0.8cm of ac] {SC};
+    \node (readout) [nobox, right=0.8cm of sc] {Distance\\Readout};
+    
+    % Detour Node (Below and slightly right of VCN)
+    \node (dnll) [block, below=1.0cm of vcn, xshift=1.8cm] {3) DNLL};
+    \node (cd) [block, minimum width =1.5cm, below=1.0cm of ac] {CD};
+    
+    % Connections
+    \draw [arrow] (raster) -- (vcn);
+    \draw [arrow] (vcn) -- (ic); % Direct feed
+    
+    % Detour Routing
+    \draw [arrow] (vcn.south) |- (dnll.west);
+    \draw [arrow, dashed] (dnll.east) -| ([xshift=-0.2cm]ic.south);
+    \draw [arrow] (cd.west) -| ([xshift=+0.2cm]ic.south);
+    
+    
+    % Remaining Chain
+    \draw [arrow] (ic) -- (ac);
+    \draw [arrow] (ac) -- (sc);
+    \draw [arrow] (sc) -- (readout);
+    
+    \end{tikzpicture}
+    \caption{Distance mapping pipeline featuring parallel brainstem inhibitory pathways.}
+    \label{fig:distance_flowchart}
+\end{figure}
+
+The distance pathway estimates range from echo time-of-flight. It uses the emitted call as an internal reference and compares this reference with the received echo. The biological analogue is a population of delay-tuned FM-FM neurons that respond when the call-related input and echo-related input arrive at a preferred temporal separation.
+
+\subsection{Corollary Discharge}
+
+Because the system emits its own call, it has access to a corollary discharge: an internal copy of the expected outgoing sweep. In the model this is represented as a sweep of spikes across frequency channels. A target at distance $r$ should produce an echo sweep delayed by approximately $2r/c$. Candidate distances are therefore represented as candidate delays:
+\begin{equation}
+    d_k \leftrightarrow \Delta t_k = \frac{2d_k}{c}.
+\end{equation}
+
+A cochlear latency vector is applied to the corollary discharge rather than subtracted from the echo. This keeps the processing causal: the model predicts when each channel should be activated after accounting for cochlear and onset-detection latency.
+
+\subsection{DNLL Suppression}
+
+The DNLL stage is modelled as a suppressive mechanism that reduces late or repeated echo responses after a primary onset has been detected. This is useful for a single-target localisation model because it prevents later noise or secondary reflections from dominating the distance map. The tradeoff is that this simple suppression would make multi-object tracking difficult. In biological terms, this is a plausible attentional or clutter-rejection mechanism; in engineering terms, it is a single-object assumption.
+
+\subsection{IC Coincidence Detection}
+
+The IC computes a delay population over candidate distances. For each candidate delay, the model compares the VCN echo onset raster with the delayed corollary-discharge raster. A simplified coincidence score is:
+\begin{equation}
+    C_k = \sum_c \sum_t S_{\text{echo}}(c,t)S_{\text{CD}}(c,t-\Delta t_k),
+\end{equation}
+where $c$ indexes frequency channel and $k$ indexes candidate distance.
+
+The final distance model also includes sweep facilitation. Instead of treating each channel independently, the IC activity is boosted when neighbouring channels support a consistent FM sweep. This was introduced because isolated binary coincidence is fast but brittle; a real FM call provides multiple correlated measurements of the same distance. Sweep facilitation uses this redundancy to improve robustness.
+
+
+
+\subsection{AC Sharpening and Distance Readout}
+
+The raw IC population is passed through an AC-like topographic sharpening stage. This uses a Mexican-hat profile: local excitation around a candidate distance and broader inhibition around its neighbours. In simplified form:
+\begin{equation}
+    A = K_{\text{MH}} C,
+\end{equation}
+where $C$ is the IC candidate population and $K_{\text{MH}}$ is the Mexican-hat kernel. This sharpens the distance peak while retaining a smooth population code.
+
+A direct centre-of-mass readout can decode distance from this population:
+\begin{equation}
+    \hat{r} = \frac{\sum_k A_k r_k}{\sum_k A_k}.
+\end{equation}
+The final hand-designed baseline instead passes the AC population into the SC line attractor before decoding. The CANN readout can smooth and stabilise the population, but the raw AC population is still retained for the trainable residual readout.
+
+\paragraph{Recommended figure:} Distance pathway stage progression showing cochlear raster, VCN onset raster, corollary discharge, IC delay population, AC sharpened population, and decoded distance.
+
+\section{The Azimuth Pathway}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.1cm, minimum width=2.5cm, rounded corners=3pt, line width=0.8pt, align=center, fill=white, font=\small\sffamily\bfseries},
+        nobox/.style={rectangle, minimum height=1.1cm, minimum width=2.5cm, align=center, font=\small\sffamily\bfseries},
+        arrow/.style={-{Stealth[scale=1.2]}, line width=0.8pt}
+    ]
+    
+    % --- TOP ROW: LEFT PATHWAY ---
+    \node (l_raster) [nobox] {Left CSR};
+    \node (l_vcn) [block, right=0.8cm of l_raster] {Left VCN};
+    \node (l_mntb) [block, below=0.3cm of l_vcn, xshift=2.5cm] {Left MNTB};
+    \node (l_lso) [block, right=3cm of l_vcn] {Left LSO};
+    
+    % --- BOTTOM ROW: RIGHT PATHWAY ---
+    \node (r_raster) [nobox, below=4.4cm of l_raster] {Right CSR};
+    \node (r_vcn) [block, right=0.8cm of r_raster] {Right VCN};
+    \node (r_mntb) [block, above=0.3cm of r_vcn, xshift=2.5cm] {Right MNTB};
+    \node (r_lso) [block, right=3cm of r_vcn] {Right LSO};
+    
+    % --- MIDDLE ROW: CONVERGENCE ZONE ---
+    \node (mso) [block, below=1.65cm of l_vcn, xshift=-1.5cm] {Combined\\MSO};
+    \node (ic) [block, below=1.65cm of l_lso, minimum width=1.5cm] {IC};
+    \node (sc) [block, right=0.8cm of ic, minimum width=1.5cm] {SC};
+    \node (readout) [nobox, right=0.8cm of sc] {Azimuth\\Readout};
+    
+    % --- ARROWS ---
+    
+    % Ipsilateral Connections
+    \draw [arrow] (l_raster) -- (l_vcn);
+    \draw [arrow] (r_raster) -- (r_vcn);
+    \draw [arrow] (l_vcn) -- (l_lso.west);
+    \draw [arrow] (r_vcn) -- (r_lso.west);
+    
+    % Cross-talk (Contralateral MNTB Inhibitions)
+    \draw [arrow] (l_vcn.south) -- ([yshift=0.5cm]r_mntb.west);
+    \draw [arrow] (r_vcn.north) -- ([yshift=-0.5cm]l_mntb.west);
+    \draw [arrow, dashed] (l_mntb) -- (l_lso);
+    \draw [arrow, dashed] (r_mntb) -- (r_lso);
+    
+    % MSO Bilateral Feed
+    \draw [arrow] ([xshift=-0.2cm]l_vcn.south) -- (mso.north);
+    \draw [arrow] ([xshift=-0.2cm]r_vcn.north) -- (mso.south);
+    
+    % Unification into Midbrain Network
+    \draw [arrow] (l_lso.south) -- (ic.north);
+    \draw [arrow] (mso) -- (ic);
+    \draw [arrow] (r_lso.north) -- (ic.south);
+    
+    % Output Track
+    \draw [arrow] (ic) -- (sc);
+    \draw [arrow] (sc) -- (readout);
+    
+    \end{tikzpicture}
+    \caption{Binaural Azimuth processing network showing MSO time-delay tracking and cross-contralateral LSO/MNTB level tracking.}
+    \label{fig:azimuth_flowchart}
+\end{figure}
+
+The azimuth pathway estimates horizontal angle from binaural differences. Two complementary cue families are represented: interaural time difference (ITD) and interaural level difference (ILD). The final hand-designed baseline uses the ITD population with a CANN readout because it was more stable than the ILD-only readout in the constrained full-3D tests. However, both ITD and ILD populations are retained as inputs to the trainable fusion network because they contain complementary information.
+
+\subsection{ITD Population}
+
+The ITD branch begins with separate left and right cochlear processing. VCN onset rasters are extracted for each ear. Candidate azimuths are converted into expected interaural delays:
+\begin{equation}
+    \Delta t_k \approx \frac{d_{\text{ear}}}{c}\sin(a_k),
+\end{equation}
+where $d_{\text{ear}}$ is the effective ear separation and $a_k$ is a candidate azimuth. The Jeffress-style coincidence score compares left and right onset rasters at these candidate delays:
+\begin{equation}
+    A^{\text{ITD}}_k = \sum_c \sum_t S_L(c,t)S_R(c,t+\Delta t_k).
+\end{equation}
+
+This is a simplified delay-line model. It captures the essential idea of coincidence across ears, but does not model the full MSO/brainstem microcircuit. It also inherits a physical limitation: for small heads, ITDs are extremely small, so wide-angle or noisy conditions can make timing ambiguous.
+
+
+\subsection{ILD and LSO/MNTB Population}
+
+The ILD branch estimates azimuth from left/right intensity imbalance. Each ear is converted into a multi-threshold level code so that louder inputs activate more level channels. The LSO/MNTB comparison is represented as same-side excitation opposed by opposite-side inhibition:
+\begin{equation}
+    L_{\text{left}}(c) =
+    \left[
+        w_E X_L(c) - w_I X_R(c)
+    \right]_+,
+\end{equation}
+\begin{equation}
+    L_{\text{right}}(c) =
+    \left[
+        w_E X_R(c) - w_I X_L(c)
+    \right]_+.
+\end{equation}
+The opponent balance is then mapped into an azimuth population. In isolated azimuth tests, an inverse-sigmoid warp corrected the saturating ILD response. However, in full 3D the ILD cue is confounded by distance and elevation-dependent spectral filtering. This is why the final hand-designed baseline uses ITD+CANN rather than the warped ILD readout.
+
+The ILD population is still important. The trainable fusion network receives both raw ITD and raw ILD populations. This allows the final readout to learn when each cue is informative. This is more biologically plausible than choosing a single cue rigidly, because real auditory systems combine multiple uncertain cues depending on context.
+
+\paragraph{Recommended figure:} Azimuth ITD/ILD pathway comparison showing binaural cochlea, ITD delay-line coincidence, LSO/MNTB excitation-inhibition comparison, and the two resulting azimuth populations.
+
+\section{The Elevation Pathway}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.2cm, minimum width=2.6cm, rounded corners=3pt, line width=0.8pt, align=center, fill=white, font=\small\sffamily\bfseries},
+        nobox/.style={rectangle, minimum height=1.2cm, minimum width=2.6cm, align=center, font=\small\sffamily\bfseries},
+        arrow/.style={-{Stealth[scale=1.2]}, line width=0.8pt}
+    ]
+    
+    % Nodes
+    \node (raster) [nobox] {Cochlear\\Spike Raster};
+    \node (dcn) [block, right=0.8cm of raster] {DCN};
+    \node (ic) [block, right=0.8cm of dcn] {IC};
+    \node (sc) [block, right=0.8cm of ic] {SC};
+    \node (readout) [nobox, right=0.8cm of sc] {Elevation\\Readout};
+    
+    % Connections
+    \draw [arrow] (raster) -- (dcn);
+    \draw [arrow] (dcn) -- (ic);
+    \draw [arrow] (ic) -- (sc);
+    \draw [arrow] (sc) -- (readout);
+    
+    \end{tikzpicture}
+    \caption{Monaural Elevation pathway isolating pinna-induced spectral notches.}
+    \label{fig:elevation_flowchart}
+\end{figure}
+
+The elevation pathway estimates vertical angle from monaural spectral shaping. Unlike distance and azimuth, elevation is not primarily a timing problem. It depends on how the pinna-like filter changes the frequency content of the echo.
+
+\subsection{Comb-Filter Spectral Cue}
+
+The model uses a comb filter to impose an elevation-dependent spectral notch. The cue is controlled by the delayed-copy delay $\tau(e)$:
+\begin{equation}
+    y(t)=x(t)+g x(t-\tau(e)).
+\end{equation}
+This creates notches in the magnitude response at frequencies determined by $\tau$. The delay is varied across elevation so that different elevations produce different notch locations. This is an engineered simplification of the HRTF. It does not attempt to reproduce a real bat pinna, but it provides a clean spectral cue that can be mapped by a DCN-like circuit.
+
+\subsection{Selected-Ear Monaural Processing}
+
+The current elevation pathway is monaural after ear selection. The model selects the ear that is expected to receive the more informative echo based on azimuth sign. This approximates a later gating system in which azimuth information selects the relevant side for elevation decoding. The simplification avoids building a full bilateral elevation fusion model at this stage.
+
+\subsection{DCN Transfer-Template Response}
+
+The DCN stage compares the observed selected-ear spectrum with expected comb-filter transfer templates. The selected cochleagram is converted into a spectral profile and equalised by a baseline no-comb profile:
+\begin{equation}
+    \tilde{P}(f_c) = \frac{P_{\text{obs}}(f_c)}{P_0(f_c)+\epsilon}.
+\end{equation}
+For each candidate elevation $e_k$, the model has an expected comb gain $H_k(f_c)$. The response is based on a weighted template mismatch:
+\begin{equation}
+    E_k = \sum_c m_k(f_c)\left(\tilde{P}(f_c)-H_k(f_c)\right)^2,
+\end{equation}
+\begin{equation}
+    R_k = \exp\left(-\frac{E_k}{2\sigma^2}\right).
+\end{equation}
+The weighting term is:
+\begin{equation}
+    m_k(f_c)=P_0(f_c)\left(1-H_k(f_c)\right)^2.
+\end{equation}
+This gives high weight to frequencies where two conditions are both true: the signal contains useful energy, and the candidate comb filter predicts a strong notch. This was introduced because treating all frequencies equally made the detector sensitive to parts of the spectrum where the signal carried little useful information.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % Define styles for the two distinct columns
+        inNode/.style={
+            draw, circle, minimum size=0.8cm, line width=1.0pt, fill=white,
+            font=\small\sffamily\bfseries
+        },
+        outNode/.style={
+            draw, circle, minimum size=1.1cm, line width=1.6pt, fill=white,
+            font=\small\sffamily\bfseries
+        },
+        % Faded ghost nodes to represent the rest of the column structure
+        ghostNode/.style={
+            draw=gray!25, circle, minimum size=1.1cm, line width=1.0pt, dashed, fill=white,
+            text=gray!35, font=\small\sffamily\bfseries
+        },
+        % Custom connection styles to form the color/functional gradient
+        exciteFar/.style={-{Stealth[scale=1.2]}, line width=1.6pt, blue!85!black},
+        exciteMid/.style={-{Stealth[scale=1.1]}, line width=1.3pt, blue!45!red!85!black}, % Purple transition
+        inhibitCenter/.style={-{Circle[scale=1.3]}, line width=2.0pt, red!85!black} % Heavy inhibition
+    ]
+
+    % --- LEFT COLUMN: INPUT TONOTOPIC CHANNELS ---
+    \node (in1) [inNode] at (0, 2.4) {$f_1$};
+    \node (in2) [inNode] at (0, 1.2) {$f_2$};
+    \node (in3) [inNode] at (0, 0.0) {$f_3$}; % The "Opposite" Center Frequency
+    \node (in4) [inNode] at (0,-1.2) {$f_4$};
+    \node (in5) [inNode] at (0,-2.4) {$f_5$};
+    
+    % Column Label
+    \node[align=center, font=\small\sffamily\bfseries, gray] at (0, 3.4) {Cochlear Input\\(Tonotopic Channels)};
+
+    % --- RIGHT COLUMN: DCN OUTPUT LAYER ---
+    \node (outTop) [ghostNode]  at (4, 1.5) {DCN};
+    \node (outTarget)[outNode]  at (4, 0.0) {DCN$_j$}; % Our arbitrary target node
+    \node (outBot) [ghostNode]  at (4,-1.5) {DCN};
+    
+    % Column Label
+    \node[align=center, font=\small\sffamily\bfseries, gray] at (4, 3.2) {Output Layer\\(Principal Neurons)};
+
+    % --- GRADIENT CONNECTIVITY LAYER ---
+    
+    % Top Excitatory Sideband (Far away = Blue)
+    \draw [exciteFar] (in1.east) to[bend left=15] 
+        node[above, pos=0.5, font=\scriptsize\sffamily\bfseries, text=blue!80!black, yshift=0.35cm] {Excitation} (outTarget.west);
+        
+    % Upper Transition Zone (Closer = Purple)
+    \draw [exciteMid] (in2.east) to[bend left=10] (outTarget.west);
+    
+    % Center Inhibitory Core (Opposite = Deep Red with Circle termination)
+    \draw [inhibitCenter] (in3.east) -- 
+        node[above, pos=0.5, font=\scriptsize\sffamily\bfseries, text=red!85!black] {Inhibition} (outTarget.west);
+        
+    % Lower Transition Zone (Closer = Purple)
+    \draw [exciteMid] (in4.east) to[bend right=10] (outTarget.west);
+    
+    % Bottom Excitatory Sideband (Far away = Blue)
+    \draw [exciteFar] (in5.east) to[bend right=15] (outTarget.west);
+
+    \end{tikzpicture}
+    \caption{Receptive field topology of an arbitrary DCN principal neuron ($\text{DCN}_j$). The unit exhibits a classic type-IV spectral response profile, combining narrow-band central inhibition from directly opposing tonotopic channels with broad lateral excitation from distal frequencies to track pinna-induced comb filter notches.}
+    \label{fig:dcn_receptive_field}
+\end{figure}
+
+\subsection{Dynamic Wideband Inhibition}
+
+The elevation model also includes a simple wideband gain-control stage. A non-spiking leaky integrator pools activity across channels and uses this to normalise the spectral response. This is inspired by wideband inhibition in the DCN and helps reduce sensitivity to overall echo volume. It is not a detailed interneuron model, but it captures the computational purpose of broad inhibitory gain control: make the spectral shape more important than absolute loudness.
+
+The DCN output is a population over candidate elevations. A direct centre-of-mass readout can decode this population, but the final model applies a CANN readout followed by a small inverse-sigmoid calibration to correct a stable monotonic distortion in the raw elevation coordinate.
+
+\paragraph{Recommended figure:} Elevation comb notch and DCN template response showing the before/after spectrum, candidate comb-transfer templates, and the resulting elevation population.
+
+\section{Continuous Attractor Neural Network}
+
+The distance, azimuth, and elevation pathways each produce a one-dimensional population code. A direct centre-of-mass readout is simple, but it does not model neural population dynamics or stabilisation. The model therefore applies a finite line attractor as a simplified SC-like readout.
+
+\subsection{Line Attractor Dynamics}
+
+The CANN state evolves according to continuous rate dynamics:
+\begin{equation}
+    \tau \dot{x} = -x + Wx + Bu,
+\end{equation}
+where $x$ is the attractor state, $W$ is the recurrent matrix, $u$ is the pathway population input, and $B$ maps the input into the attractor. In the implemented readout the input is used to initialise the state, then the recurrent dynamics refine the population:
+\begin{equation}
+    x(0)=s
+    \begin{bmatrix}
+        Mu\\
+        -\beta Mu
+    \end{bmatrix}.
+\end{equation}
+The two blocks represent an excitatory and inhibitory population. This reflected construction helps balance the finite line attractor and reduces edge artefacts.
+
+The recurrent matrix is a symmetric local interaction matrix: nearby neurons excite each other while broader inhibitory structure prevents the whole line from saturating. The CANN therefore behaves as a neural smoother and stabiliser. It converts an irregular input population into a more coherent bump of activity.
+
+\subsection{Fisher-Information-Motivated Input}
+
+The input matrix $M$ was chosen using a Fisher-information-motivated analysis. Fisher information measures how sensitively a population response changes with the represented variable. In this context, a good input mapping should create population responses that change strongly and smoothly with position, while avoiding edge collapse at the ends of the finite line.
+
+This optimisation is not pathway-specific. The same line-attractor geometry can be applied to distance, azimuth, and elevation because each has already been converted into a one-dimensional population code. The biological interpretation is that the SC-like readout provides a generic spatial population mechanism, while the lower pathways provide the modality-specific evidence.
+
+
+
+\subsection{Stability, Rate Caps, and Tradeoffs}
+
+The attractor must be strong enough to stabilise a bump, but not so strong that activity diverges or saturates. Increasing the recurrent gain can improve precision in an ideal rate model, but biological neurons have maximum firing rates and limited metabolic budgets. The implementation therefore includes a rate cap. This makes the model more biologically plausible and prevents arbitrarily large recurrent amplification.
+
+The CANN should not be interpreted as a magic optimiser. In the final trainable readout experiments, the raw pathway populations were often more informative than the scalar CANN readouts. The CANN remains useful because it provides a biologically motivated population readout and a stable baseline coordinate, but the final residual SNN benefits from seeing both the raw populations and the CANN outputs.
+
+\paragraph{Recommended figure:} CANN line attractor schematic showing input population, reflected excitatory/inhibitory blocks, recurrent matrix, bump dynamics, and centre-of-mass readout.
+
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % --- Attractor Layer Styles ---
+        neuron/.style={
+            draw=gray!80, circle, minimum size=0.9cm, line width=1.0pt, fill=white,
+            font=\small\sffamily\bfseries
+        },
+        activeNode/.style={
+            draw=blue!80!black, circle, minimum size=0.9cm, line width=1.8pt, fill=blue!5,
+            font=\small\sffamily\bfseries
+        },
+        % --- Input Layer Styles ---
+        inputNode/.style={
+            draw=gray!50, circle, minimum size=0.8cm, line width=1.0pt, fill=gray!5,
+            text=gray!60, font=\small\sffamily\bfseries
+        },
+        activeInput/.style={
+            draw=teal!80!black, circle, minimum size=0.8cm, line width=1.5pt, fill=teal!5,
+            text=teal!90!black, font=\small\sffamily\bfseries
+        },
+        % --- Connection Styles ---
+        excite/.style={-{Stealth[scale=1.1]}, line width=1.3pt, blue!80!black},
+        inhibit/.style={-{Circle[open, scale=1.2]}, line width=1.3pt, red!80!black},
+        feedforward/.style={-{Stealth[scale=1.1]}, line width=1.2pt, gray!70!black},
+        activeFF/.style={-{Stealth[scale=1.2]}, line width=1.6pt, teal!80!black}
+    ]
+
+    % ================= LAYER 1: SENSORY INPUT PATHWAY (BOTTOM) =================
+    \node (indots1) at (-4.5, -2.0) {\Large $\dots$};
+    \node (in1)     [inputNode] at (-3.0, -2.0) {$I_{i-2}$};
+    \node (in2)     [inputNode] at (-1.5, -2.0) {$I_{i-1}$};
+    \node (in3)     [activeInput] at (0, -2.0) {$I_{i}$}; % The driving sensory input channel
+    \node (in4)     [inputNode] at (1.5, -2.0) {$I_{i+1}$};
+    \node (in5)     [inputNode] at (3.0, -2.0) {$I_{i+2}$};
+    \node (indots2) at (4.5, -2.0) {\Large $\dots$};
+    
+    % Layer Label Left
+    \node[anchor=east, font=\small\sffamily\bfseries, gray!80!black] at (-4.8, -2.0) {Afferent Pathway Input:};
+
+    % ================= LAYER 2: ATTRACTOR NETWORK MANIFOLD (MIDDLE) =================
+    \node (dots1) at (-4.5, 0) {\Large $\dots$};
+    \node (n1)    [neuron] at (-3.0, 0) {$N_{i-2}$};
+    \node (n2)    [neuron] at (-1.5, 0) {$N_{i-1}$};
+    \node (n3)    [activeNode] at (0, 0) {$N_{i}$}; % The central active target node
+    \node (n4)    [neuron] at (1.5, 0) {$N_{i+1}$};
+    \node (n5)    [neuron] at (3.0, 0) {$N_{i+2}$};
+    \node (dots2) at (4.5, 0) {\Large $\dots$};
+    
+    % Layer Label Left
+    \node[anchor=east, font=\small\sffamily\bfseries, blue!80!black] at (-4.8, 0) {CANN Attractor Layer:};
+
+    % --- INTER-LAYER FEEDFORWARD CONNECTIONS ---
+    \draw [feedforward] (in1) -- (n1);
+    \draw [feedforward] (in2) -- (n2);
+    \draw [activeFF]    (in3) -- node[right, midway, font=\scriptsize\sffamily\bfseries, text=teal!80!black, align=left] {Driving\\Feed} (n3); % Highlighted target drive
+    \draw [feedforward] (in4) -- (n4);
+    \draw [feedforward] (in5) -- (n5);
+
+    % --- INTRA-LAYER ATTRACTOR DYNAMICS (MEXICAN HAT) ---
+    
+    % 1. Self-Recurrent Excitation (Moved safely to the top loop)
+    \draw [excite] (n3) to[loop above, looseness=6] 
+        node[above=0.1cm, font=\scriptsize\sffamily\bfseries, text=blue!80!black] {Self-Excitation} (n3);
+
+    % 2. Short-Range Local Excitation (To immediate horizontal neighbors)
+    \draw [excite] (n3) to[bend right=30] (n2);
+    \draw [excite] (n3) to[bend left=30] (n4);
+
+    % 3. Long-Range Lateral Inhibition (To distal units)
+    \draw [inhibit] (n3) to[bend right=40] node[above, pos=0.7, font=\scriptsize\sffamily\bfseries, text=red!80!black] {Lateral Inhibition} (n1);
+    \draw [inhibit] (n3) to[bend left=40] (n5);
+
+
+    % ================= THE EMERGENT STABILIZED ACTIVITY BUMP (TOP) =================
+    
+    % Manifold Reference Baseline Line
+    \draw[line width=0.6pt, gray!40, dashed] (-4.8, 1.4) -- (4.8, 1.4);
+    
+    % Smooth Gaussian Activity Envelope
+    \draw[line width=1.6pt, blue!70!black, smooth] 
+        (-4.5, 1.4) .. controls (-2.0, 1.4) and (-1.2, 1.5) .. 
+        (-0.8, 2.2) .. controls (-0.4, 2.9) and (-0.3, 3.0) .. 
+        (0.0, 3.0)  .. controls (0.3, 3.0) and (0.4, 2.9) .. 
+        (0.8, 2.2)  .. controls (1.2, 1.5) and (2.0, 1.4) .. (4.5, 1.4);
+        
+    % Label for the activity bump
+    \node[anchor=south, font=\small\sffamily\bfseries\itshape, blue!80!black] at (0, 3.1) {Emergent Coordinate Bump $\mathcal{A}(x)$};
+
+    \end{tikzpicture}
+    \caption{Topographic mapping framework of the 1D Continuous Attractor Neural Network (CANN). Raw spatial coordinate approximations from upstream auditory pathways ($I_i$) project topographically into the recurrent attractor layer. Localized feedback networks compress this input into a single sharp Gaussian profile, tracking target position smoothly across the continuous neural manifold.}
+    \label{fig:cann_topographic_mapping}
+\end{figure}
+
+\section{Trainable Fusion Network}
+
+The fixed pathway model is interpretable, but full 3D localisation introduces interactions between cues. For example, azimuth affects which ear is more informative for elevation, elevation filtering changes the spectral balance used by ILD, and distance changes echo amplitude and therefore confidence. A small trainable SNN readout was therefore added as the final integration stage.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        % --- General Styles ---
+        neuron/.style={
+            draw, circle, minimum size=0.6cm, line width=0.8pt, fill=white,
+            font=\tiny\sffamily\bfseries
+        },
+        lifNeuron/.style={
+            neuron, draw=teal!80!black, fill=teal!5
+        },
+        intNeuron/.style={
+            neuron, draw=purple!80!black, fill=purple!5 % Distinct style for non-spiking integrator
+        },
+        vectorNode/.style={
+            draw, rectangle, minimum height=0.6cm, minimum width=2.4cm, rounded corners=2pt,
+            line width=0.8pt, fill=white, font=\scriptsize\sffamily\bfseries, align=center
+        },
+        opNode/.style={
+            draw, circle, minimum size=0.5cm, line width=0.8pt, fill=gray!10, font=\large
+        },
+        nobox/.style={
+            rectangle, align=left, font=\scriptsize\sffamily
+        },
+        % --- Pathway Styles ---
+        fixedPath/.style={line width=1.1pt, blue!70!black, -{Stealth[scale=1.1]}},
+        trainablePath/.style={line width=1.1pt, teal!80!black, -{Stealth[scale=1.1]}},
+        outputPath/.style={line width=1.1pt, black, -{Stealth[scale=1.1]}},
+        gradientFlow/.style={line width=0.8pt, red!70!black, dashed, -{Stealth[scale=0.9]}},
+        dots/.style={font=\large, gray}
+    ]
+
+    % =========================================================================
+    % 1. BACKGROUND CONTAINER BOX (SNN Boundary)
+    % =========================================================================
+    \draw[draw=gray!30, fill=teal!2, fill opacity=0.15, rounded corners=6pt, line width=1.0pt] (3.4, -2.1) rectangle (10.5, 3.7);
+    \node[anchor=north, font=\scriptsize\sffamily\bfseries, gray!60!black] at (6.4, 4.2) {snntorch Fusion Network ($f_{\text{SNN}}$)};
+
+    % =========================================================================
+    % 2. CACHED INPUT FEATURE VECTOR (z)
+    % =========================================================================
+    \node (pr)   [vectorNode, fill=blue!5]   at (0, 3.1)  {Distance\\Pop ($P_r$)};
+    \node (paz)  [vectorNode, fill=blue!5]   at (0, 2.3)  {Azimuth\\Pops ($P^{\text{ITD, ILD}}_{\theta}$)};
+    \node (pel)  [vectorNode, fill=blue!5]   at (0, 1.5)  {Elevation\\Pop ($P_{\psi}$)};
+    \node (rcann) [vectorNode, fill=cyan!15]   at (0, 0.4)  {CANN $\hat{r}$\\readout};
+    \node (acann) [vectorNode, fill=cyan!15]   at (0, -0.4) {CANN $\hat{a}$\\readout};
+    \node (ecann) [vectorNode, fill=cyan!15]   at (0, -1.2) {CANN $\hat{e}$\\readout};
+    \node (q)     [vectorNode, fill=gray!5]   at (0, -2.4) {Confidence\\($q$)};
+
+    % Feature Vector z Structural Bracket
+    \draw[line width=1.0pt, gray!60!black] (-1.4, 3.4) -- (-1.6, 3.4) -- (-1.6, -2.7) -- (-1.4, -2.7);
+    \node[anchor=east, font=\scriptsize\sffamily\bfseries, gray!80!black, align=center] at (-1.8, 0.35) {Input\\Feature\\Vector $z$};
+    \node[align=center, font=\small\sffamily\bfseries, gray!90] at (0, 4) {Feature Cached Inputs};
+
+    % =========================================================================
+    % 3. THE SNN LAYERS & NEURONS
+    % =========================================================================
+    
+    % Hidden Layer 1 (Spiking LIF)
+    \foreach \y [count=\i] in {2.5, 1.6, 0.7, -1.3} {
+        \node (h1-\i) [lifNeuron] at (4.2, \y) {};
+    }
+    \node at (4.2, -0.2) [dots, rotate=90] {\dots};
+    \node at (4.2, 3.2) [align=center, font=\tiny\sffamily\bfseries] {Hidden L1\\`snn.Leaky`\\(Spiking LIF)};
+
+    % Hidden Layer 2 (Spiking LIF)
+    \foreach \y [count=\i] in {2.5, 1.6, 0.7, -1.3} {
+        \node (h2-\i) [lifNeuron] at (6.5, \y) {};
+    }
+    \node at (6.5, -0.2) [dots, rotate=90] {\dots};
+    \node at (6.5, 3.2) [align=center, font=\tiny\sffamily\bfseries] {Hidden L2\\`snn.Leaky`\\(Spiking LIF)};
+
+    % Output Integrator Layer (Non-spiking, 3 output tasks)
+    \node (outI-1) [intNeuron] at (8.8, 1.8) {};
+    \node (outI-2) [intNeuron] at (8.8, 0.0) {};
+    \node (outI-3) [intNeuron] at (8.8, -1.2) {};
+    \node at (8.8, 0.9) [dots, rotate=90] {\dots};
+    \node at (8.8, 3.2) [align=center, font=\tiny\sffamily\bfseries, text=purple!90!black] {Output Integrator\\`snn.Leaky`\\(no reset)};
+
+    % Temporal Mean Reduction Block
+    \node (meanBlock) [vectorNode, fill=purple!5, minimum width=1.5cm, minimum height=1.0cm] at (11.5, 0) {Temporal Mean\\$\frac{1}{T}\sum_t U_{\text{out}}(t)$};
+
+    % Scaling Block
+    \node (scaler) [vectorNode, fill=teal!5, minimum width=1.0cm] at (11.5, -1.5) {Scale\\$\lambda$};
+
+
+    % =========================================================================
+    % 4. WEIGHT MATRIX PROJECTIONS (Linear Layers)
+    % =========================================================================
+    
+    % Linear 1 Mesh (Input -> Hidden 1)
+    \node[font=\tiny\sffamily\bfseries, teal!60!black] at (2.9, 0.8) {`Linear`};
+    
+    % Linear 2 Mesh (Hidden 1 -> Hidden 2)
+    \foreach \i in {1,2,3,4} {
+        \foreach \j in {1,2,3,4} {
+            \draw[line width=0.4pt, teal!20] (h1-\i.east) -- (h2-\j.west);
+        }
+    }
+    \node[font=\tiny\sffamily\bfseries, teal!60!black] at (5.35, -1.8) {`Linear` $W_{\text{hid2}}$};
+
+    % Linear 3 Mesh (Hidden 2 -> Output Integrator)
+    \foreach \i in {1,2,3,4} {
+        \foreach \j in {1,2,3} {
+            \draw[line width=0.4pt, purple!20] (h2-\i.east) -- (outI-\j.west);
+        }
+    }
+    \node[font=\tiny\sffamily\bfseries, purple!70!black] at (7.65, -1.8) {`Linear` $W_{\text{out}}$};
+
+
+    % =========================================================================
+    % 5. CONNECTIONS, RESIDUAL BYPASS & SUMMATION
+    % =========================================================================
+    \node (sum) [opNode] at (11.5, -3) {$\oplus$};
+    \node (fixedEst) [vectorNode, fill=cyan!5, minimum width=2.8cm] at (6, -3) {Hand-Designed Estimates ($\hat{y}_{\text{pathway}}$)};
+    
+    % Feature connections from Cache to Hidden L1
+    \draw[trainablePath] (pr.east) -- (h1-1.west);
+    \draw[trainablePath] (paz.east) -- (h1-1.west);
+    \draw[trainablePath] (pel.east) -- (h1-2.west);
+    \draw[trainablePath] (rcann.east) -- (h1-2.west);
+    \draw[trainablePath] (acann.east) -- (h1-3.west);
+    \draw[trainablePath] (ecann.east) -- (h1-3.west);
+    \draw[trainablePath] (q.east) -- (h1-4.west);
+
+    % Connect Integrator units to Temporal Mean block
+    \draw[trainablePath, purple] (outI-1.east) -- ++(0.3,0) |- ([yshift=0.3cm]meanBlock.west);
+    \draw[trainablePath, purple] (outI-2.east) -- (meanBlock.west);
+    \draw[trainablePath, purple] (outI-3.east) -- ++(0.3,0) |- ([yshift=-0.3cm]meanBlock.west);
+
+    % Mean output -> Scaler -> Summation
+    \draw[trainablePath] (meanBlock.south) -- (scaler.north);
+    \draw[trainablePath] (scaler.south) -- node[right, font=\tiny\sffamily\bfseries, text=teal!90!black] {$\lambda f_{\text{SNN}}(z)$} (sum.north);
+
+    % Feed CANN streams to the hand-designed estimator block
+    \draw[fixedPath] (rcann.east) -- ++(0.3, 0) |- (fixedEst.west);
+    \draw[fixedPath] (acann.east) -- ++(0.3, 0) |- (fixedEst.west);
+    \draw[fixedPath] (ecann.east) -- ++(0.3, 0) |- (fixedEst.west);
+
+    % Long Residual Bypass Routing track
+    \draw[fixedPath] (fixedEst.east) -- node[above, pos=0.5, font=\tiny\sffamily\bfseries, text=blue!70!black] {Residual Bypass Path} (sum.west);
+
+
+    % =========================================================================
+    % 6. COORDINATE RECOVERY READOUTS (Smooth analog vectors)
+    % =========================================================================
+    \node (ytargets) [draw=black, rectangle, rounded corners=4pt, line width=1.0pt, fill=gray!5, anchor=north, font=\small\sffamily, inner sep=6pt] at (5, -4) {
+    \textbf{Final Targets } $\mathbf{y} = [ \, r_{\text{norm}}, \ \sin \theta, \ \cos \theta, \ \sin \psi, \ \cos \psi \, ]$};
+    
+    % Analog Membrane Potential Tracking Plot Canvas (Replacing old spike raster)
+    \node (finalPlot) [nobox] at (11.0, 1.6) {};
+    \begin{scope}[shift={(finalPlot.center)}]
+        \draw[gray!30, line width=0.5pt] (-0.6, 0.2) -- (0.6, 0.2);
+        \draw[gray!30, line width=0.5pt] (-0.6, 0.0) -- (0.6, 0.0);
+        \draw[gray!30, line width=0.5pt] (-0.6, -0.2) -- (0.6, -0.2);
+        % Continuous analog potential signals
+        \draw[line width=0.7pt, purple] (-0.6, 0.15) .. controls (-0.3, 0.3) and (0.1, 0.1) .. (0.6, 0.25);
+        \draw[line width=0.7pt, purple!70!black] (-0.6, -0.05) .. controls (-0.2, -0.15) and (0.2, 0.15) .. (0.6, -0.02);
+        \draw[line width=0.7pt, purple!40!black] (-0.6, -0.25) .. controls (-0.4, -0.1) and (0.0, -0.3) .. (0.6, -0.18);
+    \end{scope}
+    \node[anchor=south, font=\tiny\sffamily\bfseries, text=purple!90!black, align=center] at (11.0, 2.1) {Un-reset Membrane\\Potentials $U_{\text{out}}(t)$\\(continuous)};
+    
+    % Structural connection lines for terminal tracking
+    \draw[outputPath] (sum.south) |- (ytargets.east);
+    \draw[purple!40!gray, dashed, line width=0.6pt] (9.1, 0.9) -- (finalPlot.west);
+
+
+    % =========================================================================
+    % 7. BACKPROPAGATION THROUGH TIME (BPTT) GRADIENT FLOWS
+    % =========================================================================
+    %\draw[gradientFlow] ([yshift=0.15cm]outI-1.west) -- node[above, font=\tiny\sffamily\bfseries, text=red!80!black] {BPTT Gradients} ([yshift=0.15cm]h2-1.east);
+    %\draw[gradientFlow] ([yshift=0.15cm]h2-1.west) -- ([yshift=0.15cm]h1-1.east);
+    %\draw[gradientFlow] ([yshift=0.15cm]h1-3.west) -- ([yshift=0.15cm]paz.east);
+
+    \end{tikzpicture}
+    \caption{Functional computational topology of the Residual Fusion SNN. Pre-calculated features from the cached vector $z$ project through successive linear weight transformations and spiking hidden layers. The output linear layer drives non-spiking leaky integration units (no reset mechanism). The raw historical membrane values ($U_{\text{out}}$) are averaged over all operational timesteps, scaled via $\lambda$, and combined with hand-designed baseline path estimates ($\hat{y}_{\text{pathway}}$) to generate final coordinate readouts.}
+    \label{fig:fusion_snn_architecture}
+\end{figure}
+
+\subsection{Cached Feature Vector}
+
+The trainable readout receives a compact feature vector assembled from the fixed pathways:
+\begin{equation}
+    z =
+    \left[
+    P_r,\,
+    P^{\text{ITD}}_{\theta},\,
+    P^{\text{ILD}}_{\theta},\,
+    P_{\psi},\,
+    \hat{r}_{\text{CANN}},\,
+    \hat{{\theta}}_{\text{CANN}},\,
+    \hat{{\psi}}_{\text{CANN}},\,
+    q
+    \right],
+\end{equation}
+where $P_r$ is the raw distance population, $P^{\text{ITD}}_{\theta}$ and $P^{\text{ILD}}_{\theta}$ are the azimuth populations, $P_{\psi}$ is the raw elevation population, the hatted terms are CANN readouts, and $q$ contains confidence features such as population margins, entropy, total activation, and spike counts.
+
+These features are cached before training. This is essential because running the acoustic simulation and all three pathways inside every training epoch would be unnecessarily slow. Caching also makes the training experiment reproducible: the same train, validation, and test feature sets can be reused while changing only the readout architecture or loss.
+
+\subsection{Residual SNN Readout}
+
+The preferred trainable model is a residual readout:
+\begin{equation}
+    \hat{y}_{\text{final}} = \hat{y}_{\text{pathway}} + \lambda f_{\text{SNN}}(z),
+\end{equation}
+where $\hat{y}_{\text{pathway}}$ is the hand-designed coordinate estimate, $f_{\text{SNN}}$ is a small snnTorch LIF network, and $\lambda$ is a residual scale. This is preferable to a direct trained readout because the fixed pathway model already performs the main localisation computation. The SNN only needs to learn systematic corrections.
+
+The output target is:
+\begin{equation}
+    y =
+    \left[
+    r_{\text{norm}},\,
+    \sin \theta,\,
+    \cos \theta,\,
+    \sin \psi,\,
+    \cos \psi
+    \right].
+\end{equation}
+Distance is normalised to the constrained operating range, while angles are represented as sine/cosine pairs to avoid discontinuities at angular boundaries.
+
+\subsection{Uncertainty-Weighted Loss}
+
+The three output tasks have different units and natural scales. A manually weighted loss would be arbitrary, so the readout uses learned uncertainty weighting. The loss is:
+\begin{equation}
+    \mathcal{L} =
+    \frac{\mathcal{L}_r}{2\sigma_r^2} + \log\sigma_r
+    + \frac{\mathcal{L}_a}{2\sigma_a^2} + \log\sigma_{\theta}
+    + \frac{\mathcal{L}_e}{2\sigma_e^2} + \log\sigma_{\psi},
+\end{equation}
+where $\mathcal{L}_r$ is the distance MSE, $\mathcal{L}_a$ is the azimuth sine/cosine MSE, and $\mathcal{L}_e$ is the elevation sine/cosine MSE. The learned $\sigma$ terms allow the model to balance the tasks during training.
+
+This final readout can be interpreted biologically as contextual integration. It does not replace the sensory pathways. Instead, it receives multiple uncertain population codes and learns how to combine them when cues disagree or are distorted. This is closer to a higher-level cortical or collicular integration role than to an end-to-end black-box neural network.
+
+\paragraph{Recommended figure:} Trainable residual readout feature-vector diagram showing raw pathway populations, CANN scalar readouts, confidence features, residual SNN, and final coordinate output.
+

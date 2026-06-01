@@ -1,0 +1,62 @@
+\begin{figure}[htbp]
+    \centering
+    % Ensure you have \usepackage{tikz} and \usetikzlibrary{positioning, arrows.meta, calc} in your preamble
+    \begin{tikzpicture}[
+        >=Stealth,
+        node distance=2cm and 2.5cm,
+        font=\sffamily\small,
+        % Define block styles
+        block/.style={rectangle, draw, rounded corners, thick, minimum width=2.6cm, minimum height=1.5cm, align=center},
+        E_node/.style={block, fill=blue!5, draw=blue!70!black},
+        I_node/.style={block, fill=red!5, draw=red!70!black},
+        io/.style={circle, draw, thick, fill=gray!5, minimum size=1.0cm, align=center},
+        % Arrow styles
+        line/.style={draw, thick, ->},
+        inh_line/.style={draw, thick, ->, red!80!black}
+    ]
+
+        % --- Nodes ---
+        \node[io] (in) {$x[n]$};
+        
+        \node[E_node, right=of in] (E) {
+            \textbf{Excitatory (E)} \\ 
+            Population State \\ 
+            $E[n]$
+        };
+        
+        \node[I_node, below=1.8cm of E] (I) {
+            \textbf{Inhibitory (I)} \\ 
+            Quadrature State \\ 
+            $I[n]$
+        };
+        
+        \node[io, right=of E] (out) {$O[n]$};
+
+        % --- Main Feedforward Path ---
+        \path[line] (in) -- node[above] {$g$} (E);
+        \path[line] (E) -- node[above] {spikes} (out);
+        
+        % --- Coupling Loops (The Rotation Matrix) ---
+        % Forward Excitation: E -> I
+        \path[line] ($(E.south east)!0.3!(E.south)$) -- 
+            node[right, pos=0.5] {$+p\sin(\phi)$}
+            ($(I.north east)!0.3!(I.north)$);
+            
+        % Delayed Negative Feedback: I -> E
+        \path[inh_line] ($(I.north west)!0.3!(I.north)$) -- 
+            node[left, pos=0.5] {$-p\sin(\phi)$} 
+            ($(E.south west)!0.3!(E.south)$);
+            
+        % --- Self-Decay Loops (Damping terms) ---
+        % E Self-loop
+        \draw[line] ([xshift=+0.25cm]E.north) .. controls +(0.4, 0.8) and +(-0.4, 0.8) .. ([xshift=-0.25cm]E.north)
+            node[above, midway] {$p\cos(\phi)$};
+            
+        % I Self-loop
+        \draw[line] ([xshift=+0.25cm]I.south) .. controls +(0.4, -0.8) and +(-0.4, -0.8) .. ([xshift=-0.25cm]I.south)
+            node[below, midway] {$p\cos(\phi)$};
+
+    \end{tikzpicture}
+    \caption{Equivalent excitatory/inhibitory population interpretation of the implemented cochlear resonator. The recurrent E/I loop is a state-space interpretation of the second-order IIR resonator. Self-decay is scaled by $p\cos(\phi)$, while balanced cross-coupling scales with $\pm p\sin(\phi)$. Together these terms reproduce the same complex-conjugate pole pair as the direct-form filter.}
+    \label{fig:ei_population_resonator}
+\end{figure}

@@ -1,0 +1,160 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[margin=25mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhead[L]{Jack Henry}
+\fancyhead[R]{Spiking Neural Networks}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\setlist{nosep}
+\usepackage[numbers]{natbib} % optional, but recommended
+
+
+% Configuration for Python code
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small, % Typewriter font, slightly smaller
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!50!black},
+    numbers=left,               % Line numbers on the left
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,               % Number every line
+    breaklines=true,            % Wrap long lines automatically
+    breakatwhitespace=true,
+    frame=single,               % Draw a frame around the code
+    tabsize=4,
+    showstringspaces=false,
+    captionpos=b                % Caption at the bottom
+}
+
+\lstdefinelanguage{markdown}{
+  morecomment=[l]{\#},           % Headers
+  morecomment=[s]{**}{**},       % Bold text
+  morecomment=[s]{*}{*},         % Italic text
+  morestring=[b]`,               % Inline code
+  morestring=[b]",               % Strings
+  sensitive=false
+}
+
+
+
+% --- Space-Saving and Formatting Preamble ---
+%\usepackage[T1]{fontenc}
+%\usepackage{lmodern} % Professional Latin Modern font
+
+% 2. Font Selection (11pt is the standard minimum for engineering)
+% To set the global size, ensure your document class starts with:
+% \documentclass[11pt]{article}
+
+% 3. Line Spacing (Custom stretch for 10-page limit)
+\usepackage{setspace}
+\setstretch{1} % Slightly tighter than 1.2; saves ~0.5 pages
+
+% 4. Paragraph Spacing (Reduces large vertical gaps)
+%\setlength{\parskip}{4pt}
+
+% Main Title:
+\usepackage{titling}
+\setlength{\droptitle}{0cm}  % space above the title
+%\posttitle{\vspace{-0.2cm}}
+
+
+
+% 5. Section Heading Optimization (Requires titlesec)
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{3pt}{2pt}
+\titlespacing*{\subsection}{0pt}{2pt}{1pt}
+\titlespacing*{\paragraph}{15pt}{0pt}{2pt}
+
+% 6. Figure Captions (Standard practice to use small font)
+\usepackage[font=small,labelfont=bf]{caption}
+
+
+\setlength{\textfloatsep}{5pt}   % space between figure and text
+\setlength{\floatsep}{5pt}       % space between two floats
+\setlength{\intextsep}{5pt}      % space for figures inside text
+
+\usepackage[skip=2pt]{caption}
+
+
+\graphicspath{{report_figures/}}
+
+\newcommand{\writingbox}[1]{
+  \vspace{0.5em}
+  \noindent\fbox{\parbox{0.96\linewidth}{\textbf{Writing space:} #1\\[6em]}}
+  \vspace{0.8em}
+}
+
+
+\newcommand{\figuretodo}[3]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=#1\linewidth]{#2}
+    \caption{#3}
+  \end{figure}
+}
+
+
+\begin{document}
+
+
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Large University of Cambridge Department of Engineering\par}
+  \vspace{1.5cm}
+  {\Huge\bfseries Spiking Neural Networks Neuromorphic \par}
+    \vspace{1.5cm}
+  {\LARGE Bat-Inspired 3D Echolocation for Object Localisation \par}
+  \vspace{1.5cm}
+  {\Large IIB Project\par}
+  \vfill
+  \begin{tabular}{ll}
+    Name: & \textit{Jack Henry}\\
+    College: & \textit{Churchill College}\\
+    Supervisor: & \textit{Tim O'Leary}\\
+    Date: & \today
+  \end{tabular}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+
+
+\include{0_Technical_Abtract/technical_abtract}
+
+\clearpage
+
+\tableofcontents
+
+\include{01_Acronyms/acronyms}
+
+\clearpage
+
+\pagenumbering{arabic}
+
+\chapter{Introduction and Motivation}
+
+
+\appendix
+
+
+\end{document}
+
+
+
+\end{document}

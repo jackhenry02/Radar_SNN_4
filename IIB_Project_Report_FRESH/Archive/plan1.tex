@@ -1,0 +1,289 @@
+\documentclass[12pt,a4paper]{report}
+
+% --- Core Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage[margin=25mm]{geometry} % CUED required 25mm margins
+\usepackage{amsmath, amssymb, amsfonts} % For mathematical typesetting
+\usepackage{graphicx} % For importing diagrams
+\usepackage{booktabs} % For academic-grade tables
+\usepackage{microtype} % Improves justification and spacing
+\usepackage{hyperref} % For clickable citations and cross-references
+\usepackage{titlesec} % Format chapter headings cleanly
+
+% --- Optional formatting adjustments ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=black,      
+    urlcolor=blue,
+    citecolor=black,
+}
+
+\begin{document}
+
+% ==============================================================================
+% TITLE PAGE
+% ==============================================================================
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge \bfseries Spiking Neural Networks\par}
+    \vspace{1cm}
+    {\Large Biomimetic 3D Echolocation and Auditory Pathway Dynamics \par}
+    \vspace{2cm}
+    {\large \textbf{Jack Henry} \par}
+    {\large Churchill College \par}
+    \vfill
+    {\large Department of Engineering \\ University of Cambridge \par}
+    \vspace{1cm}
+    \vspace{1cm}
+    {\large \today \par}
+\end{titlepage}
+
+\pagenumbering{roman}
+
+% ==============================================================================
+% TECHNICAL ABSTRACT (Max 2 pages, self-contained)
+% ==============================================================================
+\chapter*{Technical Abstract}
+\addcontentsline{toc}{chapter}{Technical Abstract}
+\markboth{Technical Abstract}{Technical Abstract}
+
+% CUED Requirement Reminder: Include Name, College, and Project Title here
+\noindent
+\textbf{Author:} Your Name \\
+\textbf{College:} Your College \\
+\textbf{Project Title:} Spiking Neural Networks: Biomimetic 3D Echolocation \\
+\textbf{Supervisor:} Your Supervisor's Name \\
+
+\noindent
+\textit{[Draft this section last. Ensure it details the problem, the bottom-up SNN techniques used, main results of your three parallel pathways, and your core conclusions regarding biological realism as an optimizer.]}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ==============================================================================
+% CHAPTER 0: ACRONYMS & NOMENCLATURE
+% ==============================================================================
+\chapter*{Acronyms}
+\addcontentsline{toc}{chapter}{Acronyms}
+\markboth{Acronyms}{Acronyms}
+
+\begin{tabbing}
+    \textbf{SNN} \qquad \= Spiking Neural Network \\
+    \textbf{LIF} \> Leaky Integrate-and-Fire \\
+    \textbf{RF} \> Receptive Field \\
+    \textbf{VCN} \> Ventral Cochlear Nucleus \\
+    \textbf{IC} \> Inferior Colliculus \\
+    \textbf{AC} \> Auditory Cortex \\
+    \textbf{CANN} \> Continuous Attractor Neural Network \\
+    \textbf{CD} \> Corollary Discharge \\
+    \textbf{DSP} \> Digital Signal Processing \\
+    \textbf{SNR} \> Signal-to-Noise Ratio \\
+    \textbf{ToF} \> Time-of-Flight
+\end{tabbing}
+
+\newpage
+\pagenumbering{arabic}
+
+% ==============================================================================
+% CHAPTER 1: INTRODUCTION & MOTIVATION
+% ==============================================================================
+\chapter{Introduction \& Motivation}
+\label{ch:intro}
+
+\section{The Engineering Problem: 3D Sound Localization}
+% Detail the task of locating objects in 3D space using active emission
+% Discuss the edge system constraints (size, weight, and power limits of radar/sonar)
+\label{sec:problem}
+
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.8\textwidth]{figures/3d_space_localization.pdf}
+    \caption{Geometric schematic of 3D target coordinates (Distance, Azimuth, Elevation) defined relative to an active sensor platform.}
+    \label{fig:3d_space}
+\end{figure}
+
+\section{Conventional Approaches: Classical Radar and Sonar Systems}
+% Detail how modern radar/sonar handle spatial detection (matched filters, array signal processing)
+% Highlight where these methods struggle on ultra-low power platforms
+
+\section{The Biomimetic Pivot: Echolocation as an Architectural Blueprint}
+% Compare bat bio-sonar to artificial sonar
+% Discuss power consumption advantages: why sparse spikes save energy
+% Framed as: "The biological brain is the existence proof that this can be optimized"
+
+\section{Architectural Philosophy: Bottom-Up Tuning vs. Black-Box Optimization}
+% Explain the pivot away from naive black-box SNN training due to diagnostication limits
+% Outline your bottom-up, hand-tuned neural dynamics approach 
+% Frame how this structured architecture allows training to be used later in a targeted manner
+
+% ==============================================================================
+% CHAPTER 2: NEUROMORPHIC PRIMITIVES \& CLASSICAL ALGORITHMIC PARALLELS
+% ==============================================================================
+\chapter{Neuromorphic Primitives \& Algorithmic Parallels}
+\label{ch:primitives}
+
+\section{Neurons and Spiking: The Leaky Integrate-and-Fire Model}
+% Define the foundational math of the LIF neuron for the non-specialist assessor
+The sub-threshold membrane potential dynamics of the Leaky Integrate-and-Fire (LIF) neuron are governed by:
+\begin{equation}
+    \tau_m \frac{dV(t)}{dt} = -(V(t) - V_{rest}) + R I(t)
+\end{equation}
+
+\section{The Rosetta Stone: Neuronal Structures as Classical Algorithms}
+% Explicitly map out your parallels here using a clear table
+This section establishes a functional bridge between classical digital signal processing (DSP) abstractions and neuromorphic primitives:
+\begin{table}[htbp]
+    \centering
+    \caption{The Neuromorphic-Algorithmic Rosetta Stone.}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Classical DSP Framework} & \textbf{Neuromorphic / SNN Abstraction} \\
+        \midrule
+        Fast Fourier Transform (FFT) Bank & Receptive Field (RF) Tonotopic Filter Bank \\
+        Cross-Correlator / Time-of-Flight & Delay Lines \& Coincidence Detection LIF Bank \\
+        Matched Filter Receiver & Tuned Synaptic Weight Distribution \\
+        Monte Carlo Estimation / Sampling & Sparse Event-Driven Spike Distributions \\
+        Bayesian Brain Probability Densities & Continuous Attractor Population Topography \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:rosetta_stone}
+\end{table}
+
+\section{Preliminary Control Experiment: LIF vs. RF Coincidence Detection}
+% Present the setup and results of your initial coincidence detection test
+% Use these results to justify the selection of the core primitive block for the pipeline
+
+% ==============================================================================
+% CHAPTER 3: SYSTEM ARCHITECTURE \& PERIPHERAL FRONTEND
+% ==============================================================================
+\chapter{System Architecture \& The Peripheral Frontend}
+\label{ch:frontend}
+
+\section{End-to-End Pipeline Overview}
+% Present your high-level system block diagram tracing the signal flow
+\begin{figure}[htbp]
+    \centering
+    % \includegraphics[width=0.9\textwidth]{figures/system_block_diagram.pdf}
+    \caption{Architectural overview of the end-to-end 3D auditory processing pipeline.}
+    \label{fig:system_overview}
+\end{figure}
+
+\section{The Acoustic Signal Model \& Synthetic Echo Generation}
+
+\section{The Cochlea Model and Time-Gain Compensation}
+
+\section{The Ventral Cochlear Nucleus (VCN) \& The Ssquelch Architecture}
+% Address the Amplitude-Latency Trap here
+% Explain how the Endbulb of Held abstracts population rate codes to minimize jitter
+% Discuss the "Loose Squelch Gate" parameters to avoid Premature Refractory Lockout
+
+% ==============================================================================
+% CHAPTER 4: PARALLEL PROCESSING PATHWAYS (THE CORE)
+% ==============================================================================
+\chapter{Parallel Processing Pathways}
+\label{ch:pathways}
+% Frame how the front-end stream splits into 3 specialized processing pipelines
+
+\section{Distance Extraction (Temporal Processing)}
+    \subsection{Biological Mechanism in the Midbrain}
+    \subsection{Neuromorphic Abstraction: The Integrated IC Equation}
+    % Insert the unified sub-threshold differential update equation
+    \begin{equation}
+        V_{IC}[c, k, t] = \beta V_{IC}[c, k, t-1] + w_{sensory} \cdot S_{VCN}[c, t] + w_{facil} \cdot F[c, t] + w_{cd} \cdot S_{CD}[k, t]
+    \end{equation}
+    % Detail the Rolling Cascade Gate (Additive Asymmetric Facilitation) vs. Multiplicative traps
+    % Detail Cross-Correlation via the Corollary Discharge (S_CD)
+    \subsection{Isolated Pathway Parameter Tuning \& Validation Results}
+
+\section{Azimuth Localisation (Binaural Disparity Processing)}
+    \subsection{Biological Mechanism: Interaural Level \& Time Differences}
+    \subsection{Neuromorphic Abstraction and Network Implementation}
+    \subsection{Isolated Pathway Parameter Tuning \& Validation Results}
+
+\section{Elevation Estimation (Spectral Shaping)}
+    \subsection{Biological Mechanism: HRTF Pinna Filtering \& Spectral Cues}
+    \subsection{Neuromorphic Abstraction and Network Implementation}
+    \subsection{Isolated Pathway Parameter Tuning \& Validation Results}
+
+% ==============================================================================
+% CHAPTER 5: CORTICAL INTEGRATION \& CONTINUOUS ATTRACTOR DYNAMICS
+% ==============================================================================
+\chapter{Cortical Integration \& Continuous Attractor Dynamics}
+\label{ch:cortical}
+
+\section{The Auditory Cortex Layer: Frequency Channel Collapse}
+% Explain pooling parallel tonotopic channels into a unified chronotopic axis to maximize SNR
+
+\section{Contrast Enhancement via Spatial Lateral Inhibition}
+
+\section{The Continuous Attractor Neural Network (CANN) Readout}
+% Discuss the implementation of CANN for spatial tracking stability and noise filtering
+% Frame this as the robust foundational interface for downstream motor-control loops
+
+% ==============================================================================
+% CHAPTER 6: SYSTEM-LEVEL PERFORMANCE \& DISCUSSION
+% ==============================================================================
+\chapter{System-Level Performance \& Discussion}
+\label{ch:performance}
+
+\section{End-to-End 3D Spatial Tracking Results}
+% Present unified 3D localization accuracy metrics
+
+\section{Robustness Analysis: Stress Tests Under Varying Noise Scales}
+% Evaluate system accuracy under aggressive SNRs and echo dropouts
+
+\section{The Architectural Arbitration of the Simmons-Suga Controversy}
+% Evaluate your filter-bank framework against the historic academic debate
+% Argue how your model achieves sub-microsecond timing precision via population dynamics 
+% without requiring raw, unconstrained mathematical phase-coherence.
+
+% ==============================================================================
+% CHAPTER 7: CONCLUSIONS \& FUTURE WORK
+% ==============================================================================
+\chapter{Conclusions \& Future Work}
+\label{ch:conclusions}
+
+\section{Summary of Original Contributions}
+% Recapitulate major insights:
+% 1. Biological Realism as an Engineering Optimizer
+% 2. The Formalized Neuromorphic-Algorithmic Rosetta Stone
+% 3. Morphology-Driven, Training-Free Intelligent Edge Architecture
+
+\section{Future Work and Next Steps}
+% Highlight concepts designed but un-implemented due to time constraints:
+% - Evolution to a hybrid, targeted trainable SNN model
+% - Scaling network complexity to handle multi-target environments
+% - Porting the event-list architecture onto physical Neuromorphic Hardware
+% - Closed-loop real-time tracking and flight control loops
+
+% ==============================================================================
+% REFERENCES
+% ==============================================================================
+\begin{thebibliography}{99}
+\addcontentsline{toc}{chapter}{Bibliography}
+
+\bibitem{simmons1973}
+Simmons, J. A. (1973). \emph{The resolution of target distance by echolocating bats}. Journal of the Acoustical Society of America, 54(1), 157-173.
+
+\bibitem{suga1989}
+Suga, N. (1989). \emph{Principles of auditory cortical-mapping in the mustache bat for echolocation}. Annual Review of Neuroscience, 12(1), 131-173.
+
+\end{thebibliography}
+
+% ==============================================================================
+% APPENDICES
+% ==============================================================================
+\appendix
+\chapter{Risk Assessment Retrospective}
+\label{app:risk}
+% CUED Mandatory Requirement: Maximum one side of A4 commenting on Michaelmas Term risk assessment
+% Discuss hazards encountered, accuracy of original risk profiling, and future mitigation insights.
+
+\chapter{Algorithmic Implementations \& Pseudo-code}
+\label{app:code}
+% Place heavy processing listings, event-list array architectures, or pseudo-code blocks here.
+
+\end{document}

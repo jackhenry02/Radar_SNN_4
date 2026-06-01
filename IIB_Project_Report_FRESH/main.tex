@@ -1,0 +1,250 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[margin=20mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{enumitem}
+\setlist{nosep}
+\usepackage[numbers]{natbib} % optional, but recommended
+\setlength{\bibsep}{2pt} % Pulls entries closer horizontally; default is usually 6pt+
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, shapes.geometric, backgrounds, calc, decorations, decorations.pathreplacing}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{gensymb}
+\usepackage[title,titletoc]{appendix}
+\usepackage{tocloft}
+\setlength{\cftbeforechapskip}{3pt}
+\setlength{\cftbeforesecskip}{0pt}
+\setlength{\cftbeforesubsecskip}{0pt}
+
+% 1. Tell LaTeX to use capital letters (A, B, C) for subfigures
+\renewcommand\thesubfigure{\Alph{subfigure}}
+
+% 2. Suppress the automated (A), (B) labels at the bottom of subcaptions
+\captionsetup[subfigure]{labelformat=empty}
+
+
+
+
+% Configuration for Python code
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small, % Typewriter font, slightly smaller
+    keywordstyle=\color{blue}\bfseries,
+    stringstyle=\color{red},
+    commentstyle=\color{green!50!black},
+    numbers=left,               % Line numbers on the left
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,               % Number every line
+    breaklines=true,            % Wrap long lines automatically
+    breakatwhitespace=true,
+    frame=single,               % Draw a frame around the code
+    tabsize=4,
+    showstringspaces=false,
+    captionpos=b                % Caption at the bottom
+}
+
+\lstdefinelanguage{markdown}{
+  morecomment=[l]{\#},           % Headers
+  morecomment=[s]{**}{**},       % Bold text
+  morecomment=[s]{*}{*},         % Italic text
+  morestring=[b]`,               % Inline code
+  morestring=[b]",               % Strings
+  sensitive=false
+}
+
+
+
+% --- Space-Saving and Formatting Preamble ---
+%\usepackage[T1]{fontenc}
+%\usepackage{lmodern} % Professional Latin Modern font
+
+% 2. Font Selection (11pt is the standard minimum for engineering)
+% To set the global size, ensure your document class starts with:
+% \documentclass[11pt]{article}
+
+% 3. Line Spacing (Custom stretch for 10-page limit)
+\usepackage{setspace}
+\setstretch{1} % Slightly tighter than 1.2; saves ~0.5 pages
+
+% 4. Paragraph Spacing (Reduces large vertical gaps)
+%\setlength{\parskip}{4pt}
+
+% Main Title:
+\usepackage{titling}
+\setlength{\droptitle}{0cm}  % space above the title
+%\posttitle{\vspace{-0.2cm}}
+
+
+
+% 5. Section Heading Optimization (Requires titlesec)
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{3pt}{2pt}
+\titlespacing*{\subsection}{0pt}{2pt}{1pt}
+\titlespacing*{\paragraph}{15pt}{0pt}{2pt}
+\titleformat{\chapter}[block]
+  {\normalfont\huge\bfseries}
+  {Chapter \thechapter:}
+  {0.6em}
+  {}
+
+\titlespacing*{\chapter}{0pt}{-20pt}{12pt}
+
+% 6. Figure Captions (Standard practice to use small font)
+\usepackage[font=small,labelfont=bf]{caption}
+
+
+\setlength{\textfloatsep}{5pt}   % space between figure and text
+\setlength{\floatsep}{5pt}       % space between two floats
+\setlength{\intextsep}{5pt}      % space for figures inside text
+
+\usepackage[skip=2pt]{caption}
+
+
+\graphicspath{{report_figures/}}
+
+\newcommand{\writingbox}[1]{
+  \vspace{0.5em}
+  \noindent\fbox{\parbox{0.96\linewidth}{\textbf{Writing space:} #1\\[6em]}}
+  \vspace{0.8em}
+}
+
+
+\newcommand{\figuretodo}[3]{
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=#1\linewidth]{#2}
+    \caption{#3}
+  \end{figure}
+}
+
+%\includeonly{0_Technical_Abstract/technical_abstract}
+%\includeonly{0_Technical_Abstract/technical_abstract, 1_Intro/intro}
+%\includeonly{0_Technical_Abstract/technical_abstract, 1_Intro/intro, 2_Background/background}
+%\includeonly{3_Modelling/modelling}
+%\includeonly{3_Modelling/modelling, 4_Results/results}
+%\includeonly{4_Results/results}
+
+\begin{document}
+
+\includepdf[pages=-]{Title_page.pdf}
+
+
+%\begin{titlepage}
+%  \centering
+%  \vspace*{2cm}
+%  {\Large University of Cambridge Department of Engineering\par}
+%  \vspace{1.5cm}
+%  {\Huge\bfseries Spiking Neural Networks \par}
+%    \vspace{1.5cm}
+%  {\LARGE Neuromorphic Bat-Inspired 3D Echolocation for Object Localisation \par}
+%  \vspace{1.5cm}
+%  {\Large IIB Project\par}
+%  \vfill
+%  \begin{tabular}{ll}
+%    Name: & \textit{Jack Henry}\\
+%    College: & \textit{Churchill College}\\
+%    Supervisor: & \textit{Tim O'Leary}\\
+%    Date: & \today\\
+%  \end{tabular}
+%\end{titlepage}
+
+\pagenumbering{roman}
+
+
+
+\include{0_Technical_Abstract/technical_abstract}
+
+\clearpage
+
+\begingroup
+\small
+\setstretch{0.90}
+\setcounter{tocdepth}{1} % chapters and sections only
+\tableofcontents
+\endgroup
+
+\include{01_Acronyms/acronyms}
+
+\clearpage
+
+\pagenumbering{arabic}
+\pagestyle{fancy}
+%\fancyhf{} % Clear all defaults
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyhead[C]{}
+\fancyhead[R]{Spiking Neural Networks}
+
+
+\include{1_Intro/intro}
+\include{2_Background/background}
+\include{3_Modelling/modelling}
+\include{4_Results/results}
+\include{5_Conclusions/conclusions}
+
+
+\begingroup
+\small % Drops the font size by 1pt (or use \footnotesize for a larger drop)
+\bibliographystyle{unsrt}
+\bibliography{references}
+\endgroup
+
+\begin{appendices}
+
+\chapter{Supplementary Material}
+\label{ch:app_data}
+
+\section{Reflection on Risk Mitigation}
+
+\subsection{Hazard Risk}
+
+This project was conducted solely on software, and so the only physical risks were related to extended computer use. No change to the hazard assessment would be made, and reasonable mitigation was put in place for the minor hazards identified.
+
+\subsection{Risks identified in the Technical Milestone Report}
+
+Three risks were identified for the project not achieving the intended output:
+\begin{enumerate}
+    \item Full spiking and neuronal implementation. In order to fully substantiate the results, a full neuromorphic pipeline was identified as a requirement. In reflection, this has been sufficiently completed.
+    \item Functionality and real-time tracking. This was identified as a risk to make the project incomparable to modern radar/sonar systems. The mitigation strategy was to constrain the scope of the project to a proof-of-concept and then scale up complexity. In reflection, this strategy worked, however some partial implementation working towards real-time systems, such as the CANN readout, may seem out of place if the future direction is not known.
+    \item Environment robustness. This was also identified as a risk that could reduce the impact of results gathered. In reflection this has been partially mitigated, however much more noise-based stress testing and realistic environments could be used in the future.
+\end{enumerate}
+
+\section{Environmental, Social, and Ethical Considerations}
+
+The most immediate environmental relevance of this work is energy efficiency, although this was not measured directly. Edge sensing systems are increasingly deployed in battery-powered or remote devices, and reducing computation can reduce energy use. A sparse neuromorphic acoustic localiser could be useful where cameras are undesirable, unreliable, or too power-intensive, but this remains a motivation rather than a demonstrated result.
+
+There are also social and ethical considerations. Acoustic sensing can be more privacy-preserving than cameras because it does not directly record visual identity, but it can still reveal movement, occupancy, and behaviour. Any practical deployment would need careful consideration of consent, data storage, and surveillance risk. Active acoustic systems also emit signals into the environment, so real-world versions would need to choose frequencies and power levels that avoid disturbing humans, animals, or other sensors.
+
+\section{Acknowledgments}
+
+I would like to acknowledge my project supervisor, Tim O'Leary, for giving me the opportunity to work on this project. I would also like to acknowledge my project partner, Ahmad Kitchlew, with whom I shared the project, as well as Karim Mansour, whose work helped motivate the direction of the project.
+
+\section{Code Repository}
+Multiple code repositories were used for this project. The main pipeline code is available at \url{https://github.com/jackhenry02/Radar_SNN_4}, 
+and complementary repositories can be found under the user profile 
+\url{https://github.com/jackhenry02}, including \url{Radar_SNN_2}, 
+\url{SNN_testing}, \url{Radar_SNN}, \url{Radar_simulation}, 
+\url{Bat_model}, and \url{radarsim}.
+
+\end{appendices}
+
+
+\end{document}
+
+
+
+\end{document}

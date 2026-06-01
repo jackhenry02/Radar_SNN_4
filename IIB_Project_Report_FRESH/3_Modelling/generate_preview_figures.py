@@ -501,7 +501,7 @@ def plot_elevation_mechanics() -> None:
     fig, axes = plt.subplots(
         1,
         3,
-        figsize=(13.4, 5.2),
+        figsize=(13.4, 4.5),
         gridspec_kw={"width_ratios": [1.45, 1.22, 1.15]},
     )
     fig.suptitle("Elevation cue: pinna filtering becomes a DCN spectral-template population", fontsize=15)
@@ -517,7 +517,7 @@ def plot_elevation_mechanics() -> None:
     ax.set_ylabel("Relative spectral power (dB)")
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.38),
+        bbox_to_anchor=(0.5, -0.30),
         frameon=True,
         framealpha=0.95,
         edgecolor="0.75",
@@ -547,7 +547,7 @@ def plot_elevation_mechanics() -> None:
     ax.set_ylabel("Normalised response")
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.38),
+        bbox_to_anchor=(0.5, -0.30),
         frameon=True,
         framealpha=0.95,
         edgecolor="0.75",
@@ -571,7 +571,7 @@ def plot_elevation_mechanics() -> None:
     ax.set_ylabel("Normalised activity")
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.38),
+        bbox_to_anchor=(0.5, -0.30),
         frameon=True,
         framealpha=0.95,
         edgecolor="0.75",

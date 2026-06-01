@@ -1,0 +1,535 @@
+\chapter{System Modelling and Implementation} \label{ch:modelling}
+
+This chapter describes the final model used to estimate distance, azimuth, and elevation from a single active acoustic pulse. The aim was not to reproduce bat auditory neurophysiology in full anatomical detail, but to convert selected biological computations into an interpretable neuromorphic localisation pipeline. The final system therefore uses fixed pathway models for auditory feature extraction, followed by a small trainable SNN readout for residual cue integration.
+
+The modelling strategy was deliberately modular. Each biological structure was first reduced to its computational role, then implemented as the simplest useful abstraction that preserved that role. The cochlea is treated as a time-domain filterbank and spike encoder; the VCN/VNLL as an onset-cleaning stage; the IC as a coincidence or cue-mapping stage; the AC/DCN as topographic population formation; and the SC as a coordinate readout. This keeps the model interpretable while still allowing a trainable final layer where full 3D cue interactions are difficult to calibrate by hand.
+
+\section{Final System Overview}
+
+The model receives a target location in spherical coordinates,
+\begin{equation}
+    \mathbf{x} = (r,\theta,\psi),
+\end{equation}
+where $r$ is distance, $\theta$ is azimuth, and $\psi$ is elevation. These coordinates determine the simulated echo received at the two ears. The echo is converted into a cochlear spike raster (CSR), which is then processed by three pathway models. Each pathway produces a one-dimensional population code and a coordinate estimate. These pathway populations are decoded by simple centre-of-mass readouts, SC-style attractor readouts, and finally a trainable residual fusion network.
+
+\input{3_Modelling/redraft_figures/top_level_system}
+
+Figure~\ref{fig:top_level_system_block} summarises the full computational path from active vocalisation to final coordinate estimate. The final operating region used for the main experiments is deliberately constrained to $0.25$--$5$~m, $\pm45^\circ$ azimuth, and $\pm45^\circ$ elevation. The lower distance bound avoids call-leakage and near-field edge cases where the echo arrives almost immediately; the upper bound keeps echo delay and attenuation within the tuned short-range echolocation regime. The angular limits keep the simplified binaural and elevation cue mappings within a frontal region where they remain approximately monotonic and avoid rear/side ambiguities. The model also assumes one dominant target and one emitted pulse per localisation trial. These constraints are part of the problem definition rather than incidental experimental details.
+
+The key output of every pathway is not just a scalar coordinate, but a population response over candidate values. This is important because a population code preserves uncertainty, ambiguity, and cue strength. The final trainable readout receives these raw populations, the fixed coordinate estimates, and confidence features, rather than receiving only three scalar outputs.
+
+\section{Worked Signal Example}
+
+A single localisation trial proceeds as follows. First, the model emits a short frequency-modulated call and constructs an internal corollary-discharge copy of the sweep. The target echo is delayed by the acoustic round-trip time, attenuated by propagation loss, optionally corrupted by environmental noise or delayed echo components, modified by binaural path differences and head shadow, and filtered by an elevation-dependent pinna cue. The binaural waveform is then passed through the cochlear front end to produce left and right CSRs.
+
+The distance pathway compares the echo CSR with the corollary-discharge sweep. If the echo delay matches a candidate distance, coincidence activity accumulates around the corresponding distance bin. The azimuth pathway compares the left and right CSRs using both timing and level cues. The elevation pathway analyses the selected-ear spectrum for a comb-filter notch pattern. The three pathway populations are then read out by the SC model and passed into the residual SNN.
+
+This time-series view is useful because the model is not a single regression block. It is a chain of interpretable transformations: waveform $\rightarrow$ spikes $\rightarrow$ pathway populations $\rightarrow$ coordinate readouts $\rightarrow$ residual correction. Figures~\ref{fig:worked_example_rasters_redraft}, \ref{fig:worked_example_pipeline_redraft}, and \ref{fig:worked_example_readout_redraft} show this progression for one representative trial.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{3_Modelling/worked_example/frequency_time_rasters.png}
+    \caption{Worked distance-pathway example showing the frequency-time spike structure retained by the cochlear and VCN stages.}
+    \label{fig:worked_example_rasters_redraft}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{3_Modelling/worked_example/distance_population_stages.png}
+    \caption{Worked distance-pathway example showing how channel-wise coincidence evidence is transformed into distance population activity.}
+    \label{fig:worked_example_pipeline_redraft}
+\end{figure}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.75\textwidth]{3_Modelling/worked_example/worked_example_readout_correction.png}
+    \caption{Example final readout correction for one noise-free test sample. The residual SNN learns coordinate-specific corrections to the fixed pathway estimate rather than replacing the pathway computation.}
+    \label{fig:worked_example_readout_redraft}
+\end{figure}
+
+
+\section{Acoustic Signal and Environment}
+
+\subsection{Emitted Call}
+
+The emitted call is a Hann-windowed FM chirp, shown in Figure~\ref{fig:modelled_call_redraft}. The final experiments used a downward sweep from $18$~kHz to $2$~kHz over $3$~ms at a sampling rate of $64$~kHz. These frequencies are lower than many real bat calls, but preserve the structure needed for the project: a broadband sweep whose echo can be matched against an internal reference while remaining computationally manageable.
+
+The call is
+\begin{equation}
+    s(t) = A w(t)\sin\left(2\pi\left[f_0 t + \frac{1}{2}kt^2\right]\right),
+\end{equation}
+where $A$ is amplitude, $w(t)$ is the Hann window, $f_0$ is the starting frequency, and $k$ is the sweep rate.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{3_Modelling/signals/modelled_call.png}
+    \caption{Amplitude-time plot and artificial spectrogram of the modelled emitted signal.}
+    \label{fig:modelled_call_redraft}
+\end{figure}
+
+\subsection{Echo Simulation}
+
+The acoustic simulator applies the sequence shown in Figure~\ref{fig:monaural_simulation_pipeline}. For a target at distance $r$, the dominant echo delay is
+\begin{equation}
+    \Delta t \approx \frac{2r}{c},
+\end{equation}
+where $c=343~\mathrm{m\,s^{-1}}$. In the binaural case, path length is computed separately for each ear, so azimuth creates a small interaural timing difference.
+
+\input{3_Modelling/redraft_figures/environment_pipeline}
+
+Echo amplitude is attenuated using an inverse-square term,
+\begin{equation}
+    A_{\mathrm{echo}} = \frac{0.7}{L^2}A_{\mathrm{call}},
+\end{equation}
+where $L$ is acoustic path length and the constant $0.7$ combines target reflectivity and simplified gain effects. Azimuth is encoded through a smooth head-shadow term,
+\begin{equation}
+    G_{\mathrm{shadow},i}
+    =
+    \exp\left(s_{\mathrm{shadow}}\sin\theta\,\sigma_i\right),
+\end{equation}
+where $\sigma_L=1$ and $\sigma_R=-1$.
+
+Elevation is encoded with a simplified pinna model. Figure~\ref{fig:comb_filter_redraft} shows how changing the delayed-copy lag moves the resulting spectral notch. The selected-ear waveform is combined with a delayed copy,
+\begin{equation}
+    y(t)=x(t)+g x(t-\tau),
+\end{equation}
+producing the comb-filter magnitude response
+\begin{equation}
+    |H(f)| = \frac{\sqrt{1+g^2+2g\cos(2\pi f \tau)}}{1+g}.
+\end{equation}
+Changing $\tau$ moves the first spectral notch and provides an elevation cue.
+
+Three acoustic conditions are used in the final experiments. In the noise-free condition, only the target echo transformations above are applied. In the environmental-noise condition, Gaussian acoustic noise is inserted before the binaural head-shadow and elevation-filtering stages, using the 50~dB call-referenced level defined in the simulator. This means the noise is not merely an output perturbation; it can alter the spectral evidence used by the elevation pathway. In the environmental-noise plus delayed-echo condition, the same noise is combined with additional attenuated and delayed copies of the target echo, providing a simple multipath tail rather than a full room-acoustics model.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.65\textwidth]{3_Modelling/signals/comb_filter.png}
+    \caption{Gain and elevation encoding using comb filtering with varying lags.}
+    \label{fig:comb_filter_redraft}
+\end{figure}
+
+\section{Cochlear Front End}
+
+The cochlea converts each received waveform into a tonotopic spike representation. A detailed biophysical cochlea would require basilar-membrane mechanics and hair-cell adaptation; the model instead uses a time-domain IIR filterbank followed by rectification and LIF spike encoding.
+
+\input{3_Modelling/redraft_figures/cochlea_columnar}
+
+Figure~\ref{fig:cochlea_columnar_transduction} shows this as a parallel filter-and-spike pipeline: the acoustic waveform is distributed across frequency-selective channels, rectified, and encoded as a multi-channel CSR.
+
+For channel $c$ with centre frequency $f_c$, bandwidth $B_c$, and sampling rate $f_s$, the IIR pole radius and angular frequency are
+\begin{equation}
+    p_c = \exp\left(-\frac{\pi B_c}{f_s}\right),
+    \qquad
+    \phi_c = \frac{2\pi f_c}{f_s}.
+\end{equation}
+The channel output is
+\begin{equation}
+    y_c[t] =
+    b_c x[t]
+    + 2p_c\cos(\phi_c)y_c[t-1]
+    - p_c^2 y_c[t-2].
+\end{equation}
+This gives a time-domain alternative to an FFT cochleagram and is more consistent with a neuromorphic implementation.
+
+The filter outputs are half-wave rectified,
+\begin{equation}
+    e_c[t] = \max(y_c[t],0),
+\end{equation}
+then passed into LIF spike encoders,
+\begin{equation}
+    v_c[t] = \beta(t)v_c[t-1] + e_c[t],
+    \qquad
+    S_c[t] = \mathbb{I}[v_c[t]\geq V_{\mathrm{th}}(t)].
+\end{equation}
+The threshold and leak are time-dependent. Early in the trial, the encoder is conservative to suppress call leakage and early noise; later, the threshold is lower and the leak is slower to preserve weaker distant echoes:
+\begin{equation}
+    V_{\mathrm{th}}(t)
+    =
+    V_{\mathrm{base}}
+    \left(
+    V_{\mathrm{floor}}
+    +
+    (V_{\mathrm{start}}-V_{\mathrm{floor}})
+    e^{-t/\tau_{\mathrm{th}}}
+    \right),
+\end{equation}
+
+Figure~\ref{fig:schedule_redraft} shows the effect of this adaptive schedule in a distant-target example.
+\begin{equation}
+    \beta(t)
+    =
+    \beta_{\mathrm{start}}
+    +
+    (\beta_{\mathrm{end}}-\beta_{\mathrm{start}})
+    \left(1-e^{-t/\tau_{\beta}}\right).
+\end{equation}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{3_Modelling/cochlea/schedule.png}
+    \caption{Adaptive cochlear spike-encoding example at 5~m, comparing a high fixed-threshold LIF encoder with a time-varying threshold/leak encoder. The dotted line marks the 4~kHz VCN passband cutoff.}
+    \label{fig:schedule_redraft}
+\end{figure}
+
+\paragraph{Implementation note.}
+The IIR filterbank is used in the final model because it is simple and efficient. The same second-order resonant structure can also be expressed as an excitatory-inhibitory state-space loop, showing how a related computation could be implemented with recurrent neural populations. The full equivalence is not used as a separate modelling result.
+
+\input{3_Modelling/redraft_figures/ei_resonator}
+
+Figure~\ref{fig:ei_population_resonator} shows the equivalent excitatory-inhibitory resonator interpretation of the second-order filterbank. It is included to connect the signal-processing implementation to a plausible recurrent spiking circuit abstraction.
+
+\section{Why the Model Preserves the FM Sweep}
+
+An important preliminary result was that robust distance estimation required the sweep structure to be preserved across frequency channels. Table~\ref{tab:sweep_noise_key_result} summarises this result. A single-channel coincidence detector is brittle: random spikes can mimic a plausible delay. In a multi-channel FM sweep, independent noise spikes are unlikely to form the correct cross-frequency timing pattern, so the true echo delay survives as a coherent alignment across channels.
+
+\begin{table}[h]
+    \centering
+    \caption{Key channel-sweep noise-robustness result. Errors are from the preliminary delay-estimation test.}
+    \label{tab:sweep_noise_key_result}
+    \begin{tabular}{lrr}
+        \toprule
+        Model & Noise-free MAE & Added-noise MAE \\
+        \midrule
+        Single-channel LIF coincidence & 0.77~cm & 52.47~cm \\
+        Multi-channel FM sweep LIF coincidence & 0.77~cm & 0.77~cm \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+This result motivates the rest of the architecture. The cochlea is not merely a biological decoration; it preserves a tonotopic sweep representation that makes downstream coincidence detection more robust. The distance pathway therefore uses channel-wise onset timing, and the trainable fusion model receives population features rather than a collapsed scalar onset.
+
+\section{Distance Pathway}
+
+The distance pathway estimates range from echo time-of-flight. It compares the received echo against an internal corollary-discharge copy of the emitted sweep. The biological analogue is a population of delay-tuned FM-FM neurons whose activity forms a topographic distance code.
+
+\input{3_Modelling/redraft_figures/distance_flowchart}
+
+Figure~\ref{fig:distance_flowchart} shows the modelled distance pathway. The corollary-discharge copy provides the timing reference, while the echo pathway provides the delayed sensory evidence.
+
+\subsection{VCN/VNLL Onset Processing}
+
+The raw CSR contains precise timing information but also noise and repeated activity. The VCN/VNLL abstraction therefore performs onset cleaning. Channels below $4$~kHz are masked, then a local frequency-time consensus rule accepts an onset only when neighbouring channels support it:
+\begin{equation}
+    N_c[t] = \sum_{i=-2}^{2}\sum_{j=-8}^{8} R_{c+i}[t+j],
+\end{equation}
+\begin{equation}
+    C_c[t] = R_c[t]\mathbb{I}[N_c[t]\geq \Theta_{\mathrm{consensus}}],
+\end{equation}
+where $R_c[t]$ is the masked CSR and $\Theta_{\mathrm{consensus}}=3$. The first accepted event in each channel is retained as the echo onset. This approximates broadband onset extraction while rejecting isolated noise spikes.
+
+\subsection{Corollary Discharge and IC Coincidence}
+
+The corollary discharge is a sweep-shaped internal reference. A latency vector $\ell_c$ is added to account for cochlear and encoding delay, giving
+\begin{equation}
+    t_{\mathrm{cd},c}
+    =
+    T\frac{f_c-f_{\mathrm{start}}}{f_{\mathrm{end}}-f_{\mathrm{start}}}
+    + \ell_c.
+\end{equation}
+For candidate distance $r_k$, the expected echo delay is
+\begin{equation}
+    \Delta_k = \frac{2r_k}{c}.
+\end{equation}
+The IC score compares the observed echo onset with this delayed internal reference:
+\begin{equation}
+    \delta_{c,k}
+    =
+    \left|
+    t_{\mathrm{echo},c}
+    -
+    (t_{\mathrm{cd},c}+\Delta_k)
+    \right|.
+\end{equation}
+Using the peak response of a two-spike leaky integrator,
+\begin{equation}
+    s_{c,k}
+    =
+    \left[
+    1+\beta_{\mathrm{IC}}^{\delta_{c,k}}
+    -
+    V_{\mathrm{th,IC}}
+    \right]_+.
+\end{equation}
+The distance population is formed by summing channel evidence and softly boosting candidate distances supported by neighbouring channels in the FM sweep.
+
+\subsection{AC Sharpening}
+
+The IC population is sharpened with a Mexican-hat interaction,
+\begin{equation}
+    A = [I + K_{\mathrm{MH}} * I]_+,
+\end{equation}
+where $I$ is the IC candidate-distance population and $K_{\mathrm{MH}}$ combines local excitation with broader inhibition. This preserves the distance evidence while reducing broad neighbouring activity.
+Figure~\ref{fig:AC_MH_redraft} shows the kernel used for this sharpening stage.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{3_Modelling/distance/AC_MH.png}
+    \caption{AC Mexican-hat kernel used to sharpen the distance population.}
+    \label{fig:AC_MH_redraft}
+\end{figure}
+
+\section{Azimuth Pathway}
+
+The azimuth pathway estimates horizontal angle from binaural differences. Two cues are retained: interaural time difference (ITD), implemented as a Jeffress-style coincidence population, and interaural level difference (ILD), implemented as an LSO/MNTB-style opponent comparison. The fixed hand-designed baseline uses the ITD pathway because it is more robust in the final constrained full-3D tests, but both ITD and ILD populations are retained for the trainable fusion network.
+
+\input{3_Modelling/redraft_figures/azimuth_flowchart}
+
+Figure~\ref{fig:azimuth_flowchart} shows how the two azimuth cues are separated into parallel timing and level pathways before being combined at the readout stage.
+
+\subsection{ITD Coincidence}
+
+The ITD branch applies VCN onset extraction separately to the left and right CSRs. For candidate azimuth $\theta_k$, the expected right-minus-left delay is approximated by
+\begin{equation}
+    \Delta n_k
+    =
+    -f_s\frac{d_{\mathrm{ear}}\sin\theta_k}{c}.
+\end{equation}
+The observed channel-wise delay is
+\begin{equation}
+    \Delta n_c = n_{R,c}-n_{L,c}.
+\end{equation}
+Each candidate azimuth is scored using the same leaky-coincidence logic:
+\begin{equation}
+    A_{\mathrm{ITD}}(\theta_k)
+    =
+    \sum_c
+    \left[
+    1+\beta_{\mathrm{ITD}}^{|\Delta n_c-\Delta n_k|}
+    -
+    \vartheta_{\mathrm{ITD}}
+    \right]_+.
+\end{equation}
+
+\input{3_Modelling/redraft_figures/jeffress_mso}
+
+Figure~\ref{fig:jeffress_mso_model} gives the anatomical interpretation of this delay-line computation: coincidence neurons respond maximally when internal axonal delays compensate the physical interaural delay.
+
+\subsection{ILD Opponent Comparison}
+
+The ILD branch uses spike-count level codes rather than precise timing. For each ear and frequency channel, a bank of thresholds converts spike count into a level code. Same-side excitation and opposite-side inhibition are then combined:
+\begin{equation}
+    L_{\mathrm{left}}(c)
+    =
+    [w_E X_L(c)-w_I X_R(c)]_+,
+    \qquad
+    L_{\mathrm{right}}(c)
+    =
+    [w_E X_R(c)-w_I X_L(c)]_+.
+\end{equation}
+The opponent balance is
+\begin{equation}
+    b
+    =
+    \frac{\sum_c L_{\mathrm{right}}(c)-\sum_c L_{\mathrm{left}}(c)}
+    {\sum_c L_{\mathrm{right}}(c)+\sum_c L_{\mathrm{left}}(c)+\epsilon}.
+\end{equation}
+Candidate azimuths are scored by comparing this balance with the expected monotonic coordinate,
+\begin{equation}
+    A_{\mathrm{ILD}}(\theta_k)
+    =
+    D\exp
+    \left[
+    -
+    \frac{(b-\sin\theta_k)^2}{2\sigma_{\mathrm{ILD}}^2}
+    \right],
+\end{equation}
+where $D$ is total opponent drive and acts as a confidence term.
+
+The ILD population is useful but not sufficient as a fixed scalar readout. In isolated tests it can be calibrated accurately, but in full 3D it is confounded by range-dependent amplitude and elevation-dependent spectral filtering. It is therefore treated as complementary evidence for the residual fusion network.
+
+\section{Elevation Pathway}
+
+The elevation pathway estimates vertical angle from monaural spectral shaping. The simplified pinna creates an elevation-dependent comb-filter response, and the DCN-like population compares the observed selected-ear spectrum with expected transfer templates.
+
+\input{3_Modelling/redraft_figures/elevation_flowchart}
+
+Figure~\ref{fig:elevation_flowchart} shows the resulting monaural elevation pathway, where the selected-ear cochleagram is transformed into a spectral population over candidate elevations.
+
+The selected-ear signal is collapsed into an observed spectral profile $P_{\mathrm{obs}}(f_c)$ over cochlear channels. This profile is equalised against the expected no-notch spectrum:
+\begin{equation}
+    \tilde{P}(f_c)
+    =
+    \frac{P_{\mathrm{obs}}(f_c)}{P_0(f_c)+\epsilon}.
+\end{equation}
+For candidate elevation $\psi_k$, the expected comb-filter transfer function is $H_k(f_c)$. The mismatch is
+\begin{equation}
+    E_k
+    =
+    \sum_c
+    m_k(f_c)
+    \left(\tilde{P}(f_c)-H_k(f_c)\right)^2,
+\end{equation}
+and the DCN population response is
+\begin{equation}
+    R_k
+    =
+    \exp\left(-\frac{E_k}{2\sigma^2}\right).
+\end{equation}
+The final model uses signal-weighted template weights,
+\begin{equation}
+    m_k(f_c)=P_0(f_c)(1-H_k(f_c))^2.
+\end{equation}
+This gives high weight to frequencies where the emitted signal has useful energy and the candidate elevation predicts a strong notch.
+
+\input{3_Modelling/redraft_figures/dcn_receptive_field}
+
+Figure~\ref{fig:dcn_receptive_field} illustrates the local inhibitory and broader excitatory structure used to turn a spectral notch into a candidate-elevation response.
+
+The elevation pathway should therefore be interpreted as a spectral-template population model rather than as a single-notch detector. The first notch is informative, but the full transfer shape gives a more stable population response and reduces large errors in the isolated elevation tests.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{3_Modelling/elevation/weights.png}
+    \caption{Synaptic weights of the final signal-weighted DCN elevation model.}
+    \label{fig:elevation_weights_redraft}
+\end{figure}
+
+Figure~\ref{fig:elevation_weights_redraft} shows the final weight matrix. The strongest weights concentrate where the emitted signal has energy and where the candidate elevation predicts informative spectral notches.
+
+\section{The SC Model Readout}
+
+Each pathway produces a one-dimensional population code over candidate distance, azimuth, or elevation. The SC model is the coordinate readout stage applied to these populations. Three readout types are used in the project: direct centre of mass, calibrated centre of mass, and an SC-style attractor readout.
+
+\subsection{Direct and Calibrated COM}
+
+The simplest readout is centre of mass:
+\begin{equation}
+    \hat{q}
+    =
+    \frac{\sum_k P_k q_k}{\sum_k P_k+\epsilon},
+\end{equation}
+where $P_k$ is population activity at candidate coordinate $q_k$. This readout gives sub-bin estimates and is used as the direct baseline.
+
+Some populations contain the correct ordering information but have a systematic nonlinear scalar distortion. In those cases, a calibrated readout is applied after COM. The most important example is elevation, where inverse-sigmoid calibration corrects a stable monotonic compression of the population readout. This calibration is treated as a readout mapping, not as a new sensory pathway.
+
+\subsection{SC Attractor Readout}
+
+The CANN is reframed here as one possible SC model readout. It receives the same pathway population as the direct COM readout, but evolves it through a recurrent finite-line population before decoding. Its role is not to create new sensory information; it is to provide a biologically motivated coordinate population that can smooth and stabilise activity, and that could later be extended to temporal tracking.
+
+The implemented CANN is a rate-based population abstraction rather than a fully spiking circuit. This is still compatible with a neuromorphic interpretation because the rates can be viewed as short-window spike counts or average firing activity from an underlying spiking population.
+
+\input{3_Modelling/redraft_figures/cann_topographic}
+
+Figure~\ref{fig:cann_topographic_mapping} shows this topographic readout interpretation: upstream pathway activity drives a recurrent coordinate population, which is then decoded into a scalar estimate.
+
+The continuous-time rate dynamics are
+\begin{equation}
+    \tau\dot{x} = -x + Wx + Bu,
+\end{equation}
+where $u$ is the pathway population, $x$ is the SC state, $B$ maps pathway activity into the attractor, and $W$ is the recurrent interaction matrix. The output population is
+\begin{equation}
+    y=Cx.
+\end{equation}
+The implemented model uses a two-block excitatory-inhibitory state,
+\begin{equation}
+    x=
+    \begin{bmatrix}
+        x_E\\
+        x_I
+    \end{bmatrix},
+    \qquad
+    C=\begin{bmatrix}I&0\end{bmatrix}.
+\end{equation}
+The final readout is COM over the rectified excitatory population.
+
+Several finite-line input corrections were tested during development, but the important point for the final system is that the attractor is a boundary-aware recurrent readout. Its empirical effect is pathway-dependent: it modestly improves some readouts, worsens or barely changes others, and cannot recover information that is missing from the upstream population. For this reason, the final trainable readout receives both raw pathway populations and CANN readouts.
+
+\section{Trainable Residual Fusion Network}
+
+The fixed pathway model is interpretable, but full 3D localisation introduces cue interactions that are difficult to remove by hand. Distance changes echo amplitude, elevation changes spectral energy used by ILD, and azimuth affects which ear is most informative for elevation. A small trainable SNN was therefore added as a final fusion stage.
+
+\input{3_Modelling/redraft_figures/fusion_snn_architecture}
+
+Figure~\ref{fig:fusion_snn_architecture} defines the residual fusion network used for the strongest final results.
+
+\subsection{Feature Vector}
+
+The SNN receives cached pathway features,
+\begin{equation}
+    z =
+    \left[
+    P_r,\,
+    P^{\mathrm{ITD}}_{\theta},\,
+    P^{\mathrm{ILD}}_{\theta},\,
+    P_{\psi},\,
+    \hat{r}_{\mathrm{CANN}},\,
+    \hat{\theta}_{\mathrm{CANN}},\,
+    \hat{\psi}_{\mathrm{CANN}},\,
+    q
+    \right],
+\end{equation}
+where $P_r$, $P^{\mathrm{ITD}}_{\theta}$, $P^{\mathrm{ILD}}_{\theta}$, and $P_{\psi}$ are raw pathway populations, the hatted terms are CANN coordinate readouts, and $q$ contains confidence features such as total activation, population margins, and spike counts.
+
+Features are cached before training because running the acoustic simulation and all pathway models inside every training epoch would be unnecessarily slow. Caching also allows direct comparison between readout architectures on identical train, validation, and test sets. Table~\ref{tab:trainable_snn_architecture} gives the full trainable readout definition used in the final comparisons.
+
+\begin{table}[H]
+\centering
+\caption{Trainable readout architecture and training hyperparameters used in the final comparisons.}
+\label{tab:trainable_snn_architecture}
+\begin{tabular}{p{0.32\linewidth}p{0.60\linewidth}}
+\toprule
+Component & Value \\
+\midrule
+Input feature dimension & 474 \\
+Feature groups & $180$ distance, $91$ ITD, $91$ ILD, $91$ elevation, $3$ CANN, $18$ confidence \\
+Feature preprocessing & feature-wise standardisation using the training split \\
+Output target & $[r_{\mathrm{norm}}, \sin\theta, \cos\theta, \sin\psi, \cos\psi]$ \\
+Network & Linear--LIF--Linear--LIF--Linear--leaky output \\
+Hidden neurons & 96 per spiking hidden layer \\
+Simulation timesteps & 12 \\
+Initial leak factors & $\beta_1=0.85$, $\beta_2=0.88$, $\beta_{\mathrm{out}}=0.92$ \\
+Thresholds & $0.9$ for hidden LIF layers, $1.0$ for output integrator \\
+Output unit & non-spiking leaky integrator, no reset \\
+Surrogate gradient & fast sigmoid \\
+Optimiser & AdamW, learning rate $10^{-3}$, weight decay $10^{-5}$ \\
+Batch size and epochs & 16 samples, 80 epochs \\
+Residual scale & $\lambda=0.15$; residual output layer initialised to zero \\
+Training split & 2000 train, 400 validation, 400 held-out test samples \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Residual and Direct Readouts}
+
+Two trainable readout forms were tested. The direct SNN predicts the coordinate target directly from $z$. The residual SNN predicts a correction to the fixed pathway estimate:
+\begin{equation}
+    \hat{y}_{\mathrm{final}}
+    =
+    \hat{y}_{\mathrm{pathway}}
+    +
+    \lambda f_{\mathrm{SNN}}(z).
+\end{equation}
+The residual form is the preferred model because it preserves the interpretable pathway estimate and asks the SNN only to learn context-dependent corrections.
+
+The target vector is
+\begin{equation}
+    y=
+    \left[
+    r_{\mathrm{norm}},
+    \sin\theta,
+    \cos\theta,
+    \sin\psi,
+    \cos\psi
+    \right]^{\top}.
+\end{equation}
+Distance is normalised to the constrained operating range, while sine/cosine angle targets avoid angular discontinuities.
+
+\subsection{Training Objective and Baselines}
+
+The three tasks have different units and scales, so the SNN uses learned uncertainty weighting:
+\begin{equation}
+    \mathcal{L}
+    =
+    \frac{\mathcal{L}_r}{2\sigma_r^2}+\log\sigma_r
+    +
+    \frac{\mathcal{L}_{\theta}}{2\sigma_{\theta}^2}+\log\sigma_{\theta}
+    +
+    \frac{\mathcal{L}_{\psi}}{2\sigma_{\psi}^2}+\log\sigma_{\psi}.
+\end{equation}
+Here $\mathcal{L}_r$ is distance MSE and $\mathcal{L}_{\theta}$, $\mathcal{L}_{\psi}$ are sine/cosine angular losses. A standard unweighted MSE would require manually choosing the relative importance of range, azimuth, and elevation; uncertainty weighting learns these relative weights during training and reduces the risk that one coordinate dominates purely because of its scale or encoding.
+
+To test whether the handcrafted auditory pathways are useful, the same style of SNN readout is also trained on less structured inputs: raw binaural waveforms and binaural cochlear spike rasters. These baselines use the same target representation and loss structure but do not receive the distance, azimuth, elevation, CANN, or confidence features. This makes the final comparison a test of whether the biological pathway structure provides useful feature extraction rather than merely adding a trainable network at the end.
+
+\section{Summary}
+
+The final model is a hybrid system. The acoustic and auditory pathway stages are fixed, interpretable, and designed around known localisation cues. The SC readout stage converts pathway populations into coordinate estimates using direct COM, calibration, or recurrent attractor dynamics. The residual SNN then learns context-dependent corrections from the full set of pathway features. This structure supports the central claim tested in Chapter~\ref{ch:results}: biologically motivated pathway populations are useful intermediate representations for a small neuromorphic localisation readout.

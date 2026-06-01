@@ -1,0 +1,57 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={draw, rectangle, minimum height=1.1cm, minimum width=2.5cm, rounded corners=3pt, line width=0.8pt, align=center, fill=white, font=\small\sffamily\bfseries},
+        nobox/.style={rectangle, minimum height=1.1cm, minimum width=2.5cm, align=center, font=\small\sffamily\bfseries},
+        arrow/.style={-{Stealth[scale=1.2]}, line width=0.8pt}
+    ]
+    
+    % --- TOP ROW: LEFT PATHWAY ---
+    \node (l_raster) [nobox] {Left CSR};
+    \node (l_vcn) [block, right=0.8cm of l_raster] {Left VCN};
+    \node (l_mntb) [block, below=0.3cm of l_vcn, xshift=2.5cm] {Left MNTB};
+    \node (l_lso) [block, right=3cm of l_vcn] {Left LSO};
+    
+    % --- BOTTOM ROW: RIGHT PATHWAY ---
+    \node (r_raster) [nobox, below=4.4cm of l_raster] {Right CSR};
+    \node (r_vcn) [block, right=0.8cm of r_raster] {Right VCN};
+    \node (r_mntb) [block, above=0.3cm of r_vcn, xshift=2.5cm] {Right MNTB};
+    \node (r_lso) [block, right=3cm of r_vcn] {Right LSO};
+    
+    % --- MIDDLE ROW: CONVERGENCE ZONE ---
+    \node (mso) [block, below=1.65cm of l_vcn, xshift=-1.5cm] {Combined\\MSO};
+    \node (ic) [block, below=1.65cm of l_lso, minimum width=1.5cm] {IC};
+    \node (sc) [block, right=0.8cm of ic, minimum width=1.5cm] {SC};
+    \node (readout) [nobox, right=0.8cm of sc] {Azimuth\\Readout};
+    
+    % --- ARROWS ---
+    
+    % Ipsilateral Connections
+    \draw [arrow] (l_raster) -- (l_vcn);
+    \draw [arrow] (r_raster) -- (r_vcn);
+    \draw [arrow] (l_vcn) -- (l_lso.west);
+    \draw [arrow] (r_vcn) -- (r_lso.west);
+    
+    % Cross-talk (Contralateral MNTB Inhibitions)
+    \draw [arrow] (l_vcn.south) -- ([yshift=0.5cm]r_mntb.west);
+    \draw [arrow] (r_vcn.north) -- ([yshift=-0.5cm]l_mntb.west);
+    \draw [arrow, dashed] (l_mntb) -- (l_lso);
+    \draw [arrow, dashed] (r_mntb) -- (r_lso);
+    
+    % MSO Bilateral Feed
+    \draw [arrow] ([xshift=-0.2cm]l_vcn.south) -- (mso.north);
+    \draw [arrow] ([xshift=-0.2cm]r_vcn.north) -- (mso.south);
+    
+    % Unification into Midbrain Network
+    \draw [arrow] (l_lso.south) -- (ic.north);
+    \draw [arrow] (mso) -- (ic);
+    \draw [arrow] (r_lso.north) -- (ic.south);
+    
+    % Output Track
+    \draw [arrow] (ic) -- (sc);
+    \draw [arrow] (sc) -- (readout);
+    
+    \end{tikzpicture}
+    \caption{Binaural Azimuth processing network showing MSO time-delay pathway for ITD and cross-contralateral LSO/MNTB pathway for ILD.}
+    \label{fig:azimuth_flowchart}
+\end{figure}

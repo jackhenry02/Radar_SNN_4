@@ -1,0 +1,63 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        >=Stealth,
+        font=\sffamily\small,
+        line width=1.0pt,
+        % --- Node Styles ---
+        vcnNode/.style={rectangle, draw=gray!70, fill=gray!5, thick, rounded corners=3pt, minimum width=2.0cm, minimum height=0.9cm, font=\small\sffamily\bfseries},
+        msoNode/.style={circle, draw=purple!70!black, fill=purple!5, thick, minimum size=1.0cm, align=center, font=\scriptsize\sffamily\bfseries},
+        % --- Connection Styles ---
+        leftLine/.style={->, draw=teal!80!black, line width=1.2pt},
+        rightLine/.style={->, draw=orange!80!black, line width=1.2pt},
+        dropLine/.style={->, line width=1.0pt, dashed, gray!70}
+    ]
+
+    % --- INPUT STATIONS (VCN) ---
+    \node (LVCN) [vcnNode, text=teal!80!black] at (-1.5, 2.0) {Left VCN};
+    \node (RVCN) [vcnNode, text=orange!80!black] at (7.5, 2.0) {Right VCN};
+
+    % --- COINCIDENCE DETECTOR ARRAY (MSO) ---
+    \node (mso1) [msoNode] at (0.5, 0.0) {MSO$_1$};
+    \node (mso2) [msoNode] at (1.8, 0.0) {MSO$_2$};
+    \node (mso3) [msoNode] at (3.0, 0.0) {MSO$_3$}; % Center
+    \node (mso4) [msoNode] at (4.2, 0.0) {MSO$_4$};
+    \node (mso5) [msoNode] at (5.5, 0.0) {MSO$_5$};
+
+    \node[left=0.1cm of mso1, font=\small\sffamily\bfseries, text=purple!80!black, align=right] {Coincidence\\Detectors};
+
+    % --- LEFT AXON DELAY LINE (Teal, sweeps Left-to-Right) ---
+    % Main conduit line across the top
+    \draw [leftLine] (LVCN.south) -- ++(0, -0.5) coordinate (Lstart) -- (5.5, 1) 
+        node[midway, above, font=\scriptsize\sffamily\bfseries, text=teal!80!black] {Left Axonal Delay Line ($\tau_{\text{L}}$)};
+    
+    % Dropping collaterals into MSO nodes
+    \draw [dropLine, teal!80!black] (0.5, 1) -- (mso1.north);
+    \draw [dropLine, teal!80!black] (1.8, 1) -- (mso2.north);
+    \draw [dropLine, teal!80!black] (3.0, 1) -- (mso3.north);
+    \draw [dropLine, teal!80!black] (4.2, 1) -- (mso4.north);
+    \draw [dropLine, teal!80!black] (5.5, 1) -- (mso5.north);
+
+    % --- RIGHT AXON DELAY LINE (Orange, sweeps Right-to-Left) ---
+    % Main conduit line across the bottom
+    \draw [rightLine] (RVCN.south) -- ++(0, -2.55) coordinate (Rstart) -- (0.5, -1)
+        node[midway, below, font=\scriptsize\sffamily\bfseries, text=orange!80!black] {Right Axonal Delay Line ($\tau_{\text{R}}$)};
+
+    % Dropping collaterals into MSO nodes
+    \draw [dropLine, orange!80!black] (5.5, -1) -- (mso5.south);
+    \draw [dropLine, orange!80!black] (4.2, -1) -- (mso4.south);
+    \draw [dropLine, orange!80!black] (3.0, -1) -- (mso3.south);
+    \draw [dropLine, orange!80!black] (1.8, -1) -- (mso2.south);
+    \draw [dropLine, orange!80!black] (0.5, -1) -- (mso1.south);
+
+    % --- VISUAL GRADIENT KEYS / ANNOTATIONS ---
+    \draw [->, line width=0.6pt, gray] (0, 1.6) -- node[above, font=\tiny\sffamily] {Increasing Delay} (3, 1.6);
+    \draw [->, line width=0.6pt, gray] (6.5, -1.7) -- node[below, font=\tiny\sffamily] {Increasing Delay} (3.5, -1.7);
+    
+    \node [right=-0.4cm of mso5, font=\tiny\sffamily, text=teal!80!black, align=left, yshift=0.9cm] {Max Delay\\(Left Input)};
+    \node [left=-0.4cm of mso1, font=\tiny\sffamily, text=orange!80!black, align=right, yshift=-0.9cm] {Max Delay\\(Right Input)};
+
+    \end{tikzpicture}
+    \caption{The Jeffress anatomical delay-line model implemented within the Medial Superior Olive (MSO) sub-circuit. Contralateral and ipsilateral inputs project antiparallel axonal branches across an array of coincidence-detecting principal cells. A given MSO neuron receives its strongest coincident drive when the physical interaural time difference (ITD) of an incoming echo wavefront is compensated by the structural path-length delay ($\Delta\tau = \tau_{\text{L}} - \tau_{\text{R}}$) of the matching collaterals.}
+    \label{fig:jeffress_mso_model}
+\end{figure}

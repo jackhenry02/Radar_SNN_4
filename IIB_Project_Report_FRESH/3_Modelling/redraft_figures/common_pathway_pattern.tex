@@ -1,0 +1,35 @@
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        block/.style={
+            draw,
+            rectangle,
+            rounded corners=3pt,
+            minimum width=2.25cm,
+            minimum height=1.15cm,
+            align=center,
+            fill=white,
+            line width=0.8pt,
+            font=\scriptsize\sffamily\bfseries
+        },
+        arrow/.style={-{Stealth[scale=1.15]}, line width=0.8pt},
+        note/.style={font=\tiny\sffamily, align=center}
+    ]
+        \node (csr) [block] {Cochlear\\Spike Raster};
+        \node (feature) [block, right=0.42cm of csr] {Feature\\Extraction};
+        \node (compare) [block, right=0.42cm of feature] {Cue\\Comparison};
+        \node (population) [block, right=0.42cm of compare] {Candidate\\Population};
+        \node (readout) [block, right=0.42cm of population] {SC-Style\\Readout};
+
+        \draw [arrow] (csr) -- (feature);
+        \draw [arrow] (feature) -- (compare);
+        \draw [arrow] (compare) -- (population);
+        \draw [arrow] (population) -- (readout);
+
+        \node [note, below=0.22cm of feature] {onset timing or\\spectral profile};
+        \node [note, below=0.22cm of compare] {corollary discharge,\\opposite ear, or template};
+        \node [note, below=0.22cm of population] {activity over candidate\\coordinate values};
+    \end{tikzpicture}
+    \caption{Shared computational pattern used by the three localisation pathways. Each pathway preserves an interpretable intermediate population rather than collapsing the received waveform directly into a scalar prediction.}
+    \label{fig:common_pathway_pattern}
+\end{figure}
