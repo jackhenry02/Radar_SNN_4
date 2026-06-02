@@ -1,0 +1,167 @@
+{
+  "experiment": "pfa_delayed_echo_readouts",
+  "setup": {
+    "acoustic_condition": "50 dB environmental noise plus controlled delayed echoes",
+    "epochs": 2,
+    "hidden": 96,
+    "num_steps": 12,
+    "batch_size": 16,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-05,
+    "training_seed": 8202,
+    "attention_location": "after each hidden linear layer and before its LIF neuron",
+    "raw_waveform_variant_included": false,
+    "structured_cache": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_readout/cache_constrained_0p25_5m_pm45_train2000_val400_test400_envnoise50dB_reverb.npz",
+    "csr_cache": "/Users/jackhenry/Library/CloudStorage/OneDrive-UniversityofCambridge/IIB Project work/Offline_copy/Radar_SNN_4/final_model/outputs/trainable_input_baselines/cache_train2000_val400_test400_envnoise50dB_reverb.npz"
+  },
+  "references": {
+    "structured_residual": {
+      "distance_mae_m": 0.02018532894551754,
+      "distance_rmse_m": 0.037256073311679926,
+      "distance_bias_m": 0.0018988583236932755,
+      "azimuth_mae_deg": 3.8984663284104317,
+      "azimuth_rmse_deg": 6.046477187109952,
+      "azimuth_bias_deg": -0.23858717798255383,
+      "elevation_mae_deg": 3.3405174877797252,
+      "elevation_rmse_deg": 5.758459128288092,
+      "elevation_bias_deg": 0.3669898847793229,
+      "euclidean_mae_m": 0.31033852947200413,
+      "euclidean_rmse_m": 0.48324510391727504,
+      "euclidean_max_m": 3.063678328879779,
+      "combined_normalised_error": 0.05496779093851715
+    },
+    "csr_direct": {
+      "distance_mae_m": 0.06316358402371407,
+      "distance_rmse_m": 0.08041966184354635,
+      "distance_bias_m": -0.015378195494413376,
+      "azimuth_mae_deg": 5.899699283344671,
+      "azimuth_rmse_deg": 9.134600304444609,
+      "azimuth_bias_deg": 0.21096055039204656,
+      "elevation_mae_deg": 4.703851863425225,
+      "elevation_rmse_deg": 9.675788171111147,
+      "elevation_bias_deg": 0.2893668490834534,
+      "euclidean_mae_m": 0.26847200418720907,
+      "euclidean_rmse_m": 0.3175393798690966,
+      "euclidean_max_m": 1.0110994488525242,
+      "combined_normalised_error": 0.08275572891098758
+    }
+  },
+  "metrics": {
+    "structured_residual_pfa": {
+      "distance_mae_m": 0.05331810936331749,
+      "distance_rmse_m": 0.06020175945855269,
+      "distance_bias_m": 0.051922411968310676,
+      "azimuth_mae_deg": 6.553199304422985,
+      "azimuth_rmse_deg": 9.617735017088382,
+      "azimuth_bias_deg": -0.4165674108080566,
+      "elevation_mae_deg": 23.25365900993347,
+      "elevation_rmse_deg": 29.34200577652256,
+      "elevation_bias_deg": -12.732830286026001,
+      "euclidean_mae_m": 1.418683146911805,
+      "euclidean_rmse_m": 1.8237245608189203,
+      "euclidean_max_m": 4.3456837218798885,
+      "combined_normalised_error": 0.22434608369352826
+    },
+    "csr_direct_pfa": {
+      "distance_mae_m": 0.7874869778752327,
+      "distance_rmse_m": 0.9185599959189574,
+      "distance_bias_m": 0.7247723440329233,
+      "azimuth_mae_deg": 19.42265886592213,
+      "azimuth_rmse_deg": 22.736502548053064,
+      "azimuth_bias_deg": -11.538578472139003,
+      "elevation_mae_deg": 9.206486890713373,
+      "elevation_rmse_deg": 11.272135356561979,
+      "elevation_bias_deg": 0.8098854720592499,
+      "euclidean_mae_m": 1.4415148636422404,
+      "euclidean_rmse_m": 1.5895194250961402,
+      "euclidean_max_m": 2.520645445332071,
+      "combined_normalised_error": 0.26456687820379704
+    }
+  },
+  "runs": {
+    "structured_residual_pfa": {
+      "history": {
+        "train_loss": [
+          0.07289302162826061,
+          0.06487290561199188
+        ],
+        "val_loss": [
+          0.08525821194052696,
+          0.07641050592064857
+        ],
+        "best_epoch": 1,
+        "best_val_loss": 0.07641050592064857,
+        "training_seconds": 0.1106268749863375,
+        "learned_log_vars": [
+          -0.008000657893717289,
+          -0.00799363013356924,
+          -0.00799784529954195
+        ],
+        "input_dim": 474,
+        "parameter_count": 55597,
+        "splits": {
+          "train": 64,
+          "val": 24,
+          "test": 24
+        }
+      },
+      "metrics": {
+        "distance_mae_m": 0.05331810936331749,
+        "distance_rmse_m": 0.06020175945855269,
+        "distance_bias_m": 0.051922411968310676,
+        "azimuth_mae_deg": 6.553199304422985,
+        "azimuth_rmse_deg": 9.617735017088382,
+        "azimuth_bias_deg": -0.4165674108080566,
+        "elevation_mae_deg": 23.25365900993347,
+        "elevation_rmse_deg": 29.34200577652256,
+        "elevation_bias_deg": -12.732830286026001,
+        "euclidean_mae_m": 1.418683146911805,
+        "euclidean_rmse_m": 1.8237245608189203,
+        "euclidean_max_m": 4.3456837218798885,
+        "combined_normalised_error": 0.22434608369352826
+      }
+    },
+    "csr_direct_pfa": {
+      "history": {
+        "train_loss": [
+          0.394523561000824,
+          0.13406916335225105
+        ],
+        "val_loss": [
+          0.20247965306043625,
+          0.0775317084044218
+        ],
+        "best_epoch": 1,
+        "best_val_loss": 0.0775317084044218,
+        "training_seconds": 0.07297208299860358,
+        "learned_log_vars": [
+          -0.007999277673661709,
+          -0.008019446395337582,
+          -0.00804968923330307
+        ],
+        "input_dim": 960,
+        "parameter_count": 102253,
+        "splits": {
+          "train": 64,
+          "val": 24,
+          "test": 24
+        }
+      },
+      "metrics": {
+        "distance_mae_m": 0.7874869778752327,
+        "distance_rmse_m": 0.9185599959189574,
+        "distance_bias_m": 0.7247723440329233,
+        "azimuth_mae_deg": 19.42265886592213,
+        "azimuth_rmse_deg": 22.736502548053064,
+        "azimuth_bias_deg": -11.538578472139003,
+        "elevation_mae_deg": 9.206486890713373,
+        "elevation_rmse_deg": 11.272135356561979,
+        "elevation_bias_deg": 0.8098854720592499,
+        "euclidean_mae_m": 1.4415148636422404,
+        "euclidean_rmse_m": 1.5895194250961402,
+        "euclidean_max_m": 2.520645445332071,
+        "combined_normalised_error": 0.26456687820379704
+      }
+    }
+  }
+}
